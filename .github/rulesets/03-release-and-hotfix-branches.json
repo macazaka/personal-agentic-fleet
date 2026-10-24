@@ -1,0 +1,48 @@
+{
+  "name": "03 — Release & Hotfix Branches (release/*, hotfix/*, sec/*)",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": [
+        "refs/heads/release/*",
+        "refs/heads/hotfix/*",
+        "refs/heads/sec/*"
+      ],
+      "exclude": []
+    }
+  },
+  "bypass_actors": [],
+  "rules": [
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    },
+    {
+      "type": "required_linear_history"
+    },
+    {
+      "type": "required_signatures"
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "do_not_enforce_on_create": true,
+        "required_status_checks": [
+          {
+            "context": "12-Layer Security & Python 3.10 Matrix"
+          },
+          {
+            "context": "12-Layer Security & Python 3.11 Matrix"
+          },
+          {
+            "context": "12-Layer Security & Python 3.12 Matrix"
+          }
+        ]
+      }
+    }
+  ]
+}

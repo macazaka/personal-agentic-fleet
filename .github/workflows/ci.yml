@@ -6,8 +6,12 @@ on:
   pull_request:
     branches: [ main, master ]
 
+permissions:
+  contents: read
+
 jobs:
   test:
+    name: Test Suite (${{ matrix.os }}, Python ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -32,4 +36,3 @@ jobs:
     - name: Run Test Suite
       run: |
         python -m pytest tests/
-
