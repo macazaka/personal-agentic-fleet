@@ -1,0 +1,16 @@
+{
+  "id": "pr_review",
+  "name": "Admin PR Review & CI Quality Gate",
+  "version": "1.0.0",
+  "icon": "🛡️",
+  "description": "Admin-only GitHub Pull Request auditor, CI health monitor, and Dependabot automation.",
+  "permissions": [
+    "db:read",
+    "db:write",
+    "event_bus:publish",
+    "event_bus:subscribe",
+    "network:github_api",
+    "ui:render"
+  ]
+}
+

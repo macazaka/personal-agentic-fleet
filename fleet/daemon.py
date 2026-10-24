@@ -39,7 +39,9 @@ class FleetDaemon:
         self.security_scan_interval_sec = max(60, scan_mins * 60)
         self.last_security_scan_time = time.time()
         self.health_reminders_triggered = set()
-        self.last_reminder_reset_date = "" 
+        self.last_reminder_reset_date = ""
+        self.pr_review_interval_sec = 3600  # 1 hour
+        self.last_pr_review_time = time.time()
 
     def check_and_trigger(self):
         now = datetime.now()
@@ -153,6 +155,29 @@ class FleetDaemon:
             self.run_scheduled_security_scan(now)
             self.last_security_scan_time = now_ts
 
+        # 6. Scheduled Admin PR Review & CI Quality Gate Pulse (Every 60 mins)
+        if (now_ts - self.last_pr_review_time) >= self.pr_review_interval_sec:
+            self.run_scheduled_pr_review(now)
+            self.last_pr_review_time = now_ts
+
+
+    def run_scheduled_pr_review(self, now: datetime = None):
+        """Audits open PRs and CI status deterministically (Admin Only, 0 tokens)."""
+        if now is None:
+            now = datetime.now()
+        try:
+            from fleet.agents.pr_review.agent import PRReviewAgent
+            agent = PRReviewAgent()
+            audit_res = agent.audit_pull_requests()
+            ci_res = agent.check_ci_status()
+            open_count = audit_res.get("open_count", 0)
+            if open_count > 0:
+                print(f"[{now.strftime('%H:%M:%S')}] Admin PR Gate: {open_count} open PR(s) detected.")
+            if ci_res.get("status") == "FAILING":
+                fail_count = len(ci_res.get("failing_runs", []))
+                print(f"[{now.strftime('%H:%M:%S')}] Admin CI Monitor: {fail_count} failing workflow run(s) on main.")
+        except Exception as e:
+            print(f"[{now.strftime('%H:%M:%S')}] PR review daemon error: {e}")
     def run_scheduled_security_scan(self, now: datetime = None):
         """Runs the zero-token 6-layer security & privacy audit and alerts via Windows Toast on findings."""
         if now is None:

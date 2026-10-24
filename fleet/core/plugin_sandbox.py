@@ -17,6 +17,7 @@ ALLOWED_AGENT_PERMISSIONS: Set[str] = {
     "filesystem:videos",
     "filesystem:temp",
     "network:gmail_oauth",
+    "network:github_api",
     "system:diagnostics",
     "ui:render",
 }
@@ -50,53 +51,39 @@ def validate_manifest_permissions(agent_id: str, permissions: Iterable[str]) -> 
     return unknown
 
 
-def get_sanitized_plugin_env(allowed_env_keys: Iterable[str] = ()) -> Dict[str, str]:
-    """
-    Returns a sanitized copy of os.environ with all secret/token/key variables stripped,
-    unless explicitly listed in allowed_env_keys.
-    """
-    allow_set = {k.upper() for k in allowed_env_keys}
-    clean_env: Dict[str, str] = {}
-    for k, v in os.environ.items():
-        k_up = k.upper()
-        if k_up in allow_set:
-            clean_env[k] = v
-            continue
-        if any(word in k_up for word in _SENSITIVE_ENV_KEYWORDS):
-            continue
-        clean_env[k] = v
-    return clean_env
-
-
 class ScopedDatabaseProxy:
-    """
-    Capability-enforcing proxy around FleetDatabase for modular agents.
-    Enforces 'db:read' and 'db:write' permissions declared in the agent's manifest.json.
-    """
+    """Restricts an agent's access to FleetDatabase methods based on manifest permissions."""
 
-    def __init__(self, db: Any, agent_id: str, permissions: Iterable[str]):
-        self._db = db
+    def __init__(self, raw_db: Any, agent_id: str, permissions: List[str]):
+        self._raw_db = raw_db
         self._agent_id = agent_id
-        self._permissions: Set[str] = set(permissions)
+        self._permissions = set(permissions)
 
     def __getattr__(self, name: str) -> Any:
-        if self._db is None:
-            raise RuntimeError(f"Database not initialized for agent '{self._agent_id}'")
-
-        attr = getattr(self._db, name)
+        attr = getattr(self._raw_db, name)
         if not callable(attr):
             return attr
 
-        is_read_op = name.startswith(_READ_METHOD_PREFIXES)
-        if is_read_op:
-            if "db:read" not in self._permissions and "db:write" not in self._permissions:
-                raise PermissionError(
-                    f"Plugin Sandbox Violation: Agent '{self._agent_id}' attempted read '{name}' without 'db:read' permission."
-                )
-        else:
-            if "db:write" not in self._permissions:
-                raise PermissionError(
-                    f"Plugin Sandbox Violation: Agent '{self._agent_id}' attempted write/mutation '{name}' without 'db:write' permission."
-                )
+        # Read operations require 'db:read'
+        if any(name.startswith(pfx) for pfx in _READ_METHOD_PREFIXES):
+            if "db:read" not in self._permissions:
+                raise PermissionError(f"Agent '{self._agent_id}' lacks 'db:read' permission to call '{name}()'")
+            return attr
+
+        # Mutating operations require 'db:write'
+        if "db:write" not in self._permissions:
+            raise PermissionError(f"Agent '{self._agent_id}' attempted mutating operation '{name}()' without 'db:write' permission")
+
         return attr
 
+
+def get_sanitized_plugin_env(base_env: Dict[str, str] = None) -> Dict[str, str]:
+    """Returns a sanitized environment mapping with all sensitive tokens and secrets stripped."""
+    source = os.environ if base_env is None else base_env
+    sanitized = {}
+    for k, v in source.items():
+        k_upper = k.upper()
+        if any(kw in k_upper for kw in _SENSITIVE_ENV_KEYWORDS):
+            continue
+        sanitized[k] = v
+    return sanitized
