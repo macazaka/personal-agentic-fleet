@@ -328,7 +328,13 @@ def test_optimizer_edge_cases_and_error_handling():
         pycache.mkdir()
         dummy = pycache / "sample.pyc"
         dummy.write_text("x")
-        with patch.object(Path, "stat", side_effect=OSError("stat error")):
+        orig_stat = Path.stat
+        def mock_stat_err(self, *args, **kwargs):
+            if str(self).endswith(".pyc") or "sample" in str(self):
+                raise OSError("stat error")
+            return orig_stat(self, *args, **kwargs)
+
+        with patch.object(Path, "stat", side_effect=mock_stat_err):
             res = get_dev_cache_info(target_path=tmp_dir)
             assert res["dir_count"] >= 2
 

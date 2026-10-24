@@ -112,8 +112,11 @@ def scan_directory(dir_path: str) -> Dict[str, Any]:
 
 def find_large_files(dir_path: str, min_size_mb: float = 100.0, limit: int = 15) -> List[Dict[str, Any]]:
     """Locate large files in a folder to help reclaim disk space."""
-    target = Path(dir_path).expanduser().resolve()
-    if not target.exists():
+    try:
+        target = Path(dir_path).expanduser().resolve()
+        if not target.exists():
+            return []
+    except Exception:
         return []
 
     large_files = []
@@ -131,7 +134,7 @@ def find_large_files(dir_path: str, min_size_mb: float = 100.0, limit: int = 15)
                             "path": str(file_path),
                             "size_mb": round(size / (1024 * 1024), 2)
                         })
-                except (PermissionError, FileNotFoundError):
+                except (PermissionError, FileNotFoundError, OSError):
                     continue
     except Exception:
         pass

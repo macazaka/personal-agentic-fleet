@@ -94,7 +94,13 @@ def test_find_large_files_permission_error():
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
         (tmp_path / "f1.txt").write_text("hello")
-        with patch("pathlib.Path.stat", side_effect=PermissionError("Locked")):
+        orig_stat = Path.stat
+        def mock_stat_locked(self, *args, **kwargs):
+            if str(self).endswith(".txt") or "f1" in str(self):
+                raise PermissionError("Locked")
+            return orig_stat(self, *args, **kwargs)
+
+        with patch.object(Path, "stat", side_effect=mock_stat_locked):
             res = sys_tools.find_large_files(str(tmp_path), min_size_mb=0.0)
             assert res == []
 

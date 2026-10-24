@@ -531,15 +531,18 @@ def get_active_transcript_path() -> Optional[Path]:
 
     sessions = []
     for brain_dir in search_dirs:
-        if brain_dir.exists():
-            for d in brain_dir.iterdir():
-                if d.is_dir():
-                    t_file = d / ".system_generated" / "logs" / "transcript.jsonl"
+        try:
+            if brain_dir.is_dir():
+                for d in brain_dir.iterdir():
                     try:
-                        if t_file.exists():
-                            sessions.append((t_file.stat().st_mtime, t_file))
+                        if d.is_dir():
+                            t_file = d / ".system_generated" / "logs" / "transcript.jsonl"
+                            if t_file.is_file():
+                                sessions.append((t_file.stat().st_mtime, t_file))
                     except (FileNotFoundError, OSError):
                         pass
+        except (FileNotFoundError, OSError):
+            pass
 
     if not sessions:
         return None

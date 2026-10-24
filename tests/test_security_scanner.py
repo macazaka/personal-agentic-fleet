@@ -280,15 +280,18 @@ def test_daemon_scheduled_security_scan_runs():
     assert report["score"] == 100
 
 
-def test_git_hooks_installer(tmp_path: Path):
-    fake_git_hooks = tmp_path / ".git" / "hooks"
-    fake_git_hooks.mkdir(parents=True)
-    res = install_git_hooks(repo_root=tmp_path)
-    assert res["status"] == "installed"
-    assert (fake_git_hooks / "pre-commit").is_file()
-    assert (fake_git_hooks / "pre-push").is_file()
-    content = (fake_git_hooks / "pre-commit").read_text(encoding="utf-8")
-    assert "run_security_scan" in content
+def test_git_hooks_installer():
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp_dir_str:
+        tmp_path = Path(tmp_dir_str)
+        fake_git_hooks = tmp_path / ".git" / "hooks"
+        fake_git_hooks.mkdir(parents=True)
+        res = install_git_hooks(repo_root=tmp_path)
+        assert res["status"] == "installed"
+        assert (fake_git_hooks / "pre-commit").is_file()
+        assert (fake_git_hooks / "pre-push").is_file()
+        content = (fake_git_hooks / "pre-commit").read_text(encoding="utf-8")
+        assert "run_security_scan" in content
 
 
 def test_security_scan_api_endpoints():

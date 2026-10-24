@@ -16,6 +16,12 @@ def main():
     if res.stderr:
         print(res.stderr, file=sys.stderr)
 
+    try:
+        with open("pytest_log.txt", "w", encoding="utf-8") as f:
+            f.write(res.stdout + "\n" + res.stderr)
+    except Exception:
+        pass
+
     if res.returncode != 0:
         lines = (res.stdout + "\n" + res.stderr).splitlines()
         for line in lines:

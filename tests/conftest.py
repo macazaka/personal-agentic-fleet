@@ -37,6 +37,39 @@ if sys.platform != "win32":
             psapi = types.SimpleNamespace(EmptyWorkingSet=lambda *args, **kwargs: False)
         ctypes.windll = DummyWindll()
 
+# Zero-dependency Google OAuth shims for CI runner when optional vendor SDKs are absent
+for mod_name in [
+    "google",
+    "google.auth",
+    "google.auth.transport",
+    "google.auth.transport.requests",
+    "google.oauth2",
+    "google.oauth2.credentials",
+    "google_auth_oauthlib",
+    "google_auth_oauthlib.flow",
+    "googleapiclient",
+    "googleapiclient.discovery",
+]:
+    if mod_name not in sys.modules:
+        sys.modules[mod_name] = types.ModuleType(mod_name)
+
+if not hasattr(sys.modules["google.auth.transport.requests"], "Request"):
+    sys.modules["google.auth.transport.requests"].Request = type("Request", (), {})
+if not hasattr(sys.modules["google.oauth2.credentials"], "Credentials"):
+    sys.modules["google.oauth2.credentials"].Credentials = type(
+        "Credentials",
+        (),
+        {"from_authorized_user_file": lambda *a, **k: None}
+    )
+if not hasattr(sys.modules["google_auth_oauthlib.flow"], "InstalledAppFlow"):
+    sys.modules["google_auth_oauthlib.flow"].InstalledAppFlow = type(
+        "InstalledAppFlow",
+        (),
+        {"from_client_secrets_file": lambda *a, **k: None}
+    )
+if not hasattr(sys.modules["googleapiclient.discovery"], "build"):
+    sys.modules["googleapiclient.discovery"].build = lambda *a, **k: None
+
 
 @pytest.fixture(autouse=True, scope="session")
 def isolate_test_session():

@@ -422,12 +422,13 @@ def test_token_exhaustion_and_vaulting():
             mock_next.assert_called_once()
 
     # 5. _execute_agy_or_fallback handling 429 quota exception
-    with patch("pathlib.Path.exists", return_value=True):
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="429 ResourceExhausted: Quota exceeded")
-            with patch("fleet.core.antigravity_mirror.handle_token_exhaustion") as mock_handle:
-                _execute_agy_or_fallback("Test command with error")
-                mock_handle.assert_called_once()
+    with patch("fleet.core.antigravity_mirror.get_active_transcript_path", return_value=None):
+        with patch("pathlib.Path.exists", return_value=True):
+            with patch("subprocess.run") as mock_run:
+                mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="429 ResourceExhausted: Quota exceeded")
+                with patch("fleet.core.antigravity_mirror.handle_token_exhaustion") as mock_handle:
+                    _execute_agy_or_fallback("Test command with error")
+                    mock_handle.assert_called_once()
 
     # Cleanup state after test
     test_db.set_setting("token_exhaustion_override", "")
