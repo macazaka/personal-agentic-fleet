@@ -1,0 +1,15 @@
+{
+  "id": "gmail",
+  "name": "Gmail Intelligence",
+  "version": "1.8.0",
+  "icon": "\ud83d\udcec",
+  "description": "5-folder deterministic email classifier and 1-click unsubscribe engine.",
+  "permissions": [
+    "db:read",
+    "db:write",
+    "network:gmail_oauth",
+    "event_bus:publish",
+    "event_bus:subscribe",
+    "ui:render"
+  ]
+}

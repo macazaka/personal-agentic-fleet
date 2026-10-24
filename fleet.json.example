@@ -1,0 +1,37 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 7890,
+    "default_agent": "health"
+  },
+  "agents": {
+    "health": {
+      "enabled": true,
+      "videos_directory": "./data/videos",
+      "reminders_enabled": true
+    },
+    "overview": {
+      "enabled": true
+    },
+    "optimizer": {
+      "enabled": true,
+      "scan_interval_hours": 6
+    },
+    "antigravity": {
+      "enabled": true
+    },
+    "backlog": {
+      "enabled": true
+    },
+    "gmail": {
+      "enabled": false,
+      "credentials_path": "fleet/data/user/client_secret.json"
+    }
+  },
+  "security": {
+    "scan_interval_minutes": 60,
+    "block_commits_on_findings": true,
+    "toast_alerts_on_findings": true
+  }
+}
+

@@ -1,0 +1,14 @@
+{
+  "id": "optimizer",
+  "name": "PC Optimizer",
+  "version": "1.8.0",
+  "icon": "\ud83d\ude80",
+  "description": "Windows PC diagnostics, temp file cleanup, DNS flush, and RAM working-set optimization.",
+  "permissions": [
+    "db:read",
+    "db:write",
+    "filesystem:temp",
+    "system:diagnostics",
+    "ui:render"
+  ]
+}

@@ -1,0 +1,315 @@
+{
+  "timestamp": "2026-10-24 13:28:01",
+  "total_tests": 89,
+  "passed_tests": 89,
+  "failed_tests": 0,
+  "skipped_tests": 0,
+  "pass_pct": 100.0,
+  "coverage_pct": 88.85,
+  "duration_sec": 36.81,
+  "status": "PASS",
+  "exit_code": 0,
+  "tests": [
+    {
+      "name": "tests/test_agent_registry.py::test_fleet_agent_base_contract",
+      "status": "PASS",
+      "duration_sec": 0.0013
+    },
+    {
+      "name": "tests/test_agent_registry.py::test_agent_registry_discover_built_in_agents",
+      "status": "PASS",
+      "duration_sec": 0.031
+    },
+    {
+      "name": "tests/test_agent_registry.py::test_agent_registry_manifests_sorting_and_default",
+      "status": "PASS",
+      "duration_sec": 0.0275
+    },
+    {
+      "name": "tests/test_agent_registry.py::test_agent_registry_respects_disabled_agent",
+      "status": "PASS",
+      "duration_sec": 0.0162
+    },
+    {
+      "name": "tests/test_agent_registry.py::test_load_fleet_config_defaults",
+      "status": "PASS",
+      "duration_sec": 0.0015
+    },
+    {
+      "name": "tests/test_antigravity_mirror.py::test_clean_user_input",
+      "status": "PASS",
+      "duration_sec": 0.0027
+    },
+    {
+      "name": "tests/test_antigravity_mirror.py::test_transcript_parsing",
+      "status": "PASS",
+      "duration_sec": 0.0422
+    },
+    {
+      "name": "tests/test_antigravity_mirror.py::test_execute_dashboard_commands",
+      "status": "PASS",
+      "duration_sec": 0.447
+    },
+    {
+      "name": "tests/test_antigravity_mirror.py::test_transcript_error_and_tool_parsing",
+      "status": "PASS",
+      "duration_sec": 0.0297
+    },
+    {
+      "name": "tests/test_antigravity_mirror.py::test_transcript_empty_sessions_and_tool_args",
+      "status": "PASS",
+      "duration_sec": 0.0559
+    },
+    {
+      "name": "tests/test_antigravity_mirror.py::test_models_and_usage_details",
+      "status": "PASS",
+      "duration_sec": 0.0971
+    },
+    {
+      "name": "tests/test_antigravity_mirror.py::test_image_uploads_and_agent_queueing",
+      "status": "PASS",
+      "duration_sec": 0.4218
+    },
+    {
+      "name": "tests/test_antigravity_mirror.py::test_transcript_media_parsing",
+      "status": "PASS",
+      "duration_sec": 0.024
+    },
+    {
+      "name": "tests/test_antigravity_mirror.py::test_token_exhaustion_and_vaulting",
+      "status": "PASS",
+      "duration_sec": 0.2645
+    },
+    {
+      "name": "tests/test_antigravity_mirror.py::test_execute_dashboard_command_task_formats",
+      "status": "PASS",
+      "duration_sec": 0.1553
+    },
+    {
+      "name": "tests/test_antigravity_mirror.py::test_parallel_agent_pool_and_fast_track",
+      "status": "PASS",
+      "duration_sec": 0.8618
+    },
+    {
+      "name": "tests/test_app.py::test_is_port_in_use",
+      "status": "PASS",
+      "duration_sec": 0.057
+    },
+    {
+      "name": "tests/test_app.py::test_open_browser_delayed",
+      "status": "PASS",
+      "duration_sec": 0.0034
+    },
+    {
+      "name": "tests/test_app.py::test_app_main_scenarios",
+      "status": "PASS",
+      "duration_sec": 0.0468
+    },
+    {
+      "name": "tests/test_app.py::test_app_pythonw_redirect",
+      "status": "PASS",
+      "duration_sec": 0.0059
+    },
+    {
+      "name": "tests/test_app.py::test_app_pid_and_server_exceptions",
+      "status": "PASS",
+      "duration_sec": 0.0183
+    },
+    {
+      "name": "tests/test_briefing.py::test_briefing_engine_scenarios",
+      "status": "PASS",
+      "duration_sec": 0.7161
+    },
+    {
+      "name": "tests/test_briefing.py::test_extract_meeting_agenda",
+      "status": "PASS",
+      "duration_sec": 0.0011
+    },
+    {
+      "name": "tests/test_config.py::test_config_paths",
+      "status": "PASS",
+      "duration_sec": 0.0011
+    },
+    {
+      "name": "tests/test_config.py::test_config_constants",
+      "status": "PASS",
+      "duration_sec": 0.0015
+    },
+    {
+      "name": "tests/test_daemon.py::test_daemon_triggers",
+      "status": "PASS",
+      "duration_sec": 0.0089
+    },
+    {
+      "name": "tests/test_daemon.py::test_daemon_run_loop_interrupt",
+      "status": "PASS",
+      "duration_sec": 0.0064
+    },
+    {
+      "name": "tests/test_database.py::test_database_lifecycle",
+      "status": "PASS",
+      "duration_sec": 1.7079
+    },
+    {
+      "name": "tests/test_database.py::test_database_test_isolation",
+      "status": "PASS",
+      "duration_sec": 0.0036
+    },
+    {
+      "name": "tests/test_database.py::test_email_caching_and_health_operations",
+      "status": "PASS",
+      "duration_sec": 0.9574
+    },
+    {
+      "name": "tests/test_email_classifier.py::test_classify_deterministic_all_categories",
+      "status": "PASS",
+      "duration_sec": 0.009
+    },
+    {
+      "name": "tests/test_email_classifier.py::test_email_classifier_tier1_fallbacks_and_batch",
+      "status": "PASS",
+      "duration_sec": 0.0017
+    },
+    {
+      "name": "tests/test_event_bus.py::test_event_bus_full_dispatch",
+      "status": "PASS",
+      "duration_sec": 1.2145
+    },
+    {
+      "name": "tests/test_exercise_manager.py::test_video_type_and_category_classification",
+      "status": "PASS",
+      "duration_sec": 0.0012
+    },
+    {
+      "name": "tests/test_exercise_manager.py::test_list_exercise_videos_separation",
+      "status": "PASS",
+      "duration_sec": 0.0145
+    },
+    {
+      "name": "tests/test_exercise_manager.py::test_strength_training_plan_6_days_and_sunday_rest",
+      "status": "PASS",
+      "duration_sec": 0.0011
+    },
+    {
+      "name": "tests/test_exercise_manager.py::test_ffd_exercise_protocol",
+      "status": "PASS",
+      "duration_sec": 0.0006
+    },
+    {
+      "name": "tests/test_gmail_client.py::test_lookback_query_and_credentials",
+      "status": "PASS",
+      "duration_sec": 0.0079
+    },
+    {
+      "name": "tests/test_gmail_client.py::test_gmail_manager_mock_and_sync",
+      "status": "PASS",
+      "duration_sec": 0.8212
+    },
+    {
+      "name": "tests/test_gmail_client.py::test_gmail_auth_and_refresh",
+      "status": "PASS",
+      "duration_sec": 0.9081
+    },
+    {
+      "name": "tests/test_gmail_client.py::test_extract_unsubscribe_info",
+      "status": "PASS",
+      "duration_sec": 0.001
+    },
+    {
+      "name": "tests/test_gmail_client.py::test_gmail_unsubscribe_methods",
+      "status": "PASS",
+      "duration_sec": 0.8992
+    },
+    {
+      "name": "tests/test_gmail_client.py::test_fetch_real_emails_error_handling",
+      "status": "PASS",
+      "duration_sec": 0.2866
+    },
+    {
+      "name": "tests/test_gmail_client.py::test_get_email_full_body",
+      "status": "PASS",
+      "duration_sec": 0.4764
+    },
+    {
+      "name": "tests/test_gmail_client.py::test_incremental_caching_and_known_ids",
+      "status": "PASS",
+      "duration_sec": 0.6577
+    },
+    {
+      "name": "tests/test_legacy_verification.py::test_legacy_test_fleet_module",
+      "status": "PASS",
+      "duration_sec": 0.2892
+    },
+    {
+      "name": "tests/test_legacy_verification.py::test_legacy_test_gmail_classifier_module",
+      "status": "PASS",
+      "duration_sec": 0.2353
+    },
+    {
+      "name": "tests/test_mcp_server.py::test_mcp_all_tools",
+      "status": "PASS",
+      "duration_sec": 0.01
+    },
+    {
+      "name": "tests/test_optimizer.py::test_get_memory_status_normal",
+      "status": "PASS",
+      "duration_sec": 0.0017
+    },
+    {
+      "name": "tests/test_optimizer.py::test_get_memory_status_fallback",
+      "status": "PASS",
+      "duration_sec": 0.0241
+    },
+    {
+      "name": "tests/test_optimizer.py::test_get_top_processes_csv",
+      "status": "PASS",
+      "duration_sec": 0.0029
+    },
+    {
+      "name": "tests/test_optimizer.py::test_get_top_processes_fallback",
+      "status": "PASS",
+      "duration_sec": 0.002
+    },
+    {
+      "name": "tests/test_optimizer.py::test_get_temp_bloat_info",
+      "status": "PASS",
+      "duration_sec": 0.0079
+    },
+    {
+      "name": "tests/test_optimizer.py::test_get_dev_cache_info",
+      "status": "PASS",
+      "duration_sec": 0.0332
+    },
+    {
+      "name": "tests/test_optimizer.py::test_get_startup_apps",
+      "status": "PASS",
+      "duration_sec": 0.0033
+    },
+    {
+      "name": "tests/test_optimizer.py::test_clean_temp_files",
+      "status": "PASS",
+      "duration_sec": 0.0345
+    },
+    {
+      "name": "tests/test_optimizer.py::test_clean_temp_files_locked",
+      "status": "PASS",
+      "duration_sec": 0.0062
+    },
+    {
+      "name": "tests/test_optimizer.py::test_flush_dns_cache_success",
+      "status": "PASS",
+      "duration_sec": 0.0026
+    },
+    {
+      "name": "tests/test_optimizer.py::test_flush_dns_cache_error",
+      "status": "PASS",
+      "duration_sec": 0.0015
+    },
+    {
+      "name": "tests/test_optimizer.py::test_purge_dev_caches",
+      "status": "PASS",
+      "duration_sec": 0.0326
+    }
+  ],
+  "run_id": 17
+}

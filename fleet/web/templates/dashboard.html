@@ -1,0 +1,1602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Personal Agentic Fleet — Control Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="brand">
+        <div class="brand-icon">⚡</div>
+        <div class="brand-title">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <h1 style="margin: 0;">Personal Agentic Fleet</h1>
+            <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.35); font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;" onclick="openReleaseNotesModal()" title="View Release Notes & Versions">
+              <span id="fleetHeaderVerBadge">v1.8.0</span>
+              <span style="font-size: 9px; opacity: 0.8;">📜</span>
+            </span>
+          </div>
+          <p>Windows Desktop Control Center • Indian Standard Time (IST, UTC+05:30) • Powered by Antigravity</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="nav-tabs" id="dynamicNavTabs">
+          <button class="nav-tab active" id="tabBtnHealth" onclick="switchTab('health')">🌿 Health & Wellness</button>
+          <button class="nav-tab" id="tabBtnOverview" onclick="switchTab('overview')">⚡ Overview</button>
+          <button class="nav-tab" id="tabBtnAntigravity" onclick="switchTab('antigravity')">🤖 Antigravity Live</button>
+          <button class="nav-tab" id="tabBtnBacklog" onclick="switchTab('backlog')">📋 Feature Backlog</button>
+          <button class="nav-tab" id="tabBtnOptimizer" onclick="switchTab('optimizer')">🚀 PC Optimizer</button>
+        </div>
+        <div class="status-badge" id="securityHeaderBadge" onclick="runSecurityScanFromHeader()" style="cursor: pointer; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1);" title="10-Layer Automated Security & Privacy Scanner (Click to run live audit)">
+          <span>🛡️</span>
+          <span id="securityHeaderBadgeText">Security: 100/100</span>
+        </div>
+        <div class="status-badge">
+          <div class="pulse-dot"></div>
+          Fleet Active
+        </div>
+        <button class="btn btn-primary" onclick="triggerNotification()">
+          🔔 Send Alert
+        </button>
+      </div>
+    </header>
+
+    <!-- View 1: Overview -->
+    <div id="viewOverview" style="display: none;">
+      <!-- Morning Briefing Card -->
+      <div class="briefing-box" id="briefingBox">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <span style="font-size: 12px; font-weight: 600; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 1px;" id="greetingText">Good Morning</span>
+          <div class="briefing-headline" id="briefingHeadline">Loading today's briefing...</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn" style="font-size: 12px;" onclick="speakBriefing()" title="Listen to spoken audio briefing">🔊 Speak</button>
+          <button class="btn" style="font-size: 12px;" onclick="fetchBriefing()">🔄 Refresh</button>
+        </div>
+      </div>
+      <div class="briefing-stats" id="statsContainer">
+        <!-- Rendered via JS -->
+      </div>
+      <div id="briefingMeetingsContainer" style="display: none; margin-top: 14px; padding: 12px 14px; border-radius: 8px; background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.25);">
+      </div>
+    </div>
+
+    <!-- Automated Unit Test Suite & Code Coverage Card -->
+    <div class="test-card" style="margin-bottom: 24px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 18px 22px; backdrop-filter: blur(12px);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 20px;">🧪</span>
+          <div>
+            <div style="font-size: 15px; font-weight: 700; color: var(--text);">Automated Unit Test Suite & Code Coverage</div>
+            <div style="font-size: 11.5px; color: var(--text-muted); display: flex; gap: 14px; margin-top: 3px; flex-wrap: wrap;">
+              <span>⚡ Frequency: <strong style="color: var(--accent-cyan);">Every 30 Mins (Auto)</strong></span>
+              <span>🕒 Last Run: <strong id="testLastRun" style="color: var(--text);">-</strong></span>
+              <span>💰 Compute Cost: <strong style="color: var(--accent-green);">$0.00 (0 Tokens)</strong></span>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span id="testStatusBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 12px; padding: 4px 10px;">PASS</span>
+          <button class="btn btn-primary" id="btnRunTests" style="font-size: 12px; padding: 6px 14px;" onclick="runTestsNow()">⚡ Run Tests Now</button>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 12px 14px;">
+          <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Pass Rate</div>
+          <div id="testPassPct" style="font-size: 22px; font-weight: 800; color: var(--accent-cyan); margin-top: 4px;">100.0%</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 12px 14px;">
+          <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Tests Run</div>
+          <div id="testRunCount" style="font-size: 22px; font-weight: 800; color: var(--accent-blue); margin-top: 4px;">25 / 25</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 12px 14px;">
+          <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Code Coverage</div>
+          <div id="testCoveragePct" style="font-size: 22px; font-weight: 800; color: var(--accent-green); margin-top: 4px;">98.5%</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 12px 14px;">
+          <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Execution Time</div>
+          <div id="testDuration" style="font-size: 22px; font-weight: 800; color: var(--accent-purple); margin-top: 4px;">1.2s</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="dashboard-grid">
+      <!-- Left Column: Tasks & Email Intelligence -->
+      <div>
+        <!-- Task Management Card -->
+        <div class="card">
+          <div class="card-title">
+            <span>🎯 Daily Tasks & Goals</span>
+            <span style="font-size: 12px; color: var(--text-muted);" id="taskCounter">0 Tasks</span>
+          </div>
+
+          <!-- Add Task Form -->
+          <div class="task-input-bar">
+            <input type="text" id="taskTitle" placeholder="Task title (e.g. 'Review quarterly budget')..." style="flex: 1.2;">
+            <input type="text" id="taskDesc" placeholder="Description / details (required)..." style="flex: 1.8;" onkeypress="if(event.key==='Enter') addTask()">
+            <select id="taskPriority" style="min-width: 110px;">
+              <option value="P1">🔴 P1 High</option>
+              <option value="P2" selected>🟡 P2 Medium</option>
+              <option value="P3">🟢 P3 Low</option>
+            </select>
+            <select id="taskSource" style="min-width: 120px;">
+              <option value="Dashboard" selected>💻 Dashboard</option>
+              <option value="Manual">📍 Manual</option>
+              <option value="Antigravity">⚡ Antigravity</option>
+              <option value="Meeting">📅 Meeting</option>
+              <option value="Email">📬 Email</option>
+            </select>
+            <button class="btn btn-primary" onclick="addTask()">+ Add</button>
+          </div>
+
+          <!-- Task List -->
+          <div class="task-list" id="taskList">
+            <!-- Dynamic task items -->
+          </div>
+        </div>
+
+        <!-- Email Intelligence Card -->
+        <div class="card">
+          <div class="card-title">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <span>📬 Email Intelligence</span>
+              <span style="font-size: 12px; color: var(--text-muted);">(This Month & Last Month)</span>
+              <span style="font-size: 11px; padding: 2px 7px; border-radius: 6px; background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 600;" title="Tier 0 Deterministic: Email intelligence never uses tokens. Tokens are strictly reserved for code enhancement.">⚡ 0 Tokens ($0.00)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span id="emailLiveStatus" style="font-size: 11px; padding: 3px 8px; border-radius: 6px; background: rgba(0, 242, 254, 0.1); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.3);">5 Folders</span>
+              <button class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;" id="btnSyncEmails" onclick="syncEmails()">
+                ⚡ Sync & Classify
+              </button>
+            </div>
+          </div>
+
+          <!-- Folder Category Pills -->
+          <div class="email-pill-grid" id="emailPillGrid">
+            <!-- Rendered via JS -->
+          </div>
+
+          <!-- Filter Tabs -->
+          <div style="display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto;" id="emailFilterBar">
+            <button class="filter-btn active" onclick="filterEmails('ALL')">All</button>
+            <button class="filter-btn" onclick="filterEmails('Meetings')">📅 Meetings</button>
+            <button class="filter-btn" onclick="filterEmails('Respond')">💬 Respond</button>
+            <button class="filter-btn" onclick="filterEmails('Note')">📝 Note</button>
+            <button class="filter-btn" onclick="filterEmails('FYI')">ℹ️ FYI</button>
+            <button class="filter-btn" onclick="filterEmails('Ignore')">🚫 Ignore</button>
+          </div>
+
+          <!-- Email Feed -->
+          <div id="emailList" style="max-height: 380px; overflow-y: auto;">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Routines, Performance & Activity -->
+      <div>
+        <!-- Quick PC Performance Card -->
+        <div class="card">
+          <div class="card-title" style="margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span>🚀 PC Performance & Tuning</span>
+              <span id="quickOptBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); font-size: 11px;">Health: --/100</span>
+            </div>
+            <button class="btn btn-primary" style="font-size: 11px; padding: 4px 10px;" onclick="switchTab('optimizer')">
+              Optimizer Pane →
+            </button>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+            <div class="stat-pill" style="min-width: unset; padding: 8px 10px;">
+              <span class="label">RAM Load</span>
+              <span class="val" id="quickOptRam" style="font-size: 15px; font-weight: 700; color: #fff;">--%</span>
+            </div>
+            <div class="stat-pill" style="min-width: unset; padding: 8px 10px;">
+              <span class="label">C: Free</span>
+              <span class="val" id="quickOptDisk" style="font-size: 15px; font-weight: 700; color: var(--accent-green);">-- GB</span>
+            </div>
+            <div class="stat-pill" style="min-width: unset; padding: 8px 10px;">
+              <span class="label">Junk Temp</span>
+              <span class="val" id="quickOptTemp" style="font-size: 15px; font-weight: 700; color: var(--accent-amber);">-- MB</span>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 11.5px; color: var(--text-muted); flex: 1; min-width: 160px;" id="quickOptAdvice">System tuned & optimal</span>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn" style="font-size: 11px; padding: 4px 9px;" onclick="runCleanTemp()">🧹 Clean</button>
+              <button class="btn btn-primary" style="font-size: 11px; padding: 4px 9px;" onclick="runCompleteOptimization()">⚡ Tune Up</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Daily Routine / Habits -->
+        <div class="card">
+          <div class="card-title">
+            <span>🔄 Daily Routine & Habits</span>
+          </div>
+          <div id="routineList">
+            <!-- Dynamic routines -->
+          </div>
+        </div>
+
+        <!-- System & Activity Logs -->
+        <div class="card">
+          <div class="card-title">
+            <span>📡 Fleet Activity Logs</span>
+          </div>
+          <div class="log-stream" id="logStream">
+            <!-- Dynamic logs -->
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <!-- View 2: Antigravity Live Mirror -->
+    <div id="viewAntigravity" style="display: none;" class="ag-view-container">
+      <div class="ag-header-bar">
+        <div class="ag-status-group">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="pulse-dot" id="agAgentDot"></div>
+            <strong style="color: var(--text); font-size: 15px;">Antigravity 2.0 Live Stream</strong>
+          </div>
+          <span class="badge" id="agAgentStateBadge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3);">● Idle</span>
+          <span class="badge" style="background: rgba(0, 242, 254, 0.12); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.3);">Tier 0 • 0 Tokens ($0.00)</span>
+          <span class="badge" id="agSessionBadge" style="background: rgba(255,255,255,0.05); color: var(--text-muted); font-family: monospace;">Session: Live</span>
+          <span class="badge" id="agMsgCountBadge" style="background: rgba(168, 85, 247, 0.12); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">0 Steps</span>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <div id="agTokenHealthBar" style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border);" onclick="openUsageModal()" title="Context Window & Token Capacity">
+            <span style="font-size: 11px; color: var(--text-muted);">Context:</span>
+            <div style="width: 50px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+              <div id="agTokenFill" style="width: 2%; height: 100%; background: var(--accent-cyan); border-radius: 3px; transition: width 0.3s ease;"></div>
+            </div>
+            <span id="agTokenCountLabel" style="font-size: 11px; color: var(--accent-cyan); font-family: monospace;">0%</span>
+          </div>
+          <button class="btn" style="font-size: 12px;" onclick="openUsageModal()">⚡ LLM Details</button>
+          <button class="btn" style="font-size: 12px;" onclick="fetchTranscript(true)">🔄 Refresh</button>
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer;">
+            <input type="checkbox" id="autoScrollCheck" checked style="accent-color: var(--accent-cyan);"> Auto-scroll
+          </label>
+        </div>
+      </div>
+
+      <!-- Token Exhaustion / Health Alert Banner -->
+      <div id="agTokenExhaustedBanner" style="display: none; margin-bottom: 12px; padding: 12px 16px; border-radius: 10px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); box-shadow: 0 4px 16px rgba(239, 68, 68, 0.1);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 22px;">⚠️</div>
+            <div>
+              <div style="font-weight: 700; color: #f87171; font-size: 13.5px; display: flex; align-items: center; gap: 8px;">
+                <span id="agTokenBannerTitle">Token Limit Reached — Prompts Preserved</span>
+                <span id="agTokenBannerVaultBadge" class="badge" style="background: rgba(239, 68, 68, 0.3); color: #fca5a5; font-size: 10.5px;">0 Vaulted</span>
+              </div>
+              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;" id="agTokenBannerDesc">
+                Active context window exhausted. All pending prompts have been safely vaulted in SQLite to prevent loss.
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn btn-primary" id="agResumeFallbackBtn" onclick="resumeVaultedWork()" style="font-size: 11.5px; background: linear-gradient(135deg, #10b981, #059669); border-color: #10b981; padding: 6px 12px;">
+              🔄 Resume with Fallback (<span id="agFallbackModelName">Gemini 3.8 Flash</span>)
+            </button>
+            <button class="btn" onclick="openVaultModal()" style="font-size: 11.5px; padding: 6px 10px;">
+              📦 View Vault
+            </button>
+            <button class="btn" onclick="clearSimulatedTokenExhaustion()" title="Clear alert status" style="font-size: 11.5px; padding: 6px 9px; opacity: 0.8;">
+              ✕
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Parallel Agent Fleet Concurrency Strip -->
+      <div id="agParallelFleetStrip" style="margin-bottom: 12px; padding: 10px 16px; border-radius: 10px; background: rgba(0, 242, 254, 0.04); border: 1px solid rgba(0, 242, 254, 0.18); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <div style="font-weight: 700; font-size: 13px; color: var(--accent-cyan); display: flex; align-items: center; gap: 6px;">
+            <span>⚡ Parallel Agent Fleet</span>
+          </div>
+          <span id="agParallelCapacityBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 11px;">
+            0 / 4 Active Slots
+          </span>
+          <div id="agActiveSlotsRow" style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;"></div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button id="agFastTrackBtn" class="btn btn-primary" style="font-size: 11.5px; padding: 5px 12px; display: none;" onclick="fastTrackAgentQueue()">
+            🚀 Fast-Track Queue
+          </button>
+          <div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-muted);">
+            <span>Concurrency Limit:</span>
+            <select id="agConcurrencySelect" onchange="changeConcurrencyLimit(this.value)" style="background: #131a2a; border: 1px solid var(--card-border); color: var(--accent-cyan); border-radius: 6px; padding: 4px 8px; font-size: 11.5px; cursor: pointer;">
+              <option value="2">2 Agents</option>
+              <option value="4" selected>4 Agents (Default)</option>
+              <option value="6">6 Agents</option>
+              <option value="8">8 Agents (Max)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Chat Stream Box -->
+      <div class="ag-chat-scroll" id="agChatScroll">
+        <div style="text-align: center; color: var(--text-muted); padding: 40px; font-size: 13px;">
+          Loading live Antigravity conversation stream...
+        </div>
+      </div>
+
+      <!-- Message Queue Tray -->
+      <div id="agQueueBanner" class="ag-queue-banner" style="display: none; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 12px; color: var(--accent-cyan);">
+            <span>📥 Message Queue</span>
+            <span id="agQueueCountBadge" class="badge" style="background: rgba(0, 242, 254, 0.2); color: var(--accent-cyan); font-size: 11px;">0</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 11px; color: var(--text-muted);">Auto-launches into open parallel slots</span>
+            <button class="btn btn-primary" style="font-size: 11px; padding: 3px 10px; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue)); border: none;" onclick="fastTrackAgentQueue()">
+              🚀 Launch All in Parallel
+            </button>
+          </div>
+        </div>
+        <div id="agQueueList" style="margin-top: 6px;"></div>
+      </div>
+
+      <!-- Attachment Preview Strip -->
+      <div id="agAttachmentStrip" class="ag-attachment-strip" style="display: none; margin-bottom: 10px;"></div>
+
+      <!-- Command Console & Action Bar -->
+      <div class="ag-cmd-console" id="agConsoleContainer">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div class="ag-quick-chips">
+            <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">QUICK ACTIONS:</span>
+            <span class="quick-chip" onclick="fillCommand('/sync')">⚡ /sync (Gmail 2-Month)</span>
+            <span class="quick-chip" onclick="fillCommand('/briefing')">📅 /briefing</span>
+            <span class="quick-chip" onclick="fillCommand('/task ')">🎯 /task &lt;title&gt;</span>
+            <span class="quick-chip" onclick="fillCommand('/notify ')">🔔 /notify &lt;msg&gt;</span>
+          </div>
+          <span style="font-size: 11px; color: var(--accent-green);">● Standalone Antigravity Hub</span>
+        </div>
+
+        <div class="ag-input-row" style="align-items: center;">
+          <!-- Paperclip image attach button -->
+          <button class="btn" type="button" onclick="document.getElementById('agImageFileInput').click()" title="Attach Images (or drag & drop / Ctrl+V)" style="padding: 10px 13px;">
+            <span style="font-size: 15px;">📎</span>
+          </button>
+          <input type="file" id="agImageFileInput" accept="image/*" multiple style="display: none;" onchange="handleImageFileSelect(event)">
+
+          <!-- Main Input Field -->
+          <input type="text" id="agCommandInput" placeholder="Ask Antigravity, paste image (Ctrl+V), /task, /sync, or type prompt..." onkeypress="if(event.key==='Enter') submitAgCommand()">
+
+          <!-- Model Selector Dropdown Popover (Exact match to VS Code screenshot) -->
+          <div style="position: relative;">
+            <button class="ag-model-select-btn" id="agModelDropdownBtn" type="button" onclick="toggleModelMenu(event)">
+              <span id="agActiveModelLabel">Gemini 3.8 Flash High</span>
+              <span style="font-size: 10px; margin-left: 4px;">⌃</span>
+            </button>
+            <div id="agModelMenu" class="ag-model-menu" style="display: none;">
+              <div class="ag-model-menu-title">Model</div>
+              <div id="agModelOptionsList"></div>
+              <div class="ag-model-divider"></div>
+              <div class="ag-model-menu-item" onclick="openUsageModal(); toggleModelMenu(event);">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span>⚡</span>
+                  <span>View Usage</span>
+                </div>
+                <span style="color: var(--text-muted); font-size: 14px;">›</span>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="submitAgCommand()" id="agSendBtn" style="white-space: nowrap;">➤ Send</button>
+        </div>
+        <div class="cmd-toast" id="cmdToast"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- View 3: Health & Wellness Tracking Panel -->
+  <div id="viewHealth" style="display: flex; flex-direction: column; gap: 20px;">
+    <!-- Health Header & Overall Adherence Banner -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 18px 22px; backdrop-filter: blur(12px);">
+      <div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <span style="font-size: 24px;">🌿</span>
+          <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: #fff;">Personal Health & Wellness Center</h2>
+          <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 11px;">⚡ Tier 0 Deterministic</span>
+          <span id="healthTzBadge" class="badge" style="background: rgba(0, 242, 254, 0.12); color: var(--accent-cyan); font-size: 11px;">Schedule: IST (UTC+05:30)</span>
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
+          Freedom From Diabetes (FFD) Phase 1.1 Protocol • Doctor Prescriptions Adherence • Diagnostic Lab Biomarkers Tracking
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <button class="btn" onclick="openApolloModal()" style="font-size: 12px; padding: 7px 12px; border-color: rgba(0, 242, 254, 0.4);">
+          🔬 Diagnostic Lab Report
+        </button>
+        <button class="btn" onclick="openDietProtocolModal()" style="font-size: 12px; padding: 7px 12px; border-color: rgba(16, 185, 129, 0.4);">
+          🥗 FFD Diet & Recipes
+        </button>
+        <button class="btn" onclick="openPrescriptionModal()" style="font-size: 12px; padding: 7px 12px; border-color: rgba(192, 132, 252, 0.4);">
+          💊 Doctor Prescription
+        </button>
+        <button class="btn btn-primary" onclick="toggleAddMedCard()" id="btnToggleAddMed" style="font-size: 12px; padding: 7px 14px;">
+          + Add Med
+        </button>
+        <button class="btn" onclick="fetchHealthDashboard()" style="font-size: 12px; padding: 7px 12px;">
+          🔄 Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- FFD Metabolic Health Goal & Diagnostic Baseline Banner -->
+    <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(0, 242, 254, 0.06)); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius); padding: 18px 22px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px; margin-bottom: 14px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <span style="font-size: 18px;">🎯</span>
+            <strong style="font-size: 16px; color: #fff;">Freedom From Diabetes — Phase 1.1 Metabolic Reversal Protocol</strong>
+            <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); font-weight: 700;">Personal Metabolic Profile</span>
+          </div>
+          <div style="font-size: 12.5px; color: var(--text); line-height: 1.5;">
+            Primary Goal: <strong style="color: var(--accent-green);">HbA1c &lt; 6.4% within 3 Months</strong> (by <strong>07-Jan-2027</strong>) • Basic Health Goal (BHG): <strong style="color: var(--accent-cyan);">Reach Target BHG</strong>
+          </div>
+          <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px;">
+            Active Prescription Regimen • Directives: <span style="color: #f87171;">Salt-Restricted Diet</span>, <span style="color: var(--accent-amber);">Monitor BP Daily</span>, 4th Morsel Rule
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <div style="text-align: right; background: rgba(0,0,0,0.3); padding: 8px 14px; border-radius: 8px; border: 1px solid var(--card-border);">
+            <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Days to Follow-up</div>
+            <div style="font-size: 18px; font-weight: 800; color: var(--accent-cyan);" id="ffdDaysRemaining">75 Days</div>
+            <div style="font-size: 9.5px; color: var(--text-muted);">Target: 07-Jan-2027</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Baseline Biomarkers Chips Grid -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; font-size: 11.5px;">
+        <div style="background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #f87171;">
+          <div style="color: var(--text-muted);">Fasting Blood Sugar</div>
+          <div style="font-size: 14px; font-weight: 700; color: #fff;">108 mg/dL <span style="font-size: 10px; color: #f87171;">(High)</span></div>
+          <div style="font-size: 9.5px; color: var(--text-muted);">Normal: 70-100</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #f87171;">
+          <div style="color: var(--text-muted);">Post-Prandial (2hr)</div>
+          <div style="font-size: 14px; font-weight: 700; color: #fff;">165 mg/dL <span style="font-size: 10px; color: #f87171;">(Diabetic &gt;200)</span></div>
+          <div style="font-size: 9.5px; color: var(--text-muted);">Normal: &lt;140</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 6px; border-left: 3px solid var(--accent-amber);">
+          <div style="color: var(--text-muted);">HbA1c Baseline</div>
+          <div style="font-size: 14px; font-weight: 700; color: #fff;">7.1% <span style="font-size: 10px; color: var(--accent-amber);">(Goal: &lt;6.4%)</span></div>
+          <div style="font-size: 9.5px; color: var(--text-muted);">eAG: 157 mg/dL</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #c084fc;">
+          <div style="color: var(--text-muted);">Fasting C-Peptide</div>
+          <div style="font-size: 14px; font-weight: 700; color: #fff;">7.53 ng/mL <span style="font-size: 10px; color: #c084fc;">(Insulin Resist.)</span></div>
+          <div style="font-size: 9.5px; color: var(--text-muted);">Normal: 1.1 - 4.4</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #f87171;">
+          <div style="color: var(--text-muted);">Liver SGPT / ALT</div>
+          <div style="font-size: 14px; font-weight: 700; color: #fff;">68.8 U/L <span style="font-size: 10px; color: #f87171;">(Elevated)</span></div>
+          <div style="font-size: 9.5px; color: var(--text-muted);">Hepatic Support Protocol</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 6px; border-left: 3px solid var(--accent-green);">
+          <div style="color: var(--text-muted);">Kidney eGFR</div>
+          <div style="font-size: 14px; font-weight: 700; color: #fff;">113.92 mL/min <span style="font-size: 10px; color: var(--accent-green);">(Optimal)</span></div>
+          <div style="font-size: 9.5px; color: var(--text-muted);">Creatinine: 0.70</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Health Overview Vitals Stat Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;" id="healthSummaryGrid">
+      <!-- 1. Hydration Stat Card -->
+      <div class="card" style="margin: 0; padding: 16px 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">💧 Daily Hydration</span>
+          <span id="healthWaterPctBadge" class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan);">0%</span>
+        </div>
+        <div style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px;" id="healthWaterVal">-- / 2500 ml</div>
+        <div style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; margin-bottom: 8px;">
+          <div id="healthWaterBar" style="height: 100%; width: 0%; background: var(--accent-cyan); transition: width 0.4s ease;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; color: var(--text-muted);" id="healthWaterNext">Next: in 45 min</span>
+          <div style="display: flex; gap: 4px;">
+            <button class="btn btn-primary" style="font-size: 10.5px; padding: 2px 7px;" onclick="logWater(1, 250)">+250ml</button>
+            <button class="btn" style="font-size: 10.5px; padding: 2px 6px;" onclick="logWater(-1, -250)" title="Undo glass">-1</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Medication Adherence Card -->
+      <div class="card" style="margin: 0; padding: 16px 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">💊 Medications Today</span>
+          <span id="healthMedsBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green);">0 / 0</span>
+        </div>
+        <div style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px;" id="healthMedsHeadline">-- Taken</div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;" id="healthMedsNextDose">Next dose: --</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; color: var(--accent-green);" id="healthMedsStatus">Adherence: Optimal</span>
+          <button class="btn" style="font-size: 10.5px; padding: 2px 8px;" onclick="toggleAddMedCard()">+ Manage</button>
+        </div>
+      </div>
+
+      <!-- 3. Night Sleep Duration Card -->
+      <div class="card" style="margin: 0; padding: 16px 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">💤 Sleep Duration</span>
+          <span id="healthSleepBadge" class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">Target 7-9h</span>
+        </div>
+        <div style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px;" id="healthSleepVal">7.5 hrs</div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Deep restorative rest recorded</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; color: var(--text-muted);">Quality: Good</span>
+          <button class="btn" style="font-size: 10.5px; padding: 2px 8px;" onclick="quickLogVital('sleep_hours', 7.5, 'hrs')">Log Sleep</button>
+        </div>
+      </div>
+
+      <!-- 4. Pedometer & Activity Card -->
+      <div class="card" style="margin: 0; padding: 16px 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">👟 Daily Steps</span>
+          <span id="healthStepsBadge" class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-amber);">Goal: 10k</span>
+        </div>
+        <div style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px;" id="healthStepsVal">8,420 steps</div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">~5.8 km walked • 320 kcal</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; color: var(--accent-amber);" id="healthStepsPct">84.2% of goal</span>
+          <button class="btn" style="font-size: 10.5px; padding: 2px 8px;" onclick="quickLogVital('steps', 1000, 'steps')">+1k Steps</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Collapsible Add Medication Form Card -->
+    <div class="card" id="addMedCard" style="display: none; padding: 20px; border: 1px solid rgba(0, 242, 254, 0.3); background: rgba(15, 23, 42, 0.85); margin-bottom: 0;">
+      <div style="font-size: 14px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+        <span>💊 Add Medication / Supplement Schedule</span>
+        <button class="btn" style="padding: 2px 8px; font-size: 11px;" onclick="toggleAddMedCard()">✕ Cancel</button>
+      </div>
+      <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">MEDICATION / SUPPLEMENT NAME *</label>
+          <input type="text" id="newMedName" placeholder="e.g. Vitamin C 500mg, Metformin..." style="width: 100%; box-sizing: border-box; padding: 9px 12px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 13px;">
+        </div>
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">DOSAGE</label>
+          <input type="text" id="newMedDosage" placeholder="e.g. 1 Tablet, 5ml..." style="width: 100%; box-sizing: border-box; padding: 9px 12px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 13px;">
+        </div>
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">TIME (IST)</label>
+          <input type="time" id="newMedTime" value="09:00" style="width: 100%; box-sizing: border-box; padding: 9px 12px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 13px;">
+        </div>
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">FREQUENCY</label>
+          <select id="newMedFreq" style="width: 100%; box-sizing: border-box; padding: 9px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 13px;">
+            <option value="Daily">Daily</option>
+            <option value="Twice Daily">Twice Daily</option>
+            <option value="Weekly">Weekly</option>
+            <option value="As Needed">As Needed</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom: 14px;">
+        <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">INSTRUCTIONS / SPECIAL NOTES</label>
+        <input type="text" id="newMedInstructions" placeholder="e.g. Take with warm water after breakfast..." style="width: 100%; box-sizing: border-box; padding: 9px 12px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 13px;">
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn btn-primary" onclick="submitNewMedication()" style="padding: 7px 18px; font-size: 12.5px;">✓ Save Medication</button>
+      </div>
+    </div>
+
+    <!-- Main Two-Column Health Dashboard Grid -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px;">
+      <!-- Left Column: Medications Schedule & Hydration Widget -->
+      <div style="display: flex; flex-direction: column; gap: 18px;">
+        <!-- Hydration Tracker Detail Card -->
+        <div class="card" style="margin: 0; padding: 18px 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px;">💧</span>
+              <strong style="font-size: 15px; color: #fff;">Water & Hydration Tracker</strong>
+            </div>
+            <button class="btn" style="font-size: 11px; padding: 3px 8px;" onclick="promptWaterGoal()">⚙️ Set Goal</button>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; background: rgba(0, 242, 254, 0.04); border: 1px solid rgba(0, 242, 254, 0.15); border-radius: 10px; padding: 12px 16px;">
+            <div>
+              <div style="font-size: 22px; font-weight: 800; color: var(--accent-cyan);" id="healthWaterBigCount">0 / 10 Glasses</div>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;" id="healthWaterReminderText">💧 Time for a glass of water!</div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-primary" style="font-size: 12px; padding: 6px 14px;" onclick="logWater(1, 250)">+ 1 Glass (250ml)</button>
+              <button class="btn" style="font-size: 12px; padding: 6px 12px;" onclick="logWater(2, 500)">+ 2 Glasses</button>
+            </div>
+          </div>
+          <!-- Glasses Indicator Grid -->
+          <div id="healthGlassesGrid" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;"></div>
+          <div style="font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between;">
+            <span id="healthWaterLastDrank">Last drank: Never</span>
+            <span>Target: 250ml every 45-60 mins</span>
+          </div>
+        </div>
+
+        <!-- Medications & Supplements Schedule Card -->
+        <div class="card" style="margin: 0; padding: 18px 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px;">💊</span>
+              <strong style="font-size: 15px; color: #fff;">Medication & Supplement Schedule</strong>
+            </div>
+            <span style="font-size: 11.5px; color: var(--text-muted);" id="healthMedsScheduleCount">0 Items</span>
+          </div>
+          <!-- Medications Item Feed -->
+          <div id="healthMedsList" style="display: flex; flex-direction: column; gap: 10px; max-height: 380px; overflow-y: auto;">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Interactive Trend Chart & Vitals Logger -->
+      <div style="display: flex; flex-direction: column; gap: 18px;">
+        <!-- Trend Chart Card -->
+        <div class="card" style="margin: 0; padding: 18px 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px;">📈</span>
+              <strong style="font-size: 15px; color: #fff;">Health Metrics Trend Chart</strong>
+            </div>
+            <!-- Metric Selection Tabs -->
+            <div style="display: flex; gap: 4px; background: rgba(255,255,255,0.05); padding: 3px; border-radius: 8px; flex-wrap: wrap;">
+              <button class="filter-btn active" id="chartTabWater" onclick="selectTrendMetric('water_ml')" style="font-size: 11px; padding: 3px 8px;">💧 Water</button>
+              <button class="filter-btn" id="chartTabFasting" onclick="selectTrendMetric('fasting_glucose')" style="font-size: 11px; padding: 3px 8px;">🩸 Fasting Sugar</button>
+              <button class="filter-btn" id="chartTabPp" onclick="selectTrendMetric('pp_glucose')" style="font-size: 11px; padding: 3px 8px;">🍬 PPBS Sugar</button>
+              <button class="filter-btn" id="chartTabWeight" onclick="selectTrendMetric('weight_kg')" style="font-size: 11px; padding: 3px 8px;">⚖️ Weight</button>
+              <button class="filter-btn" id="chartTabBp" onclick="selectTrendMetric('blood_pressure_sys')" style="font-size: 11px; padding: 3px 8px;">🩺 BP Sys</button>
+              <button class="filter-btn" id="chartTabSleep" onclick="selectTrendMetric('sleep_hours')" style="font-size: 11px; padding: 3px 8px;">💤 Sleep</button>
+              <button class="filter-btn" id="chartTabSteps" onclick="selectTrendMetric('steps')" style="font-size: 11px; padding: 3px 8px;">👟 Steps</button>
+              <button class="filter-btn" id="chartTabHr" onclick="selectTrendMetric('resting_hr')" style="font-size: 11px; padding: 3px 8px;">❤️ Heart</button>
+            </div>
+          </div>
+
+          <!-- Trend Chart Summary Stats Bar -->
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 8px 12px;" id="chartStatsBar">
+            <div>
+              <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Average</div>
+              <div style="font-size: 14px; font-weight: 700; color: var(--accent-cyan);" id="chartStatAvg">--</div>
+            </div>
+            <div>
+              <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Min</div>
+              <div style="font-size: 14px; font-weight: 700; color: #f87171;" id="chartStatMin">--</div>
+            </div>
+            <div>
+              <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Max</div>
+              <div style="font-size: 14px; font-weight: 700; color: var(--accent-green);" id="chartStatMax">--</div>
+            </div>
+            <div>
+              <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Target Goal</div>
+              <div style="font-size: 14px; font-weight: 700; color: var(--accent-amber);" id="chartStatGoal">--</div>
+            </div>
+          </div>
+
+          <!-- Pure Deterministic SVG Chart Container (0 Tokens / $0.00) -->
+          <div id="healthTrendSvgContainer" style="width: 100%; min-height: 230px; background: rgba(11, 15, 25, 0.6); border: 1px solid var(--card-border); border-radius: 8px; overflow: hidden; position: relative;">
+            <!-- SVG rendered via JavaScript -->
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted); text-align: right; margin-top: 6px;">
+            Past 7 Days History • Interactive hover tooltips enabled
+          </div>
+        </div>
+
+        <!-- Quick Log Vitals Form Card -->
+        <div class="card" style="margin: 0; padding: 18px 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px;">📝</span>
+              <strong style="font-size: 14.5px; color: #fff;">Quick Log Daily Vital</strong>
+            </div>
+            <span style="font-size: 11.5px; color: var(--text-muted);">Timestamp: IST Today</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr auto; gap: 10px; align-items: flex-end;">
+            <div>
+              <label style="font-size: 10.5px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">METRIC TYPE</label>
+              <select id="quickMetricType" onchange="updateMetricUnitHint()" style="width: 100%; box-sizing: border-box; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 12.5px;">
+                <option value="water_ml">💧 Water Intake (ml)</option>
+                <option value="fasting_glucose">🩸 Fasting Sugar (mg/dL)</option>
+                <option value="pp_glucose">🍬 Post-Prandial Sugar (mg/dL)</option>
+                <option value="weight_kg">⚖️ Body Weight (kg)</option>
+                <option value="blood_pressure_sys">🩺 BP Systolic (mmHg)</option>
+                <option value="blood_pressure_dia">🩺 BP Diastolic (mmHg)</option>
+                <option value="sleep_hours">💤 Night Sleep (hrs)</option>
+                <option value="steps">👟 Daily Steps</option>
+                <option value="resting_hr">❤️ Resting Heart Rate (bpm)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 10.5px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">VALUE</label>
+              <input type="number" id="quickMetricValue" step="any" placeholder="e.g. 7.5" style="width: 100%; box-sizing: border-box; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 12.5px;">
+            </div>
+            <div>
+              <label style="font-size: 10.5px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">UNIT</label>
+              <input type="text" id="quickMetricUnit" value="ml" style="width: 100%; box-sizing: border-box; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 12.5px;">
+            </div>
+            <button class="btn btn-primary" onclick="submitQuickVital()" style="font-size: 12px; padding: 8px 14px;">+ Log</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+    <!-- Exercise & Strength Training Command Center -->
+    <div style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 22px; backdrop-filter: blur(12px);">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 18px; border-bottom: 1px solid var(--card-border); padding-bottom: 14px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 26px;">🏋️‍♂️</span>
+          <div>
+            <h3 style="margin: 0; font-size: 17px; font-weight: 700; color: #fff;">Exercise, Videos & Traditional Strength Training Hub</h3>
+            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+              6-Day Workout Plan (Mon: Mudgal, Wed: Samtola, Fri: Bhim Gadha, Sun: Rest) • Mandatory World's Best Warm-up • Separated Video Vault
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 6px; background: rgba(0,0,0,0.3); padding: 3px; border-radius: 8px;">
+          <button class="filter-btn active" id="exSubTabVideos" onclick="switchExSubTab('videos')" style="font-size: 11.5px; padding: 4px 12px;">📹 Video Vault</button>
+          <button class="filter-btn" id="exSubTabStrength" onclick="switchExSubTab('strength')" style="font-size: 11.5px; padding: 4px 12px;">💪 6-Day Plan (Sunday Rest)</button>
+          <button class="filter-btn" id="exSubTabAntigravity" onclick="switchExSubTab('antigravity')" style="font-size: 11.5px; padding: 4px 12px;">🏃‍♂️ Antigravity & Hypo Guide</button>
+        </div>
+      </div>
+
+      <!-- Sub-Panel 1: FFD Exercise & Diet Video Vault (Separated) -->
+      <div id="exPanelVideos">
+        <!-- High-Level Video Type Tabs: Exercise vs Diet -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--card-border);">
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <span style="font-size: 11.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Video Library:</span>
+            <button class="filter-btn active" id="vTypeBtnExercise" onclick="switchVideoType('exercise')" style="padding: 5px 14px; font-size: 12px; border-radius: 6px;">
+              🏋️‍♂️ Exercise & Movement (<span id="countExerciseVideos">11</span>)
+            </button>
+            <button class="filter-btn" id="vTypeBtnDiet" onclick="switchVideoType('diet')" style="padding: 5px 14px; font-size: 12px; border-radius: 6px;">
+              🥗 Diet & Nutrition (<span id="countDietVideos">4</span>)
+            </button>
+          </div>
+          <span style="font-size: 11.5px; color: var(--text-muted);" id="videoCountBadge">Loading videos...</span>
+        </div>
+
+        <!-- Dynamic Category Filters based on active video type -->
+        <div id="videoCategoryFiltersRow" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px;">
+          <!-- Populated dynamically via JS -->
+        </div>
+
+        <!-- Video Cards Grid with Live Video Thumbnails -->
+        <div id="exerciseVideosGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; max-height: 520px; overflow-y: auto; padding-right: 4px;">
+          <!-- Loaded dynamically via JS -->
+        </div>
+      </div>
+
+      <!-- Sub-Panel 2: 6-Day Weekly Training & Conditioning Plan (Sunday Rest) -->
+      <div id="exPanelStrength" style="display: none; flex-direction: column; gap: 16px;">
+        <!-- Mandatory Daily Non-Negotiables Banner -->
+        <div style="background: linear-gradient(90deg, rgba(239, 68, 68, 0.12) 0%, rgba(245, 158, 11, 0.12) 100%); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 14px 18px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <span style="font-size: 20px;">⚡</span>
+            <strong style="font-size: 13.5px; color: #fff;">Daily Mandatory Foundation Protocols (Every Training Day):</strong>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; font-size: 11.5px; line-height: 1.5; color: var(--text);">
+            <div>• <strong style="color: var(--accent-amber);">World's Best Warm-up:</strong> Mandatory 5-10 mins prior to every single session.</div>
+            <div>• <strong style="color: var(--accent-cyan);">Antigravity Steps:</strong> Climb 8-10 stairs repeatedly for 5-7 mins exactly 1h45m post-meals.</div>
+            <div>• <strong style="color: var(--accent-green);">Super Brain Yoga:</strong> 14-21 reps with crossed earlobe grip & tongue on palate.</div>
+            <div>• <strong style="color: #c084fc);">Hydration & Recovery:</strong> Morning Green Smoothie (250ml) + Shahi Pani + Zero Dairy.</div>
+          </div>
+        </div>
+
+        <!-- Traditional Akhada Tools Reference Bar -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+          <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 12px 14px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+              <span style="font-size: 20px;">🪵</span>
+              <strong style="color: var(--accent-amber); font-size: 13px;">Mudgal (Karlakattai) — Monday</strong>
+            </div>
+            <div style="font-size: 11px; color: var(--text); line-height: 1.4;">
+              Rotator cuff fortification, forearm wrist torque, and 360-degree thoracic joint mobility.
+            </div>
+          </div>
+          <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(0, 242, 254, 0.35); border-radius: 8px; padding: 12px 14px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+              <span style="font-size: 20px;">🪵</span>
+              <strong style="color: var(--accent-cyan); font-size: 13px;">Samtola (Wooden Barbell) — Wednesday</strong>
+            </div>
+            <div style="font-size: 11px; color: var(--text); line-height: 1.4;">
+              Thick-grip pulling, overhead strict pressing, upright posture alignment, and leg drive.
+            </div>
+          </div>
+          <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(192, 132, 252, 0.35); border-radius: 8px; padding: 12px 14px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+              <span style="font-size: 20px;">🔨</span>
+              <strong style="color: #c084fc; font-size: 13px;">Bhim Gadha (Indian Mace) — Friday</strong>
+            </div>
+            <div style="font-size: 11px; color: var(--text); line-height: 1.4;">
+              360 rotational dynamics, anti-rotation core armor, latissimus flare, and hip power snap.
+            </div>
+          </div>
+        </div>
+
+        <!-- 6-Day Weekly Schedule Grid + Sunday Rest -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px;">
+          <!-- Day 1: Monday -->
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 12px; font-weight: 700; color: var(--accent-amber);">DAY 1: MONDAY</span>
+              <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); font-size: 10px;">Mudgal (Karlakattai)</span>
+            </div>
+            <div style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 8px;">Mudgal Armor & Rotational Mobility</div>
+            <div style="font-size: 11px; color: var(--accent-cyan); margin-bottom: 8px;">🔥 Mandatory: World's Best Warm-up (5-7 mins)</div>
+            <ul style="margin-left: 18px; font-size: 11px; line-height: 1.6; color: var(--text);">
+              <li><strong>Mudgal:</strong> Basic Akal (Outward) — 3 sets x 10/arm</li>
+              <li><strong>Mudgal:</strong> Basic Bikal (Inward) — 3 sets x 10/arm</li>
+              <li><strong>Mudgal:</strong> Dasti Alternating Swings — 3 sets x 12 reps</li>
+              <li><strong>Mudgal:</strong> Chest Mills & Wrist Rotations — 3 sets x 10 reps</li>
+              <li><strong>Mudgal:</strong> Overhead Locked Farmer Carry — 2 rounds x 40 paces</li>
+              <li><strong>FFD Protocol:</strong> Antigravity Steps (1h45m post-meals, 5-7 mins)</li>
+              <li><strong>Cooldown:</strong> Lat stretch, forearm flossing & deep breathwork</li>
+            </ul>
+          </div>
+
+          <!-- Day 2: Tuesday -->
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 8px; padding: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 12px; font-weight: 700; color: var(--accent-cyan);">DAY 2: TUESDAY</span>
+              <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); font-size: 10px;">FFD Reversal Protocol</span>
+            </div>
+            <div style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 8px;">Active FFD Reversal & Cardiovascular Flow</div>
+            <div style="font-size: 11px; color: var(--accent-cyan); margin-bottom: 8px;">🔥 Mandatory: World's Best Warm-up (10 mins)</div>
+            <ul style="margin-left: 18px; font-size: 11px; line-height: 1.6; color: var(--text);">
+              <li><strong>Surya Namaskar:</strong> 12 continuous rounds with rhythmic breathing</li>
+              <li><strong>Super Brain Yoga:</strong> 14-21 reps (earlobes crossed, tongue on palate)</li>
+              <li><strong>Desk / Chair Yoga:</strong> Mid-day chair Surya Namaskar for spine</li>
+              <li><strong>FFD Protocol:</strong> Antigravity Step Climbing (1h45m post-meals)</li>
+              <li><strong>NOD Alternative:</strong> 3 rounds x 4 rapid exercises (2 mins)</li>
+              <li><strong>Cooldown:</strong> Shavasana & deep diaphragmatic relaxation</li>
+            </ul>
+          </div>
+
+          <!-- Day 3: Wednesday -->
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 12px; font-weight: 700; color: var(--accent-green);">DAY 3: WEDNESDAY</span>
+              <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); font-size: 10px;">Samtola (Barbell)</span>
+            </div>
+            <div style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 8px;">Samtola Compound Strength & Posture</div>
+            <div style="font-size: 11px; color: var(--accent-cyan); margin-bottom: 8px;">🔥 Mandatory: World's Best Warm-up (5-7 mins)</div>
+            <ul style="margin-left: 18px; font-size: 11px; line-height: 1.6; color: var(--text);">
+              <li><strong>Samtola:</strong> Overhead Military Press (Strict) — 3 sets x 10-12 reps</li>
+              <li><strong>Samtola:</strong> Thick-Grip Bent-Over Rows — 3 sets x 10-12 reps</li>
+              <li><strong>Samtola:</strong> Front / Zercher Squats — 3 sets x 10 reps</li>
+              <li><strong>Samtola:</strong> Strict Standing Bicep Curls — 3 sets x 10-12 reps</li>
+              <li><strong>Samtola:</strong> Stiff-Leg Deadlifts / Good Mornings — 3 sets x 10 reps</li>
+              <li><strong>FFD Protocol:</strong> Antigravity Steps (1h45m post-meals, 5-7 mins)</li>
+              <li><strong>Cooldown:</strong> Doorway chest stretch & hamstring release</li>
+            </ul>
+          </div>
+
+          <!-- Day 4: Thursday -->
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 12px; font-weight: 700; color: #60a5fa;">DAY 4: THURSDAY</span>
+              <span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-size: 10px;">FFD Conditioning</span>
+            </div>
+            <div style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 8px;">Active FFD Conditioning & Weighted Walking</div>
+            <div style="font-size: 11px; color: var(--accent-cyan); margin-bottom: 8px;">🔥 Mandatory: World's Best Warm-up (10 mins)</div>
+            <ul style="margin-left: 18px; font-size: 11px; line-height: 1.6; color: var(--text);">
+              <li><strong>Nitric Oxide Dump (NOD):</strong> 3 rounds for rapid endothelial surge</li>
+              <li><strong>Weighted Walking:</strong> 35-45 mins brisk walk with weight vest/backpack</li>
+              <li><strong>Super Brain Yoga:</strong> 2 rounds of 14 reps for mental clarity</li>
+              <li><strong>FFD Protocol:</strong> Antigravity Steps (1h45m post-meals, 5-7 mins)</li>
+              <li><strong>Mobility:</strong> Hip flexor openers & ankle mobility sequence</li>
+              <li><strong>Cooldown:</strong> Calf stretches & Anulom Vilom breathwork</li>
+            </ul>
+          </div>
+
+          <!-- Day 5: Friday -->
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(192, 132, 252, 0.3); border-radius: 8px; padding: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 12px; font-weight: 700; color: #c084fc;">DAY 5: FRIDAY</span>
+              <span class="badge" style="background: rgba(192, 132, 252, 0.15); color: #c084fc; font-size: 10px;">Bhim Gadha (Mace)</span>
+            </div>
+            <div style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 8px;">Bhim Gadha Core Torque & Rotational Power</div>
+            <div style="font-size: 11px; color: var(--accent-cyan); margin-bottom: 8px;">🔥 Mandatory: World's Best Warm-up (5-7 mins)</div>
+            <ul style="margin-left: 18px; font-size: 11px; line-height: 1.6; color: var(--text);">
+              <li><strong>Bhim Gadha:</strong> Front & Back Pendulum Swings — 3 sets x 15 reps</li>
+              <li><strong>Bhim Gadha:</strong> Beginner 360 Swings (L/R) — 3 sets x 10 reps/side</li>
+              <li><strong>Bhim Gadha:</strong> 10-to-2 Heavy Rotational Swings — 3 sets x 8-10 reps/side</li>
+              <li><strong>Bhim Gadha:</strong> Gada Front Squats (Rack position) — 3 sets x 10 reps</li>
+              <li><strong>Bhim Gadha:</strong> Barbarian Squats (Squat -> 360 pull) — 3 sets x 8 reps</li>
+              <li><strong>FFD Protocol:</strong> Antigravity Steps (1h45m post-meals, 5-7 mins)</li>
+              <li><strong>Cooldown:</strong> Doorway lat hang & deep diaphragmatic breathwork</li>
+            </ul>
+          </div>
+
+          <!-- Day 6: Saturday -->
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(244, 63, 94, 0.3); border-radius: 8px; padding: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 12px; font-weight: 700; color: #fb7185;">DAY 6: SATURDAY</span>
+              <span class="badge" style="background: rgba(244, 63, 94, 0.15); color: #fb7185; font-size: 10px;">Akhada Integration</span>
+            </div>
+            <div style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 8px;">Akhada Flow Integration & Full Functional Reversal</div>
+            <div style="font-size: 11px; color: var(--accent-cyan); margin-bottom: 8px;">🔥 Mandatory: World's Best Warm-up (10 mins)</div>
+            <ul style="margin-left: 18px; font-size: 11px; line-height: 1.6; color: var(--text);">
+              <li><strong>Triple Tool Circuit:</strong> Mudgal (10) -> Samtola (8) -> Gadha 360s (10) — 3 rounds</li>
+              <li><strong>FFD Surya Namaskar:</strong> 6-8 meditative cycles with deep breath focus</li>
+              <li><strong>FFD Office / Desk Stretching:</strong> Hip & thoracic mobility release</li>
+              <li><strong>FFD Protocol:</strong> Antigravity Steps (1h45m post-meals, 5-7 mins)</li>
+              <li><strong>Cooldown:</strong> Full-body yoga nidra / deep relaxation (10 mins)</li>
+            </ul>
+          </div>
+
+          <!-- Day 7: Sunday (Mandatory Rest) -->
+          <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 8px; padding: 14px; grid-column: 1 / -1;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
+              <span style="font-size: 12.5px; font-weight: 700; color: var(--accent-green);">DAY 7: SUNDAY — COMPLETE REST & CELLULAR REGENERATION</span>
+              <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: var(--accent-green); font-size: 10.5px; font-weight: 700;">Mandatory Rest Day</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; font-size: 11.5px; color: var(--text); line-height: 1.5; margin-top: 6px;">
+              <div>• <strong>Muscular Rest:</strong> Zero strength lifting and zero stair climbing. Allow micro-tears to heal.</div>
+              <div>• <strong>Hydration:</strong> Sip 1 Liter Shahi Pani (sabja/chia + saffron + lemon + rock salt) throughout morning.</div>
+              <div>• <strong>Nutrition:</strong> Strictly follow 25-25-50% rule (Raw salad, sprouts/veg, dal, single low-GI grain).</div>
+              <div>• <strong>Nervous System:</strong> 15 mins Pranayama (Anulom Vilom & Bhramari) + 7-8 hours restorative sleep by 10:30 PM.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- YouTube Playlists Links Bar -->
+        <div style="background: rgba(255,0,0,0.08); border: 1px solid rgba(255,0,0,0.25); border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 20px;">📺</span>
+            <div>
+              <strong style="color: #fff; font-size: 13px;">YouTube Beginner Workout Playlists:</strong>
+              <div style="font-size: 11px; color: var(--text-muted);">Direct shortcuts to beginner routines on your YouTube account</div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <a href="https://www.youtube.com/results?search_query=mudgal+workout+for+beginners+playlist" target="_blank" class="btn" style="font-size: 11.5px; text-decoration: none;">▶ Mudgal Playlists</a>
+            <a href="https://www.youtube.com/results?search_query=samtola+exercise+beginner+playlist" target="_blank" class="btn" style="font-size: 11.5px; text-decoration: none;">▶ Samtola Playlists</a>
+            <a href="https://www.youtube.com/results?search_query=bhim+gadha+workout+beginner+playlist" target="_blank" class="btn" style="font-size: 11.5px; text-decoration: none;">▶ Bhim Gadha Playlists</a>
+            <a href="https://www.youtube.com/feed/library" target="_blank" class="btn btn-primary" style="font-size: 11.5px; text-decoration: none; background: #e11d48; border-color: #e11d48;">🔴 My YouTube Library</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sub-Panel 3: FFD Antigravity & Hypo Guide -->
+      <div id="exPanelAntigravity" style="display: none; flex-direction: column; gap: 14px;">
+        <div style="background: rgba(0, 242, 254, 0.08); border: 1px solid rgba(0, 242, 254, 0.25); border-radius: 8px; padding: 14px 18px;">
+          <strong style="font-size: 14px; color: var(--accent-cyan);">⚡ Antigravity Step Climbing — The Post-Meal Glucose Siphon:</strong>
+          <div style="font-size: 12px; line-height: 1.6; margin-top: 6px; color: var(--text);">
+            • <strong>Timing:</strong> Exactly <strong>1 hour and 45 minutes</strong> after starting each meal (Breakfast, Lunch, Dinner).<br>
+            • <strong>Protocol:</strong> Climb up and down <strong>8 to 10 stairs repeatedly for 5 to 7 minutes</strong> until you feel breathless.<br>
+            • <strong>Rules:</strong> Do NOT climb continuously across multiple floors. Keep to 8-10 steps and turn around.<br>
+            • <strong>Testing:</strong> Rest 5 minutes until breathing normalizes, drink water, wash and dry hands, then check blood sugar!
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; padding: 14px;">
+            <strong style="color: var(--accent-amber); font-size: 13.5px;">💨 Nitric Oxide Dump (NOD) — Step Climbing Alternative</strong>
+            <p style="font-size: 11.5px; line-height: 1.5; margin-top: 6px; color: var(--text);">
+              If stairs are unavailable or you have joint discomfort, perform 3 rounds of the 4 NOD movements (Deep squats, Arm raises, Non-jumping jacks, Shoulder punches). Takes only 2 minutes and releases massive nitric oxide into circulation!
+            </p>
+            <div style="margin-top: 8px;">
+              <button class="btn" style="font-size: 11.5px; padding: 4px 10px;" onclick="playExerciseVideo('04 - Modified Nitric Oxide Dump Exercise for Diabetes.mp4', 'Modified Nitric Oxide Dump Exercise for Diabetes', 'Nitric Oxide Dump (NOD)')">▶ Play NOD Video</button>
+            </div>
+          </div>
+
+          <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; padding: 14px;">
+            <strong style="color: #f87171; font-size: 13.5px;">🚨 Hypoglycemia Home Self-Management Protocol</strong>
+            <div style="font-size: 11.5px; line-height: 1.5; margin-top: 6px; color: var(--text);">
+              • <strong>BSL 80 - 100 mg/dL:</strong> Have 1 date/khajoor + 1 tbsp fresh coconut + water.<br>
+              • <strong>BSL 70 - 80 mg/dL:</strong> Have 2 dates + 1 tbsp coconut (or 2 almonds) + water.<br>
+              • <strong>BSL &lt; 70 mg/dL:</strong> Have 3 tsp sugar OR 3 dates immediately + water.<br>
+              • Recheck BSL every 20 minutes until normalized!
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- View 4: Feature Backlog Management Panel -->
+  <div id="viewBacklog" style="display: none; flex-direction: column; gap: 20px;">
+    <!-- Backlog Header & Action -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">📋</span>
+          <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: #fff;">Personal Fleet Feature Backlog</h2>
+          <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); font-size: 11px;">Roadmap & Capabilities</span>
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+          Manage and prioritize fleet capabilities, system integrations, roadmap versions, and backlog tasks.
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="toggleAddBacklogCard()" id="btnToggleAddBacklog" style="font-size: 12px;">
+        + Add New Feature
+      </button>
+    </div>
+
+    <!-- Backlog Statistics Metrics Grid -->
+    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;" id="backlogStatsGrid">
+      <div class="stat-pill" style="min-width: unset;">
+        <span class="label">Total Features</span>
+        <span class="val" id="backlogStatTotal" style="color: var(--text);">0</span>
+      </div>
+      <div class="stat-pill" style="min-width: unset;">
+        <span class="label">In Progress</span>
+        <span class="val" id="backlogStatInProgress" style="color: var(--accent-cyan);">0</span>
+      </div>
+      <div class="stat-pill" style="min-width: unset;">
+        <span class="label">Planned</span>
+        <span class="val" id="backlogStatPlanned" style="color: #a855f7;">0</span>
+      </div>
+      <div class="stat-pill" style="min-width: unset;">
+        <span class="label">Ideas</span>
+        <span class="val" id="backlogStatIdea" style="color: #fbbf24;">0</span>
+      </div>
+      <div class="stat-pill" style="min-width: unset;">
+        <span class="label">Completed</span>
+        <span class="val" id="backlogStatCompleted" style="color: var(--accent-green);">0</span>
+      </div>
+    </div>
+
+    <!-- Collapsible Add Feature Form Card -->
+    <div class="card" id="addBacklogCard" style="display: none; padding: 20px; border: 1px solid rgba(0, 242, 254, 0.3); background: rgba(15, 23, 42, 0.85); margin-bottom: 0;">
+      <div style="font-size: 14px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+        <span>⚡ Create Backlog Feature</span>
+        <button class="btn" style="padding: 2px 8px; font-size: 11px;" onclick="toggleAddBacklogCard()">✕ Cancel</button>
+      </div>
+      <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">FEATURE TITLE *</label>
+          <input type="text" id="newBacklogTitle" placeholder="e.g. Local Speech-to-Text Voice Engine..." style="width: 100%; box-sizing: border-box; padding: 9px 12px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 13px;">
+        </div>
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">CATEGORY</label>
+          <select id="newBacklogCategory" style="width: 100%; box-sizing: border-box; padding: 9px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 13px;">
+            <option value="Core">Core System</option>
+            <option value="AI/LLM">AI & LLM</option>
+            <option value="UI/UX">UI & Dashboard</option>
+            <option value="Automation">Automation</option>
+            <option value="Integration">Integration</option>
+            <option value="Security">Security</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">PRIORITY</label>
+          <select id="newBacklogPriority" style="width: 100%; box-sizing: border-box; padding: 9px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 13px;">
+            <option value="P1">🔴 P1 High</option>
+            <option value="P2" selected>🟡 P2 Medium</option>
+            <option value="P3">🟢 P3 Low</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">TARGET RELEASE</label>
+          <select id="newBacklogVersion" style="width: 100%; box-sizing: border-box; padding: 9px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 13px;">
+            <option value="v1.4.0">v1.4.0 (Next)</option>
+            <option value="v1.5.0">v1.5.0</option>
+            <option value="v2.0.0">v2.0.0</option>
+            <option value="Backlog">Future Backlog</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom: 14px;">
+        <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">DESCRIPTION & SCOPE</label>
+        <textarea id="newBacklogDesc" placeholder="Brief technical scope or user story description..." rows="2" style="width: 100%; box-sizing: border-box; padding: 8px 12px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 13px; font-family: inherit; resize: vertical;"></textarea>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn btn-primary" onclick="submitNewBacklogItem()" style="padding: 7px 18px; font-size: 12.5px;">✓ Save Feature to Backlog</button>
+      </div>
+    </div>
+
+    <!-- Filters & Search Toolbar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; background: rgba(15, 23, 42, 0.4); border: 1px solid var(--card-border); border-radius: 10px; padding: 10px 14px;">
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <span style="font-size: 11.5px; color: var(--text-muted); font-weight: 600;">STATUS:</span>
+        <button class="filter-btn active" id="backlogFilterStatusAll" onclick="filterBacklogByStatus('ALL')">All</button>
+        <button class="filter-btn" id="backlogFilterStatusIdea" onclick="filterBacklogByStatus('Idea')">Idea</button>
+        <button class="filter-btn" id="backlogFilterStatusPlanned" onclick="filterBacklogByStatus('Planned')">Planned</button>
+        <button class="filter-btn" id="backlogFilterStatusProgress" onclick="filterBacklogByStatus('In Progress')">In Progress</button>
+        <button class="filter-btn" id="backlogFilterStatusCompleted" onclick="filterBacklogByStatus('Completed')">Completed</button>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <select id="backlogCategoryFilter" onchange="fetchBacklog()" style="background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); padding: 5px 10px; font-size: 12px;">
+          <option value="ALL">All Categories</option>
+          <option value="Core">Core System</option>
+          <option value="AI/LLM">AI & LLM</option>
+          <option value="UI/UX">UI & Dashboard</option>
+          <option value="Automation">Automation</option>
+          <option value="Integration">Integration</option>
+          <option value="Security">Security</option>
+        </select>
+        <select id="backlogVersionFilter" onchange="fetchBacklog()" style="background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); padding: 5px 10px; font-size: 12px;">
+          <option value="ALL">All Releases</option>
+          <option value="v1.4.0">v1.4.0</option>
+          <option value="v1.5.0">v1.5.0</option>
+          <option value="v2.0.0">v2.0.0</option>
+          <option value="Backlog">Future Backlog</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Backlog Item List Container -->
+    <div id="backlogListContainer" style="display: flex; flex-direction: column; gap: 10px;">
+      <div style="text-align: center; color: var(--text-muted); padding: 40px; font-size: 13px;">
+        Loading feature backlog...
+      </div>
+    </div>
+  </div>
+
+  <!-- View 4: PC Performance Optimizer Panel -->
+  <div id="viewOptimizer" style="display: none; flex-direction: column; gap: 20px;">
+    <!-- Optimizer Header & Quick 1-Click Action -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 18px 22px; backdrop-filter: blur(12px);">
+      <div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <span style="font-size: 24px;">🚀</span>
+          <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: #fff;">PC Performance Optimizer & System Tuning</h2>
+          <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 11px;">⚡ 0 Tokens ($0.00) — Tier 0 Deterministic</span>
+          <span id="optimizerScoreBadge" class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); font-size: 12px; font-weight: 700;">Health Score: --/100</span>
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
+          Hardware diagnostics, memory working set optimization, junk temporary file cleaner, DNS resolver flushing, and Windows startup management.
+        </div>
+      </div>
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <button class="btn btn-primary" onclick="runCompleteOptimization()" id="btnAutoTune" style="font-size: 12px; padding: 8px 16px;">
+          ⚡ 1-Click Complete Tuning
+        </button>
+        <button class="btn" onclick="fetchOptimizerDiagnostics()" id="btnRefreshOpt" style="font-size: 12px; padding: 8px 14px;">
+          🔄 Rescan System
+        </button>
+      </div>
+    </div>
+
+    <!-- Optimization Status Toast / Banner -->
+    <div id="optimizerActionBanner" style="display: none; padding: 12px 16px; border-radius: 10px; font-size: 13px; font-weight: 500; align-items: center; justify-content: space-between;">
+      <span id="optimizerActionBannerText"></span>
+      <button onclick="document.getElementById('optimizerActionBanner').style.display='none'" style="background:none; border:none; color:inherit; cursor:pointer; font-size:14px;">✕</button>
+    </div>
+
+    <!-- Real-Time Hardware & System Diagnostics Grid (4 Cards) -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;" id="optMetricsGrid">
+      <!-- RAM / Memory Card -->
+      <div class="card" style="margin: 0; padding: 16px 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">💾 RAM / Memory Load</span>
+          <span id="optRamBadge" class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan);">--%</span>
+        </div>
+        <div style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px;" id="optRamUsage">-- GB / -- GB</div>
+        <div style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; margin-bottom: 8px;">
+          <div id="optRamBar" style="height: 100%; width: 0%; background: var(--accent-cyan); transition: width 0.4s ease;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; color: var(--text-muted);" id="optRamAvail">Available: -- GB</span>
+          <button class="btn" style="font-size: 11px; padding: 3px 8px;" onclick="runOptimizeRam()">Trim RAM</button>
+        </div>
+      </div>
+
+      <!-- Disk Storage (C:) Card -->
+      <div class="card" style="margin: 0; padding: 16px 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">💿 Disk Storage (C:)</span>
+          <span id="optDiskBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green);">--% Free</span>
+        </div>
+        <div style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px;" id="optDiskUsage">-- GB Free</div>
+        <div style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; margin-bottom: 8px;">
+          <div id="optDiskBar" style="height: 100%; width: 0%; background: var(--accent-green); transition: width 0.4s ease;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; color: var(--text-muted);" id="optDiskTotal">Total: -- GB</span>
+          <span style="font-size: 11px; color: var(--accent-green);" id="optDiskPercent">--% Used</span>
+        </div>
+      </div>
+
+      <!-- Temp Junk Bloat Card -->
+      <div class="card" style="margin: 0; padding: 16px 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">🧹 Temporary Junk Bloat</span>
+          <span id="optTempBadge" class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-amber);">-- MB</span>
+        </div>
+        <div style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px;" id="optTempSize">-- MB Junk</div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;" id="optTempFiles">-- files in Windows Temp</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; color: var(--text-muted);">Reclaimable space</span>
+          <button class="btn btn-primary" style="font-size: 11px; padding: 3px 10px;" onclick="runCleanTemp()">Clean Now</button>
+        </div>
+      </div>
+
+      <!-- Startup Boot Apps Card -->
+      <div class="card" style="margin: 0; padding: 16px 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">🚀 Startup Boot Programs</span>
+          <span id="optStartupBadge" class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">-- Apps</span>
+        </div>
+        <div style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px;" id="optStartupCount">-- Active on Boot</div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Programs launching on Windows start</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; color: var(--text-muted);">Boot impact</span>
+          <button class="btn" style="font-size: 11px; padding: 3px 10px;" onclick="runOpenStartupSettings()">Manage Apps</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Optimization Recommendations Section -->
+    <div class="card">
+      <div class="card-title">
+        <div>
+          <span>💡 Targeted PC Optimization Recommendations</span>
+          <span style="font-size: 12px; color: var(--text-muted); margin-left: 8px;">(Actionable Steps to Maximize Speed)</span>
+        </div>
+        <span style="font-size: 12px; color: var(--accent-cyan);" id="optRecomCount">-- Actions Available</span>
+      </div>
+      <div id="optRecommendationsList" style="display: flex; flex-direction: column; gap: 12px;">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+
+    <!-- Bottom Row: Quick Action Toolbar & Top Memory Processes -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <!-- Quick Action Toolbar -->
+      <div class="card">
+        <div class="card-title">
+          <span>🛠️ One-Click PC Optimization Actions</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 8px; gap: 10px;">
+            <div>
+              <div style="font-weight: 600; font-size: 13.5px; color: #fff;">🧹 Clean Windows Temporary Files</div>
+              <div style="font-size: 11.5px; color: var(--text-muted);">Deletes stale cache files from %TEMP% to free disk space and reduce file search latency.</div>
+            </div>
+            <button class="btn btn-primary" style="font-size: 12px; white-space: nowrap;" onclick="runCleanTemp()">Clean Temp</button>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 8px; gap: 10px;">
+            <div>
+              <div style="font-weight: 600; font-size: 13.5px; color: #fff;">⚡ Flush DNS Resolver Cache</div>
+              <div style="font-size: 11.5px; color: var(--text-muted);">Purges stale DNS records via ipconfig /flushdns to resolve network and web API lags.</div>
+            </div>
+            <button class="btn" style="font-size: 12px; white-space: nowrap; border-color: var(--accent-cyan); color: var(--accent-cyan);" onclick="runFlushDns()">Flush DNS</button>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 8px; gap: 10px;">
+            <div>
+              <div style="font-weight: 600; font-size: 13.5px; color: #fff;">🐍 Purge Dev & PyCache Folders</div>
+              <div style="font-size: 11.5px; color: var(--text-muted);">Recursively deletes __pycache__, .pytest_cache, and compiled bytecode (.pyc) files.</div>
+            </div>
+            <button class="btn" style="font-size: 12px; white-space: nowrap; border-color: var(--accent-amber); color: var(--accent-amber);" onclick="runPurgeDevCaches()">Purge PyCache</button>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 8px; gap: 10px;">
+            <div>
+              <div style="font-weight: 600; font-size: 13.5px; color: #fff;">💾 Optimize RAM Working Sets</div>
+              <div style="font-size: 11.5px; color: var(--text-muted);">Performs garbage collection sweep and memory reclaim to free inactive background pages.</div>
+            </div>
+            <button class="btn" style="font-size: 12px; white-space: nowrap; border-color: var(--accent-pink); color: var(--accent-pink);" onclick="runOptimizeRam()">Optimize RAM</button>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 8px; gap: 10px;">
+            <div>
+              <div style="font-weight: 600; font-size: 13.5px; color: #fff;">🚀 Manage Windows Startup Apps</div>
+              <div style="font-size: 11.5px; color: var(--text-muted);">Directly opens the Windows Settings Startup page to toggle unneeded startup programs.</div>
+            </div>
+            <button class="btn" style="font-size: 12px; white-space: nowrap; border-color: #c084fc; color: #c084fc;" onclick="runOpenStartupSettings()">Open Settings</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Active Memory-Consuming Processes -->
+      <div class="card">
+        <div class="card-title">
+          <span>📊 Top Memory-Consuming Processes</span>
+          <span style="font-size: 11px; color: var(--text-muted);" id="optProcessCount">Active Apps</span>
+        </div>
+        <div id="optProcessList" style="display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto;">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LLM Usage Details Modal -->
+  <div id="usageModal" class="ag-modal-overlay" style="display: none;" onclick="if(event.target===this) closeUsageModal()">
+    <div class="ag-modal-box">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">⚡</span>
+          <strong style="font-size: 16px; color: var(--text);">LLM Model & Usage Details</strong>
+        </div>
+        <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeUsageModal()">✕</button>
+      </div>
+      <div id="usageModalContent" style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+        <!-- Dynamic content -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Image Lightbox Modal -->
+  <div id="imageLightboxModal" class="ag-modal-overlay" style="display: none;" onclick="closeImageLightbox()">
+    <div style="position: relative; max-width: 90vw; max-height: 90vh;">
+      <img id="lightboxImg" src="" style="max-width: 100%; max-height: 85vh; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.8);">
+      <button class="btn" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; border: none;" onclick="closeImageLightbox()">✕ Close</button>
+    </div>
+  </div>
+
+  <!-- Release Notes Modal -->
+  <div id="releaseNotesModal" class="ag-modal-overlay" style="display: none;" onclick="if(event.target===this) closeReleaseNotesModal()">
+    <div class="ag-modal-box" style="width: 720px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--card-border); padding-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">📜</span>
+          <div>
+            <strong style="font-size: 16px; color: var(--text);">Fleet Release Notes & Version History</strong>
+            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v1.8.0</div>
+          </div>
+        </div>
+        <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeReleaseNotesModal()">✕</button>
+      </div>
+      <div id="releaseNotesBody" style="overflow-y: auto; max-height: 65vh; padding-right: 8px; font-size: 13px; line-height: 1.6; color: var(--text);">
+        <!-- Loaded dynamically via /api/release_notes -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Token Preservation Vault Modal -->
+  <div id="tokenVaultModal" class="ag-modal-overlay" style="display: none;" onclick="if(event.target===this) closeVaultModal()">
+    <div class="ag-modal-box" style="width: 700px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--card-border); padding-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">📦</span>
+          <div>
+            <strong style="font-size: 16px; color: var(--text);">Token Preservation Vault</strong>
+            <div style="font-size: 11.5px; color: var(--text-muted);">Safeguards user prompts & work across quota interruptions with zero data loss</div>
+          </div>
+        </div>
+        <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeVaultModal()">✕</button>
+      </div>
+      <div id="tokenVaultContent" style="overflow-y: auto; max-height: 55vh; padding-right: 6px;">
+        <!-- Dynamic content -->
+      </div>
+      <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 11px; color: var(--text-muted);">Tier 0 SQLite Vault Storage</span>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn" onclick="closeVaultModal()" style="font-size: 12px;">Close</button>
+          <button class="btn btn-primary" onclick="resumeVaultedWork()" style="font-size: 12px; background: linear-gradient(135deg, #10b981, #059669); border-color: #10b981;">
+            🔄 Resume All Prompts
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Comprehensive Detailed Lab Report Modal -->
+  <div id="apolloModal" class="ag-modal-overlay" style="display: none;" onclick="if(event.target===this) closeApolloModal()">
+    <div class="ag-modal-box" style="width: 820px; max-width: 96vw; max-height: 88vh; display: flex; flex-direction: column;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">🔬</span>
+          <div>
+            <strong style="font-size: 16px; color: var(--text);">Comprehensive Metabolic — Full Body Checkup</strong>
+            <div style="font-size: 11px; color: var(--accent-cyan);">Personal Health & Wellness Profile • Reference Baseline</div>
+          </div>
+        </div>
+        <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeApolloModal()">✕</button>
+      </div>
+      <div style="overflow-y: auto; max-height: 72vh; padding-right: 8px; font-size: 12.5px; line-height: 1.5; color: var(--text);">
+        <!-- Summary Alert -->
+        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
+          <strong style="color: #f87171;">Key Findings & Areas Requiring Intervention:</strong>
+          <ul style="margin-left: 20px; margin-top: 6px; font-size: 12px;">
+            <li><strong>Diabetic Glycemic Control:</strong> HbA1c 7.1% (eAG 157 mg/dL), Fasting Glucose 108 mg/dL, 2hr Post-Prandial Glucose 165 mg/dL.</li>
+            <li><strong>Insulin Resistance:</strong> Fasting C-Peptide is significantly elevated at 7.53 ng/mL (Ref: 1.1 - 4.4), confirming severe hyperinsulinemia.</li>
+            <li><strong>Dyslipidemia:</strong> Total Chol 209 mg/dL, Triglycerides 208 mg/dL, Low HDL 31 mg/dL, LDL 136.8 mg/dL, AIP 0.470 (High cardiovascular risk).</li>
+            <li><strong>Liver Strain:</strong> SGPT/ALT elevated at 68.8 U/L (Ref: 10-50), indicating NAFLD / hepatic lipid accumulation.</li>
+            <li><strong>Urinary Markers:</strong> Pus Cells 12-15 /hpf, Leucocyte Esterase Positive++ (suggests mild urinary tract inflammation).</li>
+            <li><strong>Optimal Organs:</strong> Kidney function optimal (eGFR 113.92 mL/min, Creatinine 0.70 mg/dL), Vitamin D sufficient (66.9 ng/mL), B12 normal (545 pg/mL), Thyroid euthyroid (TSH 1.68 µIU/mL).</li>
+          </ul>
+        </div>
+
+        <!-- Detailed Table -->
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--card-border); background: rgba(255,255,255,0.04); text-align: left;">
+              <th style="padding: 8px;">Test Parameter</th>
+              <th style="padding: 8px;">Result</th>
+              <th style="padding: 8px;">Biological Ref. Interval</th>
+              <th style="padding: 8px;">Status / Flag</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Fasting Glucose</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">108 mg/dL</td><td style="padding: 6px 8px;">70 - 100</td><td style="padding: 6px 8px; color: #f87171;">Prediabetes</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Post Prandial Glucose (2hr)</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">165 mg/dL</td><td style="padding: 6px 8px;">&lt; 140 (Diabetic &gt;200)</td><td style="padding: 6px 8px; color: #f87171;">Diabetic</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">HbA1c (Glycated Hb)</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-amber);">7.1 %</td><td style="padding: 6px 8px;">&lt; 5.7 (Diabetic &ge;6.5)</td><td style="padding: 6px 8px; color: var(--accent-amber);">Diabetic (Fair Control)</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Fasting C-Peptide</td><td style="padding: 6px 8px; font-weight: 700; color: #c084fc;">7.530 ng/mL</td><td style="padding: 6px 8px;">1.1 - 4.4</td><td style="padding: 6px 8px; color: #c084fc;">Hyperinsulinemia</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Total Cholesterol</td><td style="padding: 6px 8px; font-weight: 700;">209 mg/dL</td><td style="padding: 6px 8px;">&lt; 200</td><td style="padding: 6px 8px; color: var(--accent-amber);">Borderline High</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Triglycerides</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">208 mg/dL</td><td style="padding: 6px 8px;">&lt; 150</td><td style="padding: 6px 8px; color: #f87171;">High</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">HDL Cholesterol</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">31 mg/dL</td><td style="padding: 6px 8px;">&ge; 40 Desirable</td><td style="padding: 6px 8px; color: #f87171;">Low</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">LDL Cholesterol</td><td style="padding: 6px 8px; font-weight: 700;">136.8 mg/dL</td><td style="padding: 6px 8px;">&lt; 100</td><td style="padding: 6px 8px; color: var(--accent-amber);">Elevated</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">SGPT / ALT (Liver)</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">68.8 U/L</td><td style="padding: 6px 8px;">10 - 50</td><td style="padding: 6px 8px; color: #f87171;">Elevated (NAFLD)</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">SGOT / AST (Liver)</td><td style="padding: 6px 8px; font-weight: 700;">40.1 U/L</td><td style="padding: 6px 8px;">10 - 50</td><td style="padding: 6px 8px;">Normal</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Serum Creatinine</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green);">0.70 mg/dL</td><td style="padding: 6px 8px;">0.7 - 1.2</td><td style="padding: 6px 8px; color: var(--accent-green);">Normal</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">eGFR (Glomerular Filtration)</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green);">113.92 mL/min</td><td style="padding: 6px 8px;">&gt; 60</td><td style="padding: 6px 8px; color: var(--accent-green);">Optimal</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Vitamin D (25-OH)</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green);">66.9 ng/mL</td><td style="padding: 6px 8px;">30 - 100</td><td style="padding: 6px 8px; color: var(--accent-green);">Sufficient</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Vitamin B12</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green);">545 pg/mL</td><td style="padding: 6px 8px;">197 - 771</td><td style="padding: 6px 8px; color: var(--accent-green);">Normal</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">hs-CRP (Cardiac Risk)</td><td style="padding: 6px 8px; font-weight: 700;">1.10 mg/L</td><td style="padding: 6px 8px;">&lt; 3.0</td><td style="padding: 6px 8px;">Average Risk</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Urine Pus Cells</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">12 - 15 /hpf</td><td style="padding: 6px 8px;">0 - 5</td><td style="padding: 6px 8px; color: #f87171;">Elevated</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- FFD Diet Protocol & Smoothie Recipes Modal -->
+  <div id="ffdDietModal" class="ag-modal-overlay" style="display: none;" onclick="if(event.target===this) closeDietProtocolModal()">
+    <div class="ag-modal-box" style="width: 760px; max-width: 96vw; max-height: 88vh; display: flex; flex-direction: column;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">🥗</span>
+          <div>
+            <strong style="font-size: 16px; color: var(--text);">Freedom From Diabetes — Phase 1.1 Diet Protocol</strong>
+            <div style="font-size: 11px; color: var(--accent-green);">3-Meal Rapid Fat Loss • Phase 1.1 Protocol</div>
+          </div>
+        </div>
+        <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeDietProtocolModal()">✕</button>
+      </div>
+      <div style="overflow-y: auto; max-height: 72vh; padding-right: 8px; font-size: 12.5px; line-height: 1.6; color: var(--text);">
+        <!-- Core Golden Rule -->
+        <div style="background: rgba(0, 242, 254, 0.08); border: 1px solid rgba(0, 242, 254, 0.25); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
+          <strong style="color: var(--accent-cyan);">🌟 The Golden "Rule of 4th Morsel":</strong>
+          <p style="margin-top: 4px; font-size: 12px;">The first 3 morsels of every meal MUST be <strong>1. Salad</strong>, <strong>2. Cooked Vegetable</strong>, and <strong>3. Dal / Pulses</strong> in that order. Grain (rotis/millets/rice) should only be taken from the <strong>4th morsel</strong> onwards!</p>
+        </div>
+
+        <h3 style="color: var(--accent-green); font-size: 14px; margin-bottom: 8px;">⏰ Daily Meal Schedule</h3>
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+          <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px;">
+            <strong>06:00 - 07:30 AM: Smoothie (250ml)</strong> — Green Smoothie or White Smoothie on empty stomach. Drink sip by sip over 3 mins.
+          </div>
+          <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px;">
+            <strong>08:00 - 09:00 AM: Breakfast (25-25-50% Formula)</strong> — 25% Salads (1 katori) + 25% Raw Sprouts (1 katori) + 50% Cooked Dal item (Besan chilla, moong/urad dosa, pesaruttu) + 2 tbsp Chutney.
+          </div>
+          <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px;">
+            <strong>01:00 - 02:00 PM: Lunch (25% Quad Formula)</strong> — 25% Salad (1 katori) + 25% Cooked Veg (1 katori) + 25% Dal (1 portion) + 25% Whole Grain (Khapli wheat / bajra / jowar / brown rice).
+          </div>
+          <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px;">
+            <strong>04:00 - 04:30 PM: Snack</strong> — 250ml Smoothie + 5-6 soaked almonds + 4-5 soaked walnuts + 4 tsp mixed seeds (pumpkin, flax, sunflower, watermelon).
+          </div>
+          <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px;">
+            <strong>07:00 - 08:00 PM: Dinner</strong> — Finish before 8:30 PM (definitely before 9 PM). Low-carb dal and vegetables. Sleep by 11:00 PM latest!
+          </div>
+        </div>
+
+        <h3 style="color: var(--accent-cyan); font-size: 14px; margin-bottom: 8px;">🥤 Smoothie Recipes (500ml batch)</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;">
+          <div style="background: rgba(0,0,0,0.3); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--card-border);">
+            <strong style="color: var(--accent-green);">Green Smoothie Recipe:</strong>
+            <ul style="margin-left: 18px; margin-top: 6px; font-size: 11.5px;">
+              <li>1.5 cup Major Greens (Amaranth, Lettuce, Kale, or Spinach max 2x/wk)</li>
+              <li>0.5 cup Minor Greens (Mint, Curry leaves, Tulsi, Coriander)</li>
+              <li>1.5 cup Fruit (Apple, Berries, Guava, Kiwi, Pear)</li>
+              <li>0.5 Lemon juice + 0.5 tsp Rock Salt</li>
+              <li>Pinch: Cinnamon, Methi, Haldi, Black Pepper powder</li>
+              <li>250ml Water. Blend 3 mins.</li>
+            </ul>
+          </div>
+          <div style="background: rgba(0,0,0,0.3); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--card-border);">
+            <strong style="color: var(--text);">White Smoothie Recipe:</strong>
+            <ul style="margin-left: 18px; margin-top: 6px; font-size: 11.5px;">
+              <li>1.5 cup Bottle Gourd (check non-bitter), Cucumber, or Ash Gourd</li>
+              <li>0.5 cup Minor Greens (Mint, Tulsi, Celery, Parsley)</li>
+              <li>1.5 cup Fruit (Apple, Berries, Dragon Fruit, Kiwi)</li>
+              <li>0.5 Lemon juice + 0.5 tsp Rock Salt</li>
+              <li>Pinch: Cinnamon, Methi, Haldi, Black Pepper powder</li>
+              <li>250ml Water. Blend 3 mins.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 6px; padding: 10px 12px;">
+          <strong style="color: #f87171;">🚫 Strictly Avoided Foods:</strong>
+          <span style="font-size: 11.5px;"> Table sugar, jaggery, honey, sweets, sodas, high-GI grains (maida, white rice, cornflakes), animal milk (cow A1/A2, buffalo) & all dairy products, deep-fried snacks, and refined oils.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Doctor's Prescription Modal -->
+  <div id="ffdPrescriptionModal" class="ag-modal-overlay" style="display: none;" onclick="if(event.target===this) closePrescriptionModal()">
+    <div class="ag-modal-box" style="width: 760px; max-width: 96vw; max-height: 88vh; display: flex; flex-direction: column;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">💊</span>
+          <div>
+            <strong style="font-size: 16px; color: var(--text);">Doctor's Prescription & Medication Directives</strong>
+            <div style="font-size: 11px; color: var(--accent-cyan);">Prescribed Clinical Regimen • 09-Oct-2026</div>
+          </div>
+        </div>
+        <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closePrescriptionModal()">✕</button>
+      </div>
+      <div style="overflow-y: auto; max-height: 72vh; padding-right: 8px; font-size: 12.5px; line-height: 1.6; color: var(--text);">
+        <div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
+          <strong>Consult Goals:</strong> Within 3 Months (07 Jan 2027) <strong style="color: var(--accent-cyan);">HbA1c &lt; 6.4%</strong> • Diet Remarks: <strong style="color: #f87171;">Salt restricted diet</strong> • Recommendations: <strong style="color: var(--accent-amber);">Monitor BP</strong>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--card-border); background: rgba(255,255,255,0.04); text-align: left;">
+              <th style="padding: 8px;">Medicine Name</th>
+              <th style="padding: 8px;">Dosage Timing</th>
+              <th style="padding: 8px;">Frequency</th>
+              <th style="padding: 8px;">Duration</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;"><strong>Morning Metabolic Support</strong> (Configured Regimen)</td><td style="padding: 6px 8px;">0 - 1 - 0 - 0 - 0 (After Breakfast)</td><td style="padding: 6px 8px;">Everyday</td><td style="padding: 6px 8px;">x 3 Months</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;"><strong>Glycemic Support Regimen</strong> (Configured Regimen)</td><td style="padding: 6px 8px;">0 - 1 - 0 - 1 - 0 (After Breakfast & Dinner)</td><td style="padding: 6px 8px;">Everyday</td><td style="padding: 6px 8px;">x 1 Month</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;"><strong>Tab. Vit B Complex</strong></td><td style="padding: 6px 8px;">0 - 1 - 0 - 0 - 0 (After Breakfast)</td><td style="padding: 6px 8px;">Everyday</td><td style="padding: 6px 8px;">x 3 Months</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;"><strong>Cap. Garlic Pearls</strong> (Garlic oil 0.5% W/W)</td><td style="padding: 6px 8px;">0 - 1 - 0 - 1 - 0 (After Breakfast & Dinner)</td><td style="padding: 6px 8px;">Everyday</td><td style="padding: 6px 8px;">x 1 Month</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;"><strong>Antioxidant Vitamin E</strong> (Nutritional Supplement)</td><td style="padding: 6px 8px;">0 - 0 - 1 - 0 - 0 (After Lunch)</td><td style="padding: 6px 8px;">Everyday</td><td style="padding: 6px 8px;">x 3 Months</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;"><strong>Hepatic Support Supplement</strong> (Nutritional Extract)</td><td style="padding: 6px 8px;">0 - 0 - 1 - 0 - 0 (After Lunch)</td><td style="padding: 6px 8px;">Everyday</td><td style="padding: 6px 8px;">x 3 Months</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;"><strong>Tab. Vitamin D3 60K</strong></td><td style="padding: 6px 8px;">0 - 0 - 1 - 0 - 0 (After Lunch)</td><td style="padding: 6px 8px; color: var(--accent-cyan); font-weight: 700;">1 per Month</td><td style="padding: 6px 8px;">x 3 Months</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Exercise Video Player Modal -->
+  <div id="exerciseVideoModal" class="ag-modal-overlay" style="display: none;" onclick="if(event.target===this) closeVideoModal()">
+    <div class="ag-modal-box" style="width: 860px; max-width: 96vw; max-height: 90vh; display: flex; flex-direction: column;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">🎬</span>
+          <div>
+            <strong id="videoModalTitle" style="font-size: 15px; color: var(--text);">Exercise Video Player</strong>
+            <div id="videoModalCategory" style="font-size: 11px; color: var(--accent-cyan);">FFD Video Vault</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="btn" id="btnOpenSystemPlayer" style="font-size: 11.5px; padding: 4px 10px;" onclick="openCurrentVideoInSystem()">🖥 Open in System Player</button>
+          <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeVideoModal()">✕</button>
+        </div>
+      </div>
+      <div style="background: #000; border-radius: 8px; overflow: hidden; display: flex; justify-content: center; align-items: center; max-height: 65vh;">
+        <video id="exerciseVideoPlayer" controls style="width: 100%; max-height: 65vh; display: block;" preload="metadata">
+          Your browser does not support HTML5 video streaming.
+        </video>
+      </div>
+      <div style="margin-top: 10px; font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between;">
+        <span id="videoModalPath">Path: ./data/videos/...</span>
+        <span>HTML5 Fast HTTP Range Streaming</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modular Client Engines -->
+  <script src="/static/js/core.js"></script>
+  <script src="/static/js/briefing.js"></script>
+  <script src="/static/js/tasks.js"></script>
+  <script src="/static/js/routines.js"></script>
+  <script src="/static/js/emails.js"></script>
+  <script src="/static/js/antigravity.js"></script>
+  <script src="/static/js/tests.js"></script>
+  <script src="/static/js/backlog.js"></script>
+  <script src="/static/js/optimizer.js"></script>
+  <script src="/static/js/health.js"></script>
+  <script src="/static/js/app.js"></script>
+
+</body>
+</html>

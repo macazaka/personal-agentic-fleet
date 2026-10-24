@@ -1,0 +1,14 @@
+{
+  "id": "overview",
+  "name": "Overview",
+  "version": "1.8.0",
+  "icon": "\u26a1",
+  "description": "Daily Morning Briefing, Task & Goal Board, Routine Checklist, and Automated Test Suite.",
+  "permissions": [
+    "db:read",
+    "db:write",
+    "event_bus:publish",
+    "event_bus:subscribe",
+    "ui:render"
+  ]
+}

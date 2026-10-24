@@ -1,0 +1,39 @@
+# Fleet Control Center - Open Source Agentic Fleet Configuration
+# Copy this file to fleet.yaml (or fleet.json) to customize your fleet.
+
+server:
+  host: "127.0.0.1"
+  port: 7890
+  default_agent: "health"       # Default tab opened on startup: 'health', 'overview', 'optimizer', etc.
+
+# Modular Plug-and-Play Agents
+agents:
+  health:
+    enabled: true
+    videos_directory: "./data/videos"   # Customize to your local fitness folder
+    reminders_enabled: true
+
+  overview:
+    enabled: true
+
+  optimizer:
+    enabled: true
+    scan_interval_hours: 6
+
+  antigravity:
+    enabled: true
+
+  backlog:
+    enabled: true
+
+  gmail:
+    enabled: false              # Set to true and provide credentials to enable Gmail Intelligence
+    credentials_path: "fleet/data/user/client_secret.json"
+
+# Automated Security & Privacy Scanner Configuration
+security:
+  scan_interval_minutes: 60     # Automatic background scan frequency in FleetDaemon
+  block_commits_on_findings: true
+  toast_alerts_on_findings: true
+
+
