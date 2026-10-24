@@ -32,7 +32,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install pytest anyio
-        python -m pip install pygame-ce mcp || true
 
     - name: Run Test Suite
       env:

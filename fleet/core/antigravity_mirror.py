@@ -466,7 +466,8 @@ def fast_track_queue() -> Dict[str, Any]:
 
 def _execute_agy_or_fallback(prompt_text: str, images: Optional[List[str]] = None, model: Optional[str] = None):
     from fleet.core.token_optimizer import compress_prompt, select_optimal_model_tier
-    agy_exe = Path(os.environ.get("USERPROFILE", "")) / ".gemini" / "bin" / "agy.exe"
+    agy_home = os.environ.get("USERPROFILE") or os.environ.get("HOME") or ""
+    agy_exe = Path(agy_home) / ".gemini" / "bin" / ("agy.exe" if os.name == "nt" else "agy")
     compressed = compress_prompt(prompt_text)
     clean_prompt = compressed["text"]
     th_pct = get_token_health().get("percent_used", 0.0)
@@ -518,6 +519,8 @@ def _execute_agy_or_fallback(prompt_text: str, images: Optional[List[str]] = Non
 def get_active_transcript_path() -> Optional[Path]:
     """Finds the most recently active Antigravity session transcript.jsonl across IDE and standalone CLI."""
     userprofile = os.environ.get("USERPROFILE")
+    if userprofile is None and os.name != "nt":
+        userprofile = os.environ.get("HOME")
     if not userprofile:
         return None
 
@@ -848,7 +851,8 @@ def execute_dashboard_command(cmd_text: str, images: Optional[List[str]] = None,
 
     if not is_busy:
         agent_id = _spawn_parallel_agent_worker(task_text=text, images=images, model=target_model)
-        agy_exe = Path(os.environ.get("USERPROFILE", "")) / ".gemini" / "bin" / "agy.exe"
+        agy_home = os.environ.get("USERPROFILE") or os.environ.get("HOME") or ""
+    agy_exe = Path(agy_home) / ".gemini" / "bin" / ("agy.exe" if os.name == "nt" else "agy")
         if agy_exe.exists():
             return {
                 "status": "success",
