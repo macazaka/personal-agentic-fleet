@@ -146,14 +146,18 @@ def run_fleet_doctor(repo_root: Path = REPO_ROOT) -> Dict[str, Any]:
         "detail": db_detail,
     })
 
-    # 5. Git Security Hooks Auto-Verification
+    # 5. Git Security Hooks & Main Branch Protection Auto-Verification
+    from fleet.tools.github_branch_protection import verify_branch_protection
     hooks_res = install_git_hooks(repo_root=repo_root)
-    hooks_ok = hooks_res.get("status") in ("installed", "skipped")
+    bp_res = verify_branch_protection(repo_root=repo_root)
+    hooks_ok = hooks_res.get("status") in ("installed", "skipped") and bp_res.get("status") == "PASS"
+    if not hooks_ok:
+        all_passed = False
     diagnostics.append({
         "check": "git_security_hooks",
-        "name": "Git Pre-Commit & Pre-Push Security Gate Hooks",
+        "name": "Git Pre-Commit, Pre-Push & Main Branch Protection Gate",
         "status": "PASS" if hooks_ok else "FAIL",
-        "detail": f"Status: {hooks_res.get('status')}",
+        "detail": f"Hooks: {hooks_res.get('status')} | Main Branch Protection: {bp_res.get('status')}",
     })
 
     # 6. Full Security & Privacy Scanner
