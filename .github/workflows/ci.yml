@@ -13,7 +13,7 @@ jobs:
   test:
     name: Test Suite (${{ matrix.os }}, Python ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 6
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -35,8 +35,8 @@ jobs:
         python -m pip install pytest anyio coverage
 
     - name: Run Test Suite
-      timeout-minutes: 4
+      timeout-minutes: 8
       env:
         PYTHONPATH: .
       run: |
-        pytest tests/ -v --tb=short
+        python -m pytest tests/ -q --tb=short

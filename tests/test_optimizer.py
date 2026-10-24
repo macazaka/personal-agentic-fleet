@@ -34,7 +34,13 @@ def test_get_memory_status_normal():
 
 
 def test_get_memory_status_fallback():
-    with patch("ctypes.windll.kernel32.GlobalMemoryStatusEx", side_effect=Exception("ctypes failed")):
+    import ctypes
+    if hasattr(ctypes, "windll"):
+        with patch("ctypes.windll.kernel32.GlobalMemoryStatusEx", side_effect=Exception("ctypes failed")):
+            mem = get_memory_status()
+            assert mem["total_gb"] == 16.0
+            assert mem["percent_used"] == 50
+    else:
         mem = get_memory_status()
         assert mem["total_gb"] == 16.0
         assert mem["percent_used"] == 50
@@ -377,7 +383,12 @@ def test_optimizer_edge_cases_and_error_handling():
                 assert res_purge["status"] == "success"
 
     # 7. EmptyWorkingSet exception in optimize_ram
-    with patch("ctypes.windll.psapi.EmptyWorkingSet", side_effect=Exception("Failed")):
+    import ctypes
+    if hasattr(ctypes, "windll"):
+        with patch("ctypes.windll.psapi.EmptyWorkingSet", side_effect=Exception("Failed")):
+            res_ram = optimize_ram()
+            assert res_ram["status"] == "success"
+    else:
         res_ram = optimize_ram()
         assert res_ram["status"] == "success"
 

@@ -42,19 +42,18 @@ if sys.platform != "win32":
         dummy_winreg.OpenKey = lambda *args, **kwargs: DummyKey()
         dummy_winreg.OpenKeyEx = lambda *args, **kwargs: DummyKey()
         dummy_winreg.QueryInfoKey = lambda *args, **kwargs: (0, 0, 0)
-        dummy_winreg.EnumValue = lambda *args, **kwargs: ("app", "cmd", 0)
-        dummy_winreg.EnumKey = lambda *args, **kwargs: "key"
+        def _enum_key(*args, **kwargs):
+            raise OSError("No more keys")
+
+        def _enum_value(*args, **kwargs):
+            raise OSError("No more values")
+
+        dummy_winreg.EnumValue = _enum_value
+        dummy_winreg.EnumKey = _enum_key
         dummy_winreg.QueryValue = lambda *args, **kwargs: ""
         dummy_winreg.QueryValueEx = lambda *args, **kwargs: ("", 1)
         dummy_winreg.CloseKey = lambda *args, **kwargs: None
         sys.modules["winreg"] = dummy_winreg
-
-    import ctypes
-    if not hasattr(ctypes, "windll"):
-        class DummyWindll:
-            kernel32 = types.SimpleNamespace(GlobalMemoryStatusEx=lambda *args, **kwargs: False)
-            psapi = types.SimpleNamespace(EmptyWorkingSet=lambda *args, **kwargs: False)
-        ctypes.windll = DummyWindll()
 
 
 # Zero-dependency Google OAuth hierarchy shims for CI runner when vendor packages are absent

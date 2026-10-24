@@ -543,6 +543,9 @@ def test_parallel_agent_pool_and_fast_track():
         assert get_active_model() == "gemini-3.8-flash-high"
 
     # Edge cases: token exhaustion during process_next_in_queue (lines 411-412)
+    from fleet.core.antigravity_mirror import AGENT_STATE
+    test_db.set_setting("token_exhaustion_override", "")
+    AGENT_STATE["status"] = "idle"
     with patch("fleet.core.antigravity_mirror.get_token_health", return_value={"is_exhausted": True, "active_model_id": "gemini-3.8-flash-high"}):
         with patch("fleet.core.antigravity_mirror.handle_token_exhaustion") as mock_exhaust:
             process_next_in_queue()
