@@ -22,8 +22,41 @@ CHANGELOG_PATH = BASE_DIR.parent / "CHANGELOG.md"
 
 # LLM Providers Configuration
 # Can be loaded from environment variables or set directly
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+def get_secure_secret(key_name: str, fallback_env: str = "") -> str:
+    """
+    Retrieves secret prioritizing:
+    1. Windows Credential Manager (DPAPI via keyring, if installed)
+    2. Windows User & Process Environment Variables
+    3. fleet.yaml / fleet.json configuration
+    """
+    # 1. Windows Credential Manager (DPAPI)
+    try:
+        import keyring
+        val = keyring.get_password("fleet_os", key_name)
+        if val:
+            return val
+    except Exception:
+        pass
+
+    # 2. Environment Variables
+    env_name = fallback_env or key_name
+    val = os.getenv(env_name)
+    if val:
+        return val
+
+    # 3. fleet.yaml / fleet.json
+    try:
+        cfg = load_fleet_config()
+        val = cfg.get("keys", {}).get(key_name)
+        if val:
+            return val
+    except Exception:
+        pass
+
+    return ""
+
+GEMINI_API_KEY = get_secure_secret("GEMINI_API_KEY")
+OPENAI_API_KEY = get_secure_secret("OPENAI_API_KEY")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
 
