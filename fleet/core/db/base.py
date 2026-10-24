@@ -46,6 +46,7 @@ class BaseDatabase:
         conn.row_factory = sqlite3.Row
         try:
             conn.execute("PRAGMA synchronous = NORMAL")
+            conn.execute("PRAGMA secure_delete = ON")
         except Exception:
             pass
         # Self-healing schema: auto-create tables if missing

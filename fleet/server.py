@@ -82,12 +82,18 @@ agent_registry.discover_and_load()
 agent_registry.register_all_routes(router)
 
 
+MAX_PAYLOAD_BYTES = 10 * 1024 * 1024  # 10 MB request body ceiling (DoS protection)
+ALLOWED_ORIGINS = {
+    f"http://127.0.0.1:{PORT}",
+    f"http://localhost:{PORT}",
+}
+
+
 class FleetDashboardHandler(BaseHTTPRequestHandler):
     def handle_one_request(self):
         try:
             super().handle_one_request()
         except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
-            pass
             self.close_connection = True
 
     def finish(self):
@@ -96,31 +102,45 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
         except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
             pass
 
+    def _send_security_headers(self):
+        """Attach standard HTTP hardening headers to all responses."""
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "no-referrer")
+        origin = self.headers.get("Origin", "") if hasattr(self, "headers") and self.headers else ""
+        if origin in ALLOWED_ORIGINS:
+            self.send_header("Access-Control-Allow-Origin", origin)
+        else:
+            self.send_header("Access-Control-Allow-Origin", f"http://127.0.0.1:{PORT}")
+
     def _send_json(self, data: Any, status: int = 200):
         try:
             body = json.dumps(data).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
+            self._send_security_headers()
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
         except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
             pass
+
     def log_message(self, format, *args):
         pass  # Suppress default noisy console logs; events routed via event bus
 
     def _read_json(self) -> Dict[str, Any]:
         content_len = int(self.headers.get("Content-Length", 0))
-        if content_len == 0:
+        if content_len <= 0 or content_len > MAX_PAYLOAD_BYTES:
             return {}
-        post_data = self.rfile.read(content_len).decode("utf-8")
+        post_data = self.rfile.read(content_len).decode("utf-8", errors="replace")
         try:
             return json.loads(post_data)
         except Exception:
             return {}
+
     def do_OPTIONS(self):
         self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self._send_security_headers()
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
@@ -137,6 +157,7 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             body = get_dashboard_html(standalone=False).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            self._send_security_headers()
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -295,6 +316,7 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
                 data = file_path.read_bytes()
                 self.send_response(200)
                 self.send_header("Content-Type", content_type)
+                self._send_security_headers()
                 self.send_header("Content-Length", str(len(data)))
                 self.send_header("Cache-Control", "no-cache")
                 self.end_headers()

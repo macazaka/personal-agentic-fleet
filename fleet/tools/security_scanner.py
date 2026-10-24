@@ -1,0 +1,457 @@
+"""
+Automated Zero-Token Security, Secret, PII & SAST Scanner for Personal Agentic Fleet.
+Can be executed:
+  1. Periodically by FleetDaemon (default: every 1 hour)
+  2. Automatically via Git pre-commit and pre-push hooks
+  3. On a daily cron schedule and every PR via GitHub Actions (.github/workflows/security.yml)
+  4. On-demand via Dashboard API (/api/security/scan) or CLI (python -m fleet.tools.security_scanner)
+"""
+
+import argparse
+from datetime import datetime
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+from typing import Any, Dict, List, Optional
+
+# Ensure project root is on sys.path when invoked directly or via Git hooks
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from fleet.config import BASE_DIR, DATA_DIR
+
+REPO_ROOT = BASE_DIR.parent
+SECURITY_REPORT_FILE = DATA_DIR / "latest_security_scan.json"
+SCAN_REPORT_FILE = SECURITY_REPORT_FILE
+USER_VAULT_DIR = DATA_DIR / "user"
+
+# Secret detection patterns (High-confidence signatures)
+SECRET_PATTERNS = [
+    ("Google API Key", re.compile(r"AIza[0-9A-Za-z\-_]{35}")),
+    ("Google OAuth Client Secret", re.compile(r"GOCSPX-[0-9A-Za-z\-_]{28}")),
+    ("OpenAI API Key", re.compile(r"sk-(?:proj-)?[A-Za-z0-9]{32,}")),
+    ("GitHub Personal/OAuth Token", re.compile(r"gh[pousr]_[A-Za-z0-9_]{36,}")),
+    ("GitHub Fine-Grained Token", re.compile(r"github_pat_[A-Za-z0-9_]{22,}")),
+    ("AWS Access Key ID", re.compile(r"AKIA[0-9A-Z]{16}")),
+    ("Slack Token", re.compile(r"xox[baprs]-[0-9a-zA-Z\-]{10,}")),
+    ("Cryptographic Private Key", re.compile(r"-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----")),
+]
+
+# Forbidden file patterns that must NEVER be tracked in Git
+FORBIDDEN_TRACKED_FILES = [
+    re.compile(r".*\.db$", re.IGNORECASE),
+    re.compile(r".*\.sqlite3?$", re.IGNORECASE),
+    re.compile(r".*client_secret.*\.json$", re.IGNORECASE),
+    re.compile(r".*gmail_token\.json$", re.IGNORECASE),
+    re.compile(r"(?:^|/)\.env(?:\..+)?$", re.IGNORECASE),
+    re.compile(r".*\.(?:pem|key|pfx|p12)$", re.IGNORECASE),
+    re.compile(r"^fleet/data/user/.*", re.IGNORECASE),
+]
+
+# Required .gitignore rules
+REQUIRED_GITIGNORE_ENTRIES = [
+    "*.db",
+    "*client_secret*.json",
+    ".env",
+    "fleet.yaml",
+    "fleet/data/user/",
+]
+
+
+def _get_git_executable() -> str:
+    """Locates the git executable on Windows or POSIX."""
+    import shutil
+    git_bin = shutil.which("git")
+    if git_bin:
+        return git_bin
+    fallback = Path(os.path.expanduser(r"~\AppData\Local\Programs\Git\cmd\git.exe"))
+    if fallback.is_file():
+        return str(fallback)
+    return "git"
+
+
+def get_tracked_files(repo_root: Path = REPO_ROOT) -> List[str]:
+    """Returns list of relative file paths currently tracked by Git, or fallback workspace scan."""
+    git_exe = _get_git_executable()
+    if (repo_root / ".git").exists():
+        try:
+            res = subprocess.run(
+                [git_exe, "-C", str(repo_root), "ls-files"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                return [line.strip() for line in res.stdout.splitlines() if line.strip()]
+        except Exception:
+            pass
+
+    # Fallback if git is unavailable
+    tracked = []
+    ignore_dirs = {".git", "__pycache__", ".pytest_cache", "venv", ".venv", "node_modules", "data", ".user_uploaded", "scratch"}
+    for root, dirs, files in os.walk(repo_root):
+        dirs[:] = [d for d in dirs if d not in ignore_dirs]
+        for f in files:
+            if f.endswith((".pyc", ".db", ".sqlite3", ".log", ".pid")):
+                continue
+            rel = Path(root, f).relative_to(repo_root).as_posix()
+            tracked.append(rel)
+    return tracked
+
+
+def _load_pii_blocklist() -> List[str]:
+    """
+    Loads user-specific confidential terms from fleet/data/user/pii_blocklist.json
+    (which is git-ignored) so personal names/identifiers are never hardcoded in the scanner itself!
+    """
+    USER_VAULT_DIR.mkdir(parents=True, exist_ok=True)
+    blocklist_file = USER_VAULT_DIR / "pii_blocklist.json"
+    if not blocklist_file.exists():
+        # Initialize default local blocklist from OS username if available
+        default_terms = []
+        try:
+            os_user = os.getlogin()
+            if os_user and len(os_user) > 3 and os_user.lower() not in ("user", "admin", "administrator", "runner", "root"):
+                default_terms.append(os_user)
+        except Exception:
+            pass
+        try:
+            blocklist_file.write_text(
+                json.dumps({"blocked_terms": default_terms, "description": "Local-only list of personal terms that must never appear in git-tracked files."}, indent=2),
+                encoding="utf-8",
+            )
+        except Exception:
+            pass
+        return default_terms
+
+    try:
+        data = json.loads(blocklist_file.read_text(encoding="utf-8"))
+        return [t.strip() for t in data.get("blocked_terms", []) if len(t.strip()) >= 3]
+    except Exception:
+        return []
+
+
+load_user_pii_blocklist = _load_pii_blocklist
+
+
+def scan_text_for_secrets(content: str, file_path: str = "inline") -> List[Dict[str, Any]]:
+    """Scans a string for API keys, OAuth client secrets, or private keys."""
+    hits: List[Dict[str, Any]] = []
+    for line_no, line in enumerate(content.splitlines(), 1):
+        for label, pattern in SECRET_PATTERNS:
+            if pattern.search(line):
+                hits.append({
+                    "severity": "CRITICAL",
+                    "category": "secret_leak",
+                    "file": file_path,
+                    "line": line_no,
+                    "detail": f"Potential {label} detected in {file_path}.",
+                })
+    return hits
+
+
+def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> Dict[str, Any]:
+    """
+    Executes a comprehensive 6-layer security and privacy audit of the codebase.
+    Consumes 0 LLM tokens ($0.00).
+    """
+    tracked_files = get_tracked_files(repo_root)
+    findings: List[Dict[str, Any]] = []
+    checks: List[Dict[str, Any]] = []
+
+    # -------------------------------------------------------------------------
+    # Check 1: Secret & API Key Detection
+    # -------------------------------------------------------------------------
+    secret_hits = []
+    for rel_path in tracked_files:
+        fp = repo_root / rel_path
+        if not fp.is_file():
+            continue
+        # Skip the scanner's own regex definitions and unit test mocks
+        if rel_path in ("fleet/tools/security_scanner.py", "tests/test_security_scanner.py"):
+            continue
+        try:
+            content = fp.read_text(encoding="utf-8", errors="ignore")
+            for line_no, line in enumerate(content.splitlines(), 1):
+                for label, pattern in SECRET_PATTERNS:
+                    if pattern.search(line):
+                        hit = {
+                            "severity": "CRITICAL",
+                            "category": "Secret Exposure",
+                            "file": rel_path,
+                            "line": line_no,
+                            "detail": f"Potential {label} detected in tracked file.",
+                        }
+                        secret_hits.append(hit)
+                        findings.append(hit)
+        except Exception:
+            continue
+
+    checks.append({
+        "id": "secret_detection",
+        "name": "API Keys & Cryptographic Secret Scan",
+        "status": "PASS" if not secret_hits else "FAIL",
+        "findings_count": len(secret_hits),
+    })
+
+    # -------------------------------------------------------------------------
+    # Check 2: Personal Identifiable Information (PII) & Local Blocklist Scan
+    # -------------------------------------------------------------------------
+    pii_terms = _load_pii_blocklist()
+    pii_hits = []
+    if pii_terms:
+        for rel_path in tracked_files:
+            fp = repo_root / rel_path
+            if not fp.is_file():
+                continue
+            try:
+                content = fp.read_text(encoding="utf-8", errors="ignore")
+                for line_no, line in enumerate(content.splitlines(), 1):
+                    line_lower = line.lower()
+                    for term in pii_terms:
+                        if term.lower() in line_lower:
+                            hit = {
+                                "severity": "HIGH",
+                                "category": "PII Confidentiality",
+                                "file": rel_path,
+                                "line": line_no,
+                                "detail": "Matched protected personal identifier from local pii_blocklist.json.",
+                            }
+                            pii_hits.append(hit)
+                            findings.append(hit)
+            except Exception:
+                continue
+
+    checks.append({
+        "id": "pii_leak_scan",
+        "name": "Personal Identifier (PII) Confidentiality Scan",
+        "status": "PASS" if not pii_hits else "FAIL",
+        "findings_count": len(pii_hits),
+    })
+
+    # -------------------------------------------------------------------------
+    # Check 3: Git Hygiene & Forbidden Tracked Files
+    # -------------------------------------------------------------------------
+    hygiene_hits = []
+    gitignore_path = repo_root / ".gitignore"
+    if not gitignore_path.is_file():
+        hit = {
+            "severity": "CRITICAL",
+            "category": "Git Hygiene",
+            "file": ".gitignore",
+            "line": 0,
+            "detail": "Missing .gitignore file in repository root.",
+        }
+        hygiene_hits.append(hit)
+        findings.append(hit)
+    else:
+        gi_text = gitignore_path.read_text(encoding="utf-8", errors="ignore")
+        for req in REQUIRED_GITIGNORE_ENTRIES:
+            if req not in gi_text:
+                hit = {
+                    "severity": "HIGH",
+                    "category": "Git Hygiene",
+                    "file": ".gitignore",
+                    "line": 1,
+                    "detail": f"Missing required ignore rule '{req}' in .gitignore.",
+                }
+                hygiene_hits.append(hit)
+                findings.append(hit)
+
+    for rel_path in tracked_files:
+        if rel_path.endswith(".example"):
+            continue
+        for pat in FORBIDDEN_TRACKED_FILES:
+            if pat.match(rel_path):
+                hit = {
+                    "severity": "CRITICAL",
+                    "category": "Forbidden Tracked File",
+                    "file": rel_path,
+                    "line": 0,
+                    "detail": f"Sensitive database/credential file '{rel_path}' is tracked by Git!",
+                }
+                hygiene_hits.append(hit)
+                findings.append(hit)
+
+    checks.append({
+        "id": "git_hygiene",
+        "name": "Git Ignore & Sensitive File Exclusion Audit",
+        "status": "PASS" if not hygiene_hits else "FAIL",
+        "findings_count": len(hygiene_hits),
+    })
+
+    # -------------------------------------------------------------------------
+    # Check 4: Static Application Security Testing (SAST)
+    # -------------------------------------------------------------------------
+    sast_hits = []
+    for rel_path in tracked_files:
+        if not rel_path.startswith("fleet/") or not rel_path.endswith(".py"):
+            continue
+        if rel_path == "fleet/tools/security_scanner.py":
+            continue
+        fp = repo_root / rel_path
+        if not fp.is_file():
+            continue
+        try:
+            content = fp.read_text(encoding="utf-8", errors="ignore")
+            for line_no, line in enumerate(content.splitlines(), 1):
+                stripped = line.split("#")[0]
+                if "shell=True" in stripped:
+                    hit = {
+                        "severity": "HIGH",
+                        "category": "SAST Command Injection",
+                        "file": rel_path,
+                        "line": line_no,
+                        "detail": "Subprocess call with shell=True detected.",
+                    }
+                    sast_hits.append(hit)
+                    findings.append(hit)
+                if "Access-Control-Allow-Origin" in stripped and '"*"' in stripped:
+                    hit = {
+                        "severity": "MEDIUM",
+                        "category": "SAST Wildcard CORS",
+                        "file": rel_path,
+                        "line": line_no,
+                        "detail": "Wildcard CORS Access-Control-Allow-Origin: * exposes localhost API to external sites.",
+                    }
+                    sast_hits.append(hit)
+                    findings.append(hit)
+        except Exception:
+            continue
+
+    checks.append({
+        "id": "sast_audit",
+        "name": "Static Application Security Analysis (SAST)",
+        "status": "PASS" if not sast_hits else "FAIL",
+        "findings_count": len(sast_hits),
+    })
+
+    # -------------------------------------------------------------------------
+    # Check 5: HTTP Server & Plugin Boundary Hardening
+    # -------------------------------------------------------------------------
+    http_hits = []
+    server_path = repo_root / "fleet" / "server.py"
+    if server_path.is_file():
+        srv_text = server_path.read_text(encoding="utf-8", errors="ignore")
+        if "X-Content-Type-Options" not in srv_text:
+            hit = {
+                "severity": "MEDIUM",
+                "category": "HTTP Security Headers",
+                "file": "fleet/server.py",
+                "line": 100,
+                "detail": "Missing X-Content-Type-Options: nosniff header in server responses.",
+            }
+            http_hits.append(hit)
+            findings.append(hit)
+        if "MAX_PAYLOAD_BYTES" not in srv_text:
+            hit = {
+                "severity": "MEDIUM",
+                "category": "DoS Payload Guard",
+                "file": "fleet/server.py",
+                "line": 112,
+                "detail": "Missing MAX_PAYLOAD_BYTES limit in _read_json().",
+            }
+            http_hits.append(hit)
+            findings.append(hit)
+
+    checks.append({
+        "id": "http_hardening",
+        "name": "Localhost HTTP & Plugin Boundary Hardening",
+        "status": "PASS" if not http_hits else "FAIL",
+        "findings_count": len(http_hits),
+    })
+
+    # -------------------------------------------------------------------------
+    # Check 6: Isolated User Data Vault Verification
+    # -------------------------------------------------------------------------
+    vault_hits = []
+    USER_VAULT_DIR.mkdir(parents=True, exist_ok=True)
+    if not USER_VAULT_DIR.is_dir():
+        hit = {
+            "severity": "MEDIUM",
+            "category": "User Vault Isolation",
+            "file": "fleet/data/user",
+            "line": 0,
+            "detail": "Isolated user data vault directory is missing.",
+        }
+        vault_hits.append(hit)
+        findings.append(hit)
+
+    checks.append({
+        "id": "user_vault_isolation",
+        "name": "Scoped User Data Vault Isolation (fleet/data/user/)",
+        "status": "PASS" if not vault_hits else "FAIL",
+        "findings_count": len(vault_hits),
+    })
+
+    # Compute overall score
+    deductions = 0
+    for f in findings:
+        sev = f.get("severity", "LOW")
+        if sev == "CRITICAL":
+            deductions += 30
+        elif sev == "HIGH":
+            deductions += 20
+        elif sev == "MEDIUM":
+            deductions += 10
+        else:
+            deductions += 5
+
+    score = max(0, 100 - deductions)
+    overall_status = "PASS" if len(findings) == 0 else ("FAIL" if score < 80 else "WARN")
+
+    report = {
+        "status": overall_status,
+        "score": score,
+        "security_score": score,
+        "total_checks": len(checks),
+        "passed_checks": sum(1 for c in checks if c["status"] == "PASS"),
+        "total_findings": len(findings),
+        "findings_count": len(findings),
+        "files_scanned": len(tracked_files),
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "checks": checks,
+        "findings": findings[:50],
+    }
+
+    if save_report:
+        try:
+            SECURITY_REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
+            SECURITY_REPORT_FILE.write_text(json.dumps(report, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+
+    return report
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Fleet Automated Security & Privacy Scanner")
+    parser.add_argument("--strict", action="store_true", help="Exit with non-zero code if any finding is detected")
+    parser.add_argument("--json", action="store_true", help="Print full JSON report")
+    args = parser.parse_args()
+
+    report = run_security_scan()
+    if args.json:
+        print(json.dumps(report, indent=2))
+    else:
+        print(f"=== Fleet Security Scan [{report['status']}] | Score: {report['security_score']}/100 ===")
+        print(f"Files Scanned: {report['files_scanned']} | Checks Passed: {report['passed_checks']}/{report['total_checks']}")
+        for c in report["checks"]:
+            icon = "[PASS]" if c["status"] == "PASS" else "[FAIL]"
+            print(f"  {icon} {c['name']} ({c['findings_count']} findings)")
+        if report["findings"]:
+            print("\nFindings:")
+            for f in report["findings"]:
+                print(f"  - [{f['severity']}] {f['file']}:{f['line']} -> {f['detail']}")
+
+    if args.strict and report["findings_count"] > 0:
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

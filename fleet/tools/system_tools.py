@@ -28,9 +28,9 @@ def send_windows_notification(title: str, message: str) -> bool:
         return False
     try:
         # PowerShell script to show a native Windows toast notification
-        # Escaping quotes safely
-        safe_title = title.replace('"', '`"')
-        safe_msg = message.replace('"', '`"')
+        # Escaping backticks, subexpression $, and quotes safely against command injection
+        safe_title = title.replace("`", "``").replace("$", "`$").replace('"', '`"')
+        safe_msg = message.replace("`", "``").replace("$", "`$").replace('"', '`"')
         ps_script = f"""
         [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null
         $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)

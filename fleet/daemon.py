@@ -33,6 +33,11 @@ class FleetDaemon:
         self.last_email_sync_hour = -1
         self.last_test_run_time = time.time()
         self.test_run_interval_sec = 1800  # 30 minutes
+        from fleet.config import load_fleet_config
+        sec_cfg = load_fleet_config().get("security", {})
+        scan_mins = int(sec_cfg.get("scan_interval_minutes", 60))
+        self.security_scan_interval_sec = max(60, scan_mins * 60)
+        self.last_security_scan_time = time.time()
         self.health_reminders_triggered = set()
         self.last_reminder_reset_date = "" 
 
@@ -142,6 +147,44 @@ class FleetDaemon:
                 self.last_test_run_time = now_ts
             except Exception as e:
                 print(f"[{now.strftime('%H:%M:%S')}] Test runner daemon error: {e}")
+
+        # 5. Scheduled Automated Security & Privacy Audit Pulse (Every 60 mins by default)
+        if (now_ts - self.last_security_scan_time) >= self.security_scan_interval_sec:
+            self.run_scheduled_security_scan(now)
+            self.last_security_scan_time = now_ts
+
+    def run_scheduled_security_scan(self, now: datetime = None):
+        """Runs the zero-token 6-layer security & privacy audit and alerts via Windows Toast on findings."""
+        if now is None:
+            now = datetime.now()
+        try:
+            from fleet.tools.security_scanner import run_security_scan
+            from fleet.core.event_bus import FleetEvent
+            print(f"[{now.strftime('%H:%M:%S')}] Running scheduled 6-layer Security & Privacy Audit...")
+            report = run_security_scan()
+            score = report.get("score", 0)
+            status = report.get("status", "UNKNOWN")
+            findings_count = report.get("total_findings", 0)
+            db_inst = getattr(self.bus, "db", None) or FleetDatabase()
+            db_inst.log_activity(
+                "SecurityScanner",
+                "scheduled_scan",
+                f"Automated Security Audit: Score {score}/100 [{status}] ({findings_count} findings)"
+            )
+            if status != "PASS" or findings_count > 0:
+                self.bus.dispatch(FleetEvent(
+                    sender="FleetDaemon",
+                    target="notification",
+                    action="SEND_TOAST",
+                    payload={
+                        "title": f"🛡️ Security Alert: {findings_count} Finding(s) Detected",
+                        "message": f"Automated Security Scan Score: {score}/100 [{status}]. Check dashboard security report."
+                    }
+                ))
+            return report
+        except Exception as e:
+            print(f"[{now.strftime('%H:%M:%S')}] Security scanner daemon error: {e}")
+            return {"status": "ERROR", "message": str(e)}
 
     def run_loop(self, poll_interval_sec: int = 30):
         print(f"Fleet Daemon active ({TIMEZONE_NAME}).")

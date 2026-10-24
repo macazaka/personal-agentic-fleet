@@ -28,5 +28,12 @@ agents:
 
   gmail:
     enabled: false              # Set to true and provide credentials to enable Gmail Intelligence
-    credentials_path: "fleet/data/client_secret.json"
+    credentials_path: "fleet/data/user/client_secret.json"
+
+# Automated Security & Privacy Scanner Configuration
+security:
+  scan_interval_minutes: 60     # Automatic background scan frequency in FleetDaemon
+  block_commits_on_findings: true
+  toast_alerts_on_findings: true
+
 

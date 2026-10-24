@@ -91,3 +91,32 @@ def post_run_tests(handler: Any, body: Dict[str, Any]):
     results = run_test_suite_isolated(srv.db)
     handler._send_json({"status": "success", "results": results})
 
+
+@router.get("/api/security/scan")
+def get_security_scan(handler: Any, parsed_url: urllib.parse.ParseResult):
+    from fleet.tools.security_scanner import SCAN_REPORT_FILE, run_security_scan
+    query = urllib.parse.parse_qs(parsed_url.query)
+    refresh = query.get("refresh", ["false"])[0].lower() in ("true", "1")
+    if not refresh and SCAN_REPORT_FILE.exists():
+        try:
+            report = json.loads(SCAN_REPORT_FILE.read_text(encoding="utf-8"))
+            handler._send_json(report)
+            return
+        except Exception:
+            pass
+    report = run_security_scan()
+    handler._send_json(report)
+
+
+@router.post("/api/security/scan")
+def post_security_scan(handler: Any, body: Dict[str, Any]):
+    from fleet.tools.security_scanner import run_security_scan
+    report = run_security_scan()
+    srv.db.log_activity(
+        "SecurityScanner",
+        "security_scan",
+        f"Security Scan completed: Score {report.get('score', 0)}/100 ({report.get('status', 'UNKNOWN')})"
+    )
+    handler._send_json({"status": "success", "report": report})
+
+

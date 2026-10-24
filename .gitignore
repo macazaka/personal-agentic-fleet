@@ -26,7 +26,11 @@ fleet/data/*.sqlite3
 *.db
 *.sqlite3
 
-# 4. User Uploaded Files, Personal Notes & Temporary Media
+# 4. User Uploaded Files, Personal Notes, Isolated User Vault & Temporary Media
+fleet/data/user/
+fleet/data/user/*
+!fleet/data/user/.gitkeep
+fleet/data/latest_security_scan.json
 fleet/data/uploads/*
 !fleet/data/uploads/.gitkeep
 fleet/data/notes/*

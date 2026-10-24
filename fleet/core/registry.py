@@ -7,6 +7,7 @@ import importlib.util
 import json
 import logging
 from pathlib import Path
+import re
 from typing import Any, Dict, List, Optional
 import urllib.parse
 
@@ -112,17 +113,21 @@ class AgentRegistry:
         @router.get("/api/fleet/agents/<agent_id>/style.css")
         def get_agent_style(handler: Any, parsed_url: urllib.parse.ParseResult):
             agent_id = parsed_url.path.split("/")[4]
+            if not re.match(r"^[a-zA-Z0-9_-]+$", agent_id):
+                handler.send_error(400, "Invalid agent identifier")
+                return
             agent = self.agents.get(agent_id)
             if not agent:
                 handler.send_error(404, "Agent not found")
                 return
-            css_file = agent.agent_dir / "ui" / "style.css"
-            if not css_file.is_file():
+            css_file = (agent.agent_dir / "ui" / "style.css").resolve()
+            if not css_file.is_file() or not str(css_file).startswith(str(self.agents_dir.resolve())):
                 handler.send_error(404, "Style not found")
                 return
             css_bytes = css_file.read_bytes()
             handler.send_response(200)
             handler.send_header("Content-Type", "text/css; charset=utf-8")
+            handler.send_header("X-Content-Type-Options", "nosniff")
             handler.send_header("Content-Length", str(len(css_bytes)))
             handler.end_headers()
             handler.wfile.write(css_bytes)
@@ -130,17 +135,21 @@ class AgentRegistry:
         @router.get("/api/fleet/agents/<agent_id>/script.js")
         def get_agent_script(handler: Any, parsed_url: urllib.parse.ParseResult):
             agent_id = parsed_url.path.split("/")[4]
+            if not re.match(r"^[a-zA-Z0-9_-]+$", agent_id):
+                handler.send_error(400, "Invalid agent identifier")
+                return
             agent = self.agents.get(agent_id)
             if not agent:
                 handler.send_error(404, "Agent not found")
                 return
-            js_file = agent.agent_dir / "ui" / "script.js"
-            if not js_file.is_file():
+            js_file = (agent.agent_dir / "ui" / "script.js").resolve()
+            if not js_file.is_file() or not str(js_file).startswith(str(self.agents_dir.resolve())):
                 handler.send_error(404, "Script not found")
                 return
             js_bytes = js_file.read_bytes()
             handler.send_response(200)
             handler.send_header("Content-Type", "application/javascript; charset=utf-8")
+            handler.send_header("X-Content-Type-Options", "nosniff")
             handler.send_header("Content-Length", str(len(js_bytes)))
             handler.end_headers()
             handler.wfile.write(js_bytes)

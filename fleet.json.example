@@ -25,8 +25,13 @@
     },
     "gmail": {
       "enabled": false,
-      "credentials_path": "fleet/data/client_secret.json"
+      "credentials_path": "fleet/data/user/client_secret.json"
     }
+  },
+  "security": {
+    "scan_interval_minutes": 60,
+    "block_commits_on_findings": true,
+    "toast_alerts_on_findings": true
   }
 }
 
