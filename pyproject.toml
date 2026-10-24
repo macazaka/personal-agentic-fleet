@@ -46,3 +46,7 @@ Homepage = "https://github.com/macazaka/personal-agentic-fleet"
 Repository = "https://github.com/macazaka/personal-agentic-fleet.git"
 Issues = "https://github.com/macazaka/personal-agentic-fleet/issues"
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["fleet*"]
+
