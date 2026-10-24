@@ -96,6 +96,82 @@ def test_zero_token_deterministic_router_and_prompt_compressor():
     assert stats["tier0_deterministic_hits"] >= 2
 
 
+def test_advanced_8_layer_token_reduction_methods():
+    from fleet.core.token_optimizer import (
+        cache_prompt_response,
+        check_mcp_delta_response,
+        coalesce_queued_prompts,
+        compress_prompt,
+        deduplicate_uploaded_image,
+        get_cached_prompt_response,
+        query_local_knowledge_base,
+        select_optimal_model_tier,
+    )
+
+    # 1. Local Offline BM25 Knowledge RAG answers FFD & Workout questions at 0 tokens
+    smoothie_rag = query_local_knowledge_base("What is the FFD green smoothie recipe and timing?")
+    assert smoothie_rag is not None
+    assert smoothie_rag["tokens_used"] == 0
+    assert "Major Green" in smoothie_rag["message"]
+
+    workout_rag = query_local_knowledge_base("What is my Mudgal and Samtola workout schedule?")
+    assert workout_rag is not None
+    assert workout_rag["tokens_used"] == 0
+    assert "Monday" in workout_rag["message"] and "Wednesday" in workout_rag["message"]
+
+    hypo_rag = query_local_knowledge_base("How to handle hypoglycemia when BSL is below 70?")
+    assert hypo_rag is not None
+    assert "3 tsp sugar" in hypo_rag["message"]
+
+    # 2. Fuzzy Semantic Cache catches paraphrased repeat questions (0 tokens)
+    cache_prompt_response(
+        "Explain the lunch and dinner 25% quad plate formula",
+        "25% raw salad, 25% cooked veg, 25% dal, 25% single low-GI grain.",
+    )
+    fuzzy_hit = get_cached_prompt_response("Please tell me the lunch & dinner 25% quad plate formula!")
+    assert fuzzy_hit == "25% raw salad, 25% cooked veg, 25% dal, 25% single low-GI grain."
+
+    # 3. Code-Block AST/Tokenize Minifier strips Python comments inside prompts
+    code_prompt = "Fix this:\n```python\n# This is a noisy comment that wastes tokens\ndef add(a, b):\n    # Another comment\n    return a + b\n```"
+    minified = compress_prompt(code_prompt)
+    assert "noisy comment" not in minified["text"]
+    assert "def add(a, b):" in minified["text"]
+
+    # 4. Queued Prompt Coalescer merges multiple prompts to save ~8,000+ system context tokens per item
+    queued_items = [
+        {"id": 101, "prompt": "Summarize today's P1 tasks", "images": [], "model": "gemini-3.8-flash-high"},
+        {"id": 102, "prompt": "Check pending backlog items", "images": [], "model": "gemini-3.8-flash-high"},
+        {"id": 103, "prompt": "List hydration goal status", "images": [], "model": "gemini-3.8-flash-high"},
+    ]
+    coalesced = coalesce_queued_prompts(queued_items)
+    assert len(coalesced) == 1
+    assert coalesced[0]["merged_ids"] == [101, 102, 103]
+    assert "### Task 1:" in coalesced[0]["prompt"] and "### Task 3:" in coalesced[0]["prompt"]
+
+    # 5. Budget-Aware Model Tier Downgrade (>70% usage forces Flash tier)
+    downgraded = select_optimal_model_tier(
+        "Perform deep architectural analysis",
+        requested_model="claude-opus-5-5-medium",
+        token_usage_pct=75.0,
+    )
+    assert downgraded == "gemini-3.8-flash-high"
+
+    # 6. SHA-256 Image Deduplication prevents duplicate vision token billing
+    sample_img = b"\x89PNG\r\n\x1a\n_dummy_image_payload_bytes"
+    first_upload = deduplicate_uploaded_image(sample_img, lambda: {"filename": "img1.png", "size": len(sample_img)})
+    assert first_upload["deduplicated"] is False
+    second_upload = deduplicate_uploaded_image(sample_img, lambda: {"filename": "img2.png", "size": len(sample_img)})
+    assert second_upload["deduplicated"] is True
+    assert second_upload["filename"] == "img1.png"
+
+    # 7. Delta-Only MCP State-Hash Cache skips redundant context dumps
+    full_briefing = "Daily Briefing: 3 P1 tasks, 5 habits."
+    first_mcp = check_mcp_delta_response("briefing_test_tool", full_briefing)
+    assert first_mcp == full_briefing
+    second_mcp = check_mcp_delta_response("briefing_test_tool", full_briefing)
+    assert "State unchanged since last" in second_mcp
+
+
 def test_dpapi_crypto_vault_roundtrip_and_tamper_detection():
     secret_val = "super_confidential_oauth_refresh_token_2026"
     encrypted = encrypt_sensitive_text(secret_val)
