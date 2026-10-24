@@ -1,0 +1,93 @@
+"""
+System, Briefing, Notifications & Test Runner API endpoints for Personal Agentic Fleet.
+"""
+
+from datetime import datetime
+import json
+from typing import Any, Dict
+import urllib.parse
+
+from fleet.api.router import router
+from fleet.config import CHANGELOG_PATH, VERSION
+import fleet.server as srv
+
+
+@router.get("/api/briefing")
+def get_briefing(handler: Any, parsed_url: urllib.parse.ParseResult):
+    data = srv.briefing_engine.generate_daily_briefing()
+    handler._send_json(data)
+
+
+@router.get("/api/logs")
+def get_logs(handler: Any, parsed_url: urllib.parse.ParseResult):
+    query = urllib.parse.parse_qs(parsed_url.query)
+    limit = int(query.get("limit", [15])[0])
+    logs = srv.db.get_recent_activities(limit=limit)
+    handler._send_json(logs)
+
+
+@router.get("/api/status")
+def get_status(handler: Any, parsed_url: urllib.parse.ParseResult):
+    disk = srv.get_disk_usage("C:")
+    handler._send_json({
+        "status": "online",
+        "version": VERSION,
+        "time": datetime.now().isoformat(),
+        "disk": disk
+    })
+
+
+@router.get("/api/version")
+def get_version(handler: Any, parsed_url: urllib.parse.ParseResult):
+    handler._send_json({
+        "version": VERSION,
+        "name": "Personal Agentic Fleet",
+        "release_date": "2026-10-14",
+        "status": "operational"
+    })
+
+
+@router.get("/api/release_notes")
+def get_release_notes(handler: Any, parsed_url: urllib.parse.ParseResult):
+    notes = CHANGELOG_PATH.read_text(encoding="utf-8") if CHANGELOG_PATH.exists() else "No release notes available."
+    handler._send_json({
+        "version": VERSION,
+        "changelog_markdown": notes
+    })
+
+
+@router.post("/api/notify")
+def post_notify(handler: Any, body: Dict[str, Any]):
+    title = body.get("title", "Personal Agentic Fleet")
+    message = body.get("message", "Notification from your fleet")
+    success = srv.send_windows_notification(title, message)
+    srv.db.log_activity("Notifier", "windows_toast", f"Sent Windows Toast: {title} - {message}")
+    handler._send_json({"status": "sent", "success": success})
+
+
+@router.get("/api/test_results")
+def get_test_results(handler: Any, parsed_url: urllib.parse.ParseResult):
+    latest = srv.db.get_latest_test_run()
+    if not latest:
+        from fleet.tools.test_runner import RESULTS_FILE
+        if RESULTS_FILE.exists():
+            try:
+                latest = json.loads(RESULTS_FILE.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+    handler._send_json(latest or {
+        "pass_pct": 100.0,
+        "total_tests": 0,
+        "passed_tests": 0,
+        "coverage_pct": 0.0,
+        "status": "PASS",
+        "timestamp": "-"
+    })
+
+
+@router.post("/api/run_tests")
+def post_run_tests(handler: Any, body: Dict[str, Any]):
+    from fleet.tools.test_runner import run_test_suite_isolated
+    results = run_test_suite_isolated(srv.db)
+    handler._send_json({"status": "success", "results": results})
+

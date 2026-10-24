@@ -1,0 +1,84 @@
+# ==============================================================================
+# Open-Source Personal Agentic Fleet - Git Ignore
+# ==============================================================================
+
+# 1. User Configuration & Local Settings (Keep fleet.yaml.example committed)
+fleet.yaml
+fleet.json
+.env
+.env.*
+!.env.example
+
+# 2. Sensitive Authentication & API Credentials
+fleet/data/credentials.json
+fleet/data/client_secret*.json
+fleet/data/gmail_token.json
+*client_secret*.json
+*.token.json
+credentials.json
+token.json
+
+# 3. Persistent Databases & Local SQLite Memory
+fleet/data/*.db
+fleet/data/*.db-shm
+fleet/data/*.db-wal
+fleet/data/*.sqlite3
+*.db
+*.sqlite3
+
+# 4. User Uploaded Files, Personal Notes & Temporary Media
+fleet/data/uploads/*
+!fleet/data/uploads/.gitkeep
+fleet/data/notes/*
+!fleet/data/notes/.gitkeep
+.user_uploaded/
+scratch/
+
+# 5. Process IDs & Runtime Logs
+fleet/data/*.pid
+fleet/data/*.log
+*.log
+
+# 6. Python & Environment Artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# 7. Virtual Environments
+venv/
+env/
+ENV/
+.venv/
+
+# 8. Testing & Coverage Caches
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# 9. IDE & Operating System Meta
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

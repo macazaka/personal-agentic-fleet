@@ -1,0 +1,32 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 7890,
+    "default_agent": "health"
+  },
+  "agents": {
+    "health": {
+      "enabled": true,
+      "videos_directory": "Z:\\Career - Body Building\\FFD",
+      "reminders_enabled": true
+    },
+    "overview": {
+      "enabled": true
+    },
+    "optimizer": {
+      "enabled": true,
+      "scan_interval_hours": 6
+    },
+    "antigravity": {
+      "enabled": true
+    },
+    "backlog": {
+      "enabled": true
+    },
+    "gmail": {
+      "enabled": false,
+      "credentials_path": "fleet/data/client_secret.json"
+    }
+  }
+}
+
