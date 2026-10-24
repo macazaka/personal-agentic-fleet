@@ -41,8 +41,15 @@ def send_windows_notification(title: str, message: str) -> bool:
         $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("Personal Agentic Fleet")
         $notifier.Show($toast)
         """
-        subprocess.run(["powershell", "-NoProfile", "-Command", ps_script],
-                       capture_output=True, timeout=5, check=False)
+        hidden_kwargs: Dict[str, Any] = {}
+        if os.name == "nt":
+            hidden_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0x00000001)
+            si.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+            hidden_kwargs["startupinfo"] = si
+        subprocess.run(["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", ps_script],
+                       capture_output=True, timeout=5, check=False, **hidden_kwargs)
         return True
     except Exception:
         # Fallback print if notification subsystem is unavailable

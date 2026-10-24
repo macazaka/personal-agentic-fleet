@@ -221,12 +221,20 @@ def run_test_suite_isolated(db: Optional[FleetDatabase] = None) -> Dict[str, Any
     """
     try:
         import subprocess
+        hidden_kwargs: Dict[str, Any] = {}
+        if os.name == "nt":
+            hidden_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0x00000001)
+            si.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+            hidden_kwargs["startupinfo"] = si
         subprocess.run(
             [sys.executable, "-m", "fleet.tools.test_runner"],
             capture_output=True,
             text=True,
             timeout=180,
-            cwd=str(PROJECT_ROOT)
+            cwd=str(PROJECT_ROOT),
+            **hidden_kwargs,
         )
         results = get_latest_results(db)
         if db and results and results.get("status") in ("PASS", "FAIL"):

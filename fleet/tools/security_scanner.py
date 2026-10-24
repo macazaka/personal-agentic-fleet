@@ -80,12 +80,16 @@ def get_tracked_files(repo_root: Path = REPO_ROOT) -> List[str]:
     git_exe = _get_git_executable()
     if (repo_root / ".git").exists():
         try:
+            hidden_kwargs: Dict[str, Any] = {}
+            if os.name == "nt":
+                hidden_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
             res = subprocess.run(
                 [git_exe, "-C", str(repo_root), "ls-files"],
                 capture_output=True,
                 text=True,
                 timeout=10,
                 check=False,
+                **hidden_kwargs,
             )
             if res.returncode == 0 and res.stdout.strip():
                 return [line.strip() for line in res.stdout.splitlines() if line.strip()]

@@ -492,7 +492,7 @@ def _execute_agy_or_fallback(prompt_text: str, images: Optional[List[str]] = Non
                 "--output-format", "json",
                 "--dangerously-skip-permissions"
             ]
-            res = subprocess.run(cmd, capture_output=True, text=True, cwd=str(Path.cwd()))
+            res = subprocess.run(cmd, capture_output=True, text=True, cwd=str(Path.cwd()), creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0) if os.name == 'nt' else 0)
             err_output = res.stderr or ""
             out_output = res.stdout or ""
             combined = (err_output + " " + out_output).lower()

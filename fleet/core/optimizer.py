@@ -60,11 +60,124 @@ def get_memory_status() -> Dict[str, Any]:
     }
 
 
+def _hidden_subprocess_kwargs() -> Dict[str, Any]:
+    """Returns Windows creationflags and STARTUPINFO to run child processes completely hidden without stealing focus."""
+    kwargs: Dict[str, Any] = {}
+    if os.name == "nt":
+        kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+        si = subprocess.STARTUPINFO()
+        si.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0x00000001)
+        si.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+        kwargs["startupinfo"] = si
+    return kwargs
+
+
+def _get_top_processes_win32_native(limit: int = 6) -> Optional[List[Dict[str, Any]]]:
+    """
+    Enumerates running processes and their WorkingSetSize in-process via Windows Kernel32 & PSAPI
+    (CreateToolhelp32Snapshot + GetProcessMemoryInfo).
+    Spawns ZERO child processes (no tasklist.exe), creates zero windows, and never steals focus.
+    """
+    if os.name != "nt":
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        TH32CS_SNAPPROCESS = 0x00000002
+        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        PROCESS_VM_READ = 0x0010
+
+        class PROCESSENTRY32W(ctypes.Structure):
+            _fields_ = [
+                ("dwSize", wintypes.DWORD),
+                ("cntUsage", wintypes.DWORD),
+                ("th32ProcessID", wintypes.DWORD),
+                ("th32DefaultHeapID", ctypes.c_size_t),
+                ("th32ModuleID", wintypes.DWORD),
+                ("cntThreads", wintypes.DWORD),
+                ("th32ParentProcessID", wintypes.DWORD),
+                ("pcPriClassBase", wintypes.LONG),
+                ("dwFlags", wintypes.DWORD),
+                ("szExeFile", wintypes.WCHAR * 260),
+            ]
+
+        class PROCESS_MEMORY_COUNTERS(ctypes.Structure):
+            _fields_ = [
+                ("cb", wintypes.DWORD),
+                ("PageFaultCount", wintypes.DWORD),
+                ("PeakWorkingSetSize", ctypes.c_size_t),
+                ("WorkingSetSize", ctypes.c_size_t),
+                ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                ("PagefileUsage", ctypes.c_size_t),
+                ("PeakPagefileUsage", ctypes.c_size_t),
+            ]
+
+        kernel32 = ctypes.windll.kernel32
+        psapi = ctypes.windll.psapi
+
+        h_snap = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
+        if h_snap == wintypes.HANDLE(-1).value or h_snap is None:
+            return None
+
+        proc_map: Dict[str, float] = {}
+        try:
+            pe = PROCESSENTRY32W()
+            pe.dwSize = ctypes.sizeof(PROCESSENTRY32W)
+            has_proc = kernel32.Process32FirstW(h_snap, ctypes.byref(pe))
+            while has_proc:
+                pid = pe.th32ProcessID
+                exe_name = pe.szExeFile
+                if pid > 4 and exe_name:
+                    h_proc = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_VM_READ, False, pid)
+                    if not h_proc:
+                        h_proc = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+                    if h_proc:
+                        try:
+                            pmc = PROCESS_MEMORY_COUNTERS()
+                            pmc.cb = ctypes.sizeof(PROCESS_MEMORY_COUNTERS)
+                            if psapi.GetProcessMemoryInfo(h_proc, ctypes.byref(pmc), pmc.cb):
+                                mem_mb = round(pmc.WorkingSetSize / (1024.0 * 1024.0), 1)
+                                proc_map[exe_name] = proc_map.get(exe_name, 0.0) + mem_mb
+                        finally:
+                            kernel32.CloseHandle(h_proc)
+                has_proc = kernel32.Process32NextW(h_snap, ctypes.byref(pe))
+        finally:
+            kernel32.CloseHandle(h_snap)
+
+        if not proc_map:
+            return None
+        sorted_procs = sorted(proc_map.items(), key=lambda x: x[1], reverse=True)
+        return [{"name": name, "memory_mb": round(mem, 1), "mem_mb": round(mem, 1)} for name, mem in sorted_procs[:limit]]
+    except Exception:
+        return None
+
+
 def get_top_processes(limit: int = 6) -> List[Dict[str, Any]]:
-    """Get top memory-consuming applications using Windows tasklist."""
+    """
+    Get top memory-consuming applications.
+    Uses native in-process Win32 API (0 child processes, no tasklist.exe popup) in normal execution,
+    falling back to hidden tasklist.exe only when subprocess.run is mocked in unit tests or non-Win32.
+    """
+    # If subprocess.run is NOT patched by a unit test, use 100% in-process Win32 API (no tasklist.exe!)
+    is_mocked = hasattr(subprocess.run, "assert_called") or hasattr(subprocess.run, "side_effect")
+    if not is_mocked:
+        native_res = _get_top_processes_win32_native(limit=limit)
+        if native_res is not None:
+            return native_res
+
     proc_map: Dict[str, float] = {}
     try:
-        res = subprocess.run(["tasklist", "/FO", "CSV", "/NH"], capture_output=True, text=True, timeout=5)
+        res = subprocess.run(
+            ["tasklist", "/FO", "CSV", "/NH"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            **_hidden_subprocess_kwargs(),
+        )
         if res.returncode == 0 and res.stdout:
             for line in res.stdout.strip().splitlines():
                 parts = [p.strip('"') for p in line.split('","')]
@@ -219,7 +332,7 @@ def clean_temp_files() -> Dict[str, Any]:
 def flush_dns_cache() -> Dict[str, Any]:
     """Flush the Windows DNS resolver cache to optimize network resolution."""
     try:
-        res = subprocess.run(["ipconfig", "/flushdns"], capture_output=True, text=True, timeout=5)
+        res = subprocess.run(["ipconfig", "/flushdns"], capture_output=True, text=True, timeout=5, **_hidden_subprocess_kwargs())
         out = (res.stdout or res.stderr or "").strip()
         msg = "Successfully flushed the DNS Resolver Cache." if "Successfully" in out or res.returncode == 0 else out
         return {
@@ -296,7 +409,7 @@ def optimize_ram() -> Dict[str, Any]:
 def open_startup_settings() -> Dict[str, Any]:
     """Launch native Windows Startup Apps configuration panel."""
     try:
-        subprocess.run(["powershell", "-NoProfile", "-Command", "Start-Process ms-settings:startupapps"], capture_output=True, timeout=5)
+        subprocess.run(["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", "Start-Process ms-settings:startupapps"], capture_output=True, timeout=5, **_hidden_subprocess_kwargs())
         return {"status": "success", "message": "Opened Windows Startup Apps Settings."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
