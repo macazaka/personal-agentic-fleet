@@ -328,9 +328,9 @@ def clean_temp_files() -> Dict[str, Any]:
     errors = 0
     if temp_dir.exists():
         for root, dirs, files in os.walk(temp_dir, topdown=False):
-            # Never touch or delete pytest or active test runner temporary files/directories
+            # Never touch or delete pytest temporary files/directories
             root_lower = root.lower()
-            if "pytest" in root_lower or "runner" in root_lower:
+            if "pytest" in root_lower:
                 continue
             for f in files:
                 if "pytest" in f.lower():
@@ -344,7 +344,7 @@ def clean_temp_files() -> Dict[str, Any]:
                 except Exception:
                     errors += 1
             for d in dirs:
-                if "pytest" in d.lower() or "runner" in d.lower():
+                if "pytest" in d.lower():
                     continue
                 dp = Path(root) / d
                 try:

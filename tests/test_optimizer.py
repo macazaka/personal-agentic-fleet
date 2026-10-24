@@ -312,7 +312,13 @@ def test_optimizer_edge_cases_and_error_handling():
     with tempfile.TemporaryDirectory() as tmp_dir:
         (Path(tmp_dir) / "test.tmp").write_text("data")
         with patch("tempfile.gettempdir", return_value=tmp_dir):
-            with patch.object(Path, "stat", side_effect=OSError("Access denied")):
+            orig_stat = Path.stat
+            def mock_stat_denied(self, *args, **kwargs):
+                if str(self).endswith(".tmp"):
+                    raise OSError("Access denied")
+                return orig_stat(self, *args, **kwargs)
+
+            with patch.object(Path, "stat", side_effect=mock_stat_denied):
                 res = get_temp_bloat_info()
                 assert res["file_count"] == 0
 

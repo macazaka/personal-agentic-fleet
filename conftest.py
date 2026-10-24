@@ -20,8 +20,11 @@ os.environ["SDL_AUDIODRIVER"] = "dummy"
 if sys.platform != "win32":
     if "winreg" not in sys.modules:
         dummy_winreg = types.ModuleType("winreg")
+        dummy_winreg.HKEY_CLASSES_ROOT = 0
         dummy_winreg.HKEY_CURRENT_USER = 1
         dummy_winreg.HKEY_LOCAL_MACHINE = 2
+        dummy_winreg.HKEY_USERS = 3
+        dummy_winreg.HKEY_CURRENT_CONFIG = 4
         dummy_winreg.OpenKey = lambda *args, **kwargs: None
         dummy_winreg.QueryInfoKey = lambda *args, **kwargs: (0, 0, 0)
         dummy_winreg.EnumValue = lambda *args, **kwargs: ("app", "cmd", 0)
@@ -36,50 +39,45 @@ if sys.platform != "win32":
         ctypes.windll = DummyWindll()
 
 
-# Zero-dependency Google OAuth shims for CI runner when optional vendor SDKs are absent
-for mod_name in [
-    "google",
-    "google.auth",
-    "google.auth.transport",
-    "google.auth.transport.requests",
-    "google.oauth2",
-    "google.oauth2.credentials",
-    "google_auth_oauthlib",
-    "google_auth_oauthlib.flow",
-    "googleapiclient",
-    "googleapiclient.discovery",
-]:
-    if mod_name not in sys.modules:
-        sys.modules[mod_name] = types.ModuleType(mod_name)
+# Zero-dependency Google OAuth hierarchy shims for CI runner when vendor packages are absent
+google = sys.modules.setdefault("google", types.ModuleType("google"))
+google_auth = sys.modules.setdefault("google.auth", types.ModuleType("google.auth"))
+setattr(google, "auth", google_auth)
 
-if not hasattr(sys.modules["google.auth.transport.requests"], "Request"):
-    sys.modules["google.auth.transport.requests"].Request = type("Request", (), {})
-if not hasattr(sys.modules["google.oauth2.credentials"], "Credentials"):
-    sys.modules["google.oauth2.credentials"].Credentials = type(
-        "Credentials",
-        (),
-        {"from_authorized_user_file": lambda *a, **k: None}
-    )
-if not hasattr(sys.modules["google_auth_oauthlib.flow"], "InstalledAppFlow"):
-    sys.modules["google_auth_oauthlib.flow"].InstalledAppFlow = type(
-        "InstalledAppFlow",
-        (),
-        {"from_client_secrets_file": lambda *a, **k: None}
-    )
-if not hasattr(sys.modules["googleapiclient.discovery"], "build"):
-    sys.modules["googleapiclient.discovery"].build = lambda *a, **k: None
+google_transport = sys.modules.setdefault("google.auth.transport", types.ModuleType("google.auth.transport"))
+setattr(google_auth, "transport", google_transport)
+
+google_requests = sys.modules.setdefault("google.auth.transport.requests", types.ModuleType("google.auth.transport.requests"))
+setattr(google_transport, "requests", google_requests)
+if not hasattr(google_requests, "Request"):
+    setattr(google_requests, "Request", type("Request", (), {}))
+
+google_oauth2 = sys.modules.setdefault("google.oauth2", types.ModuleType("google.oauth2"))
+setattr(google, "oauth2", google_oauth2)
+
+google_creds = sys.modules.setdefault("google.oauth2.credentials", types.ModuleType("google.oauth2.credentials"))
+setattr(google_oauth2, "credentials", google_creds)
+if not hasattr(google_creds, "Credentials"):
+    setattr(google_creds, "Credentials", type("Credentials", (), {"from_authorized_user_file": lambda *a, **k: None}))
+
+google_oauthlib = sys.modules.setdefault("google_auth_oauthlib", types.ModuleType("google_auth_oauthlib"))
+flow_mod = sys.modules.setdefault("google_auth_oauthlib.flow", types.ModuleType("google_auth_oauthlib.flow"))
+setattr(google_oauthlib, "flow", flow_mod)
+if not hasattr(flow_mod, "InstalledAppFlow"):
+    setattr(flow_mod, "InstalledAppFlow", type("InstalledAppFlow", (), {"from_client_secrets_file": lambda *a, **k: None}))
+
+googleapiclient = sys.modules.setdefault("googleapiclient", types.ModuleType("googleapiclient"))
+discovery_mod = sys.modules.setdefault("googleapiclient.discovery", types.ModuleType("googleapiclient.discovery"))
+setattr(googleapiclient, "discovery", discovery_mod)
+if not hasattr(discovery_mod, "build"):
+    setattr(discovery_mod, "build", lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)
 def guard_zero_tokens_and_network(monkeypatch):
-    """
-    Autouse fixture that prevents all tests from making outbound external socket connections
-    or accidentally consuming LLM tokens.
-    """
     orig_connect = socket.socket.connect
 
     def guarded_connect(self, address):
-        # Allow loopback / localhost / UNIX sockets for local IPC / mocks if needed
         if getattr(self, "family", None) == getattr(socket, "AF_UNIX", -1) or isinstance(address, str):
             return orig_connect(self, address)
         host = address[0] if isinstance(address, (tuple, list)) else address
