@@ -1,149 +1,134 @@
 # ⚡ Personal Agentic Fleet
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests: 89 Passed](https://img.shields.io/badge/Tests-89%20Passed-brightgreen.svg)]()
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%5B11%20Layers%5D-brightgreen.svg)](docs/SECURITY_ARCHITECTURE_AND_ROADMAP.md)
 [![Zero-Token Engine](https://img.shields.io/badge/Architecture-Zero--Token%20Microkernel-orange.svg)]()
-[![Privacy: Local-First](https://img.shields.io/badge/Privacy-100%25%20Local--First-teal.svg)]()
+[![Privacy: Local-First](https://img.shields.io/badge/Privacy-100%25%20Local--First%20DPAPI-teal.svg)]()
 
 > **An open-source, local-first agentic operating system with a plug-and-play microkernel architecture.**
-> Run personal intelligence, metabolic tracking, PC optimizations, and autonomous routines with **0 cloud token spend** and 100% deterministic local Python & SQLite execution.
+> Run personal intelligence, metabolic & strength tracking, PC optimizations, and autonomous routines with **0 cloud token spend (`$0.00`)** and 100% deterministic local Python & SQLite execution.
+
+📖 **[Complete Installation Guide (`INSTALL.md`)](INSTALL.md)** • 🛡️ **[Security Architecture & 11-Layer Scanner](docs/SECURITY_ARCHITECTURE_AND_ROADMAP.md)** • 🔌 **[Agent Development Guide](docs/AGENT_DEVELOPMENT_GUIDE.md)** • 🤝 **[Contributing Guide](CONTRIBUTING.md)**
 
 ---
 
 ## 🌟 Key Highlights
 
-- **🔌 Modular Plug-and-Play Agents**: Every dashboard view is a standalone, self-contained agent package inside `fleet/agents/`. Adding or removing an agent requires **zero edits** to core code.
-- **⚡ Zero-Token Deterministic Core**: Briefings, metric computations, disk cleanups, and video vault streaming run completely locally in Python and SQLite for **$0.00 / 0 LLM tokens**.
-- **🌿 Health & Wellness Command Center**: Track metabolic goals, hydration, daily medication compliance, 6-day traditional Akhada strength splits (Mudgal, Samtola, Bhim Gadha), and stream local workout videos via HTTP 206 byte-range streaming with live frame thumbnails.
-- **🚀 PC Optimizer**: Real-time RAM boosting, dev-cache cleaning (npm, pip, yarn, PyTorch), DNS flushing, and process monitoring.
-- **🤖 Antigravity Live**: Live token telemetry, model router, and workspace mirror.
-- **📋 Feature Backlog**: Kanban-style roadmap and task lifecycle management.
-- **🛡️ 100% Privacy & Sanitized**: All personal databases, credentials, and uploaded files stay strictly local and ignored by Git.
+- **🔌 Modular Plug-and-Play Agents**: Every dashboard view is a standalone, self-contained agent package inside `fleet/agents/` with least-privilege capability manifests (`manifest.json`) enforced by `ScopedDatabaseProxy`.
+- **💰 8-Layer Zero-Token & Cost Optimization Engine (`fleet/core/token_optimizer.py`)**:
+  - **Tier 0 Natural-Language Intent Router & Offline BM25 Knowledge RAG**: Answers FFD diabetes reversal, nutrition, and 6-day workout questions locally in Python for **0 LLM tokens (`$0.00`)**.
+  - **Fuzzy Jaccard + Trigram Semantic Cache**: Catches paraphrased repeat questions at 0 tokens.
+  - **AST/Tokenize Code Minifier, Prompt Batch Coalescer, SHA-256 Image Deduplicator & Delta-Only MCP Cache**: Cuts LLM context window spend by 40%–70%.
+- **🌿 Health & Wellness Command Center (Default Tab)**: Track metabolic reversal goals, hydration, daily prescriptions, a **6-Day Traditional Strength Split** (**Monday: Mudgal**, **Wednesday: Samtola**, **Friday: Bhim Gadha**, **Tue/Thu/Sat: Mandatory World's Best Warm-up & FFD Protocols**, **Sunday: Rest**), and stream local Exercise & Diet videos via HTTP 206 byte-range streaming with live HTML5 video thumbnails.
+- **🚀 Silent PC Optimizer**: In-process Win32 PSAPI memory monitoring (`0` external `tasklist.exe` windows), dev-cache purging, temp cleanup, and DNS flushing.
+- **🛡️ 11-Layer Automated Security & Privacy Scanner**: Runs automatically every **60 minutes** in the background daemon, on every **Git `pre-commit` & `pre-push`**, and daily via **GitHub Actions CI**, backed by native **Windows DPAPI (`crypt32.dll`) + HMAC-SHA256** at-rest encryption.
 
 ---
 
-## 🏗️ Architecture
+## 🚀 60-Second Installation & Quick Start
 
-Fleet uses an **asynchronous microkernel** with an event-driven plugin registry:
-
-```
-fleet/
-├── core/                   # MICROKERNEL ENGINE
-│   ├── base_agent.py       # Base class every agent implements
-│   ├── registry.py         # Dynamic agent discoverer & loader
-│   ├── event_bus.py        # Asynchronous inter-agent pub/sub
-│   ├── server.py           # Robust HTTP server (standard library)
-│   ├── database.py         # Scoped SQLite persistence
-│   └── config.py           # fleet.yaml / fleet.json parser
-│
-├── web/                    # DYNAMIC DASHBOARD SHELL
-│   ├── templates/          # Glassmorphism dynamic UI shell
-│   └── static/             # Reusable CSS & JavaScript client
-│
-└── agents/                 # PLUG-AND-PLAY AGENTS (Self-Contained)
-    ├── health/             # 🌿 Health, metabolic & strength agent
-    ├── overview/           # ⚡ System vitals & daily briefing agent
-    ├── optimizer/          # 🚀 PC cleanup & performance agent
-    ├── antigravity/        # 🤖 Antigravity live mirror agent
-    ├── backlog/            # 📋 Feature backlog & task board
-    └── gmail/              # 📧 Email intelligence agent
-```
-
----
-
-## 🚀 Quickstart
+> For full setup instructions (Virtual Environments, Windows Credential Manager DPAPI secrets, silent background startup, and Antigravity MCP configuration), see **[INSTALL.md](INSTALL.md)**.
 
 ### 1. Clone the Repository
-```bash
+```powershell
 git clone https://github.com/macazaka/personal-agentic-fleet.git
-cd fleet
+cd personal-agentic-fleet
 ```
 
-### 2. Configure Settings (Optional)
-Copy the example configuration:
-```bash
-cp fleet.yaml.example fleet.yaml
-```
-Enable or disable agents, or point to your local video library:
-```yaml
-server:
-  port: 7890
-  default_agent: "health"
+### 2. Configure Settings & Install Git Security Hooks
+```powershell
+# Copy the example configuration (fleet.yaml is git-ignored for your privacy)
+Copy-Item fleet.yaml.example fleet.yaml
 
-agents:
-  health:
-    enabled: true
-    videos_directory: "~/Videos/Workouts"
-  optimizer:
-    enabled: true
-  backlog:
-    enabled: true
+# Install automated 11-layer pre-commit & pre-push security hooks
+python -m fleet.tools.install_git_hooks
 ```
 
 ### 3. Launch Fleet
-```bash
-python fleet/app.py
+```powershell
+# Interactive foreground launch (Web Server + Background Routine Daemon)
+python -m fleet.app
+```
+Or launch **silently in the background on Windows** (zero console windows):
+```powershell
+Start-Process -FilePath "pythonw.exe" -ArgumentList "-m", "fleet.server" -WindowStyle Hidden
+Start-Process -FilePath "pythonw.exe" -ArgumentList "-m", "fleet.daemon" -WindowStyle Hidden
 ```
 Open **[http://127.0.0.1:7890](http://127.0.0.1:7890)** in your browser!
 
 ---
 
+## 🏗️ Architecture
+
+```
+personal-agentic-fleet/
+├── fleet/
+│   ├── core/                   # MICROKERNEL & SECURITY ENGINE
+│   │   ├── base_agent.py       # Base contract every plug-and-play agent implements
+│   │   ├── registry.py         # Dynamic agent discoverer & route loader
+│   │   ├── plugin_sandbox.py   # Least-privilege capability enforcement & env sanitizer
+│   │   ├── crypto_vault.py     # Native Windows DPAPI + HMAC-SHA256 at-rest encryption
+│   │   ├── session_auth.py     # DNS-Rebinding, CSRF, Session Cookie & Rate Limit guard
+│   │   ├── token_optimizer.py  # 8-Layer Zero-Token RAG, Fuzzy Cache & Prompt Compressor
+│   │   ├── event_bus.py        # Deterministic inter-agent pub/sub bus
+│   │   └── database.py         # SQLite persistence (WAL + PRAGMA secure_delete=ON)
+│   │
+│   ├── tools/                  # AUTOMATED SECURITY & DEVOPS TOOLS
+│   │   ├── security_scanner.py # 11-Layer Zero-Token Security & PII Scanner
+│   │   ├── sbom_generator.py   # CycloneDX v1.5 SHA-256 SBOM Generator
+│   │   ├── install_git_hooks.py# Native Python pre-commit & pre-push hook installer
+│   │   └── test_runner.py      # Isolated pytest & coverage runner
+│   │
+│   ├── agents/                 # PLUG-AND-PLAY AGENTS (Self-Contained)
+│   │   ├── health/             # 🌿 Health, FFD reversal, 6-day strength & video vault
+│   │   ├── overview/           # ⚡ Daily briefing, task board & habit routines
+│   │   ├── optimizer/          # 🚀 Silent Win32 PC diagnostics & optimization
+│   │   ├── antigravity/        # 🤖 Antigravity live mirror & token vault
+│   │   ├── backlog/            # 📋 Kanban feature backlog & roadmap
+│   │   └── gmail/              # 📬 5-folder deterministic email classifier
+│   │
+│   └── data/user/              # 🔒 GIT-IGNORED PRIVATE USER VAULT
+│
+├── INSTALL.md                  # Step-by-step installation & configuration guide
+├── CONTRIBUTING.md             # Contributor workflow & security requirements
+└── LICENSE                     # Apache 2.0 Commercial-Friendly Open-Source License
+```
+
+---
+
 ## 🛠️ Developing a New Agent in 3 Steps
 
-Contributing a new capability to Fleet requires zero changes to the core engine:
+Contributing a new capability requires **zero edits** to core files:
 
-1. **Create an agent directory**: `fleet/agents/my_agent/`
-2. **Implement `agent.py`**:
-   ```python
-   from fleet.core.base_agent import FleetAgent
-
-   class MyAgent(FleetAgent):
-       @property
-       def id(self) -> str: return "my_agent"
-       @property
-       def name(self) -> str: return "My Custom Agent"
-       @property
-       def icon(self) -> str: return "✨"
-       @property
-       def order(self) -> int: return 70
-
-       def register_routes(self, router):
-           @router.get("/api/my_agent/status")
-           def status(handler, parsed):
-               handler._send_json({"status": "active"})
+1. **Create an agent folder & `manifest.json`**: `fleet/agents/my_agent/manifest.json`
+   ```json
+   {
+     "id": "my_agent",
+     "name": "My Custom Agent",
+     "version": "1.0.0",
+     "icon": "✨",
+     "permissions": ["db:read", "ui:render"]
+   }
    ```
-3. **Add `ui/panel.html`**:
-   ```html
-   <div id="viewMy_agent" class="agent-dynamic-pane" style="display: none;">
-     <h3>✨ My Custom Agent</h3>
-     <p>Your interactive dashboard UI goes here.</p>
-   </div>
-   ```
+2. **Implement `fleet/agents/my_agent/agent.py`** subclassing `FleetAgent`.
+3. **Add `fleet/agents/my_agent/ui/panel.html`** (`style.css` and `script.js` optional).
 
-On launch, `AgentRegistry` discovers your agent, registers its routes, and renders its tab in the dashboard shell automatically. See [`docs/AGENT_DEVELOPMENT_GUIDE.md`](docs/AGENT_DEVELOPMENT_GUIDE.md) for full details.
+On startup, `AgentRegistry` validates your agent's permissions, registers its routes, and renders its tab automatically. See [`docs/AGENT_DEVELOPMENT_GUIDE.md`](docs/AGENT_DEVELOPMENT_GUIDE.md) for the full guide.
 
 ---
 
-## 🧪 Testing
+## 🧪 Testing & Security Verification
 
-Fleet has a 100% test pass rate with zero external mock services needed:
-```bash
-python -m pytest tests/
+Run the automated test suite and 11-layer security audit locally (`$0.00 / 0 tokens`):
+```powershell
+python -m fleet.tools.security_scanner --strict
+python -m pytest tests/ -v
 ```
-All **89 unit and integration tests** run deterministically in under 45 seconds.
-
----
-
-## 🔒 Security & Privacy
-
-- Fleet never transmits telemetry or personal analytics to third parties.
-- Local SQLite databases (`*.db`), Google API credentials (`client_secret*.json`), tokens, and uploads are strictly `.gitignore`d.
-- Contributors can safely push code without leaking private medical or machine configurations.
 
 ---
 
 ## 📜 License
 
-Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
-Created by [**macazaka**](https://github.com/macazaka).
+Distributed under the **Apache License 2.0** (permissive commercial and open-source use with patent protection). See [`LICENSE`](LICENSE) for details.
+Created and maintained by [**macazaka**](https://github.com/macazaka).
