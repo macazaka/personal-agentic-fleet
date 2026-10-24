@@ -4,13 +4,29 @@ Welcome to **Personal Agentic Fleet**! Because the core microkernel, HTTP server
 
 ---
 
-## 📋 1. Prerequisites
+## 📋 1. Prerequisites & Operating System Matrix
 
-| Requirement | Minimum Version | Notes |
+### Operating System Compatibility Matrix
+
+| Operating System | Tier | Compatibility Details |
 | :--- | :--- | :--- |
-| **Operating System** | Windows 10 / 11 *(Primary)*, macOS, or Linux | Native Windows Toast notifications, DPAPI `crypt32.dll` vault, and Win32 PSAPI memory telemetry are built-in on Windows; cross-platform fallbacks activate automatically on macOS/Linux. |
-| **Python** | **Python 3.10+** (3.11–3.14 recommended) | Ensure `python` is added to your system `PATH`. |
-| **Git** | Git 2.30+ | Required for cloning and running automated `pre-commit` / `pre-push` security hooks. |
+| **Windows 11 (64-bit)** | 🟢 **Primary Target** | Full native integration: in-process Win32 `PSAPI` memory telemetry, hardware-backed **DPAPI `crypt32.dll`** at-rest vault, WinRT toast notifications, NTFS user ACL hardening (`icacls`), and PowerShell 7 / 5.1 launcher. |
+| **Windows 10 (64-bit, Build 18362+)** | 🟢 **Primary Target** | Identical feature parity to Windows 11: native DPAPI encryption, windowless background processes (`CREATE_NO_WINDOW`), WinRT notifications, and local user ACL isolation. |
+| **macOS (12.0+ Monterey or later)** | 🟡 **Core Supported** | Full dashboard, microkernel, SQLite, 12-layer security scanner, and zero-token RAG engine; POSIX `chmod 0700` user vault isolation. |
+| **Linux (Ubuntu, Debian, Fedora, Arch)** | 🟡 **Core Supported / CI** | Core engine, CLI, and dashboard verified across Ubuntu in GitHub Actions CI matrix (Python 3.10, 3.11, 3.12). |
+| **Windows 7 / 8 / 8.1 / 32-bit (x86)** | 🔴 **NOT Supported** | **Incompatible.** Missing TLS 1.3 cryptographic suites, modern Python `>=3.10` runtime support, WinRT toast notification subsystems, and NTFS security semantics. |
+| **Mobile (iOS, Android, ChromeOS)** | 🔴 **NOT Supported** | **Incompatible.** Not built as a mobile app. The Control Center runs as a local PC daemon and can be accessed via local LAN browser. |
+
+### Minimum Software & Hardware Prerequisites
+
+| Requirement | Minimum Version | Recommended | Notes |
+| :--- | :--- | :--- | :--- |
+| **Architecture** | 64-bit (x86_64 / amd64 / arm64) | 64-bit x86_64 | 32-bit architectures are not supported. |
+| **Python** | **Python 3.10+** | Python 3.11 – 3.14 | Enforced at startup by `check_minimum_python_version()` and PEP 621 `pyproject.toml`. |
+| **PowerShell** | Windows PowerShell 5.1 | **PowerShell 7.4+ (`pwsh`)** | `start_fleet.bat` auto-detects PowerShell 7 and falls back to 5.1 seamlessly. |
+| **Git** | Git 2.30+ | Git 2.40+ | Required for cloning, automated `pre-push` quality gates, and Ed25519 commit signing. |
+| **Memory** | 512 MB available RAM | 2+ GB RAM | Microkernel runs in `< 50 MB` resident RAM. |
+| **Disk Space** | 100 MB free space | 500 MB+ | For SQLite databases, logs, and optional local video streaming. |
 
 Verify your environment and enforce the **minimum Python 3.10+ requirement** in PowerShell or Terminal:
 ```powershell

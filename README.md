@@ -9,7 +9,27 @@
 > **An open-source, local-first agentic operating system with a plug-and-play microkernel architecture.**
 > Run personal intelligence, metabolic & strength tracking, PC optimizations, and autonomous routines with **0 cloud token spend (`$0.00`)** and 100% deterministic local Python & SQLite execution.
 
-📖 **[Complete Installation Guide (`INSTALL.md`)](INSTALL.md)** • 🛡️ **[Security Architecture & 11-Layer Scanner](docs/SECURITY_ARCHITECTURE_AND_ROADMAP.md)** • 🔌 **[Agent Development Guide](docs/AGENT_DEVELOPMENT_GUIDE.md)** • 🤝 **[Contributing Guide](CONTRIBUTING.md)**
+📖 **[Complete Installation Guide (`INSTALL.md`)](INSTALL.md)** • 🛡️ **[Security Architecture & 12-Layer Scanner](docs/SECURITY_ARCHITECTURE_AND_ROADMAP.md)** • 🔌 **[Agent Development Guide](docs/AGENT_DEVELOPMENT_GUIDE.md)** • 🤝 **[Contributing Guide](CONTRIBUTING.md)**
+
+---
+
+## 💻 Operating System Support & Prerequisites
+
+| Operating System | Compatibility Status | Native OS Capabilities Used |
+| :--- | :--- | :--- |
+| **Windows 11 (64-bit)** | 🟢 **Officially Supported (Primary)** | Native Win32 `Kernel32`/`PSAPI` (zero popup windows), at-rest **DPAPI `crypt32.dll`** hardware-bound encryption, WinRT Toast Notifications, NTFS User ACLs (`icacls`), and dual PowerShell 7 / 5.1 support. |
+| **Windows 10 (64-bit, v1903+)** | 🟢 **Officially Supported (Primary)** | Full parity with Windows 11: in-process PSAPI memory enumeration, DPAPI crypto vault, WinRT toast alerts, and silent windowless background execution (`CREATE_NO_WINDOW`). |
+| **macOS (12+ Monterey / Ventura / Sonoma / Sequoia)** | 🟡 **Supported (Core Engine)** | Core microkernel, SQLite, 12-layer security scanner, zero-token RAG, and web dashboard run 100%; POSIX `chmod 0700` user vault hardening; fallback notification & memory heuristics. |
+| **Linux (Ubuntu 20.04+, Debian 11+, Fedora 38+, Arch)** | 🟡 **Supported (Core Engine & CI)** | Continuous multi-version CI validation across Ubuntu Linux; standard POSIX permissions and process monitoring. |
+| **Windows 7 / 8 / 8.1 / 32-bit (x86)** | 🔴 **Not Supported** | Missing modern WinRT notification subsystems, TLS 1.3 cryptographic cipher suites, and modern Python 3.10+ runtimes. Do not deploy on legacy Windows. |
+| **Mobile / Android / iOS** | 🔴 **Not Supported** | Designed as a local workstation control center, not a mobile app. Access remotely via desktop browser over local LAN/VPN. |
+
+### Minimum Hardware & Runtime Prerequisites
+- **Python**: **Python 3.10+** (64-bit required; Python 3.11–3.14 recommended).
+- **PowerShell**: **PowerShell 7+ (`pwsh`)** recommended; **Windows PowerShell 5.1** fully supported out-of-the-box.
+- **Git**: Git 2.30+ with SSH commit signing support.
+- **RAM**: 50 MB resident memory footprint (extremely lightweight microkernel).
+- **Disk**: 150 MB disk space for database, logs, and cache.
 
 ---
 
