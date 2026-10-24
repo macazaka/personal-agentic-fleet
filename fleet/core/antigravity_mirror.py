@@ -26,29 +26,116 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 UPLOADS_DIR = DATA_DIR / "uploads"
 
 AVAILABLE_MODELS = [
+    # 1. Google (Antigravity & Gemini Direct / Vertex AI)
     {
         "id": "gemini-3.8-flash-high",
-        "name": "Gemini 3.8 Flash",
+        "name": "Google Gemini 3.8 Flash (Antigravity)",
+        "provider": "google",
         "effort": "High",
-        "badge": "High",
+        "badge": "Google",
         "badge_color": "green",
         "available": True,
-        "description": "Fast multimodal reasoning with Google Gemini 3.8 Flash."
+        "description": "Google Gemini 3.8 Flash with Antigravity multi-agent workspace synchronization."
+    },
+    {
+        "id": "gemini-2.5-pro",
+        "name": "Google Gemini 2.5 Pro (Direct / Vertex AI)",
+        "provider": "google",
+        "effort": "High",
+        "badge": "Google",
+        "badge_color": "green",
+        "available": True,
+        "description": "Direct Google Cloud Vertex AI & Gemini REST API."
     },
     {
         "id": "gemini-4-argon",
-        "name": "Gemini 4 Argon (Medium)",
+        "name": "Gemini 4 Argon (Experimental)",
+        "provider": "google",
         "effort": "Medium",
         "badge": "Unavailable",
         "badge_color": "gray",
         "available": False,
         "description": "Next-gen experimental multimodal architecture."
     },
+    # 2. Microsoft (Azure OpenAI Service & GitHub Copilot)
+    {
+        "id": "azure-gpt-4o",
+        "name": "Microsoft Azure OpenAI GPT-4o",
+        "provider": "microsoft",
+        "effort": "High",
+        "badge": "Azure",
+        "badge_color": "blue",
+        "available": True,
+        "description": "Enterprise Microsoft Azure OpenAI Service deployment."
+    },
+    {
+        "id": "azure-gpt-4o-mini",
+        "name": "Microsoft Azure OpenAI GPT-4o-mini",
+        "provider": "microsoft",
+        "effort": "Low",
+        "badge": "Azure",
+        "badge_color": "blue",
+        "available": True,
+        "description": "High-efficiency, cost-optimized Azure OpenAI reasoning."
+    },
+    {
+        "id": "github-copilot",
+        "name": "GitHub Copilot (CLI & IDE)",
+        "provider": "microsoft",
+        "effort": "Medium",
+        "badge": "Copilot",
+        "badge_color": "blue",
+        "available": True,
+        "description": "GitHub Copilot CLI shell suggestions and VS Code instructions bridge."
+    },
+    # 3. Amazon Web Services (AWS Bedrock)
+    {
+        "id": "aws-bedrock-claude-3-5-sonnet",
+        "name": "AWS Bedrock Claude 3.5 Sonnet",
+        "provider": "aws",
+        "effort": "High",
+        "badge": "AWS",
+        "badge_color": "orange",
+        "available": True,
+        "description": "Amazon Bedrock managed Anthropic Claude 3.5 Sonnet foundation model."
+    },
+    {
+        "id": "aws-bedrock-titan",
+        "name": "AWS Bedrock Amazon Titan Text",
+        "provider": "aws",
+        "effort": "Medium",
+        "badge": "AWS",
+        "badge_color": "orange",
+        "available": True,
+        "description": "Amazon Titan Text Express on AWS Bedrock."
+    },
+    # 4. Anthropic Claude (Direct API & Claude Code CLI)
+    {
+        "id": "claude-code-cli",
+        "name": "Anthropic Claude Code CLI",
+        "provider": "anthropic",
+        "effort": "High",
+        "badge": "Claude",
+        "badge_color": "purple",
+        "available": True,
+        "description": "Anthropic Claude Code autonomous terminal coding tool."
+    },
+    {
+        "id": "claude-3-7-sonnet",
+        "name": "Anthropic Claude 3.7 Sonnet (Direct)",
+        "provider": "anthropic",
+        "effort": "High",
+        "badge": "Claude",
+        "badge_color": "purple",
+        "available": True,
+        "description": "Direct Anthropic Claude 3.7 hybrid reasoning & coding API."
+    },
     {
         "id": "claude-opus-5-5-medium",
         "name": "Claude Opus 5.5",
+        "provider": "anthropic",
         "effort": "Medium",
-        "badge": "New",
+        "badge": "Claude",
         "badge_color": "purple",
         "available": True,
         "description": "Anthropic Claude Opus 5.5 high-capability reasoning."
@@ -56,15 +143,28 @@ AVAILABLE_MODELS = [
     {
         "id": "claude-sonnet-5-5-medium",
         "name": "Claude Sonnet 5.5",
+        "provider": "anthropic",
         "effort": "Medium",
-        "badge": "New",
+        "badge": "Claude",
         "badge_color": "purple",
         "available": True,
         "description": "Anthropic Claude Sonnet 5.5 balanced coding & analysis."
     },
+    # 5. Local & Open Weights (Offline 0-Token)
+    {
+        "id": "ollama-llama3",
+        "name": "Local Ollama Llama 3 (Offline)",
+        "provider": "ollama",
+        "effort": "Local",
+        "badge": "0-Token",
+        "badge_color": "teal",
+        "available": True,
+        "description": "100% private, offline inference running via local Ollama daemon."
+    },
     {
         "id": "gpt-oss-120b-medium",
         "name": "GPT-OSS 120B (Medium)",
+        "provider": "local",
         "effort": "Medium",
         "badge": "Notice",
         "badge_color": "orange",
@@ -158,9 +258,19 @@ def set_active_model(model_id: str) -> bool:
 
 MODEL_TOKEN_LIMITS = {
     "gemini-3.8-flash-high": 1000000,
+    "gemini-2.5-pro": 1000000,
+    "gemini-2.0-flash": 1000000,
     "gemini-4-argon": 1000000,
+    "azure-gpt-4o": 128000,
+    "azure-gpt-4o-mini": 128000,
+    "github-copilot": 128000,
+    "aws-bedrock-claude-3-5-sonnet": 200000,
+    "aws-bedrock-titan": 32000,
+    "claude-code-cli": 200000,
+    "claude-3-7-sonnet": 200000,
     "claude-opus-5-5-medium": 200000,
     "claude-sonnet-5-5-medium": 200000,
+    "ollama-llama3": 8192,
     "gpt-oss-120b-medium": 128000,
 }
 
@@ -477,6 +587,34 @@ def _execute_agy_or_fallback(prompt_text: str, images: Optional[List[str]] = Non
     if images:
         img_refs = "\n".join([f"- {img}" for img in images])
         full_prompt = f"{prompt_text}\n\n<ADDITIONAL_METADATA>\nThe user has uploaded {len(images)} image(s):\n{img_refs}\n</ADDITIONAL_METADATA>"
+
+    # 1. Developer Tool: Claude Code CLI
+    if target_model == "claude-code-cli":
+        from fleet.core.dev_tools import execute_claude_code
+        db.log_activity("ClaudeCodeCLI", "prompt_executed", prompt_text[:120])
+        return execute_claude_code(full_prompt)
+
+    # 2. Developer Tool: GitHub Copilot CLI
+    if target_model == "github-copilot":
+        from fleet.core.dev_tools import execute_github_copilot_command
+        db.log_activity("GitHubCopilot", "prompt_executed", prompt_text[:120])
+        return execute_github_copilot_command(full_prompt)
+
+    # 3. Multi-Hyperscaler Gateway (Microsoft Azure, AWS Bedrock, Anthropic Claude, Local Ollama, Google Direct)
+    is_hyperscaler = any(target_model.startswith(pfx) for pfx in ["azure-", "aws-", "ollama-", "gemini-2"]) or (target_model.startswith("claude-") and not agy_exe.exists())
+    if is_hyperscaler:
+        from fleet.core.hyperscalers import HyperscalerGateway
+        gateway = HyperscalerGateway()
+        provider = (
+            "microsoft" if "azure" in target_model
+            else "aws" if "aws" in target_model
+            else "ollama" if "ollama" in target_model
+            else "anthropic" if "claude" in target_model
+            else "google"
+        )
+        res_hs = gateway.complete(prompt=full_prompt, provider=provider, model=target_model)
+        db.log_activity("HyperscalerGateway", "prompt_executed", f"[{provider}] {prompt_text[:120]}")
+        return res_hs
 
     if agy_exe.exists():
         if os.environ.get("FLEET_TEST_MODE") == "1":

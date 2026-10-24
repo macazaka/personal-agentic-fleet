@@ -313,10 +313,11 @@ def test_optimizer_edge_cases_and_error_handling():
         (Path(tmp_dir) / "test.tmp").write_text("data")
         with patch("tempfile.gettempdir", return_value=tmp_dir):
             orig_stat = Path.stat
-            def mock_stat_denied(self, *args, **kwargs):
-                if str(self).endswith(".tmp"):
+            def mock_stat_denied(*args, **kwargs):
+                target = args[0] if args else kwargs.get("self")
+                if target and str(target).endswith(".tmp"):
                     raise OSError("Access denied")
-                return orig_stat(self, *args, **kwargs)
+                return orig_stat(*args, **kwargs)
 
             with patch.object(Path, "stat", side_effect=mock_stat_denied):
                 res = get_temp_bloat_info()

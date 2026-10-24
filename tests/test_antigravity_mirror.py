@@ -194,9 +194,13 @@ def test_models_and_usage_details():
     )
 
     models = get_available_models()
-    assert len(models) == 5
+    assert len(models) >= 5
     assert any(m["id"] == "gemini-3.8-flash-high" for m in models)
     assert any(m["id"] == "gemini-4-argon" for m in models)
+    assert any(m.get("provider") == "google" for m in models)
+    assert any(m.get("provider") == "microsoft" for m in models)
+    assert any(m.get("provider") == "aws" for m in models)
+    assert any(m.get("provider") == "anthropic" for m in models)
 
     # Active model get / set
     set_active_model("gemini-3.8-flash-high")

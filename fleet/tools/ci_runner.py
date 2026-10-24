@@ -23,9 +23,11 @@ def main():
         pass
 
     if res.returncode != 0:
-        lines = (res.stdout + "\n" + res.stderr).splitlines()
-        for line in lines:
-            if any(k in line for k in ["ERROR", "FAILED", "Error:", "Exception:", "ModuleNotFoundError", "ImportError", "assert "]):
+        in_failure = False
+        for line in (res.stdout + "\n" + res.stderr).splitlines():
+            if line.startswith("___") or "FAILURES" in line or "ERRORS" in line:
+                in_failure = True
+            if in_failure:
                 clean = line.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
                 print(f"::error::{clean}", file=sys.stderr)
 

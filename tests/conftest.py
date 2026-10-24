@@ -27,7 +27,12 @@ if sys.platform != "win32":
         dummy_winreg.HKEY_LOCAL_MACHINE = 2
         dummy_winreg.HKEY_USERS = 3
         dummy_winreg.HKEY_CURRENT_CONFIG = 4
-        dummy_winreg.OpenKey = lambda *args, **kwargs: None
+        class DummyKey:
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                pass
+        dummy_winreg.OpenKey = lambda *args, **kwargs: DummyKey()
         dummy_winreg.QueryInfoKey = lambda *args, **kwargs: (0, 0, 0)
         dummy_winreg.EnumValue = lambda *args, **kwargs: ("app", "cmd", 0)
         dummy_winreg.CloseKey = lambda *args, **kwargs: None
