@@ -852,7 +852,7 @@ def execute_dashboard_command(cmd_text: str, images: Optional[List[str]] = None,
     if not is_busy:
         agent_id = _spawn_parallel_agent_worker(task_text=text, images=images, model=target_model)
         agy_home = os.environ.get("USERPROFILE") or os.environ.get("HOME") or ""
-    agy_exe = Path(agy_home) / ".gemini" / "bin" / ("agy.exe" if os.name == "nt" else "agy")
+        agy_exe = Path(agy_home) / ".gemini" / "bin" / ("agy.exe" if os.name == "nt" else "agy")
         if agy_exe.exists():
             return {
                 "status": "success",
