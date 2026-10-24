@@ -228,8 +228,8 @@ def get_temp_bloat_info() -> Dict[str, Any]:
     temp_dir = Path(temp_dir_str)
     file_count = 0
     total_size = 0
-    if temp_dir.exists():
-        try:
+    try:
+        if temp_dir.exists():
             for root, _, files in os.walk(temp_dir):
                 for f in files:
                     try:
@@ -238,8 +238,8 @@ def get_temp_bloat_info() -> Dict[str, Any]:
                         file_count += 1
                     except Exception:
                         continue
-        except Exception:
-            pass
+    except Exception:
+        pass
     return {
         "path": str(temp_dir),
         "dir_path": str(temp_dir),

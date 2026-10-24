@@ -310,12 +310,13 @@ def test_optimizer_edge_cases_and_error_handling():
 
     # 2. Stat error & walk error in get_temp_bloat_info
     with tempfile.TemporaryDirectory() as tmp_dir:
-        (Path(tmp_dir) / "test.tmp").write_text("data")
+        dummy_file = Path(tmp_dir) / "test_file.dat"
+        dummy_file.write_text("data")
         with patch("tempfile.gettempdir", return_value=tmp_dir):
             orig_stat = Path.stat
             def mock_stat_denied(*args, **kwargs):
                 target = args[0] if args else kwargs.get("self")
-                if target and str(target).endswith(".tmp"):
+                if target and Path(str(target)).name == "test_file.dat":
                     raise OSError("Access denied")
                 return orig_stat(*args, **kwargs)
 
