@@ -11,3 +11,4 @@ If you discover a potential security vulnerability, please do NOT create a publi
 2. Or contact the maintainer directly at the email listed on [@macazaka's GitHub profile](https://github.com/macazaka).
 
 We will investigate and respond to vulnerability reports within 48 hours.
+

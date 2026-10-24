@@ -8,7 +8,7 @@ if %ERRORLEVEL% EQU 0 (
     echo.
     echo ===================================================
     echo SUCCESS: Fleet has been pushed to GitHub!
-    echo View repository at: https://github.com/macazaka/fleet
+    echo View repository at: https://github.com/macazaka/personal-agentic-fleet
     echo ===================================================
 ) else (
     echo.
@@ -19,3 +19,4 @@ if %ERRORLEVEL% EQU 0 (
     echo ===================================================
 )
 pause
+

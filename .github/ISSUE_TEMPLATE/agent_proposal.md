@@ -25,3 +25,4 @@ assignees: ["macazaka"]
 <!-- Confirm how this agent runs locally without consuming unnecessary LLM tokens -->
 - [ ] Uses deterministic local Python/system tools
 - [ ] Only uses LLM when semantic generation is strictly required
+

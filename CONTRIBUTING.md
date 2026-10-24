@@ -24,7 +24,7 @@ Thank you for your interest in contributing to Fleet! We welcome contributions f
 
 1. Fork and clone the repository:
    ```bash
-   git clone https://github.com/macazaka/fleet.git
+   git clone https://github.com/macazaka/personal-agentic-fleet.git
    cd fleet
    ```
 
@@ -68,5 +68,5 @@ Checklist for submitting an agent:
 1. Create a feature branch: `git checkout -b feature/my-cool-agent`
 2. Commit your changes: `git commit -m "feat: Add Docker container agent"`
 3. Push to your fork: `git push origin feature/my-cool-agent`
-4. Open a Pull Request against the `main` branch of `macazaka/fleet`.
+4. Open a Pull Request against the `main` branch of `macazaka/personal-agentic-fleet`.
 

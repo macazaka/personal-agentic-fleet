@@ -56,7 +56,7 @@ fleet/
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/macazaka/fleet.git
+git clone https://github.com/macazaka/personal-agentic-fleet.git
 cd fleet
 ```
 
