@@ -15,7 +15,7 @@ if %ERRORLEVEL% EQU 0 (
     echo ===================================================
     echo PUSH FAILED: Please make sure you have:
     echo 1. Added your SSH Key to GitHub at https://github.com/settings/ssh/new
-    echo 2. Created the empty repository 'fleet' at https://github.com/new
+    echo 2. Created the empty repository 'personal-agentic-fleet' at https://github.com/new
     echo ===================================================
 )
 pause
