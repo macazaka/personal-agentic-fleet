@@ -13,7 +13,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-import coverage
+try:
+    import coverage
+except ImportError:
+    coverage = None
 import pytest
 
 from fleet.config import BASE_DIR, DATA_DIR
@@ -93,11 +96,10 @@ def run_test_suite(db: Optional[FleetDatabase] = None) -> Dict[str, Any]:
     # Configure Coverage
     cov = coverage.Coverage(
         config_file=str(PROJECT_ROOT / ".coveragerc"),
-    )
+    ) if coverage is not None else None
 
-
-
-    cov.start()
+    if cov is not None:
+        cov.start()
 
     # Ensure pre-imported modules are fully traced under coverage
     import importlib
