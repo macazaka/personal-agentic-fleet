@@ -13,8 +13,10 @@ Modular Architecture:
   - Persistent storage: fleet/core/database.py (domain mixins in fleet/core/db/)
 """
 
+from __future__ import annotations
 import base64
 import json
+from typing import Any, Dict, List, Optional
 import mimetypes
 import os
 from pathlib import Path

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Deterministic Event Bus for Personal Agentic Fleet.
 Enables zero-token, in-process Agent-to-Agent (A2A) communication using typed message envelopes.
@@ -5,7 +6,7 @@ Enables zero-token, in-process Agent-to-Agent (A2A) communication using typed me
 
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 import uuid
 
 from fleet.core.briefing import BriefingEngine

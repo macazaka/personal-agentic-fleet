@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Gmail Client & Automated Classifier Integration for Personal Agentic Fleet.
 Manages OAuth2 desktop credentials, 2-month lookback window query,
@@ -9,7 +10,7 @@ import os
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from fleet.config import DATA_DIR
 from fleet.core.database import FleetDatabase
