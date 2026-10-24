@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Metabolic Health Intelligence & Freedom From Diabetes (FFD) Protocol Integration**:
   - **Personalized Metabolic Profile & Tracking**:
-    - Patient Profile integrated for **Mr. Pavan Kishore Kota Subramanya (HTP 138)**.
+    - Patient Profile integrated for **Metabolic & Biomarker Profile**.
     - Active 3-Month Target Countdown: **HbA1c < 6.4% by January 07, 2027** with daily remaining countdown badge and follow-up lab alert.
     - Basic Health Goal (BHG) tracking: Target weight of **93.5 kg**.
     - Clinical directives enforced: Salt-restricted diet, daily blood pressure monitoring, and 4th Morsel Rule.
@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Structured baseline biomarkers in SQLite: Fasting Glucose (125 mg/dL), 2hr PPBS (261 mg/dL), HbA1c (7.1%), Fasting C-Peptide (7.53 ng/mL), Lipid Panel (Chol 209, TG 208, HDL 31, LDL 136.8, AIP 0.470), Liver Enzymes (SGPT/ALT 68.8 U/L, SGOT/AST 40.1 U/L), Kidney (eGFR 113.92, Creatinine 0.70), and Vitamins (D3 66.9 ng/mL, B12 545 pg/mL).
     - Added interactive **Apollo Lab Diagnostic Modal** with complete reference intervals and clinical interpretation.
   - **Doctor Prescriptions & Mealtime Adherence Management**:
-    - Implemented active doctor prescriptions (Dr. Pramod Tripathi & Dr. Nikhil Bhanagay):
+    - Implemented active doctor prescriptions (Consulting Physicians):
       - 🌅 **After Breakfast (08:30 IST)**: Tab. Telma 40 AM, Tab. Glycomet SR 500, Tab. Vit B Complex, Cap. Garlic Pearls
       - ☀️ **After Lunch (13:30 IST)**: Tab. Evion 400, Tab. Milk Thistle 600 mg, Tab. Vitamin D3 60K (Monthly)
       - 🌙 **After Dinner (20:00 IST)**: Tab. Glycomet SR 500, Cap. Garlic Pearls

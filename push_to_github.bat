@@ -3,7 +3,7 @@ echo ===================================================
 echo Pushing Personal Agentic Fleet to GitHub (macazaka)
 echo ===================================================
 cd /d "Z:\Hobbies - Code\0001 - Test"
-"C:\Users\Pavan Kota\AppData\Local\Programs\Git\cmd\git.exe" push -u origin main
+git push -u origin main
 if %ERRORLEVEL% EQU 0 (
     echo.
     echo ===================================================
