@@ -23,6 +23,8 @@ if sys.platform != "win32":
     if "winreg" not in sys.modules:
         class DummyWinreg(types.ModuleType):
             def __getattr__(self, name):
+                if name.startswith("__"):
+                    raise AttributeError(name)
                 if name.startswith("HKEY_") or name.startswith("REG_") or name.startswith("KEY_"):
                     return 0
                 return lambda *args, **kwargs: None

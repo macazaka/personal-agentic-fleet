@@ -234,7 +234,7 @@ def get_temp_bloat_info() -> Dict[str, Any]:
                 for f in files:
                     try:
                         fp = Path(root) / f
-                        total_size += fp.stat().st_size
+                        total_size += os.stat(fp).st_size
                         file_count += 1
                     except Exception:
                         continue

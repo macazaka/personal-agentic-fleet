@@ -127,7 +127,7 @@ def find_large_files(dir_path: str, min_size_mb: float = 100.0, limit: int = 15)
             for f in files:
                 file_path = Path(root) / f
                 try:
-                    size = file_path.stat().st_size
+                    size = os.stat(file_path).st_size
                     if size >= min_bytes:
                         large_files.append({
                             "name": file_path.name,

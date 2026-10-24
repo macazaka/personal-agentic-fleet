@@ -13,6 +13,7 @@ jobs:
   test:
     name: Test Suite (${{ matrix.os }}, Python ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 6
     strategy:
       fail-fast: false
       matrix:
@@ -34,14 +35,8 @@ jobs:
         python -m pip install pytest anyio coverage
 
     - name: Run Test Suite
+      timeout-minutes: 4
       env:
         PYTHONPATH: .
       run: |
-        python -m fleet.tools.ci_runner
-
-    - name: Upload Test Diagnostics
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: pytest-${{ matrix.os }}-py${{ matrix.python-version }}
-        path: pytest_log.txt
+        pytest tests/ -v --tb=short
