@@ -37,4 +37,11 @@ jobs:
       env:
         PYTHONPATH: .
       run: |
-        python -m pytest tests/
+        python -c "import subprocess, os, sys; res = subprocess.run([sys.executable, '-m', 'pytest', 'tests/', '-v', '--tb=short'], capture_output=True, text=True); print(res.stdout); print(res.stderr, file=sys.stderr); open('pytest_log.txt', 'w', encoding='utf-8').write(res.stdout + '\n' + res.stderr); sys.exit(res.returncode)"
+
+    - name: Upload Test Diagnostics
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: pytest-${{ matrix.os }}-py${{ matrix.python-version }}
+        path: pytest_log.txt
