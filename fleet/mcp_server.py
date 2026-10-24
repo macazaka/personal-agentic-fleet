@@ -28,8 +28,10 @@ def fleet_get_daily_briefing() -> str:
     )
     result = bus.dispatch(event)
     if result["status"] == "success":
+        from fleet.core.token_optimizer import check_mcp_delta_response
         briefing = result["data"]
-        return briefing.get("briefing_markdown", json.dumps(briefing, indent=2))
+        md = briefing.get("briefing_markdown", json.dumps(briefing, indent=2))
+        return check_mcp_delta_response("fleet_get_daily_briefing", md)
     return f"Error fetching briefing: {result.get('message')}"
 
 

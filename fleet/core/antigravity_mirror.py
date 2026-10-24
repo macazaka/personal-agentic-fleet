@@ -306,31 +306,35 @@ def get_llm_usage_details() -> Dict[str, Any]:
 
 
 def save_uploaded_image(filename: str, file_bytes: bytes) -> Dict[str, Any]:
-    """Saves an image to fleet/data/uploads and active brain user_uploaded dir."""
-    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-    clean_name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', filename)
-    if not clean_name or clean_name.startswith("."):
-        clean_name = f"image_{int(datetime.now().timestamp())}.png"
+    """Saves an image to fleet/data/uploads with SHA-256 deduplication to prevent duplicate vision token billing."""
+    from fleet.core.token_optimizer import deduplicate_uploaded_image
 
-    target_path = UPLOADS_DIR / clean_name
-    target_path.write_bytes(file_bytes)
+    def _store_fresh() -> Dict[str, Any]:
+        UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+        clean_name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', filename)
+        if not clean_name or clean_name.startswith("."):
+            clean_name = f"image_{int(datetime.now().timestamp())}.png"
 
-    # Mirror into active session's .user_uploaded folder if available
-    t_path = get_active_transcript_path()
-    if t_path:
-        try:
-            brain_user_upload = t_path.parents[2] / ".user_uploaded"
-            brain_user_upload.mkdir(parents=True, exist_ok=True)
-            (brain_user_upload / clean_name).write_bytes(file_bytes)
-        except Exception:
-            pass
+        target_path = UPLOADS_DIR / clean_name
+        target_path.write_bytes(file_bytes)
 
-    return {
-        "filename": clean_name,
-        "url": f"/api/antigravity/media/{clean_name}",
-        "path": str(target_path),
-        "size": len(file_bytes)
-    }
+        t_path = get_active_transcript_path()
+        if t_path:
+            try:
+                brain_user_upload = t_path.parents[2] / ".user_uploaded"
+                brain_user_upload.mkdir(parents=True, exist_ok=True)
+                (brain_user_upload / clean_name).write_bytes(file_bytes)
+            except Exception:
+                pass
+
+        return {
+            "filename": clean_name,
+            "url": f"/api/antigravity/media/{clean_name}",
+            "path": str(target_path),
+            "size": len(file_bytes)
+        }
+
+    return deduplicate_uploaded_image(file_bytes, _store_fresh)
 
 
 def get_agent_status() -> Dict[str, Any]:
@@ -465,7 +469,8 @@ def _execute_agy_or_fallback(prompt_text: str, images: Optional[List[str]] = Non
     agy_exe = Path(os.environ.get("USERPROFILE", "")) / ".gemini" / "bin" / "agy.exe"
     compressed = compress_prompt(prompt_text)
     clean_prompt = compressed["text"]
-    target_model = select_optimal_model_tier(clean_prompt, model or get_active_model())
+    th_pct = get_token_health().get("percent_used", 0.0)
+    target_model = select_optimal_model_tier(clean_prompt, model or get_active_model(), token_usage_pct=th_pct)
 
     full_prompt = clean_prompt
     if images:

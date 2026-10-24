@@ -28,6 +28,7 @@ REPO_ROOT = BASE_DIR.parent
 SECURITY_REPORT_FILE = DATA_DIR / "latest_security_scan.json"
 SCAN_REPORT_FILE = SECURITY_REPORT_FILE
 USER_VAULT_DIR = DATA_DIR / "user"
+SCAN_FILE_CACHE_PATH = USER_VAULT_DIR / "security_scan_cache.json"
 
 # Secret detection patterns (High-confidence signatures)
 SECRET_PATTERNS = [

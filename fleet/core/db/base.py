@@ -177,6 +177,17 @@ class BaseDatabase:
                 )
             """)
 
+            # Persistent Zero-Token Prompt Response Cache
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS prompt_cache (
+                    prompt_hash TEXT PRIMARY KEY,
+                    prompt_text TEXT NOT NULL,
+                    response_text TEXT NOT NULL,
+                    hit_count INTEGER DEFAULT 0,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+
             # Chat Message Queue for Antigravity LLM execution
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS chat_queue (

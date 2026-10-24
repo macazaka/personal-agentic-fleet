@@ -56,3 +56,22 @@ def validate_request_security(
 
     return True, "ok"
 
+import time
+from collections import deque
+
+# Sliding-window rate limiter (max 120 requests per 10 seconds per client IP)
+_REQUEST_TIMESTAMPS: deque = deque(maxlen=200)
+RATE_LIMIT_WINDOW_SEC = 10.0
+RATE_LIMIT_MAX_REQUESTS = 120
+
+
+def check_rate_limit() -> Tuple[bool, str]:
+    """Protects local server & LLM queue from runaway client script loops."""
+    now = time.time()
+    while _REQUEST_TIMESTAMPS and (now - _REQUEST_TIMESTAMPS[0]) > RATE_LIMIT_WINDOW_SEC:
+        _REQUEST_TIMESTAMPS.popleft()
+    if len(_REQUEST_TIMESTAMPS) >= RATE_LIMIT_MAX_REQUESTS:
+        return False, "Rate limit exceeded: too many local requests in 10s window"
+    _REQUEST_TIMESTAMPS.append(now)
+    return True, "ok"
+
