@@ -461,10 +461,13 @@ def fast_track_queue() -> Dict[str, Any]:
 
 
 def _execute_agy_or_fallback(prompt_text: str, images: Optional[List[str]] = None, model: Optional[str] = None):
+    from fleet.core.token_optimizer import compress_prompt, select_optimal_model_tier
     agy_exe = Path(os.environ.get("USERPROFILE", "")) / ".gemini" / "bin" / "agy.exe"
-    target_model = model or get_active_model()
+    compressed = compress_prompt(prompt_text)
+    clean_prompt = compressed["text"]
+    target_model = select_optimal_model_tier(clean_prompt, model or get_active_model())
 
-    full_prompt = prompt_text
+    full_prompt = clean_prompt
     if images:
         img_refs = "\n".join([f"- {img}" for img in images])
         full_prompt = f"{prompt_text}\n\n<ADDITIONAL_METADATA>\nThe user has uploaded {len(images)} image(s):\n{img_refs}\n</ADDITIONAL_METADATA>"
@@ -553,10 +556,19 @@ def clean_user_input(content: str) -> str:
     return cleaned.strip()
 
 
+_TRANSCRIPT_MEM_CACHE: Dict[str, Any] = {
+    "path": None,
+    "mtime_ns": -1,
+    "size": -1,
+    "raw_steps": [],
+    "line_count": 0,
+}
+
+
 def parse_transcript(limit: int = 50, since_step: Optional[int] = None) -> Dict[str, Any]:
     """
     Parses the latest entries from the transcript log into structured conversation turns.
-    Runs at Tier 0 (0 Tokens / local disk only).
+    Runs at Tier 0 (0 Tokens / local disk only) with incremental mtime/size memoization.
     """
     transcript_path = get_active_transcript_path()
     if not transcript_path or not transcript_path.exists():
@@ -569,21 +581,37 @@ def parse_transcript(limit: int = 50, since_step: Optional[int] = None) -> Dict[
     session_id = transcript_path.parents[2].name
 
     try:
-        with open(transcript_path, "r", encoding="utf-8", errors="replace") as f:
-            lines = [line.strip() for line in f if line.strip()]
+        st = transcript_path.stat()
+        if (
+            _TRANSCRIPT_MEM_CACHE["path"] == str(transcript_path)
+            and _TRANSCRIPT_MEM_CACHE["mtime_ns"] == st.st_mtime_ns
+            and _TRANSCRIPT_MEM_CACHE["size"] == st.st_size
+        ):
+            raw_steps = list(_TRANSCRIPT_MEM_CACHE["raw_steps"])
+            total_lines = _TRANSCRIPT_MEM_CACHE["line_count"]
+        else:
+            with open(transcript_path, "r", encoding="utf-8", errors="replace") as f:
+                lines = [line.strip() for line in f if line.strip()]
+            raw_steps = []
+            for line in lines:
+                try:
+                    raw_steps.append(json.loads(line))
+                except Exception:
+                    continue
+            total_lines = len(lines)
+            _TRANSCRIPT_MEM_CACHE["path"] = str(transcript_path)
+            _TRANSCRIPT_MEM_CACHE["mtime_ns"] = st.st_mtime_ns
+            _TRANSCRIPT_MEM_CACHE["size"] = st.st_size
+            _TRANSCRIPT_MEM_CACHE["raw_steps"] = list(raw_steps)
+            _TRANSCRIPT_MEM_CACHE["line_count"] = total_lines
+            lines = [None] * total_lines
     except Exception as e:
         return {
             "status": "error",
             "message": f"Error reading transcript: {e}",
             "messages": []
         }
-
-    raw_steps = []
-    for line in lines:
-        try:
-            raw_steps.append(json.loads(line))
-        except Exception:
-            continue
+    lines = [None] * _TRANSCRIPT_MEM_CACHE.get("line_count", len(raw_steps))
 
     if since_step is not None:
         raw_steps = [s for s in raw_steps if s.get("step_index", 0) > since_step]
@@ -769,6 +797,22 @@ def execute_dashboard_command(cmd_text: str, images: Optional[List[str]] = None,
             "type": "notification",
             "message": f"Windows Notification {'delivered' if sent else 'sent'}: {msg}"
         }
+
+    # 5b. Tier 0 Extended Deterministic Intent Router ($0.00 / 0 Tokens)
+    if not images:
+        from fleet.core.token_optimizer import get_cached_prompt_response, try_deterministic_intent_route
+        det_res = try_deterministic_intent_route(text, db=db)
+        if det_res is not None:
+            return det_res
+        cached_ans = get_cached_prompt_response(text)
+        if cached_ans is not None:
+            return {
+                "status": "success",
+                "type": "cached_response",
+                "tokens_used": 0,
+                "cost_usd": "$0.00",
+                "message": cached_ans,
+            }
 
     # 6. Natural Language Prompt: check token exhaustion & agent busy state
     target_model = model or get_active_model()

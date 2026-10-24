@@ -99,3 +99,4 @@ class ScopedDatabaseProxy:
                     f"Plugin Sandbox Violation: Agent '{self._agent_id}' attempted write/mutation '{name}' without 'db:write' permission."
                 )
         return attr
+

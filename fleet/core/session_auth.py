@@ -55,3 +55,4 @@ def validate_request_security(
             return False, "Cross-Site request blocked by Fetch Metadata policy (Sec-Fetch-Site: cross-site)"
 
     return True, "ok"
+

@@ -64,7 +64,7 @@ def fleet_add_task(
 
 
 @mcp.tool(description="List tasks from the task board with optional status filter ('pending', 'completed', or None for all).")
-def fleet_list_tasks(status: Optional[str] = None, limit: int = 50) -> str:
+def fleet_list_tasks(status: Optional[str] = None, limit: int = 15) -> str:
     """List open or completed tasks."""
 
     event = FleetEvent(
@@ -81,7 +81,7 @@ def fleet_list_tasks(status: Optional[str] = None, limit: int = 50) -> str:
         lines = []
         for t in tasks:
             icon = "✅" if t["status"] == "completed" else ("🔴" if t["priority"] == "P1" else ("🟡" if t["priority"] == "P2" else "🟢"))
-            desc_part = f" - {t['description']}" if t.get("description") else ""
+            desc_part = f" - {t['description'][:120]}" if t.get("description") else ""
             lines.append(f"- #{t['id']} {icon} [{t['priority']}] **{t['title']}**{desc_part} ({t['status']})")
         return "\n".join(lines)
     return f"Error listing tasks: {result.get('message')}"

@@ -550,6 +550,56 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
         "findings_count": len(supply_hits),
     })
 
+    # -------------------------------------------------------------------------
+    # Check 11: Zero-Token Determinism & Cost Governance Audit
+    # -------------------------------------------------------------------------
+    token_gov_hits = []
+    from fleet.config import COST_OPTIMIZATION_POLICY, PREFER_ZERO_TOKEN_CODE
+    if not PREFER_ZERO_TOKEN_CODE or COST_OPTIMIZATION_POLICY != "LOWEST_COST_FIRST":
+        hit = {
+            "severity": "MEDIUM",
+            "category": "Zero-Token Governance",
+            "file": "fleet/config.py",
+            "line": 80,
+            "detail": "PREFER_ZERO_TOKEN_CODE or LOWEST_COST_FIRST policy is disabled in fleet/config.py.",
+        }
+        token_gov_hits.append(hit)
+        findings.append(hit)
+
+    # Verify background daemons and deterministic engines never invoke external LLM SDKs
+    deterministic_modules = [
+        "fleet/daemon.py",
+        "fleet/tools/security_scanner.py",
+        "fleet/tools/test_runner.py",
+        "fleet/integrations/email_classifier.py",
+        "fleet/core/briefing.py",
+    ]
+    forbidden_llm_calls = ("openai.ChatCompletion", "GenerativeModel(", "anthropic.Anthropic(", "agy.exe")
+    for mod_rel in deterministic_modules:
+        mod_fp = repo_root / mod_rel
+        if mod_fp.is_file():
+            mod_text = mod_fp.read_text(encoding="utf-8", errors="ignore")
+            for forbidden_call in forbidden_llm_calls:
+                if mod_rel == "fleet/tools/security_scanner.py" and forbidden_call in mod_text:
+                    continue
+                if forbidden_call in mod_text:
+                    hit = {
+                        "severity": "HIGH",
+                        "category": "Zero-Token Governance",
+                        "file": mod_rel,
+                        "line": 1,
+                        "detail": f"Deterministic module '{mod_rel}' contains paid LLM invocation '{forbidden_call}'.",
+                    }
+                    token_gov_hits.append(hit)
+                    findings.append(hit)
+
+    checks.append({
+        "id": "zero_token_governance",
+        "name": "Zero-Token Determinism & Cost Governance ($0.00 Audit)",
+        "status": "PASS" if not token_gov_hits else "FAIL",
+        "findings_count": len(token_gov_hits),
+    })
+
     # Compute overall score
     deductions = 0
     for f in findings:
@@ -570,6 +620,9 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
         "status": overall_status,
         "score": score,
         "security_score": score,
+        "tokens_used": 0,
+        "cost_usd": "$0.00",
+        "execution_tier": "Tier 0 Deterministic (0 LLM Tokens)",
         "total_checks": len(checks),
         "passed_checks": sum(1 for c in checks if c["status"] == "PASS"),
         "total_findings": len(findings),

@@ -50,9 +50,50 @@ def test_full_codebase_security_scan_passes_100():
     report = run_security_scan()
     assert report["status"] == "PASS", f"Expected PASS, got findings: {report.get('findings')}"
     assert report["score"] == 100
-    assert report["passed_checks"] == 10
-    assert report["total_checks"] == 10
+    assert report["tokens_used"] == 0
+    assert report["cost_usd"] == "$0.00"
+    assert report["passed_checks"] == 11
+    assert report["total_checks"] == 11
     assert report["total_findings"] == 0
+
+
+def test_zero_token_deterministic_router_and_prompt_compressor():
+    from fleet.core.token_optimizer import (
+        cache_prompt_response,
+        compress_prompt,
+        get_cached_prompt_response,
+        get_token_optimization_stats,
+        try_deterministic_intent_route,
+    )
+
+    db = FleetDatabase()
+
+    # 1. Deterministic Security Scan Route (0 tokens)
+    sec_res = try_deterministic_intent_route("scan security", db=db)
+    assert sec_res is not None
+    assert sec_res["tokens_used"] == 0
+    assert sec_res["cost_usd"] == "$0.00"
+
+    # 2. Deterministic Hydration Route (0 tokens)
+    water_res = try_deterministic_intent_route("log water 2", db=db)
+    assert water_res is not None
+    assert water_res["tokens_used"] == 0
+    assert "+500 ml" in water_res["message"]
+
+    # 3. Normalized Prompt Cache (0 tokens on repeat query)
+    cache_prompt_response("What is the FFD breakfast ratio?", "25% sprouts, 25% raw salad, 50% cooked dal.")
+    cached = get_cached_prompt_response("  what is the   ffd breakfast ratio? ")
+    assert cached == "25% sprouts, 25% raw salad, 50% cooked dal."
+
+    # 4. Prompt Compressor strips comments & excess whitespace
+    bloated = "Hello   world<!-- comment -->\n\n\n\nNext paragraph"
+    comp = compress_prompt(bloated)
+    assert comp["text"] == "Hello world\n\nNext paragraph"
+    assert comp["chars_saved"] > 0
+
+    stats = get_token_optimization_stats()
+    assert stats["security_scan_token_cost"] == 0
+    assert stats["tier0_deterministic_hits"] >= 2
 
 
 def test_dpapi_crypto_vault_roundtrip_and_tamper_detection():
@@ -184,7 +225,7 @@ def test_security_scan_api_endpoints():
     payload = mock_handler._send_json.call_args[0][0]
     assert payload["status"] == "PASS"
     assert payload["score"] == 100
-    assert payload["passed_checks"] == 10
+    assert payload["passed_checks"] == 11
 
     mock_handler.reset_mock()
     post_security_scan(mock_handler, {})

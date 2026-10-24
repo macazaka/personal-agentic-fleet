@@ -135,3 +135,9 @@ def get_security_sbom(handler: Any, parsed_url: urllib.parse.ParseResult):
     sbom = generate_sbom()
     handler._send_json(sbom)
 
+
+@router.get("/api/security/token_stats")
+def get_security_token_stats(handler: Any, parsed_url: urllib.parse.ParseResult):
+    from fleet.core.token_optimizer import get_token_optimization_stats
+    handler._send_json(get_token_optimization_stats())
+
