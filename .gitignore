@@ -31,6 +31,7 @@ fleet/data/user/
 fleet/data/user/*
 !fleet/data/user/.gitkeep
 fleet/data/latest_security_scan.json
+fleet/data/sbom.cdx.json
 fleet/data/uploads/*
 !fleet/data/uploads/.gitkeep
 fleet/data/notes/*

@@ -65,3 +65,4 @@ if __name__ == "__main__":
     res = install_git_hooks()
     print(f"Git Security Hooks: {res['status']} -> {res.get('hooks', [])}")
     sys.exit(0)
+

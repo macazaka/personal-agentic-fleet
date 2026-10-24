@@ -389,6 +389,167 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
         "findings_count": len(vault_hits),
     })
 
+    # -------------------------------------------------------------------------
+    # Check 7: At-Rest DPAPI Cryptographic Vault Verification
+    # -------------------------------------------------------------------------
+    crypto_hits = []
+    try:
+        from fleet.core.crypto_vault import decrypt_sensitive_text, encrypt_sensitive_text
+        probe = "fleet_dpapi_integrity_probe_2026"
+        ct = encrypt_sensitive_text(probe)
+        pt = decrypt_sensitive_text(ct)
+        if not ct.startswith("ENC:") or pt != probe:
+            hit = {
+                "severity": "HIGH",
+                "category": "At-Rest Encryption",
+                "file": "fleet/core/crypto_vault.py",
+                "line": 1,
+                "detail": "Cryptographic vault roundtrip check failed.",
+            }
+            crypto_hits.append(hit)
+            findings.append(hit)
+    except Exception as e:
+        hit = {
+            "severity": "HIGH",
+            "category": "At-Rest Encryption",
+            "file": "fleet/core/crypto_vault.py",
+            "line": 1,
+            "detail": f"Cryptographic vault error: {e}",
+        }
+        crypto_hits.append(hit)
+        findings.append(hit)
+
+    checks.append({
+        "id": "dpapi_crypto_vault",
+        "name": "At-Rest DPAPI & HMAC-SHA256 Crypto Vault",
+        "status": "PASS" if not crypto_hits else "FAIL",
+        "findings_count": len(crypto_hits),
+    })
+
+    # -------------------------------------------------------------------------
+    # Check 8: Content-Security-Policy (CSP), Session Cookie & CSRF/DNS-Rebinding Guard
+    # -------------------------------------------------------------------------
+    csp_hits = []
+    if server_path.is_file():
+        srv_text = server_path.read_text(encoding="utf-8", errors="ignore")
+        for required_token in ("Content-Security-Policy", "Permissions-Policy", "validate_request_security"):
+            if required_token not in srv_text:
+                hit = {
+                    "severity": "MEDIUM",
+                    "category": "CSP & CSRF Guard",
+                    "file": "fleet/server.py",
+                    "line": 100,
+                    "detail": f"Missing '{required_token}' enforcement in fleet/server.py.",
+                }
+                csp_hits.append(hit)
+                findings.append(hit)
+
+    checks.append({
+        "id": "csp_csrf_dns_guard",
+        "name": "Content-Security-Policy (CSP) & DNS-Rebinding/CSRF Guard",
+        "status": "PASS" if not csp_hits else "FAIL",
+        "findings_count": len(csp_hits),
+    })
+
+    # -------------------------------------------------------------------------
+    # Check 9: Plugin Capability Sandboxing & Least-Privilege Manifest Audit
+    # -------------------------------------------------------------------------
+    sandbox_hits = []
+    agents_root = repo_root / "fleet" / "agents"
+    if agents_root.is_dir():
+        from fleet.core.plugin_sandbox import validate_manifest_permissions
+        for agent_dir in sorted(agents_root.iterdir()):
+            if not agent_dir.is_dir() or not (agent_dir / "agent.py").is_file():
+                continue
+            manifest_fp = agent_dir / "manifest.json"
+            if not manifest_fp.is_file():
+                hit = {
+                    "severity": "MEDIUM",
+                    "category": "Plugin Sandbox",
+                    "file": f"fleet/agents/{agent_dir.name}/manifest.json",
+                    "line": 0,
+                    "detail": f"Agent '{agent_dir.name}' is missing manifest.json permission declaration.",
+                }
+                sandbox_hits.append(hit)
+                findings.append(hit)
+            else:
+                try:
+                    m_data = json.loads(manifest_fp.read_text(encoding="utf-8"))
+                    perms = m_data.get("permissions", [])
+                    if not perms or not isinstance(perms, list):
+                        hit = {
+                            "severity": "MEDIUM",
+                            "category": "Plugin Sandbox",
+                            "file": f"fleet/agents/{agent_dir.name}/manifest.json",
+                            "line": 1,
+                            "detail": f"Agent '{agent_dir.name}' manifest.json has empty permissions list.",
+                        }
+                        sandbox_hits.append(hit)
+                        findings.append(hit)
+                    else:
+                        unknown = validate_manifest_permissions(agent_dir.name, perms)
+                        if unknown:
+                            hit = {
+                                "severity": "HIGH",
+                                "category": "Plugin Sandbox",
+                                "file": f"fleet/agents/{agent_dir.name}/manifest.json",
+                                "line": 1,
+                                "detail": f"Agent '{agent_dir.name}' declared unauthorized permissions: {unknown}",
+                            }
+                            sandbox_hits.append(hit)
+                            findings.append(hit)
+                except Exception as e:
+                    hit = {
+                        "severity": "MEDIUM",
+                        "category": "Plugin Sandbox",
+                        "file": f"fleet/agents/{agent_dir.name}/manifest.json",
+                        "line": 1,
+                        "detail": f"Invalid manifest.json in '{agent_dir.name}': {e}",
+                    }
+                    sandbox_hits.append(hit)
+                    findings.append(hit)
+
+    checks.append({
+        "id": "plugin_sandbox_audit",
+        "name": "Plugin Capability Sandboxing & Least-Privilege Manifests",
+        "status": "PASS" if not sandbox_hits else "FAIL",
+        "findings_count": len(sandbox_hits),
+    })
+
+    # -------------------------------------------------------------------------
+    # Check 10: Supply-Chain Dependabot & CycloneDX SBOM Verification
+    # -------------------------------------------------------------------------
+    supply_hits = []
+    dependabot_fp = repo_root / ".github" / "dependabot.yml"
+    sbom_gen_fp = repo_root / "fleet" / "tools" / "sbom_generator.py"
+    if not dependabot_fp.is_file():
+        hit = {
+            "severity": "LOW",
+            "category": "Supply Chain Security",
+            "file": ".github/dependabot.yml",
+            "line": 0,
+            "detail": "Missing .github/dependabot.yml automated dependency vulnerability config.",
+        }
+        supply_hits.append(hit)
+        findings.append(hit)
+    if not sbom_gen_fp.is_file():
+        hit = {
+            "severity": "LOW",
+            "category": "Supply Chain Security",
+            "file": "fleet/tools/sbom_generator.py",
+            "line": 0,
+            "detail": "Missing CycloneDX SBOM generator (fleet/tools/sbom_generator.py).",
+        }
+        supply_hits.append(hit)
+        findings.append(hit)
+
+    checks.append({
+        "id": "supply_chain_sbom",
+        "name": "Supply-Chain Dependabot & CycloneDX SBOM Provenance",
+        "status": "PASS" if not supply_hits else "FAIL",
+        "findings_count": len(supply_hits),
+    })
+
     # Compute overall score
     deductions = 0
     for f in findings:

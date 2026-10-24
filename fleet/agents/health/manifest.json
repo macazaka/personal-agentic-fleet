@@ -1,0 +1,14 @@
+{
+  "id": "health",
+  "name": "Health & Wellness",
+  "version": "1.8.0",
+  "icon": "\ud83c\udf3f",
+  "description": "FFD Diabetes Reversal, 6-Day Mudgal/Samtola/Bhim Gadha Strength Split, and Video Vault.",
+  "permissions": [
+    "db:read",
+    "db:write",
+    "filesystem:videos",
+    "event_bus:publish",
+    "ui:render"
+  ]
+}

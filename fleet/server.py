@@ -102,11 +102,21 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
         except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
             pass
 
-    def _send_security_headers(self):
-        """Attach standard HTTP hardening headers to all responses."""
+    def _send_security_headers(self, set_session_cookie: bool = False):
+        """Attach comprehensive HTTP hardening, CSP, and Cross-Origin Isolation headers."""
+        from fleet.core.session_auth import get_session_cookie_header
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' http://127.0.0.1:7890 http://localhost:7890; object-src 'none'; frame-ancestors 'none'; base-uri 'self'",
+        )
+        self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()")
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+        self.send_header("Cross-Origin-Resource-Policy", "same-origin")
+        if set_session_cookie:
+            self.send_header("Set-Cookie", get_session_cookie_header())
         origin = self.headers.get("Origin", "") if hasattr(self, "headers") and self.headers else ""
         if origin in ALLOWED_ORIGINS:
             self.send_header("Access-Control-Allow-Origin", origin)
@@ -146,6 +156,11 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        from fleet.core.session_auth import validate_request_security
+        ok, reason = validate_request_security(getattr(self, "headers", None), "GET", ALLOWED_ORIGINS)
+        if not ok:
+            self._send_json({"error": reason, "status": "blocked"}, 403)
+            return
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
@@ -157,7 +172,7 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             body = get_dashboard_html(standalone=False).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
-            self._send_security_headers()
+            self._send_security_headers(set_session_cookie=True)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -356,6 +371,11 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
                 self.send_error(404, "Not Found")
 
     def do_POST(self):
+        from fleet.core.session_auth import validate_request_security
+        ok, reason = validate_request_security(getattr(self, "headers", None), "POST", ALLOWED_ORIGINS)
+        if not ok:
+            self._send_json({"error": reason, "status": "blocked"}, 403)
+            return
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         body = self._read_json()

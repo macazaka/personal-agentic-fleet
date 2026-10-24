@@ -120,3 +120,18 @@ def post_security_scan(handler: Any, body: Dict[str, Any]):
     handler._send_json({"status": "success", "report": report})
 
 
+@router.get("/api/security/sbom")
+def get_security_sbom(handler: Any, parsed_url: urllib.parse.ParseResult):
+    from fleet.tools.sbom_generator import SBOM_FILE, generate_sbom
+    query = urllib.parse.parse_qs(parsed_url.query)
+    refresh = query.get("refresh", ["false"])[0].lower() in ("true", "1")
+    if not refresh and SBOM_FILE.exists():
+        try:
+            sbom = json.loads(SBOM_FILE.read_text(encoding="utf-8"))
+            handler._send_json(sbom)
+            return
+        except Exception:
+            pass
+    sbom = generate_sbom()
+    handler._send_json(sbom)
+

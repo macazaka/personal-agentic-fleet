@@ -1,145 +1,113 @@
-# Personal Agentic Fleet — Security Architecture, Enhancements & Automated Scanning Guide
+# Personal Agentic Fleet — Complete 10-Layer Security Architecture & Automated Scanning Guide
 
-This document details the multi-layered security architecture of **Personal Agentic Fleet**, the code-level security enhancements applied across the microkernel and plugins, the **3-Tier Automated Security Scanning Pipeline**, and the forward-looking security roadmap for open-source contributors.
+This document details the complete **10-Layer Defense-in-Depth Security Architecture** of **Personal Agentic Fleet**, all Phase 1 & Phase 2 security modules implemented across the microkernel and plugins, and the **3-Tier Automated Security Scanning Pipeline**.
 
 ---
 
-## 1. Defense-in-Depth Architecture Overview
+## 1. End-to-End 10-Layer Security Architecture
 
 ```mermaid
 flowchart TD
     subgraph UserMachine["Local Windows Host (127.0.0.1)"]
-        Vault["Private User Vault\nfleet/data/user/ (Git-Ignored)"]
-        DPAPI["Windows Credential Manager (DPAPI)\n& User Environment Variables"]
-        Server["Fleet HTTP Server (127.0.0.1:7890)\nCORS Locked + Security Headers + 10MB Limit"]
-        DB["SQLite Database (WAL + PRAGMA secure_delete=ON)"]
-        Scanner["6-Layer Deterministic Security Scanner\n(fleet/tools/security_scanner.py)"]
+        Vault["Scoped User Vault\nfleet/data/user/ (Git-Ignored)"]
+        DPAPI["Windows DPAPI Crypto Vault (crypt32.dll)\n& Credential Manager (fleet/core/crypto_vault.py)"]
+        Auth["DNS-Rebinding, CSRF & Session Cookie Guard\n(fleet/core/session_auth.py)"]
+        Server["Fleet HTTP Server (127.0.0.1:7890)\nCSP + Permissions-Policy + CORS Lock + 10MB Limit"]
+        Sandbox["Plugin Capability Sandbox & ScopedDatabaseProxy\n(fleet/core/plugin_sandbox.py + manifest.json)"]
+        DB["SQLite Database\n(WAL + PRAGMA secure_delete=ON + Encrypted Settings)"]
+        SBOM["CycloneDX 1.5 SBOM Generator (SHA-256)\n(fleet/tools/sbom_generator.py)"]
+        Scanner["10-Layer Deterministic Security Scanner\n(fleet/tools/security_scanner.py)"]
     end
 
     subgraph Automation["3-Tier Automated Security Cadence"]
         T1["Tier 1: FleetDaemon Pulse\nEvery 60 Minutes + Windows Toast Alert"]
-        T2["Tier 2: Local Git Hooks\npre-commit & pre-push (--strict)"]
-        T3["Tier 3: GitHub Actions CI\nDaily Cron (00:00 UTC) + Every Push/PR"]
+        T2["Tier 2: Local Git Hooks\npre-commit & pre-push + Ed25519 SSH Signing"]
+        T3["Tier 3: GitHub Actions CI & Dependabot\nDaily Cron (00:00 UTC) + Every Push/PR"]
     end
 
-    DPAPI -->|"get_secure_secret()"| Server
-    Vault -->|"Isolated PII & Tokens"| Server
-    Server --> DB
+    DPAPI -->|"ENC:v1: Authenticated Encryption"| DB
+    Vault -->|"Isolated PII & OAuth Tokens"| Server
+    Auth -->|"Blocks Cross-Site POST & DNS Rebind"| Server
+    Server --> Sandbox
+    Sandbox -->|"Least-Privilege DB Proxy"| DB
     T1 --> Scanner
     T2 --> Scanner
     T3 --> Scanner
+    SBOM --> Scanner
 ```
 
 ---
 
-## 2. Implemented Codebase Security Enhancements (Phase 1 — Active)
+## 2. All Implemented Codebase Security Enhancements (Phase 1 & Phase 2 — Active)
 
-Every enhancement below is active in the codebase and continuously verified by the automated scanner (`Score: 100/100 [PASS]`):
+Every enhancement below is live in the repository and continuously verified by the 10-layer automated scanner (`Score: 100/100 [PASS]`):
 
-### 2.1 Localhost CORS Origin Lockdown (`fleet/server.py`)
-- **Vulnerability Mitigated**: Cross-Site Request Forgery (CSRF) / Drive-by Localhost Exploitation from malicious websites opened in the user's browser when `Access-Control-Allow-Origin: *` was used.
-- **Enhancement**: Replaced wildcard `*` with an explicit allowlist (`ALLOWED_ORIGINS = {"http://127.0.0.1:7890", "http://localhost:7890"}`). Only requests originating from the local dashboard origin receive CORS permission.
+### 2.1 At-Rest DPAPI & HMAC-SHA256 Cryptographic Vault (`fleet/core/crypto_vault.py`)
+- **Vulnerability Mitigated**: Plaintext exposure of sensitive settings, tokens, or private notes stored on disk in SQLite.
+- **Implementation**:
+  - Uses native Windows OS Data Protection API (`ctypes.windll.crypt32.CryptProtectData` / `CryptUnprotectData`) bound to the logged-in Windows user account (`CRYPTPROTECT_UI_FORBIDDEN`), combined with a 256-bit master key in Windows Credential Manager (`fleet/data/user/master.dpapi`).
+  - Encrypts sensitive strings with a 128-bit random nonce, SHA-256 CTR stream cipher, and **HMAC-SHA256 authentication tag** (`ENC:v1:...`).
+  - Integrated into `BaseDatabase` via `db.set_encrypted_setting(key, value)` and `db.get_encrypted_setting(key)`.
 
-### 2.2 HTTP Security Headers (`fleet/server.py` & `fleet/core/registry.py`)
-- **Vulnerability Mitigated**: MIME-type sniffing attacks, Clickjacking (`<iframe>` embedding), and Referrer leakage.
-- **Enhancement**: Every JSON, HTML, CSS, and JS response automatically attaches:
-  - `X-Content-Type-Options: nosniff`
-  - `X-Frame-Options: DENY`
-  - `Referrer-Policy: no-referrer`
+### 2.2 Localhost Session Cookie, CSRF & DNS-Rebinding Guard (`fleet/core/session_auth.py` & `fleet/server.py`)
+- **Vulnerability Mitigated**: DNS-Rebinding attacks (where an external domain resolves to `127.0.0.1`) and Cross-Site Request Forgery (CSRF) from external browser tabs.
+- **Implementation**:
+  - Issues an ephemeral 256-bit `Set-Cookie: fleet_session=<token>; HttpOnly; SameSite=Strict; Path=/` cookie on dashboard load.
+  - `validate_request_security()` inspects every `GET` and `POST` request:
+    - Blocks any request whose `Host` header is not `127.0.0.1` or `localhost` (`403 Forbidden — DNS Rebinding blocked`).
+    - Blocks any state-mutating `POST` request with an untrusted `Origin` header or `Sec-Fetch-Site: cross-site`.
 
-### 2.3 Request Payload Size Ceiling / DoS Protection (`fleet/server.py`)
-- **Vulnerability Mitigated**: Memory exhaustion Denial-of-Service (DoS) via oversized `POST` bodies.
-- **Enhancement**: Enforced `MAX_PAYLOAD_BYTES = 10 * 1024 * 1024` (10 MB) in `FleetDashboardHandler._read_json()`. Payloads exceeding 10 MB or with invalid `Content-Length` are rejected before allocation.
+### 2.3 Content-Security-Policy (CSP), Permissions-Policy & Cross-Origin Isolation (`fleet/server.py`)
+- **Vulnerability Mitigated**: Cross-Site Scripting (XSS), unauthorized hardware API access, clickjacking, and MIME sniffing.
+- **Implementation**: Every HTTP response attaches:
+  - `Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' http://127.0.0.1:7890 http://localhost:7890; object-src 'none'; frame-ancestors 'none'; base-uri 'self'`
+  - `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()`
+  - `Cross-Origin-Opener-Policy: same-origin` & `Cross-Origin-Resource-Policy: same-origin`
+  - `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`
 
-### 2.4 PowerShell Command & Subexpression Injection Hardening (`fleet/tools/system_tools.py`)
-- **Vulnerability Mitigated**: PowerShell subexpression execution (`$(...)` or backtick escaping) when constructing native Windows Toast notifications from external titles/messages (e.g., email subjects).
-- **Enhancement**: `send_windows_notification()` now escapes backticks (`` ` `` $\rightarrow$ ```` `` ````), dollar signs (`$` $\rightarrow$ `` `$ ``), and double quotes (`"` $\rightarrow$ `` `" ``) prior to invoking `powershell -NoProfile`.
+### 2.4 Plugin Capability Sandboxing & Least-Privilege Manifests (`fleet/core/plugin_sandbox.py` & `fleet/agents/*/manifest.json`)
+- **Vulnerability Mitigated**: Over-privileged third-party community plugins mutating database tables or reading secret environment variables.
+- **Implementation**:
+  - Every agent under `fleet/agents/<agent_id>/manifest.json` declares explicit least-privilege capabilities (`permissions: ["db:read", "db:write", "ui:render", ...]`).
+  - `FleetAgent.__init__` validates permissions against `ALLOWED_AGENT_PERMISSIONS` and wraps `self.db` in `ScopedDatabaseProxy`, which raises `PermissionError` if an agent without `"db:write"` attempts any database mutation.
+  - `get_sanitized_plugin_env()` strips all environment variables containing `KEY`, `SECRET`, `TOKEN`, `PASSWORD`, `CREDENTIAL`, or `PAT` before spawning external plugin subprocesses.
 
-### 2.5 Dynamic Agent Asset Path-Traversal Guard (`fleet/core/registry.py`)
-- **Vulnerability Mitigated**: Directory traversal (`../../`) via `/api/fleet/agents/<agent_id>/style.css` or `script.js`.
-- **Enhancement**: Enforced strict regex validation (`^[a-zA-Z0-9_-]+$`) on `agent_id` and verified that `css_file.resolve()` and `js_file.resolve()` reside strictly inside `self.agents_dir.resolve()`.
+### 2.5 Supply-Chain Security: CycloneDX 1.5 SBOM, Dependabot & SSH Commit Signing
+- **Vulnerability Mitigated**: Compromised dependencies, unverified commits, or tampered source files.
+- **Implementation**:
+  - **CycloneDX v1.5 SBOM Generator** (`fleet/tools/sbom_generator.py` & `GET /api/security/sbom`): Computes SHA-256 cryptographic digests across all 58+ Fleet Python modules and agent manifests (`fleet/data/sbom.cdx.json`).
+  - **Automated Dependabot** (`.github/dependabot.yml`): Weekly automated vulnerability scanning for GitHub Actions and Python packages.
+  - **Ed25519 SSH Commit Signing**: Configured Git (`gpg.format = ssh`, `commit.gpgsign = true`) to cryptographically sign commits with your Ed25519 SSH key.
 
-### 2.6 SQLite Forensics Hygiene (`fleet/core/db/base.py`)
-- **Vulnerability Mitigated**: Residual sensitive data (deleted tasks, health notes, or cached email snippets) remaining in unallocated SQLite freelist pages on disk.
-- **Enhancement**: Enabled `PRAGMA secure_delete = ON` on database connections so SQLite overwrites deleted records with zeroes immediately upon deletion.
-
-### 2.7 Scoped Personal Data Vault & Zero-Hardcoded PII (`fleet/config.py`)
-- **Vulnerability Mitigated**: Accidental git commits of personal databases, OAuth tokens, or personal names.
-- **Enhancement**:
-  - Consolidated all user-specific files into `fleet/data/user/` (`fleet.db`, `client_secret.json`, `token.json`, `pii_blocklist.json`).
-  - `get_secure_secret(key_name)` retrieves secrets from **Windows Credential Manager (DPAPI)** via `keyring`, falling back to Windows User Environment Variables.
+### 2.6 PowerShell Injection Escaping, Path Traversal Guard & SQLite Secure Delete
+- **PowerShell Escaping** (`fleet/tools/system_tools.py`): Escapes backticks (`` ` ``), `$`, and `"` in `send_windows_notification()`.
+- **Path Traversal Guard** (`fleet/core/registry.py`): Validates `agent_id` against `^[a-zA-Z0-9_-]+$` and enforces `.resolve()` containment.
+- **SQLite Secure Delete** (`fleet/core/db/base.py`): Enables `PRAGMA secure_delete = ON` so deleted rows are zeroed on disk immediately.
 
 ---
 
-## 3. The 6-Layer Automated Security & Privacy Scanner
+## 3. The 10-Layer Automated Security & Privacy Scanner (`$0.00` Token Cost)
 
-Located at [`fleet/tools/security_scanner.py`](../fleet/tools/security_scanner.py), the scanner uses 100% deterministic Python standard library checks (`$0.00` LLM token cost) across 6 layers:
+Located at [`fleet/tools/security_scanner.py`](../fleet/tools/security_scanner.py), the scanner executes 10 deterministic checks:
 
-| Layer | Check ID | What It Audits | Severity on Failure |
-| :--- | :--- | :--- | :--- |
-| **1** | `secret_detection` | Regex entropy & pattern scan across all files for Google API keys (`AIza...`), OpenAI keys (`sk-...`), GitHub tokens (`ghp_...`, `github_pat_...`), AWS keys (`AKIA...`), Slack tokens (`xox...`), OAuth `client_secret`, and PEM private keys. | `CRITICAL` |
-| **2** | `pii_leak_scan` | Scans all git-tracked files against your private, git-ignored `fleet/data/user/pii_blocklist.json` (auto-populated with your Windows username + custom terms) so personal identifiers never enter Git without hardcoding names in the repo. | `CRITICAL` |
-| **3** | `git_hygiene` | Verifies `.gitignore` contains mandatory rules (`*.db`, `*client_secret*.json`, `.env`, `fleet.yaml`, `fleet/data/user/`) and inspects `git ls-files` to ensure no forbidden file extensions are tracked. | `CRITICAL` / `HIGH` |
-| **4** | `sast_audit` | Static Application Security Testing across `.py` files for `subprocess(..., shell=True)`, wildcard CORS (`Access-Control-Allow-Origin: *`), and unsafe `eval()`/`exec()`. | `HIGH` / `MEDIUM` |
-| **5** | `http_hardening` | Verifies `fleet/server.py` enforces `X-Content-Type-Options: nosniff` and `MAX_PAYLOAD_BYTES` payload limits. | `MEDIUM` / `LOW` |
-| **6** | `user_vault_isolation` | Verifies `fleet/data/user/` exists and is actively excluded from Git tracking. | `HIGH` |
-
----
-
-## 4. Automatic Security Scan Schedule (3-Tier Automation)
-
-Security scans run automatically without manual intervention at three frequencies:
-
-### Tier 1: Continuous Background Daemon (`Every 60 Minutes`)
-- **Where**: [`fleet/daemon.py`](../fleet/daemon.py) (`FleetDaemon.run_scheduled_security_scan`)
-- **Frequency**: Every **60 minutes** by default (configurable in `fleet.yaml` via `security.scan_interval_minutes`).
-- **Action**: Writes the latest report to `fleet/data/latest_security_scan.json`, logs the score in the Fleet Activity Stream, and immediately dispatches a **Windows Toast Notification** (`🛡️ Security Alert`) if any finding is detected.
-
-### Tier 2: Local Git Pre-Commit & Pre-Push Hooks (`Every Commit & Push`)
-- **Where**: `.git/hooks/pre-commit` & `.git/hooks/pre-push` (installed via [`fleet/tools/install_git_hooks.py`](../fleet/tools/install_git_hooks.py))
-- **Frequency**: Automatically triggered on every `git commit` and `git push`.
-- **Action**: Runs `python -m fleet.tools.security_scanner --strict`. If any secret, PII term, or security regression is detected, the commit or push is **aborted immediately** with exit code `1`.
-
-### Tier 3: Cloud GitHub Actions Cron & PR Gate (`Daily at 00:00 UTC + Every PR`)
-- **Where**: [`.github/workflows/security.yml`](../.github/workflows/security.yml)
-- **Frequency**:
-  - Automatically every day at **00:00 UTC** (`cron: '0 0 * * *'`).
-  - On every `push` and `pull_request` to `main`.
-- **Action**: Audits the repository in a clean Ubuntu sandbox so external contributors cannot merge secrets or insecure code.
-
-### On-Demand CLI & API Triggers
-- **CLI**: `python -m fleet.tools.security_scanner --strict`
-- **HTTP API**: `GET /api/security/scan` or `POST /api/security/scan`
+| Layer | Check ID | What It Audits |
+| :--- | :--- | :--- |
+| **1** | `secret_detection` | Regex scan across all files for Google/OpenAI/GitHub/AWS/Slack API keys, OAuth secrets, and PEM private keys. |
+| **2** | `pii_leak_scan` | Scans git-tracked files against your local, git-ignored `fleet/data/user/pii_blocklist.json`. |
+| **3** | `git_hygiene` | Verifies `.gitignore` rules and ensures no `.db`, `.sqlite3`, `.env`, or `*client_secret*.json` files are tracked. |
+| **4** | `sast_audit` | Audits Python code for `shell=True`, wildcard CORS (`*`), and unsafe execution patterns. |
+| **5** | `http_hardening` | Verifies `X-Content-Type-Options: nosniff` and `MAX_PAYLOAD_BYTES` (10 MB DoS ceiling). |
+| **6** | `user_vault_isolation` | Verifies `fleet/data/user/` exists and is isolated from Git. |
+| **7** | `dpapi_crypto_vault` | Executes live encryption/decryption roundtrip and HMAC integrity check on `fleet/core/crypto_vault.py`. |
+| **8** | `csp_csrf_dns_guard` | Verifies `Content-Security-Policy`, `Permissions-Policy`, and `validate_request_security` in `fleet/server.py`. |
+| **9** | `plugin_sandbox_audit` | Audits all `fleet/agents/*/manifest.json` files for valid least-privilege `permissions` declarations. |
+| **10** | `supply_chain_sbom` | Verifies `.github/dependabot.yml` and CycloneDX v1.5 SBOM generator (`fleet/tools/sbom_generator.py`). |
 
 ---
 
-## 5. Phase 2 Security Roadmap (Future Open-Source Enhancements)
+## 4. Automatic Security Scan Schedule (3-Tier Cadence + Dashboard Badge)
 
-Below is the planned roadmap for contributors looking to harden **Personal Agentic Fleet** further for enterprise and multi-user environments:
-
-### 5.1 At-Rest Database Encryption with SQLCipher (AES-256)
-- **Goal**: Encrypt `fleet/data/user/fleet.db` at rest using AES-256-CBC via `sqlcipher3` / `pysqlcipher3`.
-- **Key Management**: Generate a 256-bit random master key on first launch and store it inside **Windows Credential Manager (DPAPI)** via `keyring.set_password("personal-agentic-fleet", "DB_MASTER_KEY", key)`.
-- **Benefit**: Even if a physical disk or backup file is copied, the SQLite database cannot be read without the logged-in Windows user's DPAPI master key.
-
-### 5.2 Localhost Session Token & WebAuthn Passkey Lock
-- **Goal**: Protect `http://127.0.0.1:7890` on shared multi-user machines or when other local processes attempt HTTP calls.
-- **Implementation**:
-  - Generate an ephemeral `HttpOnly; SameSite=Strict` session cookie token on startup, or
-  - Add optional Windows Hello / WebAuthn passkey lock for sensitive actions (such as viewing full email bodies or modifying agent settings).
-
-### 5.3 Content-Security-Policy (CSP) Nonce Hardening
-- **Goal**: Eliminate inline script execution risks (XSS) when rendering third-party agent UI plugins or email snippets.
-- **Implementation**: Serve a strict `Content-Security-Policy: default-src 'self'; img-src 'self' data: https:; media-src 'self'; object-src 'none'; frame-ancestors 'none'` header and migrate remaining inline `onclick` handlers in agent HTML templates to delegated event listeners in `script.js`.
-
-### 5.4 Plugin Capability Sandboxing & Permission Manifests
-- **Goal**: As thousands of community contributors publish third-party agents under `fleet/agents/<agent_id>/`, restrict what resources each plugin can access.
-- **Implementation**:
-  - Require each agent's `manifest.json` to declare explicit capabilities (`permissions: ["db:read", "network:none", "filesystem:readonly"]`).
-  - Run untrusted community plugins in isolated worker subprocesses with restricted environment variables (stripping `os.environ` secrets not explicitly granted to that plugin).
-
-### 5.5 Supply-Chain Security, SBOM & Signed Releases
-- **Goal**: Guarantee cryptographic provenance for open-source downloads.
-- **Implementation**:
-  - Enable **SSH Commit Signing** (`git config commit.gpgsign true` with the user's Ed25519 SSH key) so all commits on GitHub show a green `Verified` badge.
-  - Add CycloneDX Software Bill of Materials (SBOM) generation and GitHub Dependabot alerts in `.github/dependabot.yml`.
+1. **Tier 1 — Hourly Background Daemon (`fleet/daemon.py`)**: Runs `run_scheduled_security_scan()` every **60 minutes** and dispatches a Windows Toast alert if any finding is detected.
+2. **Tier 2 — Local Git Pre-Commit & Pre-Push Hooks (`.git/hooks/pre-commit` & `pre-push`)**: Automatically runs all 10 security layers before every `git commit` and `git push`, blocking the operation on any failure.
+3. **Tier 3 — Daily GitHub Actions Cron & PR Gate (`.github/workflows/security.yml`)**: Runs daily at **00:00 UTC** and on every push/pull request.
+4. **Live Dashboard Header Badge (`🛡️ Security: 100/100`)**: Displayed in the top header of `http://127.0.0.1:7890`—click anytime to trigger a live 10-layer scan from the browser.

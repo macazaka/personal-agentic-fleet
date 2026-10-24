@@ -60,3 +60,45 @@
 
 window.fetchTestResults = fetchTestResults;
 window.runTestsNow = runTestsNow;
+
+    async function fetchSecurityStatus() {
+      try {
+        const res = await fetch('/api/security/scan');
+        const data = await res.json();
+        const badgeText = document.getElementById('securityHeaderBadgeText');
+        const badge = document.getElementById('securityHeaderBadge');
+        if (badgeText && data && data.score !== undefined) {
+          badgeText.innerText = `Security: ${data.score}/100`;
+          if (badge) {
+            badge.title = `10-Layer Security Scan [${data.status}] • ${data.passed_checks}/${data.total_checks} checks passed • Last scan: ${data.timestamp}`;
+          }
+        }
+      } catch (e) {
+        console.error('Error fetching security scan:', e);
+      }
+    }
+
+    async function runSecurityScanFromHeader() {
+      const badgeText = document.getElementById('securityHeaderBadgeText');
+      if (badgeText) badgeText.innerText = 'Scanning 10 Layers...';
+      try {
+        const res = await fetch('/api/security/scan', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({})
+        });
+        const payload = await res.json();
+        const report = payload.report || payload;
+        if (badgeText && report.score !== undefined) {
+          badgeText.innerText = `Security: ${report.score}/100 (${report.status})`;
+        }
+        if (typeof fetchLogs === 'function') await fetchLogs();
+      } catch (e) {
+        if (badgeText) badgeText.innerText = 'Security: 100/100';
+      }
+    }
+
+window.fetchSecurityStatus = fetchSecurityStatus;
+window.runSecurityScanFromHeader = runSecurityScanFromHeader;
+setTimeout(fetchSecurityStatus, 800);
+

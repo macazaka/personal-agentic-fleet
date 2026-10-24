@@ -366,4 +366,23 @@ class BaseDatabase:
 
             conn.commit()
 
+    def set_encrypted_setting(self, key: str, plaintext_value: str) -> None:
+        """Encrypts a sensitive setting value at rest using the DPAPI Crypto Vault before saving to SQLite."""
+        from fleet.core.crypto_vault import encrypt_sensitive_text
+        enc_val = encrypt_sensitive_text(plaintext_value)
+        with self._get_connection() as conn:
+            conn.execute(
+                "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (key, enc_val),
+            )
+            conn.commit()
+
+    def get_encrypted_setting(self, key: str, default: str = "") -> str:
+        """Reads and transparently decrypts an encrypted setting from SQLite."""
+        from fleet.core.crypto_vault import decrypt_sensitive_text
+        with self._get_connection() as conn:
+            row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+            if not row:
+                return default
+            return decrypt_sensitive_text(row["value"])
 

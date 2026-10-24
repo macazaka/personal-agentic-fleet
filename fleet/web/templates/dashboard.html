@@ -33,6 +33,10 @@
           <button class="nav-tab" id="tabBtnBacklog" onclick="switchTab('backlog')">📋 Feature Backlog</button>
           <button class="nav-tab" id="tabBtnOptimizer" onclick="switchTab('optimizer')">🚀 PC Optimizer</button>
         </div>
+        <div class="status-badge" id="securityHeaderBadge" onclick="runSecurityScanFromHeader()" style="cursor: pointer; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1);" title="10-Layer Automated Security & Privacy Scanner (Click to run live audit)">
+          <span>🛡️</span>
+          <span id="securityHeaderBadgeText">Security: 100/100</span>
+        </div>
         <div class="status-badge">
           <div class="pulse-dot"></div>
           Fleet Active

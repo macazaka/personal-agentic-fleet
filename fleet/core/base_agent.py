@@ -16,11 +16,30 @@ class FleetAgent(ABC):
     """
 
     def __init__(self, agent_dir: Path, config: Dict[str, Any], event_bus=None, db=None):
+        import json
+        from fleet.core.plugin_sandbox import ScopedDatabaseProxy, validate_manifest_permissions
+
         self.agent_dir = Path(agent_dir)
         self.config = config or {}
         self.event_bus = event_bus
-        self.db = db
         self.enabled = self.config.get("enabled", True)
+
+        manifest_path = self.agent_dir / "manifest.json"
+        if manifest_path.is_file():
+            try:
+                manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+                self.permissions: List[str] = manifest_data.get("permissions", ["db:read", "ui:render"])
+            except Exception:
+                self.permissions = ["db:read", "ui:render"]
+        else:
+            self.permissions = ["db:read", "db:write", "ui:render"]
+
+        unknown_perms = validate_manifest_permissions(self.agent_dir.name, self.permissions)
+        if unknown_perms:
+            raise PermissionError(f"Agent '{self.agent_dir.name}' declared unknown permissions: {unknown_perms}")
+
+        self._raw_db = db
+        self.db = ScopedDatabaseProxy(db, self.agent_dir.name, self.permissions) if db is not None else None
 
     @property
     @abstractmethod
@@ -97,6 +116,7 @@ class FleetAgent(ABC):
             "icon": self.icon,
             "order": self.order,
             "is_default": self.is_default,
+            "permissions": getattr(self, "permissions", []),
             "html": panel_html,
             "css_url": f"/api/fleet/agents/{self.id}/style.css" if has_css else None,
             "js_url": f"/api/fleet/agents/{self.id}/script.js" if has_js else None,

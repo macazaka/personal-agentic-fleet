@@ -1,0 +1,13 @@
+{
+  "id": "antigravity",
+  "name": "Antigravity Live",
+  "version": "1.8.0",
+  "icon": "\ud83e\udd16",
+  "description": "Real-time Antigravity agent mirror, token health vault, and parallel subagent telemetry.",
+  "permissions": [
+    "db:read",
+    "db:write",
+    "event_bus:publish",
+    "ui:render"
+  ]
+}

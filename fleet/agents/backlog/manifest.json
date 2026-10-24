@@ -1,0 +1,12 @@
+{
+  "id": "backlog",
+  "name": "Feature Backlog",
+  "version": "1.8.0",
+  "icon": "\ud83d\udccb",
+  "description": "Product roadmap and feature backlog management.",
+  "permissions": [
+    "db:read",
+    "db:write",
+    "ui:render"
+  ]
+}
