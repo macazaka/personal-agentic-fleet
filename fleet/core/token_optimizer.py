@@ -41,7 +41,8 @@ _STOPWORDS: Set[str] = {
     "under", "around", "among", "what", "which", "who", "whom", "this", "that",
     "these", "those", "am", "have", "has", "had", "do", "does", "did", "can", "could",
     "should", "would", "may", "might", "must", "shall", "will", "please", "tell", "me",
-    "give", "show", "how", "my", "your", "i", "we", "you", "it",
+    "give", "show", "how", "my", "your", "i", "we", "you", "it", "and", "or", "explain",
+    "describe", "list",
 }
 
 # Offline Zero-Token Knowledge Base (FFD 35-Page Protocol + 6-Day Strength Split + Fleet Architecture)
@@ -191,9 +192,9 @@ def compute_prompt_similarity(prompt_a: str, prompt_b: str) -> float:
     union = len(tokens_a | tokens_b)
     jaccard = intersection / union if union else 0.0
 
-    # Character 3-gram overlap for typo resilience
-    norm_a = re.sub(r"\s+", " ", prompt_a.strip().lower())
-    norm_b = re.sub(r"\s+", " ", prompt_b.strip().lower())
+    # Character 3-gram overlap on canonical keyword strings for typo resilience
+    norm_a = " ".join(sorted(tokens_a))
+    norm_b = " ".join(sorted(tokens_b))
     if len(norm_a) >= 3 and len(norm_b) >= 3:
         tri_a = {norm_a[i:i + 3] for i in range(len(norm_a) - 2)}
         tri_b = {norm_b[i:i + 3] for i in range(len(norm_b) - 2)}
