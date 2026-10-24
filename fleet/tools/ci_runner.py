@@ -1,6 +1,6 @@
 """
 CI Test Runner & Annotation Generator for Personal Agentic Fleet.
-Executes pytest and outputs GitHub Actions error annotations on failure.
+Executes pytest and outputs concise GitHub Actions error annotations on failure.
 """
 import os
 import subprocess
@@ -23,13 +23,13 @@ def main():
         pass
 
     if res.returncode != 0:
-        in_failure = False
-        for line in (res.stdout + "\n" + res.stderr).splitlines():
-            if line.startswith("___") or "FAILURES" in line or "ERRORS" in line:
-                in_failure = True
-            if in_failure:
-                clean = line.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-                print(f"::error::{clean}", file=sys.stderr)
+        failures = [
+            line for line in (res.stdout + "\n" + res.stderr).splitlines()
+            if line.startswith("FAILED") or line.startswith("ERROR")
+        ]
+        for line in failures[:5]:
+            clean = line.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+            print(f"::error::{clean}", file=sys.stderr)
 
         sf = os.getenv("GITHUB_STEP_SUMMARY")
         if sf:

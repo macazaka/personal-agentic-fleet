@@ -313,14 +313,13 @@ def test_optimizer_edge_cases_and_error_handling():
         dummy_file = Path(tmp_dir) / "test_file.dat"
         dummy_file.write_text("data")
         with patch("tempfile.gettempdir", return_value=tmp_dir):
-            orig_stat = Path.stat
-            def mock_stat_denied(*args, **kwargs):
-                target = args[0] if args else kwargs.get("self")
-                if target and Path(str(target)).name == "test_file.dat":
+            orig_os_stat = os.stat
+            def mock_stat_denied(path, *args, **kwargs):
+                if "test_file.dat" in str(path):
                     raise OSError("Access denied")
-                return orig_stat(*args, **kwargs)
+                return orig_os_stat(path, *args, **kwargs)
 
-            with patch.object(Path, "stat", side_effect=mock_stat_denied):
+            with patch("os.stat", side_effect=mock_stat_denied):
                 res = get_temp_bloat_info()
                 assert res["file_count"] == 0
 
@@ -336,13 +335,13 @@ def test_optimizer_edge_cases_and_error_handling():
         pycache.mkdir()
         dummy = pycache / "sample.pyc"
         dummy.write_text("x")
-        orig_stat = Path.stat
-        def mock_stat_err(self, *args, **kwargs):
-            if str(self).endswith(".pyc") or "sample" in str(self):
+        orig_os_stat = os.stat
+        def mock_stat_err(path, *args, **kwargs):
+            if str(path).endswith(".pyc") or "sample" in str(path):
                 raise OSError("stat error")
-            return orig_stat(self, *args, **kwargs)
+            return orig_os_stat(path, *args, **kwargs)
 
-        with patch.object(Path, "stat", side_effect=mock_stat_err):
+        with patch("os.stat", side_effect=mock_stat_err):
             res = get_dev_cache_info(target_path=tmp_dir)
             assert res["dir_count"] >= 2
 

@@ -255,8 +255,8 @@ def get_dev_cache_info(root_dir: Optional[str] = None, target_path: Optional[str
     cache_dirs = []
     file_count = 0
     total_size = 0
-    if target.exists():
-        try:
+    try:
+        if target.exists():
             for item in target.rglob("__pycache__"):
                 if item.is_dir():
                     cache_dirs.append(str(item))
@@ -277,8 +277,8 @@ def get_dev_cache_info(root_dir: Optional[str] = None, target_path: Optional[str
                         file_count += 1
                     except Exception:
                         pass
-        except Exception:
-            pass
+    except Exception:
+        pass
     return {
         "root": str(target),
         "dir_count": len(cache_dirs),
