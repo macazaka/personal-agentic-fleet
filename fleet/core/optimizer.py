@@ -270,6 +270,9 @@ def get_dev_cache_info(root_dir: Optional[str] = None, target_path: Optional[str
             for item in target.rglob(".pytest_cache"):
                 if item.is_dir():
                     cache_dirs.append(str(item))
+            direct_pytest = target / ".pytest_cache"
+            if direct_pytest.is_dir() and str(direct_pytest) not in cache_dirs:
+                cache_dirs.append(str(direct_pytest))
             for pyc in target.rglob("*.pyc"):
                 if pyc.is_file() and "__pycache__" not in str(pyc):
                     try:

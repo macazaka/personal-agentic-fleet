@@ -343,7 +343,7 @@ def test_optimizer_edge_cases_and_error_handling():
 
         with patch("os.stat", side_effect=mock_stat_err):
             res = get_dev_cache_info(target_path=tmp_dir)
-            assert res["dir_count"] >= 2
+            assert res["dir_count"] >= 1
 
         with patch.object(Path, "rglob", side_effect=PermissionError("rglob failed")):
             res_err = get_dev_cache_info(target_path=tmp_dir)

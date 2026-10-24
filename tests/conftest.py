@@ -21,20 +21,31 @@ os.environ["SDL_AUDIODRIVER"] = "dummy"
 # Cross-platform shims for CI test runner (ensures 100% pass rate on Linux/Ubuntu and Windows)
 if sys.platform != "win32":
     if "winreg" not in sys.modules:
-        dummy_winreg = types.ModuleType("winreg")
+        class DummyWinreg(types.ModuleType):
+            def __getattr__(self, name):
+                if name.startswith("HKEY_") or name.startswith("REG_") or name.startswith("KEY_"):
+                    return 0
+                return lambda *args, **kwargs: None
+
+        dummy_winreg = DummyWinreg("winreg")
         dummy_winreg.HKEY_CLASSES_ROOT = 0
         dummy_winreg.HKEY_CURRENT_USER = 1
         dummy_winreg.HKEY_LOCAL_MACHINE = 2
         dummy_winreg.HKEY_USERS = 3
         dummy_winreg.HKEY_CURRENT_CONFIG = 4
+        dummy_winreg.error = OSError
         class DummyKey:
             def __enter__(self):
                 return self
             def __exit__(self, *args):
                 pass
         dummy_winreg.OpenKey = lambda *args, **kwargs: DummyKey()
+        dummy_winreg.OpenKeyEx = lambda *args, **kwargs: DummyKey()
         dummy_winreg.QueryInfoKey = lambda *args, **kwargs: (0, 0, 0)
         dummy_winreg.EnumValue = lambda *args, **kwargs: ("app", "cmd", 0)
+        dummy_winreg.EnumKey = lambda *args, **kwargs: "key"
+        dummy_winreg.QueryValue = lambda *args, **kwargs: ""
+        dummy_winreg.QueryValueEx = lambda *args, **kwargs: ("", 1)
         dummy_winreg.CloseKey = lambda *args, **kwargs: None
         sys.modules["winreg"] = dummy_winreg
 
