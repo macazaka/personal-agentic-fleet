@@ -141,3 +141,9 @@ def get_security_token_stats(handler: Any, parsed_url: urllib.parse.ParseResult)
     from fleet.core.token_optimizer import get_token_optimization_stats
     handler._send_json(get_token_optimization_stats())
 
+
+@router.get("/api/security/doctor")
+def get_security_doctor(handler: Any, parsed_url: urllib.parse.ParseResult):
+    from fleet.tools.fleet_doctor import run_fleet_doctor
+    handler._send_json(run_fleet_doctor())
+

@@ -52,8 +52,8 @@ def test_full_codebase_security_scan_passes_100():
     assert report["score"] == 100
     assert report["tokens_used"] == 0
     assert report["cost_usd"] == "$0.00"
-    assert report["passed_checks"] == 11
-    assert report["total_checks"] == 11
+    assert report["passed_checks"] == 12
+    assert report["total_checks"] == 12
     assert report["total_findings"] == 0
 
 
@@ -301,7 +301,7 @@ def test_security_scan_api_endpoints():
     payload = mock_handler._send_json.call_args[0][0]
     assert payload["status"] == "PASS"
     assert payload["score"] == 100
-    assert payload["passed_checks"] == 11
+    assert payload["passed_checks"] == 12
 
     mock_handler.reset_mock()
     post_security_scan(mock_handler, {})
@@ -318,3 +318,14 @@ def test_minimum_python_version_guard():
     assert check_minimum_python_version((3, 14, 7)) is True
     with pytest.raises(RuntimeError, match="Python 3.10 or higher is required"):
         check_minimum_python_version((3, 9, 18))
+
+
+def test_fleet_doctor_and_vault_acl_hardening():
+    from fleet.tools.fleet_doctor import harden_user_vault_permissions, run_fleet_doctor
+    acl = harden_user_vault_permissions()
+    assert acl["status"] in ("PASS", "WARN")
+    doc_report = run_fleet_doctor()
+    assert doc_report["status"] == "PASS"
+    assert doc_report["security_score"] == 100
+    assert doc_report["tokens_used"] == 0
+

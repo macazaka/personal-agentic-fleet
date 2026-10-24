@@ -1,4 +1,4 @@
-name: Automated Security & Privacy Audit
+name: Automated Security, Runtime & Privacy Audit
 
 on:
   schedule:
@@ -14,20 +14,27 @@ permissions:
   contents: read
 
 jobs:
-  security-audit:
-    name: 6-Layer Security & PII Scanner
+  security-and-runtime-audit:
+    name: 12-Layer Security & Python ${{ matrix.python-version }} Matrix
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
 
-      - name: Run Deterministic 6-Layer Security & Privacy Scanner
+      - name: Verify Minimum Python >= 3.10 & Fleet Doctor
+        run: |
+          python -m fleet.tools.fleet_doctor --strict
+
+      - name: Run Deterministic 12-Layer Security & Privacy Scanner
         run: |
           python -m fleet.tools.security_scanner --strict
-

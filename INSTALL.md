@@ -22,10 +22,26 @@ git --version
 
 ---
 
-## ⚡ 2. 60-Second Quick Start (Zero-Dependency Mode)
+## ⚡ 2. 60-Second Quick Start (Automated Self-Bootstrap)
 
-The core dashboard, Health & Wellness agent, PC Optimizer, Feature Backlog, and 11-Layer Security Scanner run immediately using only Python's standard library:
+The repository includes **self-bootstrapping scripts** (`bootstrap.ps1` for Windows, `bootstrap.sh` for macOS/Linux, and `start_fleet.bat`) that automatically:
+1. Locate a valid **Python `>= 3.10`** interpreter (or auto-provision Python 3.12 in user scope if missing).
+2. Create your local `fleet.yaml` from `fleet.yaml.example`.
+3. Harden OS filesystem ACL permissions (`icacls` on Windows / `chmod 0700` on POSIX) on your private `fleet/data/user/` vault.
+4. Install the automated Git `pre-commit` & `pre-push` security hooks.
+5. Run **Fleet Doctor** (`fleet_doctor.py`) and the **12-Layer Security Scanner** before launching the Fleet!
 
+### Option A: Automated 1-Command Bootstrap & Launch (Recommended)
+```powershell
+git clone https://github.com/macazaka/personal-agentic-fleet.git
+cd personal-agentic-fleet
+
+# Windows (PowerShell): Verify/provision Python >= 3.10, harden security, and launch silently
+.\bootstrap.ps1 -Launch
+```
+*(On macOS / Linux, run `chmod +x bootstrap.sh && ./bootstrap.sh`)*
+
+### Option B: Manual Standard-Library Launch
 ```powershell
 # 1. Clone the repository
 git clone https://github.com/macazaka/personal-agentic-fleet.git
@@ -34,7 +50,8 @@ cd personal-agentic-fleet
 # 2. Create your local configuration from the template
 Copy-Item fleet.yaml.example fleet.yaml
 
-# 3. Launch the Fleet Control Center (Web Server + Background Routine Daemon)
+# 3. Run Pre-Flight Doctor & Launch the Fleet Control Center
+python -m fleet.tools.fleet_doctor
 python -m fleet.app
 ```
 

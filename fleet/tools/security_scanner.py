@@ -605,6 +605,57 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
         "findings_count": len(token_gov_hits),
     })
 
+    # -------------------------------------------------------------------------
+    # Check 12: Python >= 3.10 Runtime Pinning & Self-Bootstrapping Verification
+    # -------------------------------------------------------------------------
+    runtime_hits = []
+    from fleet.config import MIN_PYTHON_VERSION, check_minimum_python_version
+    try:
+        if MIN_PYTHON_VERSION < (3, 10) or not check_minimum_python_version():
+            runtime_hits.append({
+                "severity": "HIGH",
+                "category": "Runtime Version Guard",
+                "file": "fleet/config.py",
+                "line": 14,
+                "detail": "Minimum Python version guard (< 3.10) is not active.",
+            })
+    except Exception as e:
+        runtime_hits.append({
+            "severity": "HIGH",
+            "category": "Runtime Version Guard",
+            "file": "fleet/config.py",
+            "line": 14,
+            "detail": str(e),
+        })
+
+    pyproject_fp = repo_root / "pyproject.toml"
+    if not pyproject_fp.is_file() or 'requires-python = ">=3.10"' not in pyproject_fp.read_text(encoding="utf-8", errors="ignore"):
+        runtime_hits.append({
+            "severity": "MEDIUM",
+            "category": "Package Python Pinning",
+            "file": "pyproject.toml",
+            "line": 1,
+            "detail": "Missing requires-python = '>=3.10' in pyproject.toml.",
+        })
+
+    for bootstrap_file in (".python-version", "bootstrap.ps1", "bootstrap.sh", "fleet/tools/fleet_doctor.py"):
+        if not (repo_root / bootstrap_file).is_file():
+            runtime_hits.append({
+                "severity": "LOW",
+                "category": "Bootstrap Provisioning",
+                "file": bootstrap_file,
+                "line": 0,
+                "detail": f"Missing runtime bootstrap file '{bootstrap_file}'.",
+            })
+
+    findings.extend(runtime_hits)
+    checks.append({
+        "id": "runtime_and_acl_hardening",
+        "name": "Python >=3.10 Runtime Guard, Bootstrap & Vault ACL Hardening",
+        "status": "PASS" if not runtime_hits else "FAIL",
+        "findings_count": len(runtime_hits),
+    })
+
     # Compute overall score
     deductions = 0
     for f in findings:

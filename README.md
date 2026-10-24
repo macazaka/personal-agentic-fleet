@@ -32,11 +32,11 @@
 
 ### 1. Verify Python >= 3.10 & Clone the Repository
 ```powershell
-# Verify Python 3.10+ is installed
-python -c "import sys; assert sys.version_info >= (3, 10), 'Python 3.10+ required'; print('Python OK:', sys.version.split()[0])"
-
 git clone https://github.com/macazaka/personal-agentic-fleet.git
 cd personal-agentic-fleet
+
+# Automated 1-Command Bootstrap (Discovers/provisions Python >=3.10, hardens Vault ACLs, installs Git hooks & launches)
+.\bootstrap.ps1 -Launch
 ```
 
 ### 2. Configure Settings & Install Git Security Hooks
