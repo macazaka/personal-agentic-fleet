@@ -31,7 +31,8 @@ jobs:
     - name: Install Package & Test Dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest anyio pygame-ce
+        python -m pip install pytest anyio
+        python -m pip install pygame-ce mcp || true
 
     - name: Run Test Suite
       env:

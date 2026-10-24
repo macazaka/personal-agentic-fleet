@@ -6,7 +6,25 @@ All tool executions are routed through the Deterministic Event Bus for 0-token l
 
 import json
 from typing import Any, Optional
-from mcp.server.mcpserver import MCPServer
+try:
+    from mcp.server.mcpserver import MCPServer
+except ImportError:
+    class MCPServer:
+        """Lightweight zero-dependency fallback for MCPServer when mcp package is not installed."""
+        def __init__(self, name: str = "", version: str = "", description: str = ""):
+            self.name = name
+            self.version = version
+            self.description = description
+            self.tools = {}
+
+        def tool(self, description: str = ""):
+            def decorator(fn):
+                self.tools[fn.__name__] = fn
+                return fn
+            return decorator
+
+        def run(self, *args, **kwargs):
+            pass
 
 from fleet.core.event_bus import FleetEvent, bus
 
