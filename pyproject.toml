@@ -38,6 +38,7 @@ full = [
 dev = [
     "pytest>=7.4.0",
     "coverage>=7.3.0",
+    "pygame-ce>=2.5.0",
 ]
 
 [project.urls]

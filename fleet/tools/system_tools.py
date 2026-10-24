@@ -56,12 +56,16 @@ def send_windows_notification(title: str, message: str) -> bool:
         return False
 
 
-def get_disk_usage(path: str = "C:") -> Dict[str, Any]:
-    """Get total, used, and free disk space in GB."""
+def get_disk_usage(path: Optional[str] = None) -> Dict[str, Any]:
+    """Get total, used, and free disk space in GB. Gracefully falls back to root on non-Windows systems."""
+    if path is None or (os.name != "nt" and (path == "C:" or path.startswith("C:\\") or path.startswith("C:/"))):
+        target_path = "C:" if os.name == "nt" else "/"
+    else:
+        target_path = path
     try:
-        total, used, free = shutil.disk_usage(path)
+        total, used, free = shutil.disk_usage(target_path)
         return {
-            "path": path,
+            "path": target_path,
             "total_gb": round(total / (1024 ** 3), 2),
             "used_gb": round(used / (1024 ** 3), 2),
             "free_gb": round(free / (1024 ** 3), 2),

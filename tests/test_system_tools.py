@@ -1,4 +1,5 @@
 """Unit tests for fleet.tools.system_tools."""
+import os
 import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -22,13 +23,19 @@ def test_send_windows_notification():
 
 
 def test_get_disk_usage():
-    usage = sys_tools.get_disk_usage("C:")
+    target_drive = "C:" if os.name == "nt" else "/"
+    usage = sys_tools.get_disk_usage(target_drive)
     assert "total_gb" in usage
     assert "free_gb" in usage
     assert "percent_used" in usage
 
+    # Default None path
+    default_usage = sys_tools.get_disk_usage()
+    assert "total_gb" in default_usage
+
     # Invalid path / exception
-    err_usage = sys_tools.get_disk_usage("NON_EXISTENT_DRIVE_LETTER:\\")
+    invalid_drive = "NON_EXISTENT_DRIVE_LETTER:\\" if os.name == "nt" else "/non_existent_folder_abc123"
+    err_usage = sys_tools.get_disk_usage(invalid_drive)
     assert "error" in err_usage or "total_gb" in err_usage
 
 

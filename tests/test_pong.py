@@ -7,8 +7,9 @@ from unittest.mock import MagicMock, patch
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 
-import pygame
-import pong
+import pytest
+pygame = pytest.importorskip("pygame", reason="pygame is not installed, skipping pong tests")
+pong = pytest.importorskip("pong", reason="pong module requires pygame")
 
 
 def test_pong_sound_and_ball():
