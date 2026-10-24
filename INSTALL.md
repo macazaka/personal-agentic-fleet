@@ -12,11 +12,13 @@ Welcome to **Personal Agentic Fleet**! Because the core microkernel, HTTP server
 | **Python** | **Python 3.10+** (3.11–3.14 recommended) | Ensure `python` is added to your system `PATH`. |
 | **Git** | Git 2.30+ | Required for cloning and running automated `pre-commit` / `pre-push` security hooks. |
 
-Verify your environment in PowerShell or Terminal:
+Verify your environment and enforce the **minimum Python 3.10+ requirement** in PowerShell or Terminal:
 ```powershell
 python --version
+python -c "import sys; assert sys.version_info >= (3, 10), f'ERROR: Python 3.10+ is required (found {sys.version.split()[0]})'; print(f'OK: Python {sys.version.split()[0]} meets minimum requirement (>=3.10)')"
 git --version
 ```
+> **Note**: Personal Agentic Fleet also performs an automatic runtime check (`check_minimum_python_version()`) on startup and enforces `requires-python = ">=3.10"` in [`pyproject.toml`](pyproject.toml).
 
 ---
 
@@ -211,3 +213,4 @@ python -m pytest tests/ -v
   Ensure `agents.health.videos_directory` in `fleet.yaml` points to an existing folder containing `.mp4`, `.mkv`, `.webm`, or `.mov` files.
 - **PowerShell `Activate.ps1` Blocked by Execution Policy**:
   Run `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned` in PowerShell.
+

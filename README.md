@@ -30,8 +30,11 @@
 
 > For full setup instructions (Virtual Environments, Windows Credential Manager DPAPI secrets, silent background startup, and Antigravity MCP configuration), see **[INSTALL.md](INSTALL.md)**.
 
-### 1. Clone the Repository
+### 1. Verify Python >= 3.10 & Clone the Repository
 ```powershell
+# Verify Python 3.10+ is installed
+python -c "import sys; assert sys.version_info >= (3, 10), 'Python 3.10+ required'; print('Python OK:', sys.version.split()[0])"
+
 git clone https://github.com/macazaka/personal-agentic-fleet.git
 cd personal-agentic-fleet
 ```

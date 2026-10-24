@@ -309,3 +309,12 @@ def test_security_scan_api_endpoints():
     post_payload = mock_handler._send_json.call_args[0][0]
     assert post_payload["status"] == "success"
     assert post_payload["report"]["score"] == 100
+
+
+def test_minimum_python_version_guard():
+    from fleet.config import MIN_PYTHON_VERSION, check_minimum_python_version
+    assert MIN_PYTHON_VERSION == (3, 10)
+    assert check_minimum_python_version((3, 10, 0)) is True
+    assert check_minimum_python_version((3, 14, 7)) is True
+    with pytest.raises(RuntimeError, match="Python 3.10 or higher is required"):
+        check_minimum_python_version((3, 9, 18))

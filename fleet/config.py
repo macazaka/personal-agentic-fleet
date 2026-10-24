@@ -4,10 +4,27 @@ Supports Google Gemini, OpenAI, Local Ollama, and an Offline Smart Heuristic mod
 """
 
 import os
+import sys
 from pathlib import Path
 
-# Fleet Version
+# Fleet Version & Minimum Runtime Requirement
 VERSION = "2.0.0"
+MIN_PYTHON_VERSION = (3, 10)
+
+
+def check_minimum_python_version(version_info=None) -> bool:
+    """Verifies that the active Python interpreter meets the minimum >= 3.10 requirement."""
+    current = version_info if version_info is not None else sys.version_info
+    if (current[0], current[1]) < MIN_PYTHON_VERSION:
+        detected = f"{current[0]}.{current[1]}.{current[2] if len(current) > 2 else 0}"
+        raise RuntimeError(
+            f"[Personal Agentic Fleet] Python {MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]} or higher is required "
+            f"(detected Python {detected}). Please upgrade Python at https://www.python.org/downloads/"
+        )
+    return True
+
+
+check_minimum_python_version()
 
 # Paths
 BASE_DIR = Path(__file__).resolve().parent
