@@ -17,6 +17,8 @@ All responses return standard JSON with `Content-Type: application/json` unless 
 | `GET` | `/api/version` | Semantic versioning metadata. | None | `{"version": "2.0.0", "name": "Personal Agentic Fleet", ...}` |
 | `GET` | `/api/release_notes` | Current version release notes and changelog markdown. | None | `{"version": "2.0.0", "changelog_markdown": "..."}` |
 | `GET` | `/api/logs` | Returns recent system and audit activities. | Query: `limit=15` | `[{"id": 1, "agent": "...", "action": "...", "timestamp": "..."}]` |
+| `GET` | `/api/diagnostics/logs` | Returns recent structured JSON telemetry from the in-memory ring buffer. | Query: `limit=100`, `min_level=WARNING`, `level=ERROR`, `agent=...`, `search=...` | `{"status": "success", "logs": [...], "count": 10}` |
+| `GET` | `/api/diagnostics/errors` | Error isolation endpoint returning recent warnings, errors, and failures from memory and disk. | Query: `limit=50`, `source=ring\|disk\|both` | `{"status": "success", "ring_buffer_errors": [...], "disk_error_log": [...], "count": 2}` |
 
 ---
 

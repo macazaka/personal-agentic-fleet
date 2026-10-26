@@ -166,10 +166,14 @@ Protects against upstream hyperscaler outages (Google Gemini, Azure OpenAI, AWS 
 
 ## 5. Pillar 5: Observability, Diagnostics & Crash Forensics
 
-### 5.1 Structured Rotating JSON Logging (`fleet/core/logger.py`)
-- **Machine-Readable Format**: Emits structured JSON events containing `timestamp`, `level`, `logger`, `agent`, `action`, `message`, and `metadata`.
-- **Automatic Rotation**: Log files rotate at 5 MB, keeping 3 historical compressed backups (`fleet_app.log.1`, etc.).
-- **In-Memory Diagnostic Ring Buffer**: Retains the 1,000 most recent log entries in memory, queryable in real time via `GET /api/diagnostics/logs`.
+### 5.1 Structured Rotating JSON Logging & Error Isolation (`fleet/core/logger.py`)
+- **Full Diagnostic Fidelity**: Emits structured JSON events containing `timestamp` (ISO-8601 with milliseconds), `level`, `logger`, `agent`, `action`, `message`, `file`, `filename`, `line`, `func`, `module`, `process`, `thread_name`, `thread_id`, and `metadata`.
+- **Exception & Warning Forensics**: Records formatted tracebacks (`exception`), exception class (`exception_type`), error message (`exception_message`), and parsed stack frames (`stack_frames`). Warnings without exceptions automatically record the origin caller site (`caller`).
+- **Dedicated Failure & Error Isolation Log (`fleet/data/fleet_error.log`)**: Separates `WARNING`, `ERROR`, and `CRITICAL` records into a dedicated rotating log file (10 MB rotation, 5 backups), ensuring failures are immediately queryable without being lost in high-volume informational telemetry.
+- **Primary Rotating Log (`fleet/data/fleet_app.log`)**: Captures all diagnostic telemetry at the configured level (`FLEET_LOG_LEVEL`, defaulting to `DEBUG` for deep observability).
+- **Python Runtime Warnings Interception**: Automatically hooks `warnings.warn` via `logging.captureWarnings(True)` and routes all runtime warnings through the `py.warnings` logger into the fleet logging engine.
+- **In-Memory Diagnostic Ring Buffer**: Retains the 2,000 most recent log entries in memory, queryable in real time via `GET /api/diagnostics/logs` (with support for `min_level`, `level`, `agent`, and full-text `search`).
+- **Disk Error Log Forensics**: `GET /api/diagnostics/errors` inspects and returns recent failures from both in-memory and on-disk error isolation logs.
 
 ### 5.2 Global Crash Dump Reporter (`fleet/tools/crash_reporter.py`)
 - **Uncaught Exception Trapping**: Hooks `sys.excepthook` and `threading.excepthook`.
@@ -225,7 +229,8 @@ python -m fleet.tools.test_runner
 
 | Endpoint | Method | Description |
 | :--- | :---: | :--- |
-| `/api/diagnostics/logs` | `GET` | Fetches the in-memory ring buffer of recent structured logs (supports `?limit=100&level=ERROR`) |
+| `/api/diagnostics/logs` | `GET` | Fetches the in-memory ring buffer of recent structured logs (supports `?limit=100&min_level=WARNING&search=term`) |
+| `/api/diagnostics/errors` | `GET` | Dedicated error forensics endpoint retrieving recent failures from ring buffer and `fleet_error.log` |
 | `/api/events/stream` | `GET` | Server-Sent Events push stream for real-time fleet events |
 | `/api/optimizer/diagnostics` | `GET` | Returns physical RAM usage, CPU load, and top process metrics |
 | `/api/settings/health` | `GET` | Microkernel uptime, database size, and active worker thread status |
