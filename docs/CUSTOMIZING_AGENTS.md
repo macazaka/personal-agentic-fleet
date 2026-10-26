@@ -327,6 +327,45 @@ python -m fleet.tools.create_agent --id crypto_portfolio --name "Crypto Portfoli
 
 ---
 
+## 🎛️ Method 6: Dynamic Runtime Activation & Agent-Specific Settings
+
+Fleet allows users to toggle agents and configure their custom settings directly in the web control center without editing YAML or restarting the server:
+
+### 6.1 Activating & Disabling Agents
+1. Click the **⚙️ Settings** icon in the dashboard header.
+2. Under the **🤖 Agents & Activation** tab, you will see a list of all discovered built-in and custom agents.
+3. Toggle the switch next to any agent to enable or disable it:
+   - **When Disabled**: The agent's UI pane is removed from the navigation bar, and its scheduled background tasks are paused. Its stored database tables, logs, and memory remain completely intact.
+   - **When Enabled**: The agent instantly re-mounts into the navigation drawer and its background routines resume.
+
+### 6.2 Agent-Specific Custom Settings Drawer
+Every agent that declares a `settings_schema` in its `manifest.json` automatically generates a dedicated settings interface:
+1. Click **⚙️ Agent Settings** on any active agent pane, or open it from the Settings modal.
+2. Modify agent-specific attributes (e.g. sync intervals, API keys, thresholds, target cities).
+3. Click **Save Settings**: changes take effect immediately at runtime and persist safely in `fleet/data/user/` with DPAPI encryption.
+
+---
+
+## 🛒 Method 7: Discover & Download New Agents from Catalog
+
+As new official and community agents become available, you can browse, preview, and install them directly from the dashboard:
+
+1. Open **⚙️ Settings** > **🛒 Discover & Download**.
+2. Filter catalog items by category (`Productivity`, `Automation`, `Developer`, `Health`, `Finance`).
+3. Click **View Details** to inspect the agent's author, description, and declared security permissions.
+4. Click **⬇️ Download & Install**: The microkernel downloads the package, verifies manifest integrity, and activates the agent in your local fleet.
+
+---
+
+## 🚀 Method 8: GitHub Version Updates & Notifications
+
+Personal Agentic Fleet monitors GitHub releases automatically:
+1. **Launch-Time Check**: When the workstation control center launches, it silently checks the official GitHub repository for newer releases.
+2. **Notification & Badge**: If an update is detected, a glowing `🚀 Update Available` badge appears in the header and a native desktop toast alert is dispatched.
+3. **1-Click Review**: Click the badge to open **⚙️ Settings > 🚀 GitHub Updates**, review release notes, and install updates safely with automated pre-update backups.
+
+---
+
 ## 🔒 Package Isolation Invariants Checklist
 
 When customizing or creating agents, ensure:

@@ -109,7 +109,41 @@ On next startup, `AgentRegistry` discovers your agent, validates its permissions
 
 ---
 
-## 4. Adding a New Hyperscaler or Model
+## 4. Cognitive Fleet Mind Integration Conventions
+
+Agents operating within Personal Agentic Fleet are part of an integrated cognitive intelligence loop. When developing agent logic, adhere to these cognitive guidelines:
+
+### 4.1 Conscious Self-Critique Compliance
+Every action result emitted by an agent is evaluated in real time by the **Conscious Self-Critique Engine** (`fleet.core.mind.consciousness.SelfCritiqueEngine`):
+- **Always return a structured dictionary**: Returning raw primitives or `None` incurs a 40-point deduction.
+- **Always provide explicit status**: Include `"status": "success"` (or `"error"` if failing).
+- **Populate actionable fields**: Avoid empty or null values; results with empty dictionaries or blank strings lose quality points.
+- **Maintain status honesty**: Never set `"status": "success"` if an `"error"` key is populated.
+- **Target quality score**: Ensure your return values consistently score $\ge 85.0/100$.
+
+### 4.2 Synaptic Event Emission
+To participate in the brain's neurological telemetry:
+```python
+from fleet.core.event_bus import bus, FleetEvent
+
+# Emitting a synaptic event
+bus.dispatch(FleetEvent(
+    sender="my_custom_agent",
+    target="overview",
+    action="UPDATE_VITALS",
+    payload={"metric": "battery", "value": 98}
+))
+```
+
+### 4.3 Unit Test Logging Suppression Invariant
+To keep the Workstation Control Center's Overview and Tasks panes completely clean of development test noise:
+- The microkernel enforces `is_unit_test_log(message, agent, action)`.
+- Never bypass the `FLEET_TEST_MODE` environment check.
+- When writing tests, use `conftest.py` fixtures which automatically redirect logs away from production activity tables.
+
+---
+
+## 5. Adding a New Hyperscaler or Model
 
 To add support for a new model or hyperscaler:
 1. **Update Provider Catalog**: Add the provider definition in [`SUPPORTED_PROVIDERS`](../fleet/core/hyperscalers.py#L51-L157) in `fleet/core/hyperscalers.py`.
@@ -128,6 +162,19 @@ python -m fleet.tools.preflight_gate
 The Preflight Gate automatically runs:
 1. **Fleet Doctor**: Validates Python >= 3.10 runtime, OpenSSL TLS 1.3, SQLite WAL mode, Git hooks, and Vault ACL permissions (`100/100`).
 2. **12-Layer Security Scanner**: Audits for secret patterns, PII leaks, SAST vulnerabilities, and token governance (`100/100, 0 findings`).
-3. **Full Pytest Suite**: Executes all 130+ unit tests across the microkernel and plugins.
+3. **Full Pytest Suite**: Executes all 380+ unit tests across the microkernel, cognitive mind, and plugins.
+
+---
+
+## 6. Developer CLI Toolkit
+
+| Tool | Command | Purpose |
+| :--- | :--- | :--- |
+| **Fleet Mind** | `python -m fleet.tools.fleet_mind --status` | Terminal introspection for Brain, Consciousness, Subconsciousness, Soul |
+| **Agent Scaffolder** | `python -m fleet.tools.create_agent` | Interactive CLI wizard to create new sandboxed agents |
+| **Fleet Doctor** | `python -m fleet.tools.fleet_doctor` | Pre-flight diagnostics (Python >=3.10, TLS 1.3, DPAPI, ACLs, DB integrity) |
+| **Security Scanner** | `python -m fleet.tools.security_scanner` | 12-layer security, secret, and privacy audit |
+| **Test Runner** | `python -m fleet.tools.test_runner` | Isolated test execution with coverage and database logging |
+| **Preflight Gate** | `python -m fleet.tools.preflight_gate` | Complete gate verifying Doctor + Scanner + Isolation + Docs + Tests |
 
 Exit code is `0` only when all checks pass, guaranteeing **100% green CI runs on GitHub Actions**.

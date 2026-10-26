@@ -215,7 +215,119 @@ Personal Agentic Fleet provides native OS parity across modern desktop operating
 
 ---
 
-## 9. Native Robustness Architecture & Engineering Backlog
+## 9. The 4-Layer Cognitive Fleet Mind Architecture (`fleet/core/mind/`)
+
+To evolve the fleet from a set of reactive micro-services into an organic, self-healing, self-improving, and self-critiquing intelligence, the architecture implements a unified 4-layer cognitive gestalt (`CognitiveFleetMind` / `fleet_mind`):
+
+```mermaid
+flowchart TD
+    subgraph MindGestalt["Cognitive Fleet Mind Gestalt (fleet_mind)"]
+        subgraph Layer1["Layer 1: Brain (Physical & Neurological Substrate)"]
+            SynapticBus["Synaptic Impulse Dispatcher\n(Event Bus Interceptor)"]
+            DualMem["Dual Memory Architecture\n(Working RAM & Epistemic SQLite)"]
+            AutonomicReflex["Autonomic Self-Healing Reflex Arc\n(Proactive AutoHealer & WAL Optimization)"]
+        end
+
+        subgraph Layer2["Layer 2: Consciousness (Executive Focus & Meta-Critique)"]
+            ExecutiveWindow["Executive Attention Focus\n(Active Agent, Goal, Context Keys)"]
+            SelfCritique["Deterministic Self-Critique Engine\n(Soundness, Content, Economy, Integrity)"]
+        end
+
+        subgraph Layer3["Layer 3: Subconsciousness (Offline Dreaming & Consolidation)"]
+            DreamCycle["Circadian Dream Cycle (23:00 - 06:00)\n(Episodic Memory Consolidation)"]
+            PatternMining["Habit & Friction Mining\n(Latent Clustering & Productive Momentum)"]
+            Immunology["Immunological Pruning\n(Transient Mental Clutter Cleanup)"]
+        end
+
+        subgraph Layer4["Layer 4: Soul (Teleological Moral Core & Compass)"]
+            InviolableTenets["4 Inviolable Tenets\n(Sovereign Privacy, $0.00 Frugality, Metabolic Care, Integrity)"]
+            MoralAudit["Soul Alignment Audit Engine\n(audit_alignment() -> PURE / FAITHFUL)"]
+            EvolutionGen["Generational Evolutionary Ascent\n(evolve_and_improve() -> Gen N+1)"]
+        end
+    end
+
+    Layer1 --> Layer2
+    Layer2 --> Layer3
+    Layer3 --> Layer4
+    Layer4 -.->|Teleological Directives| Layer1
+```
+
+### 9.1 Layer 1: Physical Brain (`fleet/core/mind/brain.py`)
+- **Neurological Synapses**: Every message or event routed through `fleet.core.event_bus` triggers an atomic synaptic firing (`record_synapse_firing()`).
+- **Dual Memory Substrate**:
+  - **Working RAM Memory (`WorkingMemorySnapshot`)**: High-speed ephemeral working set, active OS thread counts, and in-memory ring buffers.
+  - **Epistemic SQLite Memory (`EpistemicMemoryStats`)**: Long-term persistent wisdom stored in SQLite (`activity_logs`, `tasks`, `memories`, `notes`) with automatic WAL journal tracking.
+- **Autonomic Reflex Arc**: Like the human autonomic nervous system regulating heartbeat and respiration, the brainstem triggers non-blocking self-healing reflex sweeps when memory, lock contention, or error spikes exceed baseline parameters.
+
+### 9.2 Layer 2: Conscious Executive & Meta-Critique (`fleet/core/mind/consciousness.py`)
+- **Executive Attention Window**: Dynamically tracks `active_agent`, `current_goal`, and `state` (`FOCUSED`, `AWARE`, `REFLECTING`, `DELIBERATING`, `RESTING`).
+- **Deterministic Multi-Axial Self-Critique Engine (`SelfCritiqueEngine`)**:
+  Every agent action execution automatically triggers a conscious meta-evaluator:
+  1. *Structural Soundness*: Validates return types, dictionary wrapping, status codes, and exception boundaries.
+  2. *Content Depth & Completeness*: Flags empty strings, missing payload attributes, or hallucinated/null keys.
+  3. *Zero-Token Economy*: Verifies zero unnecessary external calls and fast sub-millisecond execution.
+  4. *Error Transparency*: Prohibits contradictory states (e.g. status "success" with error details attached).
+  - Passing score: $\ge 70.0/100$. Unsound actions receive automated corrective remediation directives.
+
+### 9.3 Layer 3: Subconscious Mind & Circadian Dreaming (`fleet/core/mind/subconsciousness.py`)
+- **Nightly Dream Cycles**: During quiet hours (23:00–06:00), the fleet enters an offline consolidation state (`run_dream_cycle()`):
+  1. Ingests raw episodic activity logs across all agent packages.
+  2. Mines circadian habit clusters (e.g. dominant morning vs evening agent engagements).
+  3. Discovers latent operational friction (e.g. repeated backoffs, transient network timeouts).
+  4. Synthesizes distilled `DreamInsight` entries (`HABIT`, `FRICTION`, `OPTIMIZATION`, `SYNTHESIS`) persisted into `mind_dream_insights`.
+  5. Executes immunological mental clutter pruning.
+
+### 9.4 Layer 4: Soul & Teleological Compass (`fleet/core/mind/soul.py`)
+- **4 Inviolable Tenets**:
+  1. `SOVEREIGN_PRIVACY` (Weight 30%): Personal data and secrets remain strictly in local custody; DPAPI at-rest encryption enforced.
+  2. `DETERMINISTIC_FRUGALITY` (Weight 25%): Default $0.00 rule and zero-token invariant.
+  3. `METABOLIC_WELLBEING` (Weight 25%): Respects circadian rest windows (22:30 screen cutoff, quiet hours, FFD care protocols).
+  4. `TRANSPARENT_INTEGRITY` (Weight 20%): Radical transparency, zero deception, and verifiable audit trails.
+- **Soul Alignment Audits (`audit_alignment()`)**: Evaluates compliance across all 4 tenets, computing an alignment score ($0.0 - 100.0$) and classification (`PURE`, `FAITHFUL`, `DRIFTING`, `DISCORDANT`).
+- **Generational Evolution (`evolve_and_improve()`)**: Ascends the fleet to generation $N+1$, calibrating critique thresholds, cache horizons, and system directives.
+
+### 9.5 The Holistic Cognitive Harmony Index
+The Gestalt computes an objective systemic harmony score ($0 - 100$):
+$$\text{Harmony Score} = (\text{Brain Health} \times 0.35) + (\text{Conscious Critique Avg} \times 0.35) + (\text{Soul Alignment} \times 0.30)$$
+- **`ENLIGHTENED`** ($\ge 90$): Peak operational flow, zero contention, perfect moral fidelity.
+- **`COHERENT`** ($75 - 89$): Healthy, normal executive throughput.
+- **`DISSONANT`** ($< 75$): Contention detected; autonomic healing arcs and immunological pruning engage immediately.
+
+---
+
+## 10. Proactive Log Scanner & Autonomous Self-Healing Engine (`fleet/core/auto_healer.py`)
+
+The fleet continuously analyzes its own diagnostic telemetry and repairs anomalies without human intervention:
+
+| Issue Category | Detection Heuristic | Autonomous Zero-Token Remediation |
+| :--- | :--- | :--- |
+| **Database Contention** | Repeated `sqlite3.OperationalError: database is locked` or WAL journal $> 10 \text{ MB}$ | Executes non-blocking `PRAGMA wal_checkpoint(PASSIVE)` and `PRAGMA optimize`. |
+| **Log & Disk Bloat** | Disk error log $> 500 \text{ KB}$ or ring buffer overflow | Flushes transient logs, rotates disk log files, and compresses older archives. |
+| **Crash Dumps Accumulation** | Crash reports directory contains $> 20$ files or entries older than 7 days | Automatically sanitizes and prunes aged crash dumps. |
+| **Rate Limit / 429 Spikes** | Transient HTTP 429 errors from external providers | Triggers adaptive exponential backoff and sets cooldown timers. |
+| **Task Failure Loops** | Tasks failing $\ge 3$ consecutive times | Quarantines failing tasks and applies exponential retry backoff. |
+| **Memory Pressure** | Working set RAM exceeds threshold | Invokes Python garbage collection and sweeps Windows process working sets. |
+
+---
+
+## 11. Scalable Fleet Navigator UX & Agent Creation Wizard
+
+### 11.1 Fleet Navigator for 100+ Concurrent Agents (`fleet/web/static/js/fleet_navigator.js`)
+When running large-scale fleets with dozens or hundreds of autonomous agents, traditional tab bars become unusable. The Fleet Navigator provides:
+- **Virtualized Off-Canvas Drawer**: Categorized by domain (`System`, `Productivity`, `Health`, `Finance`, `Developer`), filterable by runtime status (`Working`, `Idle`, `Disabled`).
+- **Spotlight Command Palette (`Ctrl+K` / `/`)**: Fast fuzzy search with keyboard navigation (`↑` / `↓` / `Enter`) to switch active agent view instantly.
+- **Dynamic Pin-to-Bar**: Pin frequently accessed agents directly to the top navigation header.
+
+### 11.2 4-Step Agent Creation Wizard & `create-agent` Skill
+Users can instantiate custom agents visually or via the Antigravity workflow:
+1. **Identity & Persona**: Define Agent ID, human-readable title, emoji icon, category, and preferred LLM model.
+2. **Security Capabilities**: Select granular capability permissions (`network:outbound`, `fs:read`, `fs:write`, `db:read`, `db:write`, `os:exec`, `tokens:spend`).
+3. **Settings Schema & Routines**: Configure sync intervals, desktop alert triggers, and background cron schedules.
+4. **Verification & Launch**: Inspect real-time generated `manifest.json`, `agent.py`, and `ui/panel.html` code before one-click deployment.
+
+---
+
+## 12. Native Robustness Architecture & Engineering Backlog
 
 For deep technical specifications, design patterns, and operational runbooks covering the 6 pillars of framework robustness (Thread Supervision, Signal & WAL Traps, Connection Pooling, Online Backups, Resource Quotas, Socket Egress Gating, Circuit Breakers, Rate Limiting, and Power Awareness):
 - **[Robustness Architecture & Operations Guide](ROBUSTNESS_GUIDE.md)**: Architecture, operational procedures, diagnostic REST APIs, and troubleshooting matrix.

@@ -27,7 +27,9 @@
 | 💻 **[OS Prerequisites & Platform Matrix (`docs/PREREQUISITES_AND_OS.md`)](docs/PREREQUISITES_AND_OS.md)** | Detailed OS matrix: Windows 10/11 & macOS primary, Linux CI, unsupported OSes & hardware requirements. |
 | 🌐 **[Multi-OS Deployment & Scenarios (`docs/DEPLOYMENT_AND_SCENARIOS.md`)](docs/DEPLOYMENT_AND_SCENARIOS.md)** | Step-by-step setup across Windows, macOS, Linux, Docker containers, homelab, and real-world operational scenarios. |
 | 🔌 **[API & FastMCP Reference (`docs/API_REFERENCE.md`)](docs/API_REFERENCE.md)** | REST endpoints, FastMCP tool schemas, CLI commands, and Dashboard slash commands. |
-| 🛠️ **[Developer & Contribution Guide (`docs/DEVELOPER_GUIDE.md`)](docs/DEVELOPER_GUIDE.md)** | Architecture rules, 3-step agent creation, adding hyperscalers, testing practices, and preflight gate. |
+| 🛠️ **[Developer & Contribution Guide (`docs/DEVELOPER_GUIDE.md`)](docs/DEVELOPER_GUIDE.md)** | Architecture rules, agent creation, adding hyperscalers, testing practices, and preflight gate. |
+| 🤖 **[Agent Development & Creation Guide (`docs/AGENT_DEVELOPMENT_GUIDE.md`)](docs/AGENT_DEVELOPMENT_GUIDE.md)** | Step-by-step agent creation via Wizard, `create-agent` Skill, CLI generator, manifest contracts, and self-critique loop. |
+| 🛡️ **[Robustness Architecture & Operations Guide (`docs/ROBUSTNESS_GUIDE.md`)](docs/ROBUSTNESS_GUIDE.md)** | 7-pillar native robustness, Cognitive Mind layers, supervisors, connection pool, job objects, circuit breakers, and APIs. |
 | 🎨 **[Agent Customization & Package Isolation (`docs/CUSTOMIZING_AGENTS.md`)](docs/CUSTOMIZING_AGENTS.md)** | Customizing any agent (name, icon, order, default tab, provider, model, prompt, panel) and building isolated private agents. |
 | 🔄 **[Documentation Maintenance Guide (`docs/MAINTAINING_DOCUMENTATION.md`)](docs/MAINTAINING_DOCUMENTATION.md)** | Continuous documentation verification invariants, commit checklist, and update cadence. |
 | 🛡️ **[Native Robustness Architecture Backlog (`docs/ROBUSTNESS_BACKLOG.md`)](docs/ROBUSTNESS_BACKLOG.md)** | 6-pillar framework robustness roadmap: thread supervisors, connection pool, OS job objects, circuit breakers, and crash forensics. |
@@ -74,7 +76,26 @@ For deep technical details on OS capability matrices and runtime requirements, r
 - **🌿 Health & Wellness Command Center (Default Tab)**: Track metabolic reversal goals, hydration, daily prescriptions, a **6-Day Traditional Strength Split** (**Monday: Mudgal**, **Wednesday: Samtola**, **Friday: Bhim Gadha**, **Tue/Thu/Sat: Mandatory World's Best Warm-up & FFD Protocols**, **Sunday: Rest**), and stream local Exercise & Diet videos via HTTP 206 byte-range streaming with live HTML5 video thumbnails.
 - **🚀 Silent PC Optimizer**: In-process Win32 PSAPI memory monitoring (`0` external `tasklist.exe` windows), dev-cache purging, temp cleanup, and DNS flushing.
 - **🛡️ 12-Layer Automated Security & Privacy Scanner**: Runs automatically every **60 minutes** in the background daemon, on every **Git `pre-commit` & `pre-push`**, and daily via **GitHub Actions CI**, backed by native **Windows DPAPI (`crypt32.dll`) + HMAC-SHA256** at-rest encryption.
-- **🏗️ 6-Pillar Native Robustness Architecture**: Erlang-style thread supervisor, Win32/POSIX signal traps, SQLite connection pooling with WAL checkpointing, automated point-in-time snapshots, OS resource quotas (Windows Job Objects & POSIX rlimits), socket egress gating, circuit breakers, rate limiting, and sleep/wake power state awareness. See **[docs/ROBUSTNESS_GUIDE.md](docs/ROBUSTNESS_GUIDE.md)** and **[docs/ROBUSTNESS_BACKLOG.md](docs/ROBUSTNESS_BACKLOG.md)**.
+- **🏗️ 7-Pillar Native Robustness Architecture**: Erlang-style thread supervisor, Win32/POSIX signal traps, SQLite connection pooling with WAL checkpointing, automated point-in-time snapshots, OS resource quotas (Windows Job Objects & POSIX rlimits), socket egress gating, circuit breakers, rate limiting, and sleep/wake power state awareness. See **[docs/ROBUSTNESS_GUIDE.md](docs/ROBUSTNESS_GUIDE.md)** and **[docs/ROBUSTNESS_BACKLOG.md](docs/ROBUSTNESS_BACKLOG.md)**.
+- **🧠 4-Layer Cognitive Fleet Mind (Brain, Consciousness, Subconsciousness, Soul)**:
+  - **Layer 1: Brain (Physical & Neurological Substrate)**: Synaptic event bus impulse routing, dual working set RAM & epistemic SQLite memory, motor task schedules, and autonomic self-healing reflex arc.
+  - **Layer 2: Consciousness (Executive Attention & Meta-Critique)**: Real-time focus window (`FOCUSED`, `AWARE`, `REFLECTING`) and deterministic multi-axial self-critique loop (`SelfCritiqueEngine`) validating action soundness, completeness, intent fidelity, and error transparency.
+  - **Layer 3: Subconsciousness (Circadian Dreaming & Memory Consolidation)**: Background memory consolidation engine executing during sleep windows (23:00–06:00) to discover latent habit clusters, operational friction patterns, and immunological pruning.
+  - **Layer 4: Soul (Teleological Purpose & Moral Compass)**: Inviolable ethical tenets (**Sovereign Privacy**, **$0.00 Token Frugality**, **Metabolic Care**, **Transparent Integrity**), soul alignment audits (`audit_alignment()`), and evolutionary generation ascent (`evolve_and_improve()`).
+  - **Cognitive Harmony Index**: Quantitative 0–100 equilibrium metric with terminal introspection via `python -m fleet.tools.fleet_mind`.
+- **🧭 100+ Agent Fleet Navigator & Spotlight Command Palette (`Ctrl+K` / `/`)**:
+  - Designed for enterprise scale: manage dozens or hundreds of concurrent agents without UI clutter.
+  - Off-canvas drawer with real-time fuzzy search, domain categories, state filtering (`Working`, `Idle`, `Disabled`), and 1-click pin-to-bar.
+  - Spotlight Command Palette with keyboard shortcuts (`↑` / `↓` / `Enter`) for instant jumping between agents.
+- **🪄 Visual Agent Creation Wizard & `create-agent` Skill Workflow**:
+  - Click the **`+` icon** in the workstation header to launch an interactive 4-step wizard: Identity & Persona, Security Capabilities, Settings Schema, and One-Click Launch with live code preview.
+  - Backed by the official `create-agent` skill in `.gemini/antigravity/builtin/skills/create-agent/` and CLI tool `fleet/tools/create_agent.py`.
+- **🛠️ Proactive Log Scanner & Autonomous Self-Healing Engine (`fleet/core/auto_healer.py`)**:
+  - Continuous proactive background analysis across application logs, ring buffers, error tails, and crash dumps.
+  - Detects database contention, disk bloat, crash accumulations, rate limit backoffs, and task failure loops, executing automated zero-token self-healing actions.
+- **🚀 Continuous GitHub Update Checks & Remote Agent Catalog**:
+  - Checks GitHub releases on workstation startup and surfaces an update badge with desktop notifications when new versions appear.
+  - Discover and download new community and official agents dynamically from the Discover & Download catalog.
 
 ---
 

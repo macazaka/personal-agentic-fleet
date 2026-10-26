@@ -136,6 +136,15 @@ All responses return standard JSON with `Content-Type: application/json` unless 
 | `POST` | `/api/fleet/agents/custom/create` | Scaffolds a new isolated custom agent in `fleet/data/user/custom_agents/`. | `{"id": "my_agent", "name": "...", "icon": "✨", "permissions": ["db:read", "ui:render"]}` | `{"status": "success", "agent": {...}}` |
 | `GET` | `/api/fleet/agents/{id}/style.css` | Serves scoped CSS styling for the agent's isolated UI panel. | None | `text/css` |
 | `GET` | `/api/fleet/agents/{id}/script.js` | Serves scoped JavaScript for the agent's isolated UI panel. | None | `application/javascript` |
+| `GET` | `/api/settings` | Returns global fleet settings, agent list, active/disabled counts. | None | `{"status": "ok", "settings": {...}, "active_agents_count": 7, "total_agents_count": 8}` |
+| `POST` | `/api/settings` | Updates global fleet settings, preferences, and notifications. | `{"settings": {"timezone": "Asia/Kolkata", "theme": "dark"}}` | `{"status": "success", "updated_keys": [...]}` |
+| `POST` | `/api/settings/agents/toggle` | Activates or disables an agent dynamically at runtime. | `{"id": "optimizer", "enabled": false}` | `{"status": "success", "agent_id": "optimizer", "enabled": false}` |
+| `GET` | `/api/settings/agents/schema` | Retrieves an agent's manifest and dynamic settings schema. | Query: `id=health` | `{"status": "ok", "schema": {...}}` |
+| `POST` | `/api/settings/agents/configure` | Saves agent-specific custom settings schema values. | `{"id": "weather", "settings": {"default_city": "Tokyo"}}` | `{"status": "success", "saved": true}` |
+| `GET` | `/api/settings/agents/catalog` | Lists downloadable remote agents catalog with installation status. | None | `{"status": "ok", "catalog": [...], "total_available": 10}` |
+| `POST` | `/api/settings/agents/catalog/install` | Downloads and installs an agent package from the catalog into custom agents. | `{"id": "home_assistant"}` | `{"status": "success", "installed": true, "name": "Home Assistant"}` |
+| `GET` | `/api/settings/updates` | Checks GitHub releases for newer version availability. | Query: `refresh=true` | `{"status": "ok", "update_available": true, "latest_version": "2.1.0", "current_version": "2.0.0"}` |
+| `POST` | `/api/settings/updates/apply` | Downloads and applies release updates from GitHub with automatic pre-update backup. | `{}` | `{"status": "success", "message": "Updated to v2.1.0"}` |
 
 ---
 
