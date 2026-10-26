@@ -803,9 +803,10 @@ class RobustThreadingHTTPServer(ThreadingHTTPServer):
 
 def start_server(port: int = PORT):
     """Starts the Personal Agentic Fleet Dashboard server."""
-    os.environ["FLEET_PRODUCTION_SERVER"] = "1"
-    os.environ.pop("FLEET_TEST_MODE", None)
-    os.environ.pop("PYTEST_CURRENT_TEST", None)
+    if "pytest" not in sys.modules and not os.environ.get("FLEET_TEST_MODE"):
+        os.environ["FLEET_PRODUCTION_SERVER"] = "1"
+        os.environ.pop("FLEET_TEST_MODE", None)
+        os.environ.pop("PYTEST_CURRENT_TEST", None)
     global db, briefing_engine
     from fleet.config import DB_PATH
     db = FleetDatabase(db_path=DB_PATH)

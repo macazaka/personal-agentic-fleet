@@ -37,7 +37,7 @@ class TasksMixin:
             self.log_activity(assigned_agent, "add_task", f"Created task #{task_id}: {clean_title} [Source: {task_source}]")
             return task_id
 
-    def list_tasks(self, status: Optional[str] = None, limit: int = 50, require_description: bool = True, exclude_tests: bool = True) -> List[Dict[str, Any]]:
+    def list_tasks(self, status: Optional[str] = None, limit: int = 50, require_description: bool = True, exclude_tests: bool = False) -> List[Dict[str, Any]]:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             conditions = []

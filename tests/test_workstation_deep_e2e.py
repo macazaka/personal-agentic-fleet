@@ -370,6 +370,13 @@ def test_settings_and_version_api(server_harness: LiveServerHarness):
 
 def test_create_agent_wizard_api(server_harness: LiveServerHarness):
     """Tests end-to-end scaffolding, manifest registration, and immediate activation."""
+    import fleet.server as srv
+    custom_dir = Path("fleet/data/user/custom_agents/e2e_test_agent")
+    if custom_dir.exists():
+        shutil.rmtree(custom_dir, ignore_errors=True)
+    if hasattr(srv, "agent_registry") and srv.agent_registry:
+        srv.agent_registry.agents.pop("e2e_test_agent", None)
+
     agent_payload = {
         "id": "e2e_test_agent",
         "name": "E2E Test Agent",
@@ -395,9 +402,10 @@ def test_create_agent_wizard_api(server_harness: LiveServerHarness):
         assert "e2e_test_agent" in agent_ids
     finally:
         # Clean up created custom agent directory
-        custom_dir = Path("fleet/data/user/custom_agents/e2e_test_agent")
         if custom_dir.exists():
             shutil.rmtree(custom_dir, ignore_errors=True)
+        if hasattr(srv, "agent_registry") and srv.agent_registry:
+            srv.agent_registry.agents.pop("e2e_test_agent", None)
 
 
 # =========================================================================
