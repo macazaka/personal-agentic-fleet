@@ -482,6 +482,21 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             reports = list_crash_reports()
             self._send_json({"status": "success", "reports": reports, "count": len(reports)})
 
+        elif path == "/api/diagnostics/log-analysis":
+            from fleet.core.auto_healer import get_latest_scan_report, run_proactive_log_scan_and_heal
+            report = get_latest_scan_report()
+            if not report:
+                report = run_proactive_log_scan_and_heal(db=db)
+            self._send_json({"status": "success", "report": report})
+
+        elif path == "/api/diagnostics/auto-improvements":
+            from fleet.core.auto_healer import get_auto_improvements_history
+            query = urllib.parse.parse_qs(parsed.query)
+            limit = int(query.get("limit", [50])[0])
+            history = get_auto_improvements_history(limit=limit, db=db)
+            stats = db.get_auto_improvements_stats() if hasattr(db, "get_auto_improvements_stats") else {}
+            self._send_json({"status": "success", "improvements": history, "stats": stats, "count": len(history)})
+
         else:
             # 3. Dispatch to Domain API Routers
             handled = router.dispatch_get(self, path, parsed)
@@ -757,6 +772,11 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             from fleet.tools.test_runner import run_test_suite_isolated
             results = run_test_suite_isolated(db)
             self._send_json({"status": "success", "results": results})
+
+        elif path == "/api/diagnostics/log-analysis/run":
+            from fleet.core.auto_healer import run_proactive_log_scan_and_heal
+            report = run_proactive_log_scan_and_heal(db=db)
+            self._send_json({"status": "success", "report": report})
 
         elif path == "/api/optimizer/clean_temp":
             res = clean_temp_files()

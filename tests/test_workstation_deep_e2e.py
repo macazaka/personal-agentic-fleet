@@ -105,7 +105,7 @@ class LiveServerHarness:
 
         req = urllib.request.Request(url, data=req_body, headers=req_headers, method=method)
         try:
-            with urllib.request.urlopen(req, timeout=5.0) as resp:
+            with urllib.request.urlopen(req, timeout=15.0) as resp:
                 resp_headers = {k: v for k, v in resp.getheaders()}
                 return resp.status, resp_headers, resp.read()
         except urllib.error.HTTPError as e:

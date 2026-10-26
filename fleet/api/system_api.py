@@ -147,3 +147,29 @@ def get_security_doctor(handler: Any, parsed_url: urllib.parse.ParseResult):
     from fleet.tools.fleet_doctor import run_fleet_doctor
     handler._send_json(run_fleet_doctor())
 
+
+@router.get("/api/diagnostics/log-analysis")
+def get_log_analysis(handler: Any, parsed_url: urllib.parse.ParseResult):
+    from fleet.core.auto_healer import get_latest_scan_report, run_proactive_log_scan_and_heal
+    report = get_latest_scan_report()
+    if not report:
+        report = run_proactive_log_scan_and_heal(db=srv.db)
+    handler._send_json({"status": "success", "report": report})
+
+
+@router.post("/api/diagnostics/log-analysis/run")
+def post_log_analysis_run(handler: Any, body: Dict[str, Any]):
+    from fleet.core.auto_healer import run_proactive_log_scan_and_heal
+    report = run_proactive_log_scan_and_heal(db=srv.db)
+    handler._send_json({"status": "success", "report": report})
+
+
+@router.get("/api/diagnostics/auto-improvements")
+def get_auto_improvements(handler: Any, parsed_url: urllib.parse.ParseResult):
+    from fleet.core.auto_healer import get_auto_improvements_history
+    query = urllib.parse.parse_qs(parsed_url.query)
+    limit = int(query.get("limit", [50])[0])
+    history = get_auto_improvements_history(limit=limit, db=srv.db)
+    stats = srv.db.get_auto_improvements_stats() if hasattr(srv.db, "get_auto_improvements_stats") else {}
+    handler._send_json({"status": "success", "improvements": history, "stats": stats, "count": len(history)})
+

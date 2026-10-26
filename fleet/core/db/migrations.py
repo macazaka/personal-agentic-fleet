@@ -55,6 +55,32 @@ def migration_v3_offline_spool(conn: sqlite3.Connection):
     """)
 
 
+@migration(4, "Add auto_improvements table for autonomous log self-healing")
+def migration_v4_auto_improvements(conn: sqlite3.Connection):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS auto_improvements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            scan_id TEXT NOT NULL,
+            issue_type TEXT NOT NULL,
+            severity TEXT NOT NULL,
+            description TEXT NOT NULL,
+            action_taken TEXT NOT NULL,
+            status TEXT NOT NULL,
+            metrics_before TEXT DEFAULT '{}',
+            metrics_after TEXT DEFAULT '{}',
+            created_at TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_auto_improvements_created
+        ON auto_improvements(created_at)
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_auto_improvements_type_status
+        ON auto_improvements(issue_type, status)
+    """)
+
+
 def get_current_schema_version(conn: sqlite3.Connection) -> int:
     """Reads current PRAGMA user_version."""
     cursor = conn.cursor()

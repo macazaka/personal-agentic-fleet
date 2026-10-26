@@ -37,7 +37,7 @@ function closeSettingsModal() {
 
 function switchSettingsModalTab(tab) {
   fleetSettingsState.activeTab = tab;
-  ['agents', 'catalog', 'updates', 'general', 'ai', 'backups'].forEach(t => {
+  ['agents', 'catalog', 'updates', 'general', 'ai', 'backups', 'autoheal'].forEach(t => {
     const btn = document.getElementById(`settingsNavBtn_${t}`);
     const view = document.getElementById(`settingsView_${t}`);
     if (btn) btn.classList.toggle('active', t === tab);
@@ -54,6 +54,8 @@ function switchSettingsModalTab(tab) {
     populateGeneralSettingsForm();
   } else if (tab === 'ai') {
     populateAISettingsForm();
+  } else if (tab === 'autoheal') {
+    loadAutoHealStatus();
   }
 }
 
@@ -938,3 +940,118 @@ window.loadVersionStatus = loadVersionStatus;
 window.checkGitHubUpdateManual = checkGitHubUpdateManual;
 window.applyGitHubUpdate = applyGitHubUpdate;
 window.openSettingsModalToUpdates = openSettingsModalToUpdates;
+
+// --- Proactive Log Scanner & Autonomous Auto-Healer ---
+
+async function loadAutoHealStatus() {
+  const notice = document.getElementById('autoHealNotice');
+  try {
+    const res = await fetch('/api/diagnostics/log-analysis');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const report = data.report || {};
+
+    const scoreEl = document.getElementById('autoHealHealthScore');
+    const timeEl = document.getElementById('autoHealLastScanTime');
+    const totalEl = document.getElementById('autoHealTotalImprovements');
+
+    if (scoreEl) {
+      const score = report.system_health_index !== undefined ? report.system_health_index : 100.0;
+      scoreEl.textContent = `${score}/100`;
+      scoreEl.style.color = score >= 90 ? 'var(--accent-green)' : (score >= 60 ? '#f59e0b' : '#ef4444');
+    }
+    if (timeEl && report.timestamp) {
+      const dt = new Date(report.timestamp);
+      timeEl.textContent = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    await loadAutoImprovementsHistory();
+  } catch (err) {
+    if (notice) notice.innerHTML = `<span style="color: #ef4444;">Failed to load log analysis status: ${escapeHtml(err.message)}</span>`;
+  }
+}
+
+async function triggerProactiveLogScanNow() {
+  const btn = document.getElementById('btnRunAutoHealNow');
+  const notice = document.getElementById('autoHealNotice');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Scanning & Auto-Healing...';
+  }
+  if (notice) notice.innerHTML = '<span style="color: var(--accent-cyan);">Proactively scanning logs and evaluating autonomous improvements...</span>';
+
+  try {
+    const res = await fetch('/api/diagnostics/log-analysis/run', { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const report = data.report || {};
+    const impCount = report.improvements_applied_count || 0;
+    const issuesCount = report.issues_detected_count || 0;
+
+    if (notice) {
+      notice.innerHTML = `<span style="color: var(--accent-green);">✓ Proactive scan complete: ${issuesCount} issues analyzed, ${impCount} improvement(s) executed. Health score: ${report.system_health_index}/100.</span>`;
+    }
+    await loadAutoHealStatus();
+    showSettingsToast(`Proactive Log Scan Complete: ${impCount} improvement(s) applied.`, 'success');
+  } catch (err) {
+    if (notice) notice.innerHTML = `<span style="color: #ef4444;">Error during proactive scan: ${escapeHtml(err.message)}</span>`;
+    showSettingsToast(`Scan failed: ${err.message}`, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🔍 Run Proactive Scan & Auto-Heal';
+    }
+  }
+}
+
+async function loadAutoImprovementsHistory() {
+  const container = document.getElementById('autoImprovementsList');
+  const totalEl = document.getElementById('autoHealTotalImprovements');
+  if (!container) return;
+
+  try {
+    const res = await fetch('/api/diagnostics/auto-improvements?limit=30');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const improvements = data.improvements || [];
+    const stats = data.stats || {};
+
+    if (totalEl) {
+      totalEl.textContent = stats.total_improvements !== undefined ? stats.total_improvements : improvements.length;
+    }
+
+    if (!improvements.length) {
+      container.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">No autonomous improvements required yet. All logs clean.</div>';
+      return;
+    }
+
+    container.innerHTML = improvements.map(imp => {
+      const dt = imp.created_at ? new Date(imp.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Recent';
+      const statusBadge = imp.status === 'VERIFIED'
+        ? '<span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 10px;">VERIFIED</span>'
+        : (imp.status === 'APPLIED'
+          ? '<span class="badge" style="background: rgba(0, 242, 254, 0.2); color: #00f2fe; border: 1px solid rgba(0, 242, 254, 0.4); font-size: 10px;">APPLIED</span>'
+          : `<span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); font-size: 10px;">${escapeHtml(imp.status)}</span>`);
+
+      return `
+        <div style="padding: 10px 12px; margin-bottom: 8px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--card-border); border-radius: 6px; display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              ${statusBadge}
+              <strong style="color: var(--text); font-size: 12px;">${escapeHtml(imp.issue_type || 'SYSTEM')}</strong>
+              <span style="font-size: 11px; color: var(--text-muted);">${escapeHtml(imp.severity || 'INFO')}</span>
+            </div>
+            <span style="font-size: 11px; color: var(--text-muted);">${dt}</span>
+          </div>
+          <div style="font-size: 11.5px; color: var(--text); margin-top: 2px;">${escapeHtml(imp.action_taken || imp.description || '')}</div>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    container.innerHTML = `<div style="color: #ef4444; text-align: center; padding: 12px;">Failed to load history: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+window.loadAutoHealStatus = loadAutoHealStatus;
+window.triggerProactiveLogScanNow = triggerProactiveLogScanNow;
+window.loadAutoImprovementsHistory = loadAutoImprovementsHistory;

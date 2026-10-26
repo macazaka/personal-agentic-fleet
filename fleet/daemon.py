@@ -47,6 +47,9 @@ class FleetDaemon:
         self.last_reminder_reset_date = ""
         self.pr_review_interval_sec = 3600  # 1 hour
         self.last_pr_review_time = time.time()
+        # Proactive Log Scan & Autonomous Self-Healing Pulse (Every 15 minutes by default)
+        self.log_scan_interval_sec = 900  # 15 minutes
+        self.last_log_scan_time = time.time() - 885
 
     def check_and_trigger(self):
         now = datetime.now()
@@ -191,6 +194,37 @@ class FleetDaemon:
                 self.last_spool_flush_time = now_ts
             except Exception:
                 pass
+
+        # 9. Scheduled Proactive Log Scan & Autonomous Improvements Pulse (Every 15 mins)
+        if (now_ts - getattr(self, "last_log_scan_time", 0.0)) >= self.log_scan_interval_sec:
+            self.run_scheduled_log_scan_and_heal(now)
+            self.last_log_scan_time = now_ts
+
+    def run_scheduled_log_scan_and_heal(self, now: datetime = None):
+        """Proactively scans logs, ring buffer and crash dumps, executing autonomous improvements."""
+        if now is None:
+            now = datetime.now()
+        try:
+            from fleet.core.auto_healer import run_proactive_log_scan_and_heal
+            db_inst = getattr(self.bus, "db", None) or FleetDatabase()
+            report = run_proactive_log_scan_and_heal(db=db_inst)
+            imp_count = report.get("improvements_applied_count", 0)
+            if imp_count > 0:
+                print(f"[{now.strftime('%H:%M:%S')}] Proactive Auto-Healer: {imp_count} autonomous improvement(s) applied.")
+                from fleet.core.event_bus import FleetEvent
+                self.bus.dispatch(FleetEvent(
+                    sender="FleetDaemon",
+                    target="notification",
+                    action="SEND_TOAST",
+                    payload={
+                        "title": f"🛠️ Auto-Healer: {imp_count} Improvement(s) Applied",
+                        "message": f"Autonomous log analysis resolved {imp_count} diagnostic issue(s). Health score: {report.get('system_health_index')}/100.",
+                    }
+                ))
+            return report
+        except Exception as e:
+            logger.error("Proactive log scan error in FleetDaemon: %s", e, exc_info=True)
+            return {"status": "ERROR", "message": str(e)}
 
 
     def run_scheduled_pr_review(self, now: datetime = None):

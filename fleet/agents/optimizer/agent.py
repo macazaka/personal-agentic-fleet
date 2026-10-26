@@ -3,12 +3,18 @@ PC Optimizer Agent for Personal Agentic Fleet.
 Provides disk cleanup, RAM boosting, high-memory process management, and OS vitals.
 """
 
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from fleet.core.base_agent import FleetAgent
 from fleet.api import optimizer_api
 
 
 class OptimizerAgent(FleetAgent):
+    def __init__(self, agent_dir: Optional[Path] = None, *args, **kwargs):
+        if agent_dir is None:
+            agent_dir = Path(__file__).resolve().parent
+        super().__init__(agent_dir=agent_dir, *args, **kwargs)
+
     @property
     def id(self) -> str:
         return "optimizer"
@@ -72,6 +78,20 @@ class OptimizerAgent(FleetAgent):
         router.include_router(optimizer_api.router)
 
     def execute_task(self, task: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        if task == "scan_logs_and_heal":
+            from fleet.core.auto_healer import run_proactive_log_scan_and_heal
+            report = run_proactive_log_scan_and_heal()
+            return {
+                "status": "success",
+                "title": "🛠️ Proactive Log Scan & Self-Healing Complete",
+                "message": (
+                    f"Analyzed {report.get('logs_analyzed_count', 0)} logs, "
+                    f"resolved {report.get('improvements_applied_count', 0)} issue(s). "
+                    f"Health score: {report.get('system_health_index', 100.0)}/100."
+                ),
+                "report": report,
+            }
+
         from fleet.core.optimizer import flush_dns_cache, get_memory_status, optimize_ram
         res_opt = optimize_ram()
         res_dns = flush_dns_cache()

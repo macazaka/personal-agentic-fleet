@@ -1728,6 +1728,7 @@
         <button class="settings-nav-tab" id="settingsNavBtn_general" onclick="switchSettingsModalTab('general')">🌐 General & Automations</button>
         <button class="settings-nav-tab" id="settingsNavBtn_ai" onclick="switchSettingsModalTab('ai')">🧠 AI & Providers</button>
         <button class="settings-nav-tab" id="settingsNavBtn_backups" onclick="switchSettingsModalTab('backups')">💾 Backups & Maintenance</button>
+        <button class="settings-nav-tab" id="settingsNavBtn_autoheal" onclick="switchSettingsModalTab('autoheal')">🛠️ Auto-Healer & Logs</button>
       </div>
 
       <!-- Modal Body -->
@@ -1965,6 +1966,64 @@
                 <a href="/api/diagnostics/crashes" target="_blank" class="btn" style="font-size: 12px; text-decoration: none;">📄 Crash Reports JSON</a>
                 <a href="/api/logs?limit=50" target="_blank" class="btn" style="font-size: 12px; text-decoration: none;">📜 Activity Logs JSON</a>
                 <a href="/api/settings" target="_blank" class="btn" style="font-size: 12px; text-decoration: none;">⚙️ Settings Manifest JSON</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- View 5: Proactive Log Scanner & Autonomous Self-Healing -->
+        <div id="settingsView_autoheal" style="display: none;">
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div style="padding: 16px; background: rgba(0, 242, 254, 0.04); border: 1px solid rgba(0, 242, 254, 0.2); border-radius: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                  <strong style="font-size: 14px; color: var(--accent-cyan);">Proactive Log Scanner & Autonomous Self-Healing</strong>
+                  <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0 0;">
+                    Scans application & error logs, circular ring buffers, and crash dumps to autonomously detect contention, leaks, or loops and execute zero-token improvements.
+                  </p>
+                </div>
+                <button class="btn btn-primary" id="btnRunAutoHealNow" onclick="triggerProactiveLogScanNow()" style="white-space: nowrap;">
+                  🔍 Run Proactive Scan & Auto-Heal
+                </button>
+              </div>
+              <div id="autoHealNotice" style="margin-top: 10px; font-size: 12px;"></div>
+            </div>
+
+            <!-- Health & Scan Vitals -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;">
+              <div style="padding: 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--card-border); border-radius: 8px; text-align: center;">
+                <div style="font-size: 11px; color: var(--text-muted);">Health Index</div>
+                <div id="autoHealHealthScore" style="font-size: 20px; font-weight: 700; color: var(--accent-green); margin-top: 4px;">--/100</div>
+              </div>
+              <div style="padding: 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--card-border); border-radius: 8px; text-align: center;">
+                <div style="font-size: 11px; color: var(--text-muted);">Last Proactive Scan</div>
+                <div id="autoHealLastScanTime" style="font-size: 12px; font-weight: 600; color: var(--text); margin-top: 8px;">Pending</div>
+              </div>
+              <div style="padding: 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--card-border); border-radius: 8px; text-align: center;">
+                <div style="font-size: 11px; color: var(--text-muted);">Total Improvements</div>
+                <div id="autoHealTotalImprovements" style="font-size: 20px; font-weight: 700; color: var(--accent-cyan); margin-top: 4px;">0</div>
+              </div>
+            </div>
+
+            <!-- Historical Improvements Ledger Table -->
+            <div style="padding: 16px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--card-border); border-radius: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <strong style="font-size: 13.5px; color: var(--text);">Autonomous Improvements History</strong>
+                <button class="btn" style="font-size: 11px; padding: 3px 8px;" onclick="loadAutoImprovementsHistory()">🔄 Refresh</button>
+              </div>
+              <div id="autoImprovementsList" style="max-height: 240px; overflow-y: auto; font-size: 12px;">
+                <div style="color: var(--text-muted); text-align: center; padding: 20px;">Loading autonomous improvements ledger...</div>
+              </div>
+            </div>
+
+            <!-- Diagnostics Endpoints -->
+            <div style="padding: 16px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--card-border); border-radius: 8px;">
+              <strong style="font-size: 13.5px; color: var(--text);">Live Log & Diagnostic Streams</strong>
+              <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+                <a href="/api/diagnostics/log-analysis" target="_blank" class="btn" style="font-size: 11.5px; text-decoration: none;">🔍 Latest Scan Analysis JSON</a>
+                <a href="/api/diagnostics/auto-improvements" target="_blank" class="btn" style="font-size: 11.5px; text-decoration: none;">🛠️ Improvements Ledger JSON</a>
+                <a href="/api/diagnostics/errors" target="_blank" class="btn" style="font-size: 11.5px; text-decoration: none;">🚨 Isolated Error Log JSON</a>
+                <a href="/api/diagnostics/logs?min_level=INFO" target="_blank" class="btn" style="font-size: 11.5px; text-decoration: none;">📜 Structured Ring Buffer JSON</a>
               </div>
             </div>
           </div>

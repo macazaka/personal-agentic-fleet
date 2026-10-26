@@ -396,6 +396,30 @@ class BaseDatabase:
                     VALUES (?, ?, ?, ?, ?, ?)
                 """, sample_trends)
 
+            # Auto-Improvements Table for autonomous self-healing log triage
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS auto_improvements (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    scan_id TEXT NOT NULL,
+                    issue_type TEXT NOT NULL,
+                    severity TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    action_taken TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    metrics_before TEXT DEFAULT '{}',
+                    metrics_after TEXT DEFAULT '{}',
+                    created_at TEXT NOT NULL
+                )
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_auto_improvements_created
+                ON auto_improvements(created_at)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_auto_improvements_type_status
+                ON auto_improvements(issue_type, status)
+            """)
+
             conn.commit()
 
     def set_encrypted_setting(self, key: str, plaintext_value: str) -> None:

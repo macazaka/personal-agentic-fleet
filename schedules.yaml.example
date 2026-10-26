@@ -45,6 +45,16 @@ schedules:
     enabled: true
     notify: false
 
+  # Proactive log analysis and autonomous improvements
+  - id: optimizer_proactive_log_heal
+    agent: optimizer
+    task: scan_logs_and_heal
+    description: "Periodic scan of system & error logs with self-healing improvements"
+    schedule_type: interval
+    interval_hours: 1
+    enabled: true
+    notify: false
+
   # Enable Gmail Intelligence triage every 1 hour during business hours
   - id: gmail_sync_and_classify
     agent: gmail

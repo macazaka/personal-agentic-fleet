@@ -252,6 +252,11 @@ class DeterministicEventBus:
             return optimize_ram()
         elif action in ("OPEN_STARTUP", "OPEN_STARTUP_SETTINGS"):
             return open_startup_settings()
+        elif action in ("PROACTIVE_SCAN", "AUTO_HEAL", "RUN_AUTO_HEAL"):
+            from fleet.core.auto_healer import run_proactive_log_scan_and_heal
+            return run_proactive_log_scan_and_heal(db=self.db)
+        elif action == "PROACTIVE_SCAN_COMPLETE":
+            return {"status": "received", "data": p}
         else:
             raise ValueError(f"Unknown System action: {event.action}")
 

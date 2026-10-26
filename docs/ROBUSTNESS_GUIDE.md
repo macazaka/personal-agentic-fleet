@@ -180,6 +180,20 @@ Protects against upstream hyperscaler outages (Google Gemini, Azure OpenAI, AWS 
 - **Sanitized Forensics**: On unhandled crash, captures system architecture, thread dumps, memory footprint, and exception tracebacks while automatically scrubbing passwords, tokens, and PII.
 - **Persistent Crash Reports**: Writes diagnostic summaries to `fleet/data/crash_reports/crash_YYYYMMDD_HHMMSS.json`.
 
+### 5.3 Proactive Log Analysis & Autonomous Self-Healing Engine (`fleet/core/auto_healer.py`)
+- **Periodic Background Scanning**: Runs periodically every 15 minutes in `FleetDaemon` (and hourly via the Unified Agent Scheduler on `OptimizerAgent`), inspecting `fleet_app.log`, `fleet_error.log`, in-memory ring buffers, crash report dumps, and database task states.
+- **Deterministic Pattern Recognition Rules**:
+  1. *Database Contention & Lock Detection*: Detects `database is locked`, `SQLITE_BUSY`, and large WAL files (> 4 MB). Automatically triggers `PRAGMA wal_checkpoint(TRUNCATE)` and `PRAGMA optimize`.
+  2. *Log & Disk Bloat Detection*: Detects cumulative log files exceeding 15 MB and safely truncates error logs while strictly preserving recent history.
+  3. *Crash Dump Accumulation*: Detects crash reports older than 7 days or exceeding retention limits (> 10 files) and prunes stale crash dumps.
+  4. *Rate Limiting / 429 Throttle Spikes*: Identifies HTTP 429 errors and automatically configures adaptive rate-limit backoff multipliers (`adaptive_rate_limit_backoff_sec`).
+  5. *Task Failure Loop Quarantine*: Detects repeated task execution failures in the database, automatically quarantining problematic jobs and applying backoff delays to prevent infinite loops.
+  6. *Memory Pressure & Resource Sweeps*: Detects process working set pressure (> 450 MB) and triggers Python GC generation 2 and native Windows working set sweeps (`EmptyWorkingSet`).
+  7. *Runtime Warnings Interception*: Monitors Python `py.warnings` stream for resource warnings and flushes unreferenced handles.
+- **Auditable Improvements Ledger**: Persists all self-healing actions, timestamps, and before/after metrics to the SQLite `auto_improvements` table (via Migration v4) and the persistent JSON file `fleet/data/auto_improvements.json`.
+- **System Health Index**: Computes an objective 0–100 health score with severity-weighted deductions (`CRITICAL`: 35, `HIGH`: 20, `MEDIUM`: 10, `LOW`: 3).
+- **Control Center & REST APIs**: Provides `GET /api/diagnostics/log-analysis`, `POST /api/diagnostics/log-analysis/run`, `GET /api/diagnostics/auto-improvements`, and CLI tool `python -m fleet.tools.auto_healer`.
+
 ---
 
 ## 6. Pillar 6: Hardware & Power State Awareness
@@ -231,6 +245,9 @@ python -m fleet.tools.test_runner
 | :--- | :---: | :--- |
 | `/api/diagnostics/logs` | `GET` | Fetches the in-memory ring buffer of recent structured logs (supports `?limit=100&min_level=WARNING&search=term`) |
 | `/api/diagnostics/errors` | `GET` | Dedicated error forensics endpoint retrieving recent failures from ring buffer and `fleet_error.log` |
+| `/api/diagnostics/log-analysis` | `GET` | Returns latest proactive log scan triage, issue findings, and system health index |
+| `/api/diagnostics/log-analysis/run` | `POST` | Triggers immediate on-demand proactive log scan and autonomous self-healing improvements |
+| `/api/diagnostics/auto-improvements` | `GET` | Historical ledger of automated self-healing improvements executed by the system |
 | `/api/events/stream` | `GET` | Server-Sent Events push stream for real-time fleet events |
 | `/api/optimizer/diagnostics` | `GET` | Returns physical RAM usage, CPU load, and top process metrics |
 | `/api/settings/health` | `GET` | Microkernel uptime, database size, and active worker thread status |

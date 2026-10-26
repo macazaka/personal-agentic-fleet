@@ -19,6 +19,10 @@ All responses return standard JSON with `Content-Type: application/json` unless 
 | `GET` | `/api/logs` | Returns recent system and audit activities. | Query: `limit=15` | `[{"id": 1, "agent": "...", "action": "...", "timestamp": "..."}]` |
 | `GET` | `/api/diagnostics/logs` | Returns recent structured JSON telemetry from the in-memory ring buffer. | Query: `limit=100`, `min_level=WARNING`, `level=ERROR`, `agent=...`, `search=...` | `{"status": "success", "logs": [...], "count": 10}` |
 | `GET` | `/api/diagnostics/errors` | Error isolation endpoint returning recent warnings, errors, and failures from memory and disk. | Query: `limit=50`, `source=ring\|disk\|both` | `{"status": "success", "ring_buffer_errors": [...], "disk_error_log": [...], "count": 2}` |
+| `GET` | `/api/diagnostics/log-analysis` | Returns latest proactive log scan triage, active diagnostic issues, and system health index. | None | `{"status": "success", "report": {"scan_id": "...", "system_health_index": 100.0, "findings": [...]}}` |
+| `POST` | `/api/diagnostics/log-analysis/run` | Triggers immediate on-demand proactive log scan and autonomous self-healing improvements. | `{}` | `{"status": "success", "report": {"scan_id": "...", "improvements_applied_count": 1, ...}}` |
+| `GET` | `/api/diagnostics/auto-improvements` | Historical ledger of automated self-healing improvements executed by the system. | Query: `limit=50` | `{"status": "success", "improvements": [...], "stats": {...}, "count": 12}` |
+| `GET` | `/api/diagnostics/crashes` | Lists recorded sanitized crash forensic dump reports in `fleet/data/crash_reports/`. | None | `{"status": "success", "reports": [...], "count": 3}` |
 
 ---
 
