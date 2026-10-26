@@ -137,6 +137,12 @@ class SystemMixin:
             """, (key, value))
             conn.commit()
 
+    def get_all_settings(self) -> Dict[str, str]:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT key, value FROM settings ORDER BY key ASC")
+            return {row["key"]: row["value"] for row in cursor.fetchall()}
+
     # --- Chat Message Queue ---
     def enqueue_chat_message(self, prompt: str, images: Optional[List[str]] = None,
                              model: str = "gemini-3.8-flash-high") -> int:

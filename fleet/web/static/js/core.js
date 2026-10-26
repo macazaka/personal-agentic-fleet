@@ -55,7 +55,9 @@
       const viewOptimizer = document.getElementById('viewOptimizer');
 
       // Reset tabs
-      [tabOverview, tabAg, tabHealth, tabBacklog, tabOptimizer].forEach(b => { if (b) b.classList.remove('active'); });
+      document.querySelectorAll('.nav-tab').forEach(b => { if (b) b.classList.remove('active'); });
+      const dynTabBtn = document.getElementById('tabBtn_' + tab);
+      if (dynTabBtn) dynTabBtn.classList.add('active');
       // Reset views
       if (viewOverview) viewOverview.style.display = 'none';
       if (viewAg) viewAg.style.display = 'none';

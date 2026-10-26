@@ -44,6 +44,8 @@ class AgentRegistry:
         self.event_bus = event_bus
         self.db = db
         self.agents: Dict[str, FleetAgent] = {}
+        self.disabled_agents: Dict[str, FleetAgent] = {}
+        self._all_discovered_agents: Dict[str, FleetAgent] = {}
 
         # User custom agents directory (persisted and git-ignored)
         if custom_agents_dir is not None:
@@ -124,18 +126,21 @@ class AgentRegistry:
                 user_overrides = persisted_overrides.get(agent_id, {})
                 agent_cfg = {**base_cfg, **user_overrides}
 
-                # If explicitly disabled, skip
-                if agent_cfg.get("enabled") is False:
-                    logger.info(f"Agent '{agent_id}' is disabled in configuration.")
-                    continue
-
                 try:
                     agent_instance = self._load_agent_from_file(agent_file, item, agent_cfg, module_prefix)
                     if agent_instance:
+                        self._all_discovered_agents[agent_instance.id] = agent_instance
                         if default_agent_id == agent_instance.id or agent_cfg.get("is_default"):
                             agent_instance._override_default = True
-                        self.agents[agent_instance.id] = agent_instance
-                        logger.info(f"Loaded Fleet Agent: {agent_instance.display_name} [{agent_instance.id}]")
+
+                        if agent_cfg.get("enabled") is False:
+                            agent_instance.enabled = False
+                            self.disabled_agents[agent_instance.id] = agent_instance
+                            logger.info(f"Agent '{agent_id}' is disabled in configuration.")
+                        else:
+                            agent_instance.enabled = True
+                            self.agents[agent_instance.id] = agent_instance
+                            logger.info(f"Loaded Fleet Agent: {agent_instance.display_name} [{agent_instance.id}]")
                 except Exception as e:
                     logger.error(f"Failed to load agent from {agent_file}: {e}", exc_info=True)
 
@@ -177,7 +182,7 @@ class AgentRegistry:
         Dynamically customizes any loaded agent at runtime and persists overrides
         to fleet/data/user/agent_overrides.json.
         """
-        agent = self.agents.get(agent_id)
+        agent = self.agents.get(agent_id) or self.disabled_agents.get(agent_id) or self._all_discovered_agents.get(agent_id)
         if not agent:
             raise KeyError(f"Agent '{agent_id}' not found.")
 
@@ -200,9 +205,19 @@ class AgentRegistry:
         # Apply to live agent
         agent.update_config(filtered_updates)
 
+        if "enabled" in filtered_updates:
+            is_enabled = bool(filtered_updates["enabled"])
+            agent.enabled = is_enabled
+            if is_enabled:
+                self.agents[agent_id] = agent
+                self.disabled_agents.pop(agent_id, None)
+            else:
+                self.disabled_agents[agent_id] = agent
+                self.agents.pop(agent_id, None)
+
         # Handle is_default tab override
         if filtered_updates.get("is_default"):
-            for other_id, other_agent in self.agents.items():
+            for other_id, other_agent in self._all_discovered_agents.items():
                 if other_id != agent_id:
                     other_agent._override_default = False
 
@@ -217,7 +232,7 @@ class AgentRegistry:
 
     def reset_agent(self, agent_id: str) -> Dict[str, Any]:
         """Resets an agent's configuration back to built-in defaults."""
-        agent = self.agents.get(agent_id)
+        agent = self.agents.get(agent_id) or self.disabled_agents.get(agent_id) or self._all_discovered_agents.get(agent_id)
         if not agent:
             raise KeyError(f"Agent '{agent_id}' not found.")
 
@@ -229,6 +244,12 @@ class AgentRegistry:
         yaml_cfg = self.config.get("agents", {}).get(agent_id, {})
         agent.config = dict(yaml_cfg)
         agent.enabled = bool(agent.config.get("enabled", True))
+        if agent.enabled:
+            self.agents[agent_id] = agent
+            self.disabled_agents.pop(agent_id, None)
+        else:
+            self.disabled_agents[agent_id] = agent
+            self.agents.pop(agent_id, None)
         agent.on_config_updated()
         return agent.get_ui_manifest()
 
@@ -334,13 +355,14 @@ class {class_name}(FleetAgent):
         )
         if agent_instance:
             self.agents[clean_id] = agent_instance
+            self._all_discovered_agents[clean_id] = agent_instance
             return agent_instance.get_ui_manifest()
 
         raise RuntimeError(f"Failed to load newly created agent '{clean_id}'")
 
     def register_all_routes(self, router) -> None:
         """Registers API routes for all loaded agents and registry management."""
-        for agent in self.agents.values():
+        for agent in self._all_discovered_agents.values() if self._all_discovered_agents else self.agents.values():
             try:
                 agent.register_routes(router)
             except Exception as e:
@@ -349,7 +371,9 @@ class {class_name}(FleetAgent):
         # Core registry endpoints
         @router.get("/api/fleet/agents")
         def get_agents_manifest(handler: Any, parsed_url: urllib.parse.ParseResult):
-            manifests = self.get_manifests()
+            query = urllib.parse.parse_qs(parsed_url.query)
+            include_all = query.get("all", ["false"])[0].lower() in ("true", "1")
+            manifests = self.get_manifests(include_disabled=include_all)
             handler._send_json({"status": "ok", "count": len(manifests), "agents": manifests})
 
         @router.get_prefix("/api/fleet/agents/")
@@ -366,7 +390,7 @@ class {class_name}(FleetAgent):
                 handler.send_error(400, "Invalid agent identifier")
                 return
 
-            agent = self.agents.get(agent_id)
+            agent = self.get_agent(agent_id)
             if not agent:
                 handler.send_error(404, f"Agent '{agent_id}' not found")
                 return
@@ -475,11 +499,12 @@ class {class_name}(FleetAgent):
             except Exception as e:
                 logger.error(f"Error shutting down agent '{agent.id}': {e}")
 
-    def get_manifests(self) -> List[Dict[str, Any]]:
+    def get_manifests(self, include_disabled: bool = False) -> List[Dict[str, Any]]:
         """Returns sorted list of agent UI manifests for dynamic dashboard rendering."""
         manifests = []
-        for agent in self.agents.values():
-            if not agent.enabled:
+        source_dict = self._all_discovered_agents if include_disabled else self.agents
+        for agent in source_dict.values():
+            if not include_disabled and not agent.enabled:
                 continue
             m = agent.get_ui_manifest()
             if getattr(agent, "_override_default", False):
@@ -489,4 +514,4 @@ class {class_name}(FleetAgent):
         return manifests
 
     def get_agent(self, agent_id: str) -> Optional[FleetAgent]:
-        return self.agents.get(agent_id)
+        return self.agents.get(agent_id) or self.disabled_agents.get(agent_id) or self._all_discovered_agents.get(agent_id)

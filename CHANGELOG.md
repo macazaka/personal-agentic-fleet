@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.5.0] - 2026-10-26
+
+### Added
+- **Browser-Based Fleet Settings & Universal Agent Customizer**:
+  - **Top Navigation Settings Icon (`⚙️`)**:
+    - Embedded accessible settings trigger button into the dashboard header actions, providing 1-click modal configuration for all agents and system settings directly in the browser.
+  - **Centralized Settings & Dynamic Customization Modal**:
+    - **Tab 1: Agents & Extensions**:
+      - Live inventory of all built-in and user custom agents (`overview`, `health`, `antigravity`, `backlog`, `optimizer`, `gmail`, `pr_review`, and custom agents).
+      - Instant Active/Inactive toggle switches with optimistic UI update and dynamic navigation tab re-rendering in real time without page reload.
+      - Inline configuration drawers per agent: customize Display Name, Emoji/SVG Icon, Tab Sort Order, LLM Hyperscaler Provider (`auto`, `google`, `anthropic`, `microsoft`, `aws`, `ollama`), LLM Model Tier, Custom System Prompts, and Default Tab designation.
+      - 1-click "+ New Custom Agent" form generating isolated custom agents in the private user vault.
+      - "Reset to Defaults" button restoring factory built-in configurations.
+    - **Tab 2: General & Automations**:
+      - Timezone selector supporting Indian Standard Time (IST, UTC+05:30), UTC, EST, PST, GMT, and JST.
+      - Proactive desktop notifications toggle with configurable Quiet Hours window.
+      - Cost & Inference Policy selector (`PREFER_ZERO_TOKEN_CODE`, `LOWEST_COST_FIRST`, `HIGHEST_REASONING_QUALITY`).
+      - Dashboard color theme selector.
+    - **Tab 3: AI & Hyperscaler Providers**:
+      - Central default gateway provider and model selector.
+      - Local Ollama Base URL configuration with live "Test Ping" connectivity tester.
+    - **Tab 4: Backups & System Maintenance**:
+      - Instant Point-in-Time SQLite Database Snapshot creator (`POST /api/settings/backup/snapshot`).
+      - Direct access links to structured Activity Logs, Crash Reports forensics, and Settings Manifest JSON.
+  - **Backend Settings API & Agent Lifecycle Subsystem (`fleet/api/settings_api.py`)**:
+    - `GET /api/settings`: Serves merged system settings and all discovered agent manifests with enabled/disabled counts.
+    - `POST /api/settings`: Atomically persists key-value system preferences to the SQLite `settings` table.
+    - `POST /api/settings/agents/toggle`: Dynamically activates/deactivates agents at runtime with state persistence to `agent_overrides.json`.
+    - `POST /api/settings/agents/customize`: Updates agent display, prompt, and routing configuration at runtime.
+    - `POST /api/settings/agents/reset`: Reverts agent customizations to factory defaults.
+    - `POST /api/settings/backup/snapshot`: Creates timestamped SQLite database backups in `fleet/data/backups/`.
+  - **Enhanced Agent Discovery & Concurrency Contract (`fleet/core/registry.py`)**:
+    - Registry loads and tracks all discovered agents across both active and inactive states (`_all_discovered_agents`, `disabled_agents`).
+    - Extended `get_manifests(include_disabled: bool)` supporting both active tab navigation rendering and full settings inventory inspection.
+  - **Automated Test Suite**:
+    - Added comprehensive unit tests in `tests/test_settings_api.py` covering settings retrieval, updating, agent activation toggling, customization, resetting, and backup snapshots.
+    - Test suite expanded to **190 tests passing** across 37 test suites with 100/100 security score.
+
+---
+
 ## [2.4.0] - 2026-10-26
 
 ### Added

@@ -14,6 +14,7 @@ import fleet.api.optimizer_api
 import fleet.api.antigravity_api
 import fleet.api.system_api
 import fleet.api.hyperscalers_api
+import fleet.api.settings_api
 
 __all__ = ["router"]
 

@@ -18,6 +18,19 @@ from fleet.config import DATA_DIR, DB_PATH
 
 logger = logging.getLogger("fleet.lifecycle")
 
+
+def _safe_log(msg: str, level: str = "info"):
+    try:
+        import logging as _l
+        for h in list(_l.root.handlers) + list(logger.handlers):
+            stream = getattr(h, "stream", None)
+            if stream and getattr(stream, "closed", False):
+                return
+        getattr(logger, level)(msg)
+    except Exception:
+        pass
+
+
 PID_FILE = DATA_DIR / "fleet.pid"
 SHUTDOWN_EVENT = threading.Event()
 
@@ -67,16 +80,14 @@ def checkpoint_sqlite_wal(db_path: Path = DB_PATH) -> bool:
 
 def execute_clean_shutdown(exit_code: int = 0) -> None:
     """Coordinates the 3-second structured clean shutdown sequence."""
+    logging.raiseExceptions = False
     global _SHUTDOWN_TRIGGERED
     with _LOCK:
         if _SHUTDOWN_TRIGGERED:
             return
         _SHUTDOWN_TRIGGERED = True
 
-    try:
-        logger.info("Initiating Fleet clean shutdown protocol...")
-    except Exception:
-        pass
+    _safe_log("Initiating Fleet clean shutdown protocol...")
     SHUTDOWN_EVENT.set()
 
     # 1. Execute registered shutdown callbacks
@@ -102,10 +113,7 @@ def execute_clean_shutdown(exit_code: int = 0) -> None:
     # 4. Remove PID lock
     remove_pid_file()
 
-    try:
-        logger.info("Fleet shutdown complete.")
-    except Exception:
-        pass
+    _safe_log("Fleet shutdown complete.")
 
 
 # Signal Handlers

@@ -70,10 +70,12 @@ async function initDynamicAgentTabs() {
           }
         });
 
-        // Activate default tab
-        const defaultAgent = data.agents.find(a => a.is_default) || data.agents[0];
-        if (defaultAgent) {
-          switchTab(defaultAgent.id);
+        // Keep currently selected tab if still active, otherwise fallback to default
+        const currentActive = (typeof currentTab !== 'undefined') ? currentTab : '';
+        const stillActive = data.agents.find(a => a.id === currentActive);
+        const targetAgent = stillActive || data.agents.find(a => a.is_default) || data.agents[0];
+        if (targetAgent && typeof switchTab === 'function') {
+          switchTab(targetAgent.id);
         }
       }
     }

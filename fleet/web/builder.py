@@ -18,12 +18,14 @@ JS_LOAD_ORDER = [
     "briefing.js",
     "tasks.js",
     "routines.js",
+    "schedules.js",
     "emails.js",
     "antigravity.js",
     "tests.js",
     "backlog.js",
     "optimizer.js",
     "health.js",
+    "settings.js",
     "app.js",
 ]
 
