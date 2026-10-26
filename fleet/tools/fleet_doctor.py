@@ -40,7 +40,11 @@ def harden_user_vault_permissions(vault_dir: Path = USER_VAULT_DIR) -> Dict[str,
     logged-in user (and OS system/admin accounts on Windows) can read or write files.
     Runs completely hidden (CREATE_NO_WINDOW) on Windows.
     """
-    vault_dir.mkdir(parents=True, exist_ok=True)
+    if not vault_dir.exists():
+        try:
+            vault_dir.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
     if os.name == "nt":
         username = os.environ.get("USERNAME") or ""
         if not username:

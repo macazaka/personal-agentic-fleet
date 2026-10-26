@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof fetchBriefing === 'function') fetchBriefing();
   if (typeof fetchTasks === 'function') fetchTasks();
   if (typeof fetchRoutines === 'function') fetchRoutines();
+  if (typeof fetchSchedules === 'function') fetchSchedules();
   if (typeof fetchEmails === 'function') fetchEmails();
   if (typeof fetchLogs === 'function') fetchLogs();
   if (typeof fetchTestResults === 'function') fetchTestResults();
@@ -23,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof fetchBriefing === 'function') fetchBriefing();
     if (typeof fetchTasks === 'function') fetchTasks();
     if (typeof fetchRoutines === 'function') fetchRoutines();
+    if (typeof fetchSchedules === 'function') fetchSchedules();
     if (typeof fetchLogs === 'function') fetchLogs();
     if (typeof fetchTestResults === 'function') fetchTestResults();
     if (typeof fetchAgentQueue === 'function') fetchAgentQueue();

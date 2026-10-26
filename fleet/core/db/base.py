@@ -42,7 +42,12 @@ class BaseDatabase:
     def _get_connection(self) -> sqlite3.Connection:
         effective = get_effective_db_path(self._custom_db_path)
         self.db_path = effective
-        conn = sqlite3.connect(self.db_path)
+        if not self.db_path.parent.exists():
+            try:
+                self.db_path.parent.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                pass
+        conn = sqlite3.connect(self.db_path, timeout=10.0)
         conn.row_factory = sqlite3.Row
         try:
             conn.execute("PRAGMA synchronous = NORMAL")

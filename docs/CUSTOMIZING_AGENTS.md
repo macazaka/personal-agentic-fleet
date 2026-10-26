@@ -311,6 +311,22 @@ schedules:
 
 ---
 
+## ⚡ Method 5: 1-Command Agent Scaffolding CLI (`fleet.tools.create_agent`)
+
+To instantly bootstrap a fully isolated, production-grade agent package without writing boilerplate manually, use the built-in Fleet Agent Scaffolder CLI:
+
+```powershell
+# Scaffold a custom agent package with 1 command
+python -m fleet.tools.create_agent --id crypto_portfolio --name "Crypto Portfolio" --icon "🪙" --permissions "db:read,ui:render" --description "Real-time hardware wallet and portfolio tracker."
+```
+
+### What It Generates Automatically:
+1. **`fleet/agents/<agent_id>/manifest.json`**: Least-privilege capability contract pre-validated against `ALLOWED_AGENT_PERMISSIONS`.
+2. **`fleet/agents/<agent_id>/agent.py`**: Subclasses [`FleetAgent`](../fleet/core/base_agent.py), wires properties, route registration hooks, and scheduled task execution handler `execute_task(task, payload)`.
+3. **`fleet/agents/<agent_id>/ui/panel.html`**: Clean dashboard UI card rendering declared permissions badge and component shell.
+
+---
+
 ## 🔒 Package Isolation Invariants Checklist
 
 When customizing or creating agents, ensure:

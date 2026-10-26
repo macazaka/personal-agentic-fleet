@@ -1,0 +1,45 @@
+name: 🤖 Agent Package Proposal
+description: Propose a new plug-and-play agent package for `fleet/agents/`.
+title: "[AGENT]: "
+labels: ["agent", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Personal Agentic Fleet uses modular, isolated agent packages. Propose a new agent for the ecosystem below.
+  - type: input
+    id: agent-id
+    attributes:
+      label: Agent Identifier
+      description: Lowercase alphanumeric ID (e.g. weather, finance, notion).
+      placeholder: weather
+    validations:
+      required: true
+  - type: input
+    id: display-name
+    attributes:
+      label: Display Name & Emoji
+      description: User-facing name and icon.
+      placeholder: 🌦️ Weather & Air Quality
+    validations:
+      required: true
+  - type: checkboxes
+    id: permissions
+    attributes:
+      label: Declared Least-Privilege Capabilities
+      description: Which permissions from `ALLOWED_AGENT_PERMISSIONS` will this agent require?
+      options:
+        - label: "db:read (Read database tables)"
+        - label: "db:write (Mutate database tables)"
+        - label: "ui:render (Provide custom UI pane)"
+        - label: "system:exec (Execute local OS commands)"
+        - label: "network:outbound (Perform outbound HTTP requests)"
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Value & Use Case
+      description: What daily routine, health goal, or workflow automation does this agent deliver?
+      placeholder: Tracks local weather metrics and informs morning akhada schedule...
+    validations:
+      required: true
+

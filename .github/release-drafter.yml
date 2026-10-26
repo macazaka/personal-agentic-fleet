@@ -1,0 +1,29 @@
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+categories:
+  - title: '🚀 Features & Agent Capabilities'
+    labels:
+      - 'feature'
+      - 'enhancement'
+      - 'agent'
+  - title: '🐛 Bug Fixes & Stability'
+    labels:
+      - 'fix'
+      - 'bug'
+  - title: '🛡️ Security & Privacy Hardening'
+    labels:
+      - 'security'
+      - 'hardening'
+  - title: '📚 Documentation & Architecture'
+    labels:
+      - 'documentation'
+      - 'docs'
+  - title: '⚙️ CI/CD, Build & Tooling'
+    labels:
+      - 'ci'
+      - 'dependencies'
+change-template: '- $TITLE (#$NUMBER) by @$AUTHOR'
+template: |
+  ## What's Changed
+  $CHANGES
+

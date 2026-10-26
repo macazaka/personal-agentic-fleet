@@ -1,6 +1,6 @@
 # Personal Agentic Fleet — Complete 10-Layer Security Architecture & Automated Scanning Guide
 
-This document details the complete **10-Layer Defense-in-Depth Security Architecture** of **Personal Agentic Fleet**, all Phase 1 & Phase 2 security modules implemented across the microkernel and plugins, and the **3-Tier Automated Security Scanning Pipeline**.
+This document details the complete **12-Layer Defense-in-Depth Security Architecture** of **Personal Agentic Fleet**, all Phase 1 & Phase 2 security modules implemented across the microkernel and plugins, and the **3-Tier Automated Security Scanning Pipeline**.
 
 ---
 
@@ -86,9 +86,9 @@ Every enhancement below is live in the repository and continuously verified by t
 
 ---
 
-## 3. The 10-Layer Automated Security & Privacy Scanner (`$0.00` Token Cost)
+## 3. The 12-Layer Automated Security & Privacy Scanner (`$0.00` Token Cost)
 
-Located at [`fleet/tools/security_scanner.py`](../fleet/tools/security_scanner.py), the scanner executes 10 deterministic checks:
+Located at [`fleet/tools/security_scanner.py`](../fleet/tools/security_scanner.py), the scanner executes 12 deterministic checks:
 
 | Layer | Check ID | What It Audits |
 | :--- | :--- | :--- |
@@ -102,12 +102,14 @@ Located at [`fleet/tools/security_scanner.py`](../fleet/tools/security_scanner.p
 | **8** | `csp_csrf_dns_guard` | Verifies `Content-Security-Policy`, `Permissions-Policy`, and `validate_request_security` in `fleet/server.py`. |
 | **9** | `plugin_sandbox_audit` | Audits all `fleet/agents/*/manifest.json` files for valid least-privilege `permissions` declarations. |
 | **10** | `supply_chain_sbom` | Verifies `.github/dependabot.yml` and CycloneDX v1.5 SBOM generator (`fleet/tools/sbom_generator.py`). |
+| **11** | `darwin_keychain_vault` | Audits Apple Keychain Services CLI (`/usr/bin/security`) integration and strict POSIX `0600` permissions on Darwin. |
+| **12** | `launchagents_audit` | Inspects macOS LaunchAgents (`~/Library/LaunchAgents`, `/Library/LaunchAgents`) for unapproved persistence daemons. |
 
 ---
 
 ## 4. Automatic Security Scan Schedule (3-Tier Cadence + Dashboard Badge)
 
 1. **Tier 1 — Hourly Background Daemon (`fleet/daemon.py`)**: Runs `run_scheduled_security_scan()` every **60 minutes** and dispatches a Windows Toast alert if any finding is detected.
-2. **Tier 2 — Local Git Pre-Commit & Pre-Push Hooks (`.git/hooks/pre-commit` & `pre-push`)**: Automatically runs all 10 security layers before every `git commit` and `git push`, blocking the operation on any failure.
+2. **Tier 2 — Local Git Pre-Commit & Pre-Push Hooks (`.git/hooks/pre-commit` & `pre-push`)**: Automatically runs all 12 security layers before every `git commit` and `git push`, blocking the operation on any failure.
 3. **Tier 3 — Daily GitHub Actions Cron & PR Gate (`.github/workflows/security.yml`)**: Runs daily at **00:00 UTC** and on every push/pull request.
-4. **Live Dashboard Header Badge (`🛡️ Security: 100/100`)**: Displayed in the top header of `http://127.0.0.1:7890`—click anytime to trigger a live 10-layer scan from the browser.
+4. **Live Dashboard Header Badge (`🛡️ Security: 100/100`)**: Displayed in the top header of `http://127.0.0.1:7890`—click anytime to trigger a live 12-layer scan from the browser.

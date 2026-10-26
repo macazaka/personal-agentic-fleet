@@ -1,0 +1,71 @@
+name: 🐛 Bug Report
+description: File a reproducible bug report to help improve Personal Agentic Fleet.
+title: "[BUG]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug. Please ensure you are running the latest version of Personal Agentic Fleet and verify your issue against `docs/PREREQUISITES_AND_OS.md`.
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: What operating system are you running Fleet on?
+      options:
+        - Windows 11 (64-bit)
+        - Windows 10 (64-bit, v1903+)
+        - macOS (14 Sonoma / 15 Sequoia - Apple Silicon)
+        - macOS (12 Monterey / 13 Ventura - Intel)
+        - Ubuntu Linux (20.04 / 22.04 / 24.04 LTS)
+        - Other Linux Distribution
+    validations:
+      required: true
+  - type: dropdown
+    id: python-version
+    attributes:
+      label: Python Runtime Version
+      description: Which Python version are you using?
+      options:
+        - Python 3.12 (Recommended)
+        - Python 3.11
+        - Python 3.10
+        - Python 3.13 / 3.14
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Bug
+      description: A clear and concise description of what the bug is.
+      placeholder: When I execute...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps To Reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Run `python -m fleet.app`
+        2. Navigate to `http://127.0.0.1:7890`
+        3. Click on ...
+        4. See error in console
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Log Output
+      description: Please copy and paste any relevant logs from `fleet/data/fleet_app.log` or console output.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-Submission Checklist
+      options:
+        - label: I have verified this is not a duplicate issue.
+          required: true
+        - label: I have not included any sensitive API keys, passwords, or personal health records in this issue.
+          required: true
+

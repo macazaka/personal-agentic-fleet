@@ -114,7 +114,11 @@ def _load_pii_blocklist() -> List[str]:
     Loads user-specific confidential terms from fleet/data/user/pii_blocklist.json
     (which is git-ignored) so personal names/identifiers are never hardcoded in the scanner itself!
     """
-    USER_VAULT_DIR.mkdir(parents=True, exist_ok=True)
+    if not USER_VAULT_DIR.exists():
+        try:
+            USER_VAULT_DIR.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
     blocklist_file = USER_VAULT_DIR / "pii_blocklist.json"
     if not blocklist_file.exists():
         # Initialize default local blocklist from OS username if available
@@ -417,7 +421,11 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
     # Check 6: Isolated User Data Vault Verification
     # -------------------------------------------------------------------------
     vault_hits = []
-    USER_VAULT_DIR.mkdir(parents=True, exist_ok=True)
+    if not USER_VAULT_DIR.exists():
+        try:
+            USER_VAULT_DIR.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
     if not USER_VAULT_DIR.is_dir():
         hit = {
             "severity": "MEDIUM",

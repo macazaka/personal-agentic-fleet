@@ -29,6 +29,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Added MCP tools: `fleet_list_schedules`, `fleet_toggle_schedule`, `fleet_run_scheduled_task`.
   - **Automated Test Coverage**:
     - Comprehensive unit and integration test suites: `tests/test_yaml_helper.py` (4 tests) and `tests/test_scheduler.py` (11 tests), plus REST API test coverage in `tests/test_server.py`.
+- **Interactive Visual Schedule Manager in Web Dashboard**:
+  - Live visual schedule card in Overview tab (`fleet/web/templates/dashboard.html`) powered by `fleet/web/static/js/schedules.js`.
+  - Displays real-time agent schedule badges, timing descriptions, status counters, one-click pause/resume toggles (`/api/schedules/toggle`), and instant manual task triggers (`/api/schedules/run`).
+- **1-Command Agent Scaffolding CLI (`fleet/tools/create_agent.py`)**:
+  - Added CLI tool to instantly bootstrap new isolated agent packages with manifest permissions verification, backend class structure, and UI panels.
+  - Added comprehensive test suite in `tests/test_create_agent.py` (5 tests).
+- **GitHub Packages & Container Distribution (`ghcr.io`)**:
+  - Added multi-stage, rootless `Dockerfile` and `.dockerignore` running under unprivileged user `fleet:fleet` (UID 10001).
+  - Added `.github/workflows/package.yml` to automatically build and publish container images to GitHub Container Registry (`ghcr.io`) at zero cost.
+- **Automated GitHub Releases Pipeline**:
+  - Added `.github/workflows/release.yml` to automatically build wheel/sdist packages, generate CycloneDX SBOMs and SHA-256 checksums, and publish GitHub releases on tag push `v*.*.*`.
+- **GitHub CodeQL Static Security Analysis**:
+  - Added `.github/workflows/codeql.yml` to automatically run GitHub CodeQL static analysis and surface vulnerabilities on the native Security tab.
+- **Interactive GitHub YAML Issue Forms & Pages Portal**:
+  - Migrated issue templates to interactive YAML forms (`.github/ISSUE_TEMPLATE/*.yml`) with OS dropdown selectors and added `config.yml` linking to security reporting and community discussions.
+  - Added `.github/workflows/pages.yml` to automatically deploy documentation to GitHub Pages.
 
 ---
 
