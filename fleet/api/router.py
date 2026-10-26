@@ -3,8 +3,12 @@ Lightweight Router for Personal Agentic Fleet.
 Enables domain-specific API route registration.
 """
 
+import inspect
+import logging
 from typing import Any, Callable, Dict, List, Tuple
 import urllib.parse
+
+logger = logging.getLogger("fleet.api.router")
 
 
 class ApiRouter:
@@ -60,18 +64,41 @@ class ApiRouter:
         # 1. Exact match
         fn = self.get_routes.get(path)
         if fn:
-            fn(handler, parsed_url)
+            try:
+                fn(handler, parsed_url)
+            except Exception as e:
+                logger.error(
+                    "Unhandled exception in API GET %s: %s",
+                    path, e,
+                    exc_info=True,
+                    extra={"action": "api_dispatch_get_error", "agent": "ApiRouter"}
+                )
+                if hasattr(handler, "_send_json"):
+                    handler._send_json({"status": "error", "message": f"Internal API error: {e}"}, status=500)
+                else:
+                    handler.send_error(500, f"Internal API Error: {e}")
             return True
 
         # 2. Prefix match
         for prefix, prefix_fn in self.get_prefix_routes:
             if path.startswith(prefix):
-                import inspect
                 sig = inspect.signature(prefix_fn)
-                if len(sig.parameters) >= 3:
-                    prefix_fn(handler, path, parsed_url)
-                else:
-                    prefix_fn(handler, parsed_url)
+                try:
+                    if len(sig.parameters) >= 3:
+                        prefix_fn(handler, path, parsed_url)
+                    else:
+                        prefix_fn(handler, parsed_url)
+                except Exception as e:
+                    logger.error(
+                        "Unhandled exception in API GET prefix %s for path %s: %s",
+                        prefix, path, e,
+                        exc_info=True,
+                        extra={"action": "api_dispatch_get_prefix_error", "agent": "ApiRouter"}
+                    )
+                    if hasattr(handler, "_send_json"):
+                        handler._send_json({"status": "error", "message": f"Internal API error: {e}"}, status=500)
+                    else:
+                        handler.send_error(500, f"Internal API Error: {e}")
                 return True
 
         return False
@@ -80,18 +107,41 @@ class ApiRouter:
         # 1. Exact match
         fn = self.post_routes.get(path)
         if fn:
-            fn(handler, body)
+            try:
+                fn(handler, body)
+            except Exception as e:
+                logger.error(
+                    "Unhandled exception in API POST %s: %s",
+                    path, e,
+                    exc_info=True,
+                    extra={"action": "api_dispatch_post_error", "agent": "ApiRouter"}
+                )
+                if hasattr(handler, "_send_json"):
+                    handler._send_json({"status": "error", "message": f"Internal API error: {e}"}, status=500)
+                else:
+                    handler.send_error(500, f"Internal API Error: {e}")
             return True
 
         # 2. Prefix match
         for prefix, prefix_fn in self.post_prefix_routes:
             if path.startswith(prefix):
-                import inspect
                 sig = inspect.signature(prefix_fn)
-                if len(sig.parameters) >= 3:
-                    prefix_fn(handler, path, body)
-                else:
-                    prefix_fn(handler, body)
+                try:
+                    if len(sig.parameters) >= 3:
+                        prefix_fn(handler, path, body)
+                    else:
+                        prefix_fn(handler, body)
+                except Exception as e:
+                    logger.error(
+                        "Unhandled exception in API POST prefix %s for path %s: %s",
+                        prefix, path, e,
+                        exc_info=True,
+                        extra={"action": "api_dispatch_post_prefix_error", "agent": "ApiRouter"}
+                    )
+                    if hasattr(handler, "_send_json"):
+                        handler._send_json({"status": "error", "message": f"Internal API error: {e}"}, status=500)
+                    else:
+                        handler.send_error(500, f"Internal API Error: {e}")
                 return True
 
         return False

@@ -636,7 +636,7 @@ class FleetScheduler:
             status = "ERROR"
             error_msg = str(e)
             result_data = {"error": error_msg}
-            logger.error(f"Error executing scheduled task {rid}: {e}")
+            logger.error(f"Error executing scheduled task {rid}: {e}", exc_info=True, extra={"action": "scheduler_task_error", "agent": agent_id})
 
         duration = round(time.time() - start_ts, 3)
         now_iso = now.isoformat()

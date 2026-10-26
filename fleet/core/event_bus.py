@@ -7,9 +7,12 @@ Enables zero-token, in-process Agent-to-Agent (A2A) communication using typed me
 import collections
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+import logging
 import threading
 from typing import Any, Callable, Dict, List, Optional
 import uuid
+
+logger = logging.getLogger("fleet.core.event_bus")
 
 from fleet.core.briefing import BriefingEngine
 from fleet.core.database import FleetDatabase
@@ -78,6 +81,11 @@ class DeterministicEventBus:
         if not handler:
             error_msg = f"Unknown target worker: '{event.target}'. Registered: {list(self._handlers.keys())}"
             self.db.log_activity(event.sender, "event_bus_error", error_msg)
+            logger.warning(
+                "EventBus unknown target: '%s' from sender '%s' (action: %s)",
+                event.target, event.sender, event.action,
+                extra={"agent": event.sender, "action": event.action}
+            )
             return {"status": "error", "message": error_msg}
 
         try:
@@ -95,6 +103,12 @@ class DeterministicEventBus:
         except Exception as e:
             err = f"Execution error in {event.target}.{event.action}: {str(e)}"
             self.db.log_activity(event.sender, "event_bus_exception", err)
+            logger.error(
+                "EventBus execution failure in %s.%s from %s: %s",
+                event.target, event.action, event.sender, e,
+                exc_info=True,
+                extra={"agent": event.sender, "action": event.action}
+            )
             return {"status": "error", "message": err}
 
     def dispatch_parallel(self, events: List[FleetEvent], max_workers: int = 4) -> List[Dict[str, Any]]:

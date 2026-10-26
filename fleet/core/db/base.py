@@ -3,6 +3,7 @@ Base database connection & schema management for Personal Agentic Fleet.
 """
 
 import json
+import logging
 import os
 import sqlite3
 import sys
@@ -11,6 +12,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 from fleet.config import DATA_DIR, DB_PATH, TEST_DB_PATH
+
+logger = logging.getLogger("fleet.core.db")
 
 
 def is_test_environment() -> bool:
@@ -62,8 +65,8 @@ class BaseDatabase:
         try:
             from fleet.core.db.migrations import apply_migrations
             apply_migrations(self.db_path)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Database migration non-fatal warning on %s: %s", self.db_path, e, exc_info=True)
     def _create_schema(self, conn: sqlite3.Connection):
         try:
             conn.execute("PRAGMA journal_mode = WAL")

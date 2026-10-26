@@ -84,7 +84,7 @@ class SystemMixin:
                 return
             if ac_low in ('test_run', 'run_test_suite'):
                 return
-            if 'e2e deep' in dt_low or 'test task' in dt_low or 'test quota limit' in dt_low:
+            if 'e2e deep' in dt_low or 'test task' in dt_low:
                 return
 
         now = datetime.now().isoformat()

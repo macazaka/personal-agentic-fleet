@@ -16,6 +16,7 @@ Modular Architecture:
 from __future__ import annotations
 import base64
 import json
+import logging
 from typing import Any, Dict, List, Optional
 import mimetypes
 import os
@@ -65,6 +66,7 @@ from fleet.web.builder import STATIC_DIR, get_dashboard_html
 
 
 PORT = 7890
+server_logger = logging.getLogger("fleet.server")
 db = FleetDatabase()
 briefing_engine = BriefingEngine(db)
 
@@ -447,13 +449,33 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             return
 
         elif path == "/api/diagnostics/logs":
-            from fleet.core.logger import get_recent_logs
+            from fleet.core.logger import get_recent_logs, get_recent_errors
             query = urllib.parse.parse_qs(parsed.query)
             limit = int(query.get("limit", [100])[0])
             level = query.get("level", [None])[0]
+            min_level = query.get("min_level", [None])[0]
+            errors_only = query.get("errors_only", ["false"])[0].lower() in ("true", "1")
             agent = query.get("agent", [None])[0]
-            logs = get_recent_logs(limit=limit, level=level, agent=agent)
+            search = query.get("search", [None])[0]
+            if errors_only:
+                logs = get_recent_errors(limit=limit)
+            else:
+                logs = get_recent_logs(limit=limit, level=level, min_level=min_level, agent=agent, search=search)
             self._send_json({"status": "success", "logs": logs, "count": len(logs)})
+
+        elif path == "/api/diagnostics/errors":
+            from fleet.core.logger import get_recent_errors, read_error_log_tail
+            query = urllib.parse.parse_qs(parsed.query)
+            limit = int(query.get("limit", [50])[0])
+            source = query.get("source", ["both"])[0].lower()
+            ring_errors = get_recent_errors(limit=limit) if source in ("ring", "both") else []
+            disk_errors = read_error_log_tail(max_lines=limit) if source in ("disk", "both") else []
+            self._send_json({
+                "status": "success",
+                "ring_buffer_errors": ring_errors,
+                "disk_error_log": disk_errors,
+                "count": len(ring_errors) + len(disk_errors)
+            })
 
         elif path == "/api/diagnostics/crashes":
             from fleet.tools.crash_reporter import list_crash_reports
@@ -464,6 +486,7 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             # 3. Dispatch to Domain API Routers
             handled = router.dispatch_get(self, path, parsed)
             if not handled:
+                server_logger.warning("HTTP 404 Not Found for GET %s", path)
                 self.send_error(404, "Not Found")
 
     def do_POST(self):
@@ -790,14 +813,22 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
 
 
 class RobustThreadingHTTPServer(ThreadingHTTPServer):
-    """Threading HTTP server that suppresses client disconnection socket noise."""
+    """Threading HTTP server that suppresses client disconnection socket noise and logs unhandled errors."""
     allow_reuse_address = True
     daemon_threads = True
 
     def handle_error(self, request, client_address):
-        exc_type, exc_val, _ = sys.exc_info()
+        exc_type, exc_val, exc_tb = sys.exc_info()
         if exc_type in (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
             return
+        server_logger.error(
+            "Unhandled HTTP socket error from %s: %s: %s",
+            client_address,
+            exc_type.__name__ if exc_type else "Error",
+            exc_val,
+            exc_info=(exc_type, exc_val, exc_tb),
+            extra={"action": "http_server_error", "agent": "HttpServer"}
+        )
         super().handle_error(request, client_address)
 
 
@@ -809,9 +840,12 @@ def start_server(port: int = PORT):
         os.environ.pop("PYTEST_CURRENT_TEST", None)
     global db, briefing_engine
     from fleet.config import DB_PATH
+    from fleet.core.logger import configure_logging
+    configure_logging()
     db = FleetDatabase(db_path=DB_PATH)
     briefing_engine = BriefingEngine(db)
     agent_registry.startup_all()
+    server_logger.info("Personal Agentic Fleet Dashboard listening at: http://127.0.0.1:%s", port)
     server = RobustThreadingHTTPServer(("127.0.0.1", port), FleetDashboardHandler)
     print(f"Personal Agentic Fleet Dashboard running at: http://127.0.0.1:{port}")
     print(f"🚀 Fleet Dashboard running at: http://127.0.0.1:{port}/")

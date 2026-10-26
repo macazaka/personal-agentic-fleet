@@ -6,9 +6,12 @@ Monitors daily times to trigger proactive Windows Toast notifications for:
 Runs quietly in the background on your Windows laptop.
 """
 
+import logging
 import sys
 import time
 from datetime import datetime
+
+logger = logging.getLogger("fleet.daemon")
 
 # Ensure UTF-8 output on Windows console
 if sys.platform == "win32":
@@ -55,7 +58,7 @@ class FleetDaemon:
             try:
                 self.scheduler.check_and_run(now)
             except Exception as e:
-                print(f"Scheduler error: {e}")
+                logger.error("Scheduler execution error in FleetDaemon: %s", e, exc_info=True)
 
         # 1. Morning Briefing Check (08:30)
         if current_time >= BRIEFING_TIME and self.last_briefing_date != today_date:
