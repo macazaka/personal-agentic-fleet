@@ -489,8 +489,7 @@ def test_parallel_agent_pool_and_fast_track():
     sync_agent_state()
     assert get_active_agent_count() == 0
 
-    worker_event = threading.Event()
-    with patch("fleet.core.antigravity_mirror._execute_agy_or_fallback", side_effect=lambda *a, **k: worker_event.wait(timeout=30)):
+    with patch("threading.Thread.start"):
         agent1 = _spawn_parallel_agent_worker("Task 1 in parallel")
         agent2 = _spawn_parallel_agent_worker("Task 2 in parallel")
         assert agent1 == "Agent-1"
@@ -524,10 +523,6 @@ def test_parallel_agent_pool_and_fast_track():
         # Fast track queue
         ft_res = fast_track_queue()
         assert ft_res["status"] == "success"
-
-        # Allow workers to complete
-        worker_event.set()
-        time.sleep(0.05)
 
     ACTIVE_PARALLEL_AGENTS.clear()
     sync_agent_state()

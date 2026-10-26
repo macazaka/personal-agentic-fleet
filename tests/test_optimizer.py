@@ -103,8 +103,8 @@ def test_get_startup_apps():
     apps = get_startup_apps()
     assert isinstance(apps, list)
 
-    # Exception path
-    with patch("winreg.OpenKey", side_effect=FileNotFoundError("Key missing")):
+    # Exception path (Windows registry mock)
+    with patch("sys.platform", "win32"), patch("winreg.OpenKey", side_effect=FileNotFoundError("Key missing")):
         apps_empty = get_startup_apps()
         assert apps_empty == []
 

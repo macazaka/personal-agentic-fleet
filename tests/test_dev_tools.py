@@ -146,3 +146,5 @@ def test_detect_developer_tools_macos_homebrew(monkeypatch):
         assert tools['github_copilot']['installed'] is True
         assert 'gh' in tools['github_copilot']['path']
         assert tools['vscode']['installed'] is True
+
+

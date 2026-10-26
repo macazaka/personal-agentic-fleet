@@ -6,7 +6,7 @@ Automated Daemon Scheduling, Git Hook Installer, and Security API endpoints.
 
 import os
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import urllib.parse
 import pytest
 
@@ -354,7 +354,6 @@ def test_agent_package_isolation_verifier():
 
 
 def test_macos_keychain_vault_integration():
-    from unittest.mock import MagicMock, patch
     from fleet.config import get_secure_secret
     from fleet.core.crypto_vault import set_secure_secret, get_or_create_master_key
 
@@ -390,3 +389,4 @@ def test_macos_keychain_vault_integration():
         key = get_or_create_master_key()
         assert len(key) == 32
         mock_chmod.assert_called_with(0o600)
+
