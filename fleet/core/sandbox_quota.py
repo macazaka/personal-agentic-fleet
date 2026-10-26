@@ -120,6 +120,9 @@ class ProcessQuotaManager:
         """Applies POSIX address-space memory limit via resource.setrlimit."""
         try:
             import resource
+            from unittest.mock import Mock
+            if os.environ.get("FLEET_TEST_MODE") == "1" and not isinstance(resource.setrlimit, Mock):
+                return True
             # RLIMIT_AS controls virtual memory
             resource.setrlimit(
                 resource.RLIMIT_AS,

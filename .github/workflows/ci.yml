@@ -42,4 +42,4 @@ jobs:
         SDL_AUDIODRIVER: dummy
         FLEET_TEST_MODE: "1"
       run: |
-        python -m pytest tests/ -v
+        python -m pytest tests/ -v --tb=short
