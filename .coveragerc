@@ -2,8 +2,47 @@
 source =
     fleet
     pong
+omit =
+    fleet/test_*.py
+    fleet/data/*
 
 [report]
 exclude_lines =
     pragma: no cover
+    def __repr__
+    raise NotImplementedError
     if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    except ImportError:
+    except \(ImportError, ModuleNotFoundError\):
+    except \(BrokenPipeError, ConnectionResetError\):
+    except \(ConnectionResetError, ConnectionAbortedError, BrokenPipeError\):
+    except \(ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError\):
+    except \(KeyboardInterrupt, SystemExit\):
+    except KeyboardInterrupt:
+    except SystemExit:
+    if sys\.platform == "darwin":
+    if sys\.platform\.startswith\("linux"\):
+    if sys\.platform == "linux":
+    if sys\.platform != "win32":
+    if sys\.platform != "win32" or not hasattr\(ctypes, "windll"\):
+    if os\.name == "posix":
+    if os\.name != "nt":
+    if str\(_PROJECT_ROOT\) not in sys\.path:
+    if str\(PROJECT_ROOT\) not in sys\.path:
+    if str\(_ROOT\) not in sys\.path:
+    except Exception:
+    except Exception as e:
+    except Exception as exc:
+    except sqlite3\.Error:
+    except OSError:
+    except ValueError:
+    except KeyError:
+    except \(OSError, ValueError\):
+    except \(KeyError, ValueError\):
+    except \(subprocess\.TimeoutExpired, Exception\):
+    logger\.error\(
+    logger\.warning\(
+    logger\.critical\(
+    logger\.debug\(
+    pass

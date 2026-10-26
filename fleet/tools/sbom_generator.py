@@ -91,6 +91,11 @@ def generate_sbom(repo_root: Path = REPO_ROOT, save_to_disk: bool = True) -> Dic
     return sbom
 
 
-if __name__ == "__main__":
+def main() -> int:
     doc = generate_sbom()
     print(f"Generated CycloneDX 1.5 SBOM with {doc['component_count']} SHA-256 verified components -> {SBOM_FILE}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

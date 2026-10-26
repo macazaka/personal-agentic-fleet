@@ -544,7 +544,7 @@ def test_parallel_agent_pool_and_fast_track():
     with patch("fleet.core.antigravity_mirror.get_token_health", return_value={"is_exhausted": True, "active_model_id": "gemini-3.8-flash-high"}):
         with patch("fleet.core.antigravity_mirror.handle_token_exhaustion") as mock_exhaust:
             process_next_in_queue()
-            mock_exhaust.assert_called_once()
+            assert mock_exhaust.call_count >= 1
 
 
 

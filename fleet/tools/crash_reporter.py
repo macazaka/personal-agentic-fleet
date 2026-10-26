@@ -129,7 +129,8 @@ def prune_old_crash_reports(keep: int = MAX_CRASH_REPORTS) -> int:
     reports = sorted(CRASH_REPORTS_DIR.glob("crash_*.json"), key=lambda p: p.stat().st_mtime)
     pruned = 0
     if len(reports) > keep:
-        for p in reports[:-keep]:
+        to_delete = reports if keep == 0 else reports[:-keep]
+        for p in to_delete:
             try:
                 p.unlink()
                 pruned += 1

@@ -98,7 +98,7 @@ def verify_backup_integrity(backup_path: Path) -> bool:
         return False
 
 
-def prune_old_backups(backup_dir: Path, max_retained: int = 7) -> int:
+def prune_old_backups(backup_dir: Path = BACKUPS_DIR, max_retained: int = 7) -> int:
     """Removes oldest backups beyond the retention ceiling."""
     if not backup_dir.is_dir():
         return 0

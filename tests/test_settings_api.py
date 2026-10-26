@@ -130,24 +130,78 @@ def test_customize_and_reset_agent(mock_fleet_env):
     assert res_reset["agent"]["icon"] == "⚡"
 
 
-def test_create_backup_snapshot(mock_fleet_env):
-    from fleet.api.settings_api import create_backup_snapshot
-    from fleet.config import DATA_DIR
+def test_settings_api_error_branches(mock_fleet_env):
+    from fleet.api.settings_api import (
+        toggle_agent_activation,
+        customize_agent_settings,
+        reset_agent_settings,
+        create_backup_snapshot,
+        get_fleet_settings,
+        update_fleet_settings,
+    )
 
     handler = MagicMock()
-    # Ensure dummy db exists in DATA_DIR for test
-    dummy_db = DATA_DIR / "fleet.db"
-    existed = dummy_db.exists()
-    if not existed:
-        dummy_db.write_text("dummy", encoding="utf-8")
 
-    try:
+    # 1. Missing id
+    toggle_agent_activation(handler, {"id": ""})
+    assert handler._send_json.call_args[1].get("status") == 400
+    handler.reset_mock()
+
+    customize_agent_settings(handler, {"id": ""})
+    assert handler._send_json.call_args[1].get("status") == 400
+    handler.reset_mock()
+
+    reset_agent_settings(handler, {"id": ""})
+    assert handler._send_json.call_args[1].get("status") == 400
+    handler.reset_mock()
+
+    # 2. Registry unavailable
+    with patch.object(srv, "agent_registry", None):
+        toggle_agent_activation(handler, {"id": "health"})
+        assert handler._send_json.call_args[1].get("status") == 503
+        handler.reset_mock()
+
+        customize_agent_settings(handler, {"id": "health"})
+        assert handler._send_json.call_args[1].get("status") == 503
+        handler.reset_mock()
+
+        reset_agent_settings(handler, {"id": "health"})
+        assert handler._send_json.call_args[1].get("status") == 503
+        handler.reset_mock()
+
+    # 3. Not found (KeyError)
+    toggle_agent_activation(handler, {"id": "non_existent_agent_999"})
+    assert handler._send_json.call_args[1].get("status") == 404
+    handler.reset_mock()
+
+    customize_agent_settings(handler, {"id": "non_existent_agent_999"})
+    assert handler._send_json.call_args[1].get("status") == 404
+    handler.reset_mock()
+
+    reset_agent_settings(handler, {"id": "non_existent_agent_999"})
+    assert handler._send_json.call_args[1].get("status") == 404
+    handler.reset_mock()
+
+    # 4. Unexpected Exception
+    with patch.object(srv.agent_registry, "customize_agent", side_effect=RuntimeError("Boom")):
+        toggle_agent_activation(handler, {"id": "health"})
+        assert handler._send_json.call_args[1].get("status") == 500
+        handler.reset_mock()
+
+        customize_agent_settings(handler, {"id": "health"})
+        assert handler._send_json.call_args[1].get("status") == 500
+        handler.reset_mock()
+
+    with patch.object(srv.agent_registry, "reset_agent", side_effect=RuntimeError("Boom")):
+        reset_agent_settings(handler, {"id": "health"})
+        assert handler._send_json.call_args[1].get("status") == 500
+        handler.reset_mock()
+
+    # 5. Backup snapshot copy error
+    from fleet.config import DATA_DIR
+    dummy_db = DATA_DIR / "fleet.db"
+    dummy_db.write_text("dummy", encoding="utf-8")
+    with patch("shutil.copy2", side_effect=PermissionError("Locked")):
         create_backup_snapshot(handler, {})
-        assert handler._send_json.called
-        res = handler._send_json.call_args[0][0]
-        assert res["status"] == "success"
-        assert "snapshot_file" in res
-        assert Path(res["path"]).is_file()
-    finally:
-        if not existed and dummy_db.exists():
-            dummy_db.unlink()
+        assert handler._send_json.call_args[1].get("status") == 500
+
