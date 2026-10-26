@@ -7,6 +7,7 @@
 [![Privacy: Local-First](https://img.shields.io/badge/Privacy-100%25%20Local--First%20DPAPI-teal.svg)](docs/SECURITY.md)
 [![Hyperscalers](https://img.shields.io/badge/Hyperscalers-Google%20%7C%20Azure%20%7C%20AWS%20%7C%20Claude%20%7C%20Ollama-purple.svg)](docs/HYPERSCALERS_AND_DEV_TOOLS.md)
 [![macOS: Universal](https://img.shields.io/badge/macOS-Apple%20Silicon%20%7C%20Intel-black.svg?logo=apple)](docs/PREREQUISITES_AND_OS.md)
+[![Linux: Native](https://img.shields.io/badge/Linux-Ubuntu%20%7C%20Debian%20%7C%20Fedora%20%7C%20Arch-orange.svg?logo=linux)](docs/PREREQUISITES_AND_OS.md)
 [![Dev Tools](https://img.shields.io/badge/Dev%20Tools-Copilot%20%7C%20Claude%20Code%20%7C%20Gemini%20%7C%20Amazon%20Q-blueviolet.svg)](docs/HYPERSCALERS_AND_DEV_TOOLS.md)
 
 > **An open-source, local-first agentic operating system with a plug-and-play microkernel architecture.**
@@ -41,7 +42,7 @@
 | **Windows 11 (64-bit)** | 🟢 **Officially Supported (Primary)** | Native Win32 `Kernel32`/`PSAPI` (zero popup windows), at-rest **DPAPI `crypt32.dll`** hardware-bound encryption, WinRT Toast Notifications, NTFS User ACLs (`icacls`), and dual PowerShell 7 / 5.1 support. |
 | **Windows 10 (64-bit, v1903+)** | 🟢 **Officially Supported (Primary)** | Full parity with Windows 11: in-process PSAPI memory enumeration, DPAPI crypto vault, WinRT toast alerts, and silent windowless background execution (`CREATE_NO_WINDOW`). |
 | **macOS (12+ Monterey / Ventura / Sonoma / Sequoia on Apple Silicon & Intel)** | 🟢 **Officially Supported (Primary)** | Native AppleScript Notification Center alerts (`osascript`), hardware-backed **Apple Keychain Services** (`/usr/bin/security`), native `sysctl` (`hw.memsize`) & `vm_stat` memory telemetry, Directory Services DNS flush (`dscacheutil`), RAM cache purge (`purge`), LaunchAgents auto-start auditing, and Homebrew (`/opt/homebrew` & `/usr/local`) CLI discovery. |
-| **Linux (Ubuntu 20.04+, Debian 11+, Fedora 38+, Arch)** | 🟡 **Supported (Core Engine & CI)** | Continuous multi-version CI validation across Ubuntu Linux; standard POSIX permissions and process monitoring. |
+| **Linux (Ubuntu 20.04+, Debian 11+, Fedora 38+, Arch)** | 🟢 **Officially Supported (Primary)** | First-class native Linux integration: systemd user units (`systemctl --user`), `resolvectl` DNS cache flush, FreeDesktop SecretService (`secret-tool` / libsecret) keyring encryption, `notify-send` (libnotify) / Zenity / KDialog desktop notifications, in-process `/proc` telemetry, XDG autostart, POSIX `RLIMIT_AS` memory containment, and POSIX `chmod 0700` vault hardening. Continuous 9-matrix verification across Python 3.10, 3.11, and 3.12. |
 | **Windows 7 / 8 / 8.1 / 32-bit (x86)** | 🔴 **Not Supported** | Missing modern WinRT notification subsystems, TLS 1.3 cryptographic cipher suites, and modern Python 3.10+ runtimes. Do not deploy on legacy Windows. |
 | **Mobile / Android / iOS** | 🔴 **Not Supported** | Designed as a local workstation control center, not a mobile app. Access remotely via desktop browser over local LAN/VPN. |
 

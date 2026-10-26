@@ -193,14 +193,14 @@ The `FleetDaemon` executes silently in the background on a periodic loop, orches
 
 Personal Agentic Fleet provides native OS parity across modern desktop operating systems through its zero-dependency platform abstraction layer:
 
-| Subsystem | Windows 10 / 11 Native | macOS (Apple Silicon & Intel) Native | Linux (Ubuntu, Debian, Fedora) |
+| Subsystem | Windows 10 / 11 Native | macOS (Apple Silicon & Intel) Native | Linux (Ubuntu 20.04+, Debian 11+, Fedora 38+, Arch) |
 | :--- | :--- | :--- | :--- |
-| **Notifications** | WinRT Toast Notification Manager via PowerShell | AppleScript Notification Center (`osascript`) | Desktop notification daemon (`notify-send`) |
-| **Secret Vault** | Windows DPAPI (`crypt32.dll`) | Apple Keychain Services CLI (`/usr/bin/security`) | Standard POSIX user vault (`chmod 0700`) |
-| **RAM & Diagnostics** | In-process Win32 `PSAPI` & `GlobalMemoryStatusEx` | Native `sysctl` (`hw.memsize`) & `vm_stat` | `/proc/meminfo` & POSIX `ps -A -o comm,rss` |
-| **DNS Resolver Flush** | `ipconfig /flushdns` | `dscacheutil -flushcache` + `killall -HUP mDNSResponder` | `resolvectl flush-caches` |
-| **Memory Purge** | In-process `EmptyWorkingSet` | Native macOS `purge` command | Python `gc.collect()` |
-| **Startup Services** | Registry Run keys (`HKCU` & `HKLM`) | `~/Library/LaunchAgents` & `/Library/LaunchAgents` | systemd user services |
+| **Notifications** | WinRT Toast Notification Manager via PowerShell | AppleScript Notification Center (`osascript`) | FreeDesktop `notify-send` (libnotify) / Zenity / KDialog |
+| **Secret Vault** | Windows DPAPI (`crypt32.dll`) | Apple Keychain Services CLI (`/usr/bin/security`) | FreeDesktop SecretService (`secret-tool` / libsecret) + POSIX `chmod 0700` |
+| **RAM & Diagnostics** | In-process Win32 `PSAPI` & `GlobalMemoryStatusEx` | Native `sysctl` (`hw.memsize`) & `vm_stat` | In-process `/proc/meminfo` & `/proc/<pid>/status` (`VmRSS`) |
+| **DNS Resolver Flush** | `ipconfig /flushdns` | `dscacheutil -flushcache` + `killall -HUP mDNSResponder` | `resolvectl flush-caches` / `systemd-resolve` |
+| **Memory Purge** | In-process `EmptyWorkingSet` | Native macOS `purge` command | Python `gc.collect()` & POSIX `rlimit` sweep |
+| **Startup Services** | Registry Run keys (`HKCU` & `HKLM`) | `~/Library/LaunchAgents` & `/Library/LaunchAgents` | systemd user services (`~/.config/systemd/user`) & XDG autostart |
 | **CLI Tool Paths** | `%LOCALAPPDATA%\Programs`, `%APPDATA%\npm` | `/opt/homebrew/bin`, `/usr/local/bin`, `/Applications` | `/usr/bin`, `/usr/local/bin`, `~/.local/bin` |
 
 ---

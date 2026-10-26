@@ -709,13 +709,14 @@ def get_pc_performance_diagnostics() -> Dict[str, Any]:
 
     # Generate targeted actionable recommendations
     recommendations = []
+    os_name_str = "macOS" if sys.platform == "darwin" else ("Linux" if sys.platform.startswith("linux") else "Windows")
 
     # 1. Temp files recommendation
     if temp["size_mb"] > 10.0 or temp["file_count"] > 20:
         recommendations.append({
             "id": "clean_temp",
             "title": f"Clean {temp['size_mb']} MB of Temporary Junk Files",
-            "description": f"Found {temp['file_count']} files in Windows Temp directory. Clearing stale cache frees up disk space and reduces OS file search overhead.",
+            "description": f"Found {temp['file_count']} files in {os_name_str} Temp directory. Clearing stale cache frees up disk space and reduces OS file search overhead.",
             "impact": "High" if temp["size_mb"] > 100 else "Medium",
             "action_id": "clean_temp",
             "button_text": "🧹 Clean Temp Files",
@@ -725,7 +726,7 @@ def get_pc_performance_diagnostics() -> Dict[str, Any]:
     # 2. DNS Cache recommendation
     recommendations.append({
         "id": "flush_dns",
-        "title": "Flush Windows DNS Resolver Cache",
+        "title": f"Flush {os_name_str} DNS Resolver Cache",
         "description": "Flushing stale and corrupted DNS entries resolves network latency, page load stalls, and improves API responsiveness.",
         "impact": "Medium",
         "action_id": "flush_dns",

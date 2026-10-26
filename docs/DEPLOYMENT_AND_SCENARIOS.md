@@ -201,26 +201,55 @@ To run Personal Agentic Fleet as a native background agent that boots on Mac log
 
 ---
 
-## 3. Linux (Ubuntu, Debian, Fedora, Arch, RHEL) & Headless Homelab
+## 3. Linux (Ubuntu 20.04+, Debian 11+, Fedora 38+, Arch Linux) & Headless Homelab
 
-Fleet operates with cross-platform parity on modern Linux distributions (Ubuntu 20.04+, Debian 11+, Fedora 38+, Arch Linux) and headless servers (Raspberry Pi 4/5 64-bit, Proxmox, Intel NUC).
+Personal Agentic Fleet delivers Tier 1 (First-Class Native Support) across modern Linux distributions: **Ubuntu 20.04+ (Focal, Jammy, Noble)**, **Debian 11+ (Bullseye, Bookworm, Sid)**, **Fedora 38+ (38, 39, 40, 41)**, and **Arch Linux (Rolling Release)**, as well as headless servers (Raspberry Pi 4/5 64-bit, Proxmox, Intel NUC).
 
 ### Native Subsystems Utilized
+- **Systemd User Daemon Service**: Daemon autostart managed per-user via `fleet/tools/install_service.py` (`systemctl --user enable --now fleet.service`), requiring zero root privileges.
+- **Hardware & SecretService Keyring**: Secrets stored via FreeDesktop SecretService API using `secret-tool` (libsecret), backed by the desktop login keyring.
+- **In-Process Kernel Telemetry (`/proc`)**: Zero child processes spawned; reads `/proc/meminfo` and per-process `/proc/<pid>/status` (`VmRSS`) directly.
+- **Desktop Notifications**: Dispatches alerts via `notify-send` (libnotify) with automatic fallback to GNOME `zenity` or KDE `kdialog`.
+- **DNS Resolver Flush**: Clears DNS resolution cache deterministically via `resolvectl flush-caches` (or `systemd-resolve`).
+- **POSIX Resource Quota (`RLIMIT_AS`)**: Agent processes bounded by POSIX `resource.setrlimit` virtual memory ceilings.
 - **POSIX Filesystem Hardening**: Restricts user data vault (`fleet/data/user/`) to `0700` (`rwx------`).
-- **Kernel Memory Telemetry (`/proc/meminfo`)**: Reads `MemTotal`, `MemAvailable`, `Cached`, and `Buffers` directly.
-- **Process Memory Enumeration**: Standard `ps -A -o comm,rss` sorted in-memory via Python.
-- **Desktop Notifications**: Dispatches alerts via `notify-send` / FreeDesktop D-Bus notification spec.
 
-### Installation on Linux Workstations & Servers
+### Distribution-Specific Installation
+
+#### Ubuntu 20.04 LTS / 22.04 LTS / 24.04 LTS & Debian 11 / 12
 ```bash
-# 1. Install system prerequisites (Ubuntu / Debian example)
-sudo apt update && sudo apt install -y python3 python3-venv git curl
+# 1. Install system prerequisites & native desktop libraries
+sudo apt update && sudo apt install -y python3 python3-venv git curl libsecret-tools libnotify-bin systemd-resolved
 
 # 2. Clone repository
 git clone https://github.com/macazaka/personal-agentic-fleet.git
 cd personal-agentic-fleet
 
 # 3. Bootstrap environment
+chmod +x bootstrap.sh
+./bootstrap.sh
+```
+
+#### Fedora 38 / 39 / 40 / 41+
+```bash
+# 1. Install system prerequisites & native desktop libraries
+sudo dnf install -y python3 git curl libsecret libnotify systemd-resolved
+
+# 2. Clone repository & bootstrap
+git clone https://github.com/macazaka/personal-agentic-fleet.git
+cd personal-agentic-fleet
+chmod +x bootstrap.sh
+./bootstrap.sh
+```
+
+#### Arch Linux (Rolling Release)
+```bash
+# 1. Install system prerequisites & native desktop libraries
+sudo pacman -S --needed python git curl libsecret libnotify systemd
+
+# 2. Clone repository & bootstrap
+git clone https://github.com/macazaka/personal-agentic-fleet.git
+cd personal-agentic-fleet
 chmod +x bootstrap.sh
 ./bootstrap.sh
 ```

@@ -35,7 +35,12 @@ def _safe_log(msg: str, level: str = "info") -> None:
             stream = getattr(h, "stream", None)
             if stream and getattr(stream, "closed", False):
                 return
-        getattr(logger, level)(msg)
+        old_raise = getattr(_l, "raiseExceptions", True)
+        try:
+            _l.raiseExceptions = False
+            getattr(logger, level)(msg)
+        finally:
+            _l.raiseExceptions = old_raise
     except Exception:
         pass
 
