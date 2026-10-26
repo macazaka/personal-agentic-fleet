@@ -50,8 +50,12 @@ def setup_streams():
 setup_streams()
 
 from fleet.config import VERSION
+from fleet.core.lifecycle import install_lifecycle_guards, register_shutdown_callback
+from fleet.core.logger import configure_logging
+from fleet.core.power import power_manager
 from fleet.daemon import FleetDaemon
 from fleet.server import PORT, start_server
+from fleet.tools.crash_reporter import install_crash_reporter
 
 
 def is_port_in_use(port: int, host: str = "127.0.0.1") -> bool:
@@ -85,6 +89,16 @@ def main():
         atexit.register(lambda: PID_FILE.unlink(missing_ok=True))
     except Exception:
         pass
+
+    # Initialize Native Robustness Subsystems (Logging, Crash Reporter, Lifecycle & Power)
+    try:
+        configure_logging()
+        install_crash_reporter()
+        install_lifecycle_guards()
+        power_manager.start_monitoring()
+        register_shutdown_callback(power_manager.stop_monitoring)
+    except Exception as e:
+        print(f"Warning: Failed to initialize all robustness lifecycle guards: {e}")
 
     print("=" * 65)
     print(f"     ⚡ PERSONAL AGENTIC FLEET v{VERSION} — CONTROL CENTER ⚡")

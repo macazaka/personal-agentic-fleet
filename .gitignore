@@ -43,6 +43,8 @@ scratch/
 fleet/data/*.pid
 fleet/data/*.log
 *.log
+fleet/data/backups/
+fleet/data/crash_reports/
 
 # 6. Python & Environment Artifacts
 __pycache__/

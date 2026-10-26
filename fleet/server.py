@@ -158,6 +158,18 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        client_ip = self.client_address[0] if hasattr(self, "client_address") and self.client_address else "127.0.0.1"
+        from fleet.core.rate_limiter import rate_limiter
+        allowed, retry_after = rate_limiter.check_rate_limit(client_ip)
+        if not allowed:
+            self.send_response(429)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Retry-After", str(int(retry_after) + 1))
+            self._send_security_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Too Many Requests", "retry_after": retry_after}).encode("utf-8"))
+            return
+
         from fleet.core.session_auth import validate_request_security
         ok, reason = validate_request_security(getattr(self, "headers", None), "GET", ALLOWED_ORIGINS)
         if not ok:
@@ -325,8 +337,20 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             if media_path and media_path.is_file():
                 content_type = mimetypes.guess_type(str(media_path))[0] or "image/png"
                 data = media_path.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", content_type)
+                self._send_security_headers()
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "no-cache")
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            else:
+                self.send_error(404, "Media file not found")
+                return
+
         # 2. Static Assets (/static/css/*, /static/js/*)
-        if path.startswith("/static/"):
+        elif path.startswith("/static/"):
             rel_path = path[len("/static/"):]
             file_path = (STATIC_DIR / rel_path).resolve()
             # Security guard against directory traversal
@@ -347,7 +371,6 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
                 self.wfile.write(data)
                 return
             else:
-                self.send_error(404, "Media file not found")
                 self.send_error(404, "Static asset not found")
                 return
 
@@ -373,6 +396,70 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             data = get_pc_performance_diagnostics()
             self._send_json(data)
 
+        elif path == "/api/events/stream":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self._send_security_headers()
+            self.end_headers()
+
+            import queue
+            evt_queue = queue.Queue(maxsize=100)
+
+            def sse_listener(evt):
+                try:
+                    evt_queue.put_nowait({
+                        "sender": evt.sender,
+                        "target": evt.target,
+                        "action": evt.action,
+                        "payload": evt.payload,
+                        "timestamp": evt.timestamp if isinstance(evt.timestamp, str) else evt.timestamp.isoformat(),
+                    })
+                except Exception:
+                    pass
+
+            bus.subscribe("*", sse_listener)
+            try:
+                init_msg = json.dumps({"status": "connected", "time": datetime.now().isoformat()})
+                self.wfile.write(f"event: ready\ndata: {init_msg}\n\n".encode("utf-8"))
+                self.wfile.flush()
+
+                timeout = 0.2 if getattr(self, "_sse_test_mode", False) else 2.0
+                max_ticks = 1 if getattr(self, "_sse_test_mode", False) else None
+                ticks = 0
+
+                while True:
+                    try:
+                        data = evt_queue.get(timeout=timeout)
+                        self.wfile.write(f"event: fleet_event\ndata: {json.dumps(data)}\n\n".encode("utf-8"))
+                        self.wfile.flush()
+                    except queue.Empty:
+                        self.wfile.write(b": ping\n\n")
+                        self.wfile.flush()
+                    ticks += 1
+                    if max_ticks and ticks >= max_ticks:
+                        break
+            except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError):
+                pass
+            finally:
+                bus.unsubscribe("*", sse_listener)
+            return
+
+        elif path == "/api/diagnostics/logs":
+            from fleet.core.logger import get_recent_logs
+            query = urllib.parse.parse_qs(parsed.query)
+            limit = int(query.get("limit", [100])[0])
+            level = query.get("level", [None])[0]
+            agent = query.get("agent", [None])[0]
+            logs = get_recent_logs(limit=limit, level=level, agent=agent)
+            self._send_json({"status": "success", "logs": logs, "count": len(logs)})
+
+        elif path == "/api/diagnostics/crashes":
+            from fleet.tools.crash_reporter import list_crash_reports
+            reports = list_crash_reports()
+            self._send_json({"status": "success", "reports": reports, "count": len(reports)})
+
         else:
             # 3. Dispatch to Domain API Routers
             handled = router.dispatch_get(self, path, parsed)
@@ -380,6 +467,18 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
                 self.send_error(404, "Not Found")
 
     def do_POST(self):
+        client_ip = self.client_address[0] if hasattr(self, "client_address") and self.client_address else "127.0.0.1"
+        from fleet.core.rate_limiter import rate_limiter
+        allowed, retry_after = rate_limiter.check_rate_limit(client_ip)
+        if not allowed:
+            self.send_response(429)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Retry-After", str(int(retry_after) + 1))
+            self._send_security_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Too Many Requests", "retry_after": retry_after}).encode("utf-8"))
+            return
+
         from fleet.core.session_auth import validate_request_security
         ok, reason = validate_request_security(getattr(self, "headers", None), "POST", ALLOWED_ORIGINS)
         if not ok:

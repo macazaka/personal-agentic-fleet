@@ -4,8 +4,10 @@ Deterministic Event Bus for Personal Agentic Fleet.
 Enables zero-token, in-process Agent-to-Agent (A2A) communication using typed message envelopes.
 """
 
+import collections
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+import threading
 from typing import Any, Callable, Dict, List, Optional
 import uuid
 
@@ -38,13 +40,38 @@ class DeterministicEventBus:
         self.db = db or FleetDatabase()
         self.briefing_engine = BriefingEngine(self.db)
         self._handlers: Dict[str, Callable[[FleetEvent], Dict[str, Any]]] = {}
+        self._subscribers: Dict[str, List[Callable[[FleetEvent], None]]] = collections.defaultdict(list)
+        self._sub_lock = threading.Lock()
         self._register_default_workers()
 
     def register_handler(self, target: str, handler: Callable[[FleetEvent], Dict[str, Any]]):
         self._handlers[target.lower()] = handler
 
+    def subscribe(self, target: str, listener: Callable[[FleetEvent], None]) -> None:
+        """Subscribes a listener callback to events targeted at 'target' (or '*' for all events)."""
+        with self._sub_lock:
+            self._subscribers[target.lower()].append(listener)
+
+    def unsubscribe(self, target: str, listener: Callable[[FleetEvent], None]) -> None:
+        """Unsubscribes a listener callback."""
+        with self._sub_lock:
+            subs = self._subscribers.get(target.lower(), [])
+            if listener in subs:
+                subs.remove(listener)
+
+    def _notify_subscribers(self, event: FleetEvent) -> None:
+        target_key = event.target.lower()
+        with self._sub_lock:
+            listeners = list(self._subscribers.get(target_key, [])) + list(self._subscribers.get("*", []))
+        for listener in listeners:
+            try:
+                listener(event)
+            except Exception:
+                pass
+
     def dispatch(self, event: FleetEvent) -> Dict[str, Any]:
         """Route event to the appropriate target worker with zero LLM overhead."""
+        self._notify_subscribers(event)
         target_key = event.target.lower()
         handler = self._handlers.get(target_key)
 

@@ -169,6 +169,26 @@ class FleetDaemon:
             self.run_scheduled_pr_review(now)
             self.last_pr_review_time = now_ts
 
+        # 7. Automated Daily Database Snapshot Backup (ROB-04)
+        if current_time >= "03:00" and getattr(self, "last_backup_date", "") != today_date:
+            try:
+                from fleet.core.db.backup import perform_database_backup, prune_old_backups
+                perform_database_backup()
+                prune_old_backups()
+                self.last_backup_date = today_date
+                print(f"[{now.strftime('%H:%M:%S')}] Daily automated SQLite snapshot backup successfully created.")
+            except Exception as e:
+                print(f"Backup error: {e}")
+
+        # 8. Flush offline spooled events if network is restored (ROB-15)
+        if (now_ts - getattr(self, "last_spool_flush_time", 0.0)) >= 120.0:
+            try:
+                from fleet.core.network_spool import flush_offline_spool
+                flush_offline_spool(self.bus)
+                self.last_spool_flush_time = now_ts
+            except Exception:
+                pass
+
 
     def run_scheduled_pr_review(self, now: datetime = None):
         """Audits open PRs and CI status deterministically (Admin Only, 0 tokens)."""

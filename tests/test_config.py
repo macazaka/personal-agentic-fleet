@@ -14,7 +14,7 @@ def test_config_paths():
 
 
 def test_config_constants():
-    assert cfg.VERSION == "2.0.0"
+    assert cfg.VERSION == "2.4.0"
     assert cfg.CHANGELOG_PATH.exists()
     assert cfg.CHANGELOG_PATH.is_file()
     import fleet

@@ -18,6 +18,7 @@ ALLOWED_AGENT_PERMISSIONS: Set[str] = {
     "filesystem:temp",
     "network:gmail_oauth",
     "network:github_api",
+    "network:outbound",
     "system:diagnostics",
     "ui:render",
 }

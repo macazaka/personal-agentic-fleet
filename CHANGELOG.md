@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.0] - 2026-10-26
+
+### Added
+- **6-Pillar Native Robustness & High-Availability Engine**:
+  - **Pillar 1: Process Lifecycle & Resilience**:
+    - **Thread & Task Supervision Watchdog (`fleet/core/supervisor.py`)**: Erlang/OTP one-for-one supervisor architecture with exponential backoff and full jitter ($t = \text{random}(0, \min(30, \text{base} \times 2^{\text{attempt}}))$), thread failure tracking, and automated worker revival.
+    - **Unified Signal Trap & Clean Shutdown Protocol (`fleet/core/lifecycle.py`)**: Intercepts Win32 `SetConsoleCtrlHandler` (`CTRL_C_EVENT`, `CTRL_CLOSE_EVENT`, `CTRL_SHUTDOWN_EVENT`) and POSIX `SIGINT`/`SIGTERM` to safely checkpoint SQLite WAL, flush pooled connections, invoke prioritized shutdown hooks, and cleanly remove PID files.
+    - **Multi-OS Workstation Service Daemonization Installers (`fleet/tools/install_service.py`)**: 1-command installer CLI configuring persistent login services across Windows Task Scheduler (`schtasks`), macOS LaunchAgents (`launchctl`), and Linux systemd (`systemctl --user`).
+  - **Pillar 2: Storage & Database Concurrency**:
+    - **Thread-Safe SQLite Connection Pool & Busy Timeout Guard (`fleet/core/db/pool.py`)**: Per-thread connection caching via `threading.local()` eliminating thread-affinity errors, paired with `PRAGMA busy_timeout = 10000` (10s lock wait) and `PRAGMA journal_mode = WAL`.
+    - **Automated Daily Snapshot Backup Engine (`fleet/core/db/backup.py`)**: Non-blocking online backups using SQLite's native `sqlite3.Connection.backup()` API, SHA-256 integrity verification, and automatic FIFO 7-day snapshot retention pruning.
+    - **Zero-Dependency Schema Migration Engine (`fleet/core/db/migrations.py`)**: Monotonic database versioning using `PRAGMA user_version` and atomic transactions (`BEGIN IMMEDIATE TRANSACTION`) with automatic rollback.
+  - **Pillar 3: Agent Sandbox Hardening & Resource Containment**:
+    - **OS Job Objects & POSIX Resource Quota Sandbox (`fleet/core/sandbox_quota.py`)**: Enforces hard 500 MB memory ceilings using Windows Job Objects (`JOBOBJECT_EXTENDED_LIMIT_INFORMATION`) and POSIX `setrlimit` (`RLIMIT_AS`).
+    - **Socket-Level Network Egress Policy Enforcer (`fleet/core/sandbox_quota.py`)**: Context manager intercepting socket connection attempts within agent execution threads; blocks egress if manifest lacks `"network:outbound"` while permitting loopback IPC.
+  - **Pillar 4: Network, Transport & API Robustness**:
+    - **Resilient HTTP Client with 3-State Circuit Breaker (`fleet/core/http_client.py`)**: Pure-Python resilient HTTP client with `CLOSED`, `OPEN`, and `HALF_OPEN` states, 5-failure trip threshold, 30s cooldown, truncated exponential backoff, and full jitter.
+    - **Localhost Token-Bucket Rate Limiter & DoS Shield (`fleet/core/rate_limiter.py`)**: In-memory token bucket rate limiter (60 req/s, burst capacity 100) returning HTTP 429 and `Retry-After` headers.
+    - **Offline Network Detection & Task Spooling Engine (`fleet/core/network_spool.py`)**: Zero-token reachability probing, offline event deferral into SQLite `offline_spool`, and automatic event bus flushing upon network restoration.
+    - **Server-Sent Events (SSE) Live Push Stream (`/api/events/stream`)**: Native standard library SSE streaming endpoint with per-client EventBus subscriber queues, instant push notifications, and 2-second keep-alive ping pulses.
+  - **Pillar 5: Observability, Diagnostics & Crash Forensics**:
+    - **Structured JSON Logging & In-Memory Ring Buffer (`fleet/core/logger.py`)**: Uniform JSON log formatting with rotating 5 MB file handlers (3 backups) and a thread-safe 1,000-event circular buffer queried via `GET /api/diagnostics/logs`.
+    - **Global Crash Reporter & Secret Sanitization (`fleet/tools/crash_reporter.py`)**: Universal hooks for `sys.excepthook` and `threading.excepthook`, automated PII and API key redaction, system hardware snapshots, and JSON forensics dumped into `fleet/data/crash_reports/`.
+  - **Pillar 6: Hardware & Power State Awareness**:
+    - **System Sleep / Wake / Resume Lifecycle Handler (`fleet/core/power.py`)**: Precision monotonic gap detection for suspend/sleep transitions, 5-second post-wake network stabilization cooldown, and coalesced routine triggering.
+- **Preflight Quality Gate Verification**:
+  - Expanded automated test suite from 89 to **109 unit and integration tests** across 33 test suites (`tests/test_db_robustness.py`, `tests/test_lifecycle_supervisor.py`, `tests/test_transport_robustness.py`, `tests/test_observability_robustness.py`, `tests/test_sandbox_quota.py`, `tests/test_power_robustness.py`).
+  - Preflight quality gate (`fleet.tools.preflight_gate`) verified 100% compliance: Fleet Doctor healthy, Security Scanner 100/100 (0 findings), 10 isolated agent packages valid, 13 documentation cross-reference files verified (111 links intact).
+
+---
+
 ## [2.3.0] - 2026-10-26
 
 ### Added

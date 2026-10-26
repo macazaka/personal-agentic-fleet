@@ -40,20 +40,10 @@ class BaseDatabase:
         self._init_db()
 
     def _get_connection(self) -> sqlite3.Connection:
+        from fleet.core.db.pool import get_pooled_connection
         effective = get_effective_db_path(self._custom_db_path)
         self.db_path = effective
-        if not self.db_path.parent.exists():
-            try:
-                self.db_path.parent.mkdir(parents=True, exist_ok=True)
-            except Exception:
-                pass
-        conn = sqlite3.connect(self.db_path, timeout=10.0)
-        conn.row_factory = sqlite3.Row
-        try:
-            conn.execute("PRAGMA synchronous = NORMAL")
-            conn.execute("PRAGMA secure_delete = ON")
-        except Exception:
-            pass
+        conn = get_pooled_connection(self.db_path, timeout=10.0)
         # Self-healing schema: auto-create tables if missing
         cursor = conn.cursor()
         cursor.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='hydration_logs'")
@@ -63,6 +53,11 @@ class BaseDatabase:
 
     def _init_db(self):
         with self._get_connection() as conn:
+            pass
+        try:
+            from fleet.core.db.migrations import apply_migrations
+            apply_migrations(self.db_path)
+        except Exception:
             pass
     def _create_schema(self, conn: sqlite3.Connection):
         try:
@@ -348,6 +343,19 @@ class BaseDatabase:
                     unit TEXT DEFAULT '',
                     notes TEXT DEFAULT '',
                     created_at TEXT NOT NULL
+                )
+            """)
+
+            # Offline Event Spool (ROB-15)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS offline_spool (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    target TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    payload_json TEXT DEFAULT '{}',
+                    retry_count INTEGER DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    status TEXT DEFAULT 'pending'
                 )
             """)
 
