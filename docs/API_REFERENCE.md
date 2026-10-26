@@ -23,6 +23,15 @@ All responses return standard JSON with `Content-Type: application/json` unless 
 | `POST` | `/api/diagnostics/log-analysis/run` | Triggers immediate on-demand proactive log scan and autonomous self-healing improvements. | `{}` | `{"status": "success", "report": {"scan_id": "...", "improvements_applied_count": 1, ...}}` |
 | `GET` | `/api/diagnostics/auto-improvements` | Historical ledger of automated self-healing improvements executed by the system. | Query: `limit=50` | `{"status": "success", "improvements": [...], "stats": {...}, "count": 12}` |
 | `GET` | `/api/diagnostics/crashes` | Lists recorded sanitized crash forensic dump reports in `fleet/data/crash_reports/`. | None | `{"status": "success", "reports": [...], "count": 3}` |
+| `GET` | `/api/mind/status` | Holistic telemetry for the 4 cognitive layers (Brain, Consciousness, Subconsciousness, Soul) and Cognitive Harmony Index. | None | `{"status": "success", "cognitive_harmony_index": 100.0, "overall_state": "ENLIGHTENED", "layers": {...}}` |
+| `GET` | `/api/mind/insights` | Distilled subconscious dream insights, latent habits, and friction patterns. | Query: `limit=30` | `{"status": "success", "insights": [...], "count": 3}` |
+| `GET` | `/api/mind/critiques` | Conscious executive self-critique evaluations stream. | Query: `limit=30` | `{"status": "success", "critiques": [...], "count": 12}` |
+| `GET` | `/api/mind/soul/audits` | Moral alignment audits against Sovereign Privacy, $0.00 Frugality, and Metabolic Care. | Query: `limit=10` | `{"status": "success", "audits": [...], "count": 2}` |
+| `POST` | `/api/mind/critique` | Evaluates an agent action execution against structural soundness and intent fidelity. | `{"agent": "...", "action": "...", "input": {...}, "result": {...}}` | `{"status": "success", "critique": {"score": 95.0, "passed": true, ...}}` |
+| `POST` | `/api/mind/dream` | Executes a subconscious dream cycle consolidating episodic memory into actionable wisdom. | `{"max_activities": 200}` | `{"status": "success", "insight": {"cycle_id": "...", "events_consolidated": 200, ...}}` |
+| `POST` | `/api/mind/soul/audit` | Audits fleet actions against foundational ethical and wellbeing tenets. | `{}` | `{"status": "success", "audit": {"alignment_score": 100.0, "status": "PURE", ...}}` |
+| `POST` | `/api/mind/self_improve` | Ascends the fleet to the next evolutionary generation with calibrated directives. | `{}` | `{"status": "ASCENDING", "generation": 2, "evolutionary_directives_applied": [...]}` |
+| `POST` | `/api/mind/heal` | Triggers the brainstem autonomic self-healing reflex arc. | `{}` | `{"status": "HEALTHY", "health_score": 100.0, "anomalies_detected": [...], ...}` |
 
 ---
 

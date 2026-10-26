@@ -37,7 +37,7 @@ function closeSettingsModal() {
 
 function switchSettingsModalTab(tab) {
   fleetSettingsState.activeTab = tab;
-  ['agents', 'catalog', 'updates', 'general', 'ai', 'backups', 'autoheal'].forEach(t => {
+  ['agents', 'catalog', 'updates', 'general', 'ai', 'backups', 'autoheal', 'mind'].forEach(t => {
     const btn = document.getElementById(`settingsNavBtn_${t}`);
     const view = document.getElementById(`settingsView_${t}`);
     if (btn) btn.classList.toggle('active', t === tab);
@@ -56,6 +56,8 @@ function switchSettingsModalTab(tab) {
     populateAISettingsForm();
   } else if (tab === 'autoheal') {
     loadAutoHealStatus();
+  } else if (tab === 'mind') {
+    loadFleetMindStatus();
   }
 }
 
@@ -1055,3 +1057,258 @@ async function loadAutoImprovementsHistory() {
 window.loadAutoHealStatus = loadAutoHealStatus;
 window.triggerProactiveLogScanNow = triggerProactiveLogScanNow;
 window.loadAutoImprovementsHistory = loadAutoImprovementsHistory;
+
+
+// --- Cognitive Fleet Mind Controller ---
+
+async function loadFleetMindStatus() {
+  try {
+    const res = await fetch('/api/mind/status');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    const harmony = data.cognitive_harmony_index || 100;
+    const overallState = data.overall_state || 'COHERENT';
+    const badgeEl = document.getElementById('mindHarmonyBadge');
+    if (badgeEl) {
+      badgeEl.textContent = `Harmony: ${harmony}/100 [${overallState}]`;
+      badgeEl.style.color = harmony >= 90 ? '#c084fc' : (harmony >= 75 ? '#38bdf8' : '#ef4444');
+    }
+
+    const layers = data.layers || {};
+    const brain = layers.brain || {};
+    const cons = layers.consciousness || {};
+    const subc = layers.subconsciousness || {};
+    const soul = layers.soul || {};
+
+    // Brain layer
+    const brainHealthBadge = document.getElementById('brainHealthBadge');
+    if (brainHealthBadge) brainHealthBadge.textContent = `${brain.health_score || 100}% Health`;
+    const brainSynapses = document.getElementById('brainSynapsesCount');
+    if (brainSynapses) brainSynapses.textContent = (brain.synapses_fired || 0).toLocaleString();
+    const brainRam = document.getElementById('brainRamUsage');
+    if (brainRam) brainRam.textContent = `${brain.working_memory?.rss_mb || 0} MB`;
+    const brainThreads = document.getElementById('brainThreadsCount');
+    if (brainThreads) brainThreads.textContent = brain.working_memory?.threads || 0;
+    const brainEpistemic = document.getElementById('brainEpistemicSize');
+    if (brainEpistemic) brainEpistemic.textContent = `${Math.round((brain.epistemic_memory?.database_size_bytes || 0) / 1024)} KB`;
+    const brainLogs = document.getElementById('brainLogsCount');
+    if (brainLogs) brainLogs.textContent = brain.epistemic_memory?.activities_count || 0;
+
+    // Consciousness layer
+    const consBadge = document.getElementById('consciousnessStateBadge');
+    if (consBadge) consBadge.textContent = cons.executive_attention?.state || 'AWARE';
+    const consAgent = document.getElementById('consActiveAgent');
+    if (consAgent) consAgent.textContent = cons.executive_attention?.active_agent || 'Fleet Executive';
+    const consGoal = document.getElementById('consActiveGoal');
+    if (consGoal) consGoal.textContent = cons.executive_attention?.current_goal || 'Observing Sensory Synapses';
+    const consTotalCritiques = document.getElementById('consTotalCritiques');
+    if (consTotalCritiques) consTotalCritiques.textContent = cons.meta_critique_vitals?.total_critiques_logged || 0;
+    const consAvgQuality = document.getElementById('consAvgQuality');
+    if (consAvgQuality) consAvgQuality.textContent = `${cons.meta_critique_vitals?.average_quality_score || 100.0}/100`;
+
+    // Subconsciousness layer
+    const subcBadge = document.getElementById('subcStateBadge');
+    if (subcBadge) subcBadge.textContent = subc.status || 'INTUITING';
+    const subcInsights = document.getElementById('subcInsightsCount');
+    if (subcInsights) subcInsights.textContent = subc.recent_insights_count || 0;
+    const subcLastDream = document.getElementById('subcLastDream');
+    if (subcLastDream) {
+      const dt = subc.last_dream_cycle;
+      subcLastDream.textContent = dt && dt !== 'Awaiting initial dream cycle' ? new Date(dt).toLocaleTimeString() : 'Awaiting Dream';
+    }
+
+    // Soul layer
+    const soulBadge = document.getElementById('soulScoreBadge');
+    const soulScore = soul.latest_audit?.alignment_score !== undefined ? soul.latest_audit.alignment_score : 100.0;
+    if (soulBadge) soulBadge.textContent = `${soulScore}% ${soul.latest_audit?.status || 'PURE'}`;
+    const soulGen = document.getElementById('soulGeneration');
+    if (soulGen) soulGen.textContent = `Gen ${soul.evolution_metrics?.current_generation || 1}`;
+
+    loadMindInsights();
+    loadMindCritiques();
+  } catch (err) {
+    console.error('Failed to load fleet mind status:', err);
+  }
+}
+
+async function loadMindInsights(manual = false) {
+  const container = document.getElementById('mindDreamInsightsList');
+  if (!container) return;
+
+  try {
+    const res = await fetch('/api/mind/insights?limit=15');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const insights = data.insights || [];
+
+    if (!insights.length) {
+      container.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">No dream insights yet. Click "🌙 Dream Cycle" above to consolidate memory.</div>';
+      return;
+    }
+
+    container.innerHTML = insights.map(ins => {
+      const dt = ins.created_at ? new Date(ins.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+      const typeColor = ins.insight_type === 'FRICTION' ? '#ef4444' : (ins.insight_type === 'HABIT' ? '#38bdf8' : '#c084fc');
+      return `
+        <div style="padding: 8px 10px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--card-border); border-radius: 6px; display: flex; flex-direction: column; gap: 3px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="badge" style="background: rgba(255,255,255,0.06); color: ${typeColor}; border: 1px solid ${typeColor}40; font-size: 9.5px; padding: 1px 5px;">${escapeHtml(ins.insight_type || 'WISDOM')}</span>
+              <strong style="color: var(--text); font-size: 11.5px;">${escapeHtml(ins.title || '')}</strong>
+            </div>
+            <span style="font-size: 10px; color: var(--text-muted);">${dt}</span>
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(ins.description || '')}</div>
+          ${ins.actionable_recommendation ? `<div style="font-size: 10.5px; color: var(--accent-cyan); margin-top: 2px;">💡 ${escapeHtml(ins.actionable_recommendation)}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+    if (manual) showSettingsToast('Dream insights refreshed', 'success');
+  } catch (err) {
+    container.innerHTML = `<div style="color: #ef4444; text-align: center; padding: 10px;">Failed to load insights: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function loadMindCritiques(manual = false) {
+  const container = document.getElementById('mindCritiquesList');
+  if (!container) return;
+
+  try {
+    const res = await fetch('/api/mind/critiques?limit=15');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const critiques = data.critiques || [];
+
+    if (!critiques.length) {
+      container.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">No meta-critiques recorded yet. Executive critiques fire automatically as agents execute actions.</div>';
+      return;
+    }
+
+    container.innerHTML = critiques.map(c => {
+      const dt = c.created_at ? new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+      const passBadge = c.passed
+        ? `<span class="badge" style="background: rgba(34, 197, 94, 0.15); color: var(--accent-green); font-size: 9.5px; padding: 1px 5px;">${c.score}/100 PASS</span>`
+        : `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; font-size: 9.5px; padding: 1px 5px;">${c.score}/100 FAIL</span>`;
+      return `
+        <div style="padding: 8px 10px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--card-border); border-radius: 6px; display: flex; flex-direction: column; gap: 3px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              ${passBadge}
+              <strong style="color: var(--text); font-size: 11.5px;">${escapeHtml(c.agent || '')} → ${escapeHtml(c.action || '')}</strong>
+            </div>
+            <span style="font-size: 10px; color: var(--text-muted);">${dt}</span>
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(c.notes || '')}</div>
+          ${c.corrective_action ? `<div style="font-size: 10.5px; color: #f59e0b; margin-top: 2px;">🔧 Remedy: ${escapeHtml(c.corrective_action)}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+    if (manual) showSettingsToast('Meta-critiques refreshed', 'success');
+  } catch (err) {
+    container.innerHTML = `<div style="color: #ef4444; text-align: center; padding: 10px;">Failed to load critiques: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function triggerSubconsciousDreamNow() {
+  const btn = document.getElementById('btnMindDream');
+  const notice = document.getElementById('mindActionNotice');
+  if (btn) { btn.disabled = true; btn.textContent = '🌙 Dreaming...'; }
+  if (notice) { notice.style.display = 'block'; notice.style.color = 'var(--accent-cyan)'; notice.textContent = 'Consolidating episodic logs & synthesizing subconscious wisdom...'; }
+
+  try {
+    const res = await fetch('/api/mind/dream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ max_activities: 200 }) });
+    const data = await res.json();
+    if (notice) {
+      notice.style.color = 'var(--accent-green)';
+      const insCount = data.insight?.insights_synthesized_count || (data.insight?.insights || []).length || 0;
+      notice.textContent = `🌙 Dream cycle complete! Consolidated ${data.insight?.events_consolidated || 0} events and synthesized ${insCount} insights.`;
+    }
+    await loadFleetMindStatus();
+    showSettingsToast('Subconscious memory consolidation complete', 'success');
+  } catch (err) {
+    if (notice) { notice.style.color = '#ef4444'; notice.textContent = 'Failed dream cycle: ' + err.message; }
+    showSettingsToast('Dream cycle failed: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🌙 Dream Cycle'; }
+  }
+}
+
+async function triggerSoulAuditNow() {
+  const btn = document.getElementById('btnMindSoul');
+  const notice = document.getElementById('mindActionNotice');
+  if (btn) { btn.disabled = true; btn.textContent = '🧭 Auditing...'; }
+  if (notice) { notice.style.display = 'block'; notice.style.color = '#c084fc'; notice.textContent = 'Auditing moral alignment against sovereign privacy, frugality & wellbeing tenets...'; }
+
+  try {
+    const res = await fetch('/api/mind/soul/audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+    const data = await res.json();
+    const audit = data.audit || {};
+    if (notice) {
+      notice.style.color = audit.alignment_score >= 80 ? 'var(--accent-green)' : '#f59e0b';
+      notice.textContent = `🧭 Soul Audit Complete: Score ${audit.alignment_score}/100 [${audit.status || 'PURE'}]. Violations: ${(audit.violations || []).length}.`;
+    }
+    await loadFleetMindStatus();
+    showSettingsToast(`Soul alignment audited: ${audit.alignment_score}/100 [${audit.status}]`, 'success');
+  } catch (err) {
+    if (notice) { notice.style.color = '#ef4444'; notice.textContent = 'Failed soul audit: ' + err.message; }
+    showSettingsToast('Soul audit failed: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🧭 Audit Soul'; }
+  }
+}
+
+async function triggerSelfImproveNow() {
+  const btn = document.getElementById('btnMindImprove');
+  const notice = document.getElementById('mindActionNotice');
+  if (btn) { btn.disabled = true; btn.textContent = '🌱 Evolving...'; }
+  if (notice) { notice.style.display = 'block'; notice.style.color = 'var(--accent-green)'; notice.textContent = 'Executing evolutionary self-improvement cycle...'; }
+
+  try {
+    const res = await fetch('/api/mind/self_improve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+    const data = await res.json();
+    if (notice) {
+      notice.style.color = 'var(--accent-green)';
+      notice.textContent = `🌱 Evolution cycle complete! Ascended to Gen ${data.generation || 1}. Applied ${(data.enhancements || []).length} systemic enhancements.`;
+    }
+    await loadFleetMindStatus();
+    showSettingsToast(`Evolution generation complete (Gen ${data.generation || 1})`, 'success');
+  } catch (err) {
+    if (notice) { notice.style.color = '#ef4444'; notice.textContent = 'Evolution failed: ' + err.message; }
+    showSettingsToast('Self-improvement failed: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🌱 Evolve Generation'; }
+  }
+}
+
+async function triggerAutonomicHealNow() {
+  const btn = document.getElementById('btnMindHeal');
+  const notice = document.getElementById('mindActionNotice');
+  if (btn) { btn.disabled = true; btn.textContent = '🩺 Healing...'; }
+  if (notice) { notice.style.display = 'block'; notice.style.color = 'var(--accent-cyan)'; notice.textContent = 'Triggering autonomic self-healing reflex arc...'; }
+
+  try {
+    const res = await fetch('/api/mind/heal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+    const data = await res.json();
+    if (notice) {
+      notice.style.color = 'var(--accent-green)';
+      notice.textContent = `🩺 Autonomic reflex complete: Health Score ${data.health_score || 100}%. Repairs applied: ${(data.auto_repairs_applied || []).length}.`;
+    }
+    await loadFleetMindStatus();
+    showSettingsToast('Autonomic reflex completed successfully', 'success');
+  } catch (err) {
+    if (notice) { notice.style.color = '#ef4444'; notice.textContent = 'Autonomic heal failed: ' + err.message; }
+    showSettingsToast('Autonomic heal failed: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🩺 Autonomic Heal'; }
+  }
+}
+
+window.loadFleetMindStatus = loadFleetMindStatus;
+window.loadMindInsights = loadMindInsights;
+window.loadMindCritiques = loadMindCritiques;
+window.triggerSubconsciousDreamNow = triggerSubconsciousDreamNow;
+window.triggerSoulAuditNow = triggerSoulAuditNow;
+window.triggerSelfImproveNow = triggerSelfImproveNow;
+window.triggerAutonomicHealNow = triggerAutonomicHealNow;
+

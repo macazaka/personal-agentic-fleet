@@ -81,6 +81,60 @@ def migration_v4_auto_improvements(conn: sqlite3.Connection):
     """)
 
 
+@migration(5, "Add cognitive mind tables: critiques, dream insights & soul audits")
+def migration_v5_cognitive_mind(conn: sqlite3.Connection):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS mind_critiques (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agent TEXT NOT NULL,
+            action TEXT NOT NULL,
+            critique_score REAL NOT NULL,
+            critique_notes TEXT NOT NULL,
+            corrective_action TEXT DEFAULT '',
+            input_summary TEXT DEFAULT '',
+            output_summary TEXT DEFAULT '',
+            confidence REAL DEFAULT 1.0,
+            created_at TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_mind_critiques_created
+        ON mind_critiques(created_at)
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS mind_dream_insights (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            insight_type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL,
+            source_events_count INTEGER DEFAULT 0,
+            confidence REAL DEFAULT 1.0,
+            actionable_recommendation TEXT DEFAULT '',
+            created_at TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_mind_dream_created
+        ON mind_dream_insights(created_at)
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS mind_soul_audits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            audit_id TEXT NOT NULL,
+            alignment_score REAL NOT NULL,
+            violations_count INTEGER DEFAULT 0,
+            violations_json TEXT DEFAULT '[]',
+            recommendations_json TEXT DEFAULT '[]',
+            summary TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_mind_soul_created
+        ON mind_soul_audits(created_at)
+    """)
+
+
 def get_current_schema_version(conn: sqlite3.Connection) -> int:
     """Reads current PRAGMA user_version."""
     cursor = conn.cursor()

@@ -1729,6 +1729,7 @@
         <button class="settings-nav-tab" id="settingsNavBtn_ai" onclick="switchSettingsModalTab('ai')">🧠 AI & Providers</button>
         <button class="settings-nav-tab" id="settingsNavBtn_backups" onclick="switchSettingsModalTab('backups')">💾 Backups & Maintenance</button>
         <button class="settings-nav-tab" id="settingsNavBtn_autoheal" onclick="switchSettingsModalTab('autoheal')">🛠️ Auto-Healer & Logs</button>
+        <button class="settings-nav-tab" id="settingsNavBtn_mind" onclick="switchSettingsModalTab('mind')">🧠 Fleet Mind</button>
       </div>
 
       <!-- Modal Body -->
@@ -2028,6 +2029,144 @@
             </div>
           </div>
         </div>
+
+        <!-- View 6: Cognitive Fleet Mind (Brain, Consciousness, Subconsciousness, Soul) -->
+        <div id="settingsView_mind" style="display: none;">
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <!-- Mind Hero Card -->
+            <div style="padding: 16px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(56, 189, 248, 0.08) 100%); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px;">🧠</span>
+                    <strong style="font-size: 15px; color: var(--text);">Cognitive Fleet Mind & Philosophy</strong>
+                    <span id="mindHarmonyBadge" class="badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); font-size: 11px; padding: 2px 8px; border-radius: 12px;">Harmony: --/100</span>
+                  </div>
+                  <p style="font-size: 12px; color: var(--text-muted); margin: 6px 0 0 0;">
+                    4-layer organic intelligence substrate: Physical Brain, Executive Consciousness & Self-Critique, Subconscious Dreaming, and Teleological Soul.
+                  </p>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  <button class="btn btn-sm btn-primary" id="btnMindDream" onclick="triggerSubconsciousDreamNow()" title="Consolidate episodic logs and synthesize latent habits">
+                    🌙 Dream Cycle
+                  </button>
+                  <button class="btn btn-sm" id="btnMindSoul" onclick="triggerSoulAuditNow()" title="Audit alignment against Sovereign Privacy & Frugality tenets" style="border-color: rgba(168, 85, 247, 0.4); color: #c084fc;">
+                    🧭 Audit Soul
+                  </button>
+                  <button class="btn btn-sm" id="btnMindImprove" onclick="triggerSelfImproveNow()" title="Trigger evolutionary self-improvement generation" style="border-color: rgba(34, 197, 94, 0.4); color: var(--accent-green);">
+                    🌱 Evolve Generation
+                  </button>
+                  <button class="btn btn-sm" id="btnMindHeal" onclick="triggerAutonomicHealNow()" title="Run brain autonomic healing reflex" style="border-color: rgba(56, 189, 248, 0.4); color: var(--accent-cyan);">
+                    🩺 Autonomic Heal
+                  </button>
+                </div>
+              </div>
+              <div id="mindActionNotice" style="margin-top: 10px; font-size: 12px; display: none;"></div>
+            </div>
+
+            <!-- 4-Layer Cognitive Cards Grid -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+              <!-- Layer 1: Brain -->
+              <div style="padding: 14px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--card-border); border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <div style="font-weight: 700; font-size: 13px; color: var(--accent-cyan); display: flex; align-items: center; gap: 6px;">
+                    <span>⚡</span> Layer 1: Brain
+                  </div>
+                  <span id="brainHealthBadge" class="badge" style="background: rgba(34, 197, 94, 0.15); color: var(--accent-green); font-size: 10.5px;">100% Health</span>
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.6;">
+                  <div>• Synapses Fired: <strong id="brainSynapsesCount" style="color: var(--text);">--</strong></div>
+                  <div>• Working RAM: <strong id="brainRamUsage" style="color: var(--text);">-- MB</strong> (<span id="brainThreadsCount">--</span> threads)</div>
+                  <div>• Epistemic Memory: <strong id="brainEpistemicSize" style="color: var(--text);">--</strong> (<span id="brainLogsCount">--</span> activities)</div>
+                  <div>• Autonomic Arc: <strong id="brainAutonomicStatus" style="color: var(--accent-green);">Active & Vigilant</strong></div>
+                </div>
+              </div>
+
+              <!-- Layer 2: Consciousness -->
+              <div style="padding: 14px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--card-border); border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <div style="font-weight: 700; font-size: 13px; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+                    <span>👁️</span> Layer 2: Consciousness
+                  </div>
+                  <span id="consciousnessStateBadge" class="badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 10.5px;">AWARE</span>
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.6;">
+                  <div>• Focused Agent: <strong id="consActiveAgent" style="color: var(--text);">Fleet Executive</strong></div>
+                  <div>• Current Goal: <span id="consActiveGoal" style="color: var(--text-muted);">Observing Sensory Synapses</span></div>
+                  <div>• Meta-Critiques: <strong id="consTotalCritiques" style="color: var(--text);">--</strong> evaluations</div>
+                  <div>• Avg Quality: <strong id="consAvgQuality" style="color: var(--accent-green);">100.0/100</strong></div>
+                </div>
+              </div>
+
+              <!-- Layer 3: Subconsciousness -->
+              <div style="padding: 14px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--card-border); border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <div style="font-weight: 700; font-size: 13px; color: #c084fc; display: flex; align-items: center; gap: 6px;">
+                    <span>🌙</span> Layer 3: Subconsciousness
+                  </div>
+                  <span id="subcStateBadge" class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; font-size: 10.5px;">INTUITING</span>
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.6;">
+                  <div>• Synthesized Wisdom: <strong id="subcInsightsCount" style="color: var(--text);">--</strong> insights</div>
+                  <div>• Memory Consolidation: <span id="subcConsolidationState" style="color: var(--text);">Offline Dreaming (23:00 - 06:00)</span></div>
+                  <div>• Last Dream Cycle: <span id="subcLastDream" style="color: var(--text-muted);">--</span></div>
+                  <div>• Friction Pruning: <strong id="subcFrictionStatus" style="color: var(--accent-green);">Immunological Repair Active</strong></div>
+                </div>
+              </div>
+
+              <!-- Layer 4: Soul -->
+              <div style="padding: 14px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--card-border); border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <div style="font-weight: 700; font-size: 13px; color: #f59e0b; display: flex; align-items: center; gap: 6px;">
+                    <span>✨</span> Layer 4: Soul
+                  </div>
+                  <span id="soulScoreBadge" class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-size: 10.5px;">100% PURE</span>
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.6;">
+                  <div>• Ethical Tenets: <strong id="soulTenetsCount" style="color: var(--text);">4 Inviolable Tenets</strong></div>
+                  <div>• Sovereign Privacy: <span style="color: var(--accent-green);">DPAPI Local Custody</span></div>
+                  <div>• Frugality Rule: <span style="color: var(--accent-green);">$0.00 / 0 Tokens Invariant</span></div>
+                  <div>• Evolution Generation: <strong id="soulGeneration" style="color: #f59e0b;">Gen 1</strong></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Subconscious Insights & Conscious Critiques Feed -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+              <div style="padding: 14px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--card-border); border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <strong style="font-size: 13px; color: var(--text);">🌙 Subconscious Dream Insights</strong>
+                  <button class="btn btn-sm" onclick="loadMindInsights(true)" style="font-size: 11px; padding: 2px 6px;">Refresh</button>
+                </div>
+                <div id="mindDreamInsightsList" style="max-height: 220px; overflow-y: auto; font-size: 12px; display: flex; flex-direction: column; gap: 8px;">
+                  <div style="color: var(--text-muted); text-align: center; padding: 20px;">Loading dream insights...</div>
+                </div>
+              </div>
+
+              <div style="padding: 14px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--card-border); border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <strong style="font-size: 13px; color: var(--text);">👁️ Conscious Meta-Critiques</strong>
+                  <button class="btn btn-sm" onclick="loadMindCritiques(true)" style="font-size: 11px; padding: 2px 6px;">Refresh</button>
+                </div>
+                <div id="mindCritiquesList" style="max-height: 220px; overflow-y: auto; font-size: 12px; display: flex; flex-direction: column; gap: 8px;">
+                  <div style="color: var(--text-muted); text-align: center; padding: 20px;">Loading meta-critiques...</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Telemetry & Raw Feeds -->
+            <div style="padding: 14px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--card-border); border-radius: 8px;">
+              <strong style="font-size: 13px; color: var(--text);">Mind Telemetry & Deep Introspection APIs</strong>
+              <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+                <a href="/api/mind/status" target="_blank" class="btn" style="font-size: 11.5px; text-decoration: none;">🧠 Holistic Mind Status JSON</a>
+                <a href="/api/mind/insights" target="_blank" class="btn" style="font-size: 11.5px; text-decoration: none;">🌙 Dream Insights Ledger JSON</a>
+                <a href="/api/mind/critiques" target="_blank" class="btn" style="font-size: 11.5px; text-decoration: none;">👁️ Meta-Critiques Stream JSON</a>
+                <a href="/api/mind/soul/audits" target="_blank" class="btn" style="font-size: 11.5px; text-decoration: none;">🧭 Soul Audits Log JSON</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>

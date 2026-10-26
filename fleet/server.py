@@ -497,6 +497,26 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             stats = db.get_auto_improvements_stats() if hasattr(db, "get_auto_improvements_stats") else {}
             self._send_json({"status": "success", "improvements": history, "stats": stats, "count": len(history)})
 
+        elif path == "/api/mind/status":
+            from fleet.core.mind import fleet_mind
+            fleet_mind.set_db(db)
+            self._send_json(fleet_mind.get_holistic_state())
+
+        elif path == "/api/mind/insights":
+            limit = int(urllib.parse.parse_qs(parsed.query).get("limit", [30])[0])
+            insights = db.list_dream_insights(limit=limit) if hasattr(db, "list_dream_insights") else []
+            self._send_json({"status": "success", "insights": insights, "count": len(insights)})
+
+        elif path == "/api/mind/critiques":
+            limit = int(urllib.parse.parse_qs(parsed.query).get("limit", [30])[0])
+            critiques = db.list_critiques(limit=limit) if hasattr(db, "list_critiques") else []
+            self._send_json({"status": "success", "critiques": critiques, "count": len(critiques)})
+
+        elif path == "/api/mind/soul/audits":
+            limit = int(urllib.parse.parse_qs(parsed.query).get("limit", [10])[0])
+            audits = db.list_soul_audits(limit=limit) if hasattr(db, "list_soul_audits") else []
+            self._send_json({"status": "success", "audits": audits, "count": len(audits)})
+
         else:
             # 3. Dispatch to Domain API Routers
             handled = router.dispatch_get(self, path, parsed)
@@ -820,6 +840,41 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
                 "caches": p_res,
                 "ram": r_res
             })
+
+        elif path == "/api/mind/critique":
+            from fleet.core.mind import fleet_mind
+            fleet_mind.set_db(db)
+            agent = body.get("agent", "FleetAgent")
+            action = body.get("action", "custom_action")
+            input_payload = body.get("input", {})
+            output_result = body.get("result", {})
+            critique = fleet_mind.critique(agent=agent, action=action, input_payload=input_payload, output_result=output_result)
+            self._send_json({"status": "success", "critique": critique.to_dict()})
+
+        elif path == "/api/mind/dream":
+            from fleet.core.mind import fleet_mind
+            fleet_mind.set_db(db)
+            max_activities = int(body.get("max_activities", 200))
+            insight = fleet_mind.dream(max_activities=max_activities)
+            self._send_json({"status": "success", "insight": insight})
+
+        elif path == "/api/mind/soul/audit":
+            from fleet.core.mind import fleet_mind
+            fleet_mind.set_db(db)
+            audit = fleet_mind.audit_soul()
+            self._send_json({"status": "success", "audit": audit.to_dict()})
+
+        elif path == "/api/mind/self_improve":
+            from fleet.core.mind import fleet_mind
+            fleet_mind.set_db(db)
+            res = fleet_mind.self_improve()
+            self._send_json(res)
+
+        elif path == "/api/mind/heal":
+            from fleet.core.mind import fleet_mind
+            fleet_mind.set_db(db)
+            res = fleet_mind.heal()
+            self._send_json(res)
 
         else:
             # Dispatch to Domain API Routers

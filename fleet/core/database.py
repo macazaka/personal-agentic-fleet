@@ -23,6 +23,7 @@ from fleet.core.db import (
     BacklogMixin,
     SystemMixin,
     AutoImprovementsMixin,
+    MindMixin,
     is_test_environment,
     get_effective_db_path,
 )
@@ -35,6 +36,7 @@ class FleetDatabase(
     BacklogMixin,
     SystemMixin,
     AutoImprovementsMixin,
+    MindMixin,
     BaseDatabase
 ):
     """

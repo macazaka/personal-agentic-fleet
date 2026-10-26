@@ -50,6 +50,10 @@ class FleetDaemon:
         # Proactive Log Scan & Autonomous Self-Healing Pulse (Every 15 minutes by default)
         self.log_scan_interval_sec = 900  # 15 minutes
         self.last_log_scan_time = time.time() - 885
+        # Cognitive Mind Cycles (Subconscious Dream & Soul Alignment)
+        self.last_dream_date = ""
+        self.last_soul_audit_time = time.time()
+        self.soul_audit_interval_sec = 7200  # 2 hours
 
     def check_and_trigger(self):
         now = datetime.now()
@@ -199,6 +203,29 @@ class FleetDaemon:
         if (now_ts - getattr(self, "last_log_scan_time", 0.0)) >= self.log_scan_interval_sec:
             self.run_scheduled_log_scan_and_heal(now)
             self.last_log_scan_time = now_ts
+
+        # 10. Subconscious Memory Consolidation Dream Cycle (Nightly during 23:00 - 06:00 window)
+        if (now.hour >= 23 or now.hour < 6) and getattr(self, "last_dream_date", "") != today_date:
+            try:
+                from fleet.core.mind import fleet_mind
+                fleet_mind.set_db(getattr(self.bus, "db", None) or FleetDatabase())
+                dream_report = fleet_mind.dream()
+                self.last_dream_date = today_date
+                print(f"[{now.strftime('%H:%M:%S')}] Subconscious Dream Cycle complete ({dream_report.get('insights_synthesized_count', 0)} insights synthesized).")
+            except Exception as e:
+                logger.debug("Dream cycle daemon warning: %s", e)
+
+        # 11. Soul Moral Alignment Audit (Every 2 hours)
+        if (now_ts - getattr(self, "last_soul_audit_time", 0.0)) >= getattr(self, "soul_audit_interval_sec", 7200):
+            try:
+                from fleet.core.mind import fleet_mind
+                fleet_mind.set_db(getattr(self.bus, "db", None) or FleetDatabase())
+                audit = fleet_mind.audit_soul()
+                self.last_soul_audit_time = now_ts
+                if audit.status in ("DRIFTING", "DISCORDANT"):
+                    print(f"[{now.strftime('%H:%M:%S')}] Soul Alignment Warning: {audit.status} ({audit.alignment_score}/100)")
+            except Exception as e:
+                logger.debug("Soul audit daemon warning: %s", e)
 
     def run_scheduled_log_scan_and_heal(self, now: datetime = None):
         """Proactively scans logs, ring buffer and crash dumps, executing autonomous improvements."""

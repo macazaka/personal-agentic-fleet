@@ -173,3 +173,82 @@ def get_auto_improvements(handler: Any, parsed_url: urllib.parse.ParseResult):
     stats = srv.db.get_auto_improvements_stats() if hasattr(srv.db, "get_auto_improvements_stats") else {}
     handler._send_json({"status": "success", "improvements": history, "stats": stats, "count": len(history)})
 
+
+# --- Cognitive Fleet Mind Routes ---
+
+@router.get("/api/mind/status")
+def get_mind_status(handler: Any, parsed_url: urllib.parse.ParseResult):
+    from fleet.core.mind import fleet_mind
+    fleet_mind.set_db(srv.db)
+    handler._send_json(fleet_mind.get_holistic_state())
+
+
+@router.get("/api/mind/insights")
+def get_mind_insights(handler: Any, parsed_url: urllib.parse.ParseResult):
+    query = urllib.parse.parse_qs(parsed_url.query)
+    limit = int(query.get("limit", [30])[0])
+    insights = srv.db.list_dream_insights(limit=limit) if hasattr(srv.db, "list_dream_insights") else []
+    handler._send_json({"status": "success", "insights": insights, "count": len(insights)})
+
+
+@router.get("/api/mind/critiques")
+def get_mind_critiques(handler: Any, parsed_url: urllib.parse.ParseResult):
+    query = urllib.parse.parse_qs(parsed_url.query)
+    limit = int(query.get("limit", [30])[0])
+    critiques = srv.db.list_critiques(limit=limit) if hasattr(srv.db, "list_critiques") else []
+    handler._send_json({"status": "success", "critiques": critiques, "count": len(critiques)})
+
+
+@router.get("/api/mind/soul/audits")
+def get_mind_soul_audits(handler: Any, parsed_url: urllib.parse.ParseResult):
+    query = urllib.parse.parse_qs(parsed_url.query)
+    limit = int(query.get("limit", [10])[0])
+    audits = srv.db.list_soul_audits(limit=limit) if hasattr(srv.db, "list_soul_audits") else []
+    handler._send_json({"status": "success", "audits": audits, "count": len(audits)})
+
+
+@router.post("/api/mind/critique")
+def post_mind_critique(handler: Any, body: Dict[str, Any]):
+    from fleet.core.mind import fleet_mind
+    fleet_mind.set_db(srv.db)
+    agent = body.get("agent", "FleetAgent")
+    action = body.get("action", "custom_action")
+    input_payload = body.get("input", {})
+    output_result = body.get("result", {})
+    critique = fleet_mind.critique(agent=agent, action=action, input_payload=input_payload, output_result=output_result)
+    handler._send_json({"status": "success", "critique": critique.to_dict()})
+
+
+@router.post("/api/mind/dream")
+def post_mind_dream(handler: Any, body: Dict[str, Any]):
+    from fleet.core.mind import fleet_mind
+    fleet_mind.set_db(srv.db)
+    max_activities = int(body.get("max_activities", 200))
+    insight = fleet_mind.dream(max_activities=max_activities)
+    handler._send_json({"status": "success", "insight": insight})
+
+
+@router.post("/api/mind/soul/audit")
+def post_mind_soul_audit(handler: Any, body: Dict[str, Any]):
+    from fleet.core.mind import fleet_mind
+    fleet_mind.set_db(srv.db)
+    audit = fleet_mind.audit_soul()
+    handler._send_json({"status": "success", "audit": audit.to_dict()})
+
+
+@router.post("/api/mind/self_improve")
+def post_mind_self_improve(handler: Any, body: Dict[str, Any]):
+    from fleet.core.mind import fleet_mind
+    fleet_mind.set_db(srv.db)
+    res = fleet_mind.self_improve()
+    handler._send_json(res)
+
+
+@router.post("/api/mind/heal")
+def post_mind_heal(handler: Any, body: Dict[str, Any]):
+    from fleet.core.mind import fleet_mind
+    fleet_mind.set_db(srv.db)
+    res = fleet_mind.heal()
+    handler._send_json(res)
+
+

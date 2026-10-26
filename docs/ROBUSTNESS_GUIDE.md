@@ -239,6 +239,69 @@ python -m fleet.tools.test_runner
 
 ---
 
+## 🧠 Pillar 7: The Cognitive Fleet Mind (Brain, Consciousness, Subconsciousness, Soul)
+
+To elevate the fleet beyond static reactive mechanics into an organic, self-healing, self-improving, and self-critiquing intelligence, the architecture implements a 4-layer cognitive gestalt (`CognitiveFleetMind` / `fleet.core.mind`):
+
+```mermaid
+flowchart TD
+    subgraph L1["Layer 1: Brain (Physical & Neurological Substrate)"]
+        Synapses["Synaptic Event Bus Firing\n(fleet.core.event_bus)"]
+        DualMemory["Dual Memory Architecture\n(Working RAM & Epistemic SQLite)"]
+        AutonomicReflex["Autonomic Self-Healing Reflex Arc\n(AutoHealer & WAL Optimizations)"]
+    end
+
+    subgraph L2["Layer 2: Consciousness (Executive Focus & Meta-Critique)"]
+        ExecutiveAttention["Executive Focus Window\n(Active Agent & Immediate Goal)"]
+        CritiqueEngine["Deterministic Self-Critique Loop\n(Soundness, Content, Economy, Transparency)"]
+    end
+
+    subgraph L3["Layer 3: Subconsciousness (Offline Dreaming & Consolidation)"]
+        DreamCycles["Circadian Dream Cycles (23:00 - 06:00)\n(Episodic Memory Consolidation)"]
+        LatentMining["Habit & Friction Mining\n(Pattern Clustering & Bottleneck Remediation)"]
+    end
+
+    subgraph L4["Layer 4: Soul (Teleological Core & Moral Compass)"]
+        CoreTenets["4 Inviolable Tenets\n(Sovereign Privacy, $0.00 Frugality, Metabolic Care, Integrity)"]
+        SoulAudit["Teleological Alignment Audits\n(audit_alignment() -> PURE / FAITHFUL)"]
+        EvolutionaryAscent["Evolutionary Self-Improvement Generations\n(evolve_and_improve() -> Gen N+1)"]
+    end
+
+    L1 --> L2
+    L2 --> L3
+    L3 --> L4
+    L4 -.->|Ethical Guidance & Feedback| L1
+```
+
+### Cognitive Harmony Index
+The mind dynamically evaluates systemic health via the **Holistic Cognitive Harmony Index** (0–100):
+$$\text{Harmony Score} = (\text{Brain Health} \times 0.35) + (\text{Conscious Critique Avg} \times 0.35) + (\text{Soul Alignment} \times 0.30)$$
+
+- **90–100**: `ENLIGHTENED` (Peak operational harmony and moral fidelity)
+- **75–89**: `COHERENT` (Stable, healthy executive operation)
+- **< 75**: `DISSONANT` (Contention detected; autonomic reflexes and immunological repairs trigger)
+
+### CLI Command-Line Introspection
+Inspect and trigger cognitive layers from the terminal with zero token cost:
+```powershell
+# Display holistic cognitive mind telemetry and harmony score
+python -m fleet.tools.fleet_mind --status
+
+# Trigger an immediate subconscious dream consolidation cycle
+python -m fleet.tools.fleet_mind --dream
+
+# Audit moral alignment against Sovereign Privacy & Frugality tenets
+python -m fleet.tools.fleet_mind --soul
+
+# Trigger the brain's autonomic self-healing reflex arc
+python -m fleet.tools.fleet_mind --heal
+
+# Trigger evolutionary self-improvement generation
+python -m fleet.tools.fleet_mind --improve
+```
+
+---
+
 ## 🔍 Diagnostic REST APIs
 
 | Endpoint | Method | Description |
@@ -248,6 +311,15 @@ python -m fleet.tools.test_runner
 | `/api/diagnostics/log-analysis` | `GET` | Returns latest proactive log scan triage, issue findings, and system health index |
 | `/api/diagnostics/log-analysis/run` | `POST` | Triggers immediate on-demand proactive log scan and autonomous self-healing improvements |
 | `/api/diagnostics/auto-improvements` | `GET` | Historical ledger of automated self-healing improvements executed by the system |
+| `/api/mind/status` | `GET` | Holistic Cognitive Mind status (Brain, Consciousness, Subconsciousness, Soul, and Harmony Index) |
+| `/api/mind/insights` | `GET` | Distilled subconscious dream insights and latent behavioural wisdom |
+| `/api/mind/critiques` | `GET` | Conscious executive meta-critique evaluations stream |
+| `/api/mind/soul/audits` | `GET` | Moral alignment audits against Sovereign Privacy, Zero-Token Frugality, and Metabolic Care |
+| `/api/mind/critique` | `POST` | Trigger executive self-critique evaluation on agent action |
+| `/api/mind/dream` | `POST` | Trigger background subconscious dream cycle for offline memory consolidation |
+| `/api/mind/soul/audit` | `POST` | Execute teleological soul alignment audit |
+| `/api/mind/self_improve` | `POST` | Execute evolutionary self-improvement ascending intelligence generation |
+| `/api/mind/heal` | `POST` | Trigger autonomic brainstem self-healing reflex arc |
 | `/api/events/stream` | `GET` | Server-Sent Events push stream for real-time fleet events |
 | `/api/optimizer/diagnostics` | `GET` | Returns physical RAM usage, CPU load, and top process metrics |
 | `/api/settings/health` | `GET` | Microkernel uptime, database size, and active worker thread status |

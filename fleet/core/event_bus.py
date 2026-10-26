@@ -75,6 +75,12 @@ class DeterministicEventBus:
     def dispatch(self, event: FleetEvent) -> Dict[str, Any]:
         """Route event to the appropriate target worker with zero LLM overhead."""
         self._notify_subscribers(event)
+        try:
+            from fleet.core.mind import fleet_mind
+            fleet_mind.record_synapse()
+        except Exception:
+            pass
+
         target_key = event.target.lower()
         handler = self._handlers.get(target_key)
 
@@ -95,6 +101,19 @@ class DeterministicEventBus:
                 f"a2a_{event.action.lower()}",
                 f"Routed to {event.target} (ID: {event.correlation_id})"
             )
+            # Conscious Meta-Critique Loop (Non-blocking self-evaluation)
+            try:
+                from fleet.core.mind import fleet_mind
+                if target_key != "mind":
+                    fleet_mind.critique(
+                        agent=event.target,
+                        action=event.action,
+                        input_payload=event.payload,
+                        output_result=result if isinstance(result, dict) else {"status": "success", "result": result}
+                    )
+            except Exception:
+                pass
+
             return {
                 "status": "success",
                 "correlation_id": event.correlation_id,
@@ -129,6 +148,7 @@ class DeterministicEventBus:
         self.register_handler("notification", self._handle_notification)
         self.register_handler("email", self._handle_email)
         self.register_handler("system", self._handle_system)
+        self.register_handler("mind", self._handle_mind)
 
     # --- Worker Handlers (Tier 0: Pure Code / 0 Tokens) ---
 
@@ -260,9 +280,38 @@ class DeterministicEventBus:
         else:
             raise ValueError(f"Unknown System action: {event.action}")
 
+    def _handle_mind(self, event: FleetEvent) -> Dict[str, Any]:
+        from dataclasses import asdict
+        from fleet.core.mind import fleet_mind
+        fleet_mind.set_db(self.db)
+        action = event.action.upper()
+        p = event.payload or {}
+
+        if action in ("STATUS", "GET_STATUS"):
+            return fleet_mind.get_holistic_state()
+        elif action in ("CRITIQUE", "EVALUATE"):
+            res = fleet_mind.critique(
+                agent=p.get("agent", "Unknown"),
+                action=p.get("action", "Unknown"),
+                input_payload=p.get("input"),
+                output_result=p.get("output"),
+            )
+            return asdict(res)
+        elif action in ("DREAM", "RUN_DREAM_CYCLE"):
+            return fleet_mind.dream(max_activities=int(p.get("max_activities", 200)))
+        elif action in ("SOUL_AUDIT", "AUDIT_SOUL"):
+            return asdict(fleet_mind.audit_soul())
+        elif action in ("SELF_IMPROVE", "EVOLVE"):
+            return fleet_mind.self_improve()
+        elif action in ("HEAL", "AUTONOMIC_HEAL"):
+            return fleet_mind.heal()
+        else:
+            raise ValueError(f"Unknown Mind action: {event.action}")
+
 
 # Singleton Bus instance
 bus = DeterministicEventBus()
+event_bus = bus
 
 
 

@@ -9,6 +9,7 @@ from fleet.core.db.emails import EmailsMixin
 from fleet.core.db.backlog import BacklogMixin
 from fleet.core.db.system import SystemMixin
 from fleet.core.db.auto_improvements import AutoImprovementsMixin
+from fleet.core.db.mind import MindMixin
 
 __all__ = [
     "BaseDatabase",
@@ -20,5 +21,6 @@ __all__ = [
     "BacklogMixin",
     "SystemMixin",
     "AutoImprovementsMixin",
+    "MindMixin",
 ]
 

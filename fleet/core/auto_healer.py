@@ -467,10 +467,10 @@ class AutonomousAutoHealer:
 
         # Run WAL checkpoint and optimize using dedicated short-lived connection
         try:
-            conn = sqlite3.connect(str(self.db_path), timeout=15.0)
-            conn.execute("PRAGMA busy_timeout = 15000")
+            conn = sqlite3.connect(str(self.db_path), timeout=2.0)
+            conn.execute("PRAGMA busy_timeout = 2000")
             cursor = conn.cursor()
-            cursor.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            cursor.execute("PRAGMA wal_checkpoint(PASSIVE)")
             res = cursor.fetchone()
             conn.execute("PRAGMA optimize")
             conn.close()
