@@ -172,12 +172,18 @@ Personal Agentic Fleet acts as a bidirectional bridge with modern developer AI t
 
 ---
 
-## 6. Background Routine Daemon (`fleet/daemon.py`)
+## 6. Background Routine Daemon & Scheduling Engine (`fleet/daemon.py`, `fleet/core/scheduler.py`)
 
-The `FleetDaemon` executes silently in the background on a periodic loop:
-- **Morning Briefing Pulse (08:30 IST)**: Generates high-priority agenda summaries and upcoming meeting reminders.
-- **Evening Review Pulse (20:00 IST)**: Compiles habit completion metrics and day-end status.
-- **2-Hour Email Sync Pulse**: Deterministically classifies new Gmail threads into 5 folders.
+The `FleetDaemon` executes silently in the background on a periodic loop, orchestrating background maintenance and driving the **Agent Scheduling Engine**:
+- **Zero-Dependency YAML Configuration**: The scheduler parses schedules from `schedules.yaml`, `fleet/data/user/schedules.yaml`, or the root `fleet.yaml` using pure Python stdlib via `fleet/core/yaml_helper.py`.
+- **Pre-Configured Default Agent Schedules**: Pre-wires all 7 agents (`overview` morning/evening briefings, `health` smoothie/medication/sleep reminders, `optimizer` RAM/DNS sweeps, `gmail` sync, `antigravity` queue monitoring, and `backlog` grooming).
+- **Flexible Timing Rules**:
+  - Exact time of day (`time: "08:30"` or `times: ["08:30", "20:00"]`).
+  - Recurring intervals (`interval_hours: 6`, `interval_minutes: 15`, `every: "2h"`).
+  - Standard 5-field cron syntax (`cron: "0 9 * * 1-5"`, `*/15 * * * *`).
+  - Conditional filters: `days`, `weekdays_only`, and `active_hours: "08:00-18:00"`.
+- **Direct Agent Task Dispatching**: Schedules invoke each agent package's `execute_task(task, payload)` directly within their declared manifest boundary.
+- **Runtime Overrides & Control**: Dynamic runtime enabling/disabling persists to `fleet/data/user/schedule_overrides.json`, controllable via REST API (`/api/schedules`) and MCP tools (`fleet_list_schedules`, `fleet_toggle_schedule`, `fleet_run_scheduled_task`).
 - **60-Minute Security Audit Pulse**: Runs the 12-layer security scanner and alerts the user if any finding is detected.
 - **Scheduled CI Test Pulse**: Runs isolated pytest suites and records test health in SQLite.
 

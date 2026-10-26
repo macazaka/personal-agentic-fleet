@@ -1,0 +1,67 @@
+# Personal Agentic Fleet - Custom Agent Schedules Template
+# Copy this file to schedules.yaml (or add a 'schedules:' section to fleet.yaml)
+# to customize your agent execution frequencies and routine alerts.
+#
+# Supported fields for each schedule entry:
+#   - id: Unique string identifier (e.g. 'my_daily_briefing', 'hourly_optimizer')
+#   - agent: Target agent id ('overview', 'health', 'optimizer', 'gmail', 'antigravity', 'backlog', 'pr_review', or custom)
+#   - task: Specific task function to run
+#   - description: Human-readable note
+#   - schedule_type: 'time_of_day' (daily at clock time), 'interval' (every N time units), or 'cron'
+#   - time: "08:30" (Format: "HH:MM")
+#   - times: ["08:30", "14:00", "20:00"] (Multiple times per day)
+#   - interval_hours: 2 (Runs every 2 hours)
+#   - interval_minutes: 30 (Runs every 30 minutes)
+#   - cron: "0 9 * * 1-5" (Standard 5-part cron syntax: minute hour day month day_of_week)
+#   - days: ["monday", "wednesday", "friday"] (Restrict to specific weekdays)
+#   - weekdays_only: true (Shortcut for Monday through Friday)
+#   - active_hours: "08:00-18:00" (Only execute intervals within this window)
+#   - enabled: true/false
+#   - notify: true/false (Send desktop notification on execution)
+#   - payload: { ... } (Custom JSON dictionary passed to agent task)
+
+version: "1.0"
+timezone: "Asia/Kolkata"
+
+schedules:
+  # Customize morning briefing time to 09:00
+  - id: overview_morning_briefing
+    agent: overview
+    task: morning_briefing
+    description: "Daily morning briefing with top priorities"
+    schedule_type: time_of_day
+    time: "09:00"
+    days: ["monday", "tuesday", "wednesday", "thursday", "friday"]
+    enabled: true
+    notify: true
+
+  # Customize optimizer to run every 4 hours instead of 6
+  - id: optimizer_quick_optimize
+    agent: optimizer
+    task: quick_optimize
+    description: "Periodic RAM optimization and memory check"
+    schedule_type: interval
+    interval_hours: 4
+    enabled: true
+    notify: false
+
+  # Enable Gmail Intelligence triage every 1 hour during business hours
+  - id: gmail_sync_and_classify
+    agent: gmail
+    task: sync_and_classify
+    description: "Hourly email classification pulse"
+    schedule_type: interval
+    interval_hours: 1
+    active_hours: "09:00-17:00"
+    weekdays_only: true
+    enabled: true
+    notify: true
+
+  # Custom user agent schedule example
+  # - id: my_crypto_tracker
+  #   agent: custom_market_watcher
+  #   task: poll_market_prices
+  #   schedule_type: interval
+  #   interval_minutes: 15
+  #   enabled: true
+

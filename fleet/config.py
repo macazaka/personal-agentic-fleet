@@ -3,6 +3,7 @@ Configuration for Personal Agentic Fleet.
 Supports Google Gemini, OpenAI, Local Ollama, and an Offline Smart Heuristic mode.
 """
 
+import json
 import os
 import subprocess
 import sys
@@ -132,40 +133,10 @@ def load_fleet_config() -> dict:
         config_file_yaml = parent_dir / "fleet.yaml"
         if config_file_yaml.is_file():
             try:
-                import yaml
-                return yaml.safe_load(config_file_yaml.read_text(encoding="utf-8")) or {}
-            except ImportError:
-                # Built-in zero-dependency YAML parser fallback
-                cfg = {"server": {}, "agents": {}}
-                current_section = None
-                current_agent = None
-                for raw_line in config_file_yaml.read_text(encoding="utf-8").splitlines():
-                    line = raw_line.split("#")[0].rstrip()
-                    if not line:
-                        continue
-                    indent = len(raw_line) - len(raw_line.lstrip())
-                    parts = line.strip().split(":", 1)
-                    if len(parts) == 2:
-                        k = parts[0].strip()
-                        v = parts[1].strip().strip('"').strip("'")
-                        if indent == 0:
-                            current_section = k
-                            current_agent = None
-                        elif indent == 2 and current_section == "agents":
-                            current_agent = k
-                            cfg["agents"][current_agent] = {}
-                        elif indent >= 4 and current_section == "agents" and current_agent:
-                            val = v
-                            if v.lower() == "true":
-                                val = True
-                            elif v.lower() == "false":
-                                val = False
-                            elif v.isdigit():
-                                val = int(v)
-                            cfg["agents"][current_agent][k] = val
-                        elif indent >= 2 and current_section == "server":
-                            cfg["server"][k] = v
-                return cfg
+                from fleet.core.yaml_helper import safe_load_yaml
+                return safe_load_yaml(config_file_yaml.read_text(encoding="utf-8")) or {}
+            except Exception:
+                pass
 
     # 3. Default fallback configuration
     return {

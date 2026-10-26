@@ -201,6 +201,15 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             routines = db.list_routines()
             self._send_json(routines)
 
+        elif path == "/api/schedules":
+            from fleet.core.scheduler import get_fleet_scheduler
+            scheduler = get_fleet_scheduler()
+            self._send_json({
+                "status": "success",
+                "schedules": scheduler.get_schedules(),
+                "timezone": scheduler.timezone
+            })
+
         elif path == "/api/emails":
             # Fetches latest email classification preview via Deterministic Event Bus (incremental caching)
             query = urllib.parse.parse_qs(parsed.query)
@@ -508,6 +517,29 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             routine_id = body.get("id")
             db.toggle_routine(routine_id)
             self._send_json({"status": "toggled"})
+
+        elif path == "/api/schedules/toggle":
+            schedule_id = body.get("id") or body.get("schedule_id")
+            enabled = body.get("enabled")
+            from fleet.core.scheduler import get_fleet_scheduler
+            scheduler = get_fleet_scheduler()
+            res = scheduler.toggle_schedule(str(schedule_id), enabled=enabled)
+            self._send_json(res)
+
+        elif path == "/api/schedules/run":
+            schedule_id = body.get("id") or body.get("schedule_id")
+            agent_id = body.get("agent")
+            task = body.get("task")
+            from fleet.core.scheduler import get_fleet_scheduler
+            scheduler = get_fleet_scheduler()
+            res = scheduler.run_now(schedule_id=schedule_id, agent_id=agent_id, task=task)
+            self._send_json(res)
+
+        elif path == "/api/schedules/reload":
+            from fleet.core.scheduler import get_fleet_scheduler
+            scheduler = get_fleet_scheduler()
+            scheds = scheduler.reload()
+            self._send_json({"status": "success", "count": len(scheds)})
 
         elif path == "/api/emails/sync":
             auto_archive = body.get("auto_archive_ignore", False)

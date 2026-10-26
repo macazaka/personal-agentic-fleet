@@ -28,6 +28,8 @@ class FleetDaemon:
     def __init__(self):
         from fleet.core.event_bus import bus
         self.bus = bus
+        from fleet.core.scheduler import get_fleet_scheduler
+        self.scheduler = get_fleet_scheduler()
         self.last_briefing_date = ""
         self.last_evening_date = ""
         self.last_email_sync_hour = -1
@@ -47,6 +49,13 @@ class FleetDaemon:
         now = datetime.now()
         current_time = now.strftime("%H:%M")
         today_date = now.strftime("%Y-%m-%d")
+
+        # 0. Unified Agent Scheduling Engine (YAML & Default Schedules)
+        if hasattr(self, "scheduler") and self.scheduler:
+            try:
+                self.scheduler.check_and_run(now)
+            except Exception as e:
+                print(f"Scheduler error: {e}")
 
         # 1. Morning Briefing Check (08:30)
         if current_time >= BRIEFING_TIME and self.last_briefing_date != today_date:

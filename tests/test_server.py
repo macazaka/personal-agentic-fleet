@@ -671,6 +671,42 @@ def test_server_health_endpoints():
     assert "200 OK" in out_clr.getvalue().decode("utf-8")
 
 
+def test_schedules_api_endpoints():
+    # 1. GET /api/schedules
+    h_get, out_get = create_handler("GET", "/api/schedules")
+    h_get.do_GET()
+    res_get = out_get.getvalue().decode("utf-8")
+    assert "200 OK" in res_get
+    assert "schedules" in res_get
+    assert "overview_morning_briefing" in res_get
+
+    # 2. POST /api/schedules/toggle
+    h_tog, out_tog = create_handler("POST", "/api/schedules/toggle", {"id": "overview_morning_briefing", "enabled": False})
+    h_tog.do_POST()
+    res_tog = out_tog.getvalue().decode("utf-8")
+    assert "200 OK" in res_tog
+    assert '"enabled": false' in res_tog.lower()
+
+    # Re-enable
+    h_tog_on, out_tog_on = create_handler("POST", "/api/schedules/toggle", {"id": "overview_morning_briefing", "enabled": True})
+    h_tog_on.do_POST()
+    assert "200 OK" in out_tog_on.getvalue().decode("utf-8")
+
+    # 3. POST /api/schedules/run
+    h_run, out_run = create_handler("POST", "/api/schedules/run", {"id": "health_smoothie_reminder"})
+    h_run.do_POST()
+    res_run = out_run.getvalue().decode("utf-8")
+    assert "200 OK" in res_run
+    assert "SUCCESS" in res_run
+
+    # 4. POST /api/schedules/reload
+    h_rel, out_rel = create_handler("POST", "/api/schedules/reload", {})
+    h_rel.do_POST()
+    res_rel = out_rel.getvalue().decode("utf-8")
+    assert "200 OK" in res_rel
+    assert '"status": "success"' in res_rel
+
+
 
 
 

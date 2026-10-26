@@ -204,6 +204,13 @@ class FleetAgent(ABC):
         """
         return []
 
+    def execute_task(self, task: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Executes a scheduled or ad-hoc task for this agent.
+        Subclasses override this to implement agent-specific scheduled logic.
+        """
+        return {"status": "NOT_IMPLEMENTED", "agent": self.id, "task": task}
+
     # === UI Manifest & Template Customization ===
 
     def get_ui_manifest(self) -> Dict[str, Any]:

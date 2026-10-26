@@ -1,0 +1,152 @@
+# Personal Agentic Fleet - Automated Agent Schedules Configuration
+# Users can customize execution times, intervals, days of the week, active hours,
+# or toggle schedules on/off. Copy this file to schedules.yaml (in root) or configure
+# under 'schedules:' in fleet.yaml to customize.
+
+version: "1.0"
+timezone: "Asia/Kolkata"
+
+schedules:
+  # ==============================================================================
+  # 1. Overview & Agenda Agent
+  # ==============================================================================
+  - id: overview_morning_briefing
+    agent: overview
+    task: morning_briefing
+    description: "Daily morning briefing with top priorities, pending tasks, and weather/health headline"
+    schedule_type: time_of_day
+    time: "08:30"
+    days: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    enabled: true
+    notify: true
+
+  - id: overview_evening_review
+    agent: overview
+    task: evening_review
+    description: "Evening review and reflection on tasks completed during the day"
+    schedule_type: time_of_day
+    time: "20:00"
+    days: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    enabled: true
+    notify: true
+
+  # ==============================================================================
+  # 2. Health & Wellness Agent (FFD Metabolic Care Protocol)
+  # ==============================================================================
+  - id: health_smoothie_reminder
+    agent: health
+    task: smoothie_reminder
+    description: "Early morning 250ml green/white smoothie on empty stomach with methi, cinnamon & haldi"
+    schedule_type: time_of_day
+    time: "07:15"
+    enabled: true
+    notify: true
+
+  - id: health_breakfast_meds
+    agent: health
+    task: breakfast_meds
+    description: "Breakfast (25-25-50% quad plate) and morning prescription supplements"
+    schedule_type: time_of_day
+    time: "08:30"
+    enabled: true
+    notify: true
+
+  - id: health_lunch_meds
+    agent: health
+    task: lunch_meds
+    description: "Lunch quad plate (Salad, Veg, Dal, Grain) and afternoon prescription supplements"
+    schedule_type: time_of_day
+    time: "13:30"
+    enabled: true
+    notify: true
+
+  - id: health_afternoon_snack
+    agent: health
+    task: afternoon_snack
+    description: "Afternoon smoothie and 5-6 soaked almonds, walnuts & mixed seeds"
+    schedule_type: time_of_day
+    time: "16:15"
+    enabled: true
+    notify: true
+
+  - id: health_dinner_meds
+    agent: health
+    task: dinner_meds
+    description: "Early dinner (4th morsel rule before 8:30 PM) and evening supplements"
+    schedule_type: time_of_day
+    time: "19:30"
+    enabled: true
+    notify: true
+
+  - id: health_sleep_recovery
+    agent: health
+    task: sleep_recovery
+    description: "Screens cutoff, metabolic recovery wind-down and 7-8 hours sleep preparation"
+    schedule_type: time_of_day
+    time: "22:30"
+    enabled: true
+    notify: true
+
+  # ==============================================================================
+  # 3. PC Optimizer Agent
+  # ==============================================================================
+  - id: optimizer_quick_optimize
+    agent: optimizer
+    task: quick_optimize
+    description: "Periodic RAM optimization, memory telemetry logging and DNS cache flush"
+    schedule_type: interval
+    interval_hours: 6
+    enabled: true
+    notify: false
+
+  # ==============================================================================
+  # 4. Gmail Intelligence Agent
+  # ==============================================================================
+  - id: gmail_sync_and_classify
+    agent: gmail
+    task: sync_and_classify
+    description: "Bi-hourly email classification pulse during workday (Meetings, Respond, Notes, FYI, Ignore)"
+    schedule_type: interval
+    interval_hours: 2
+    active_hours: "08:00-18:00"
+    weekdays_only: true
+    enabled: false
+    notify: false
+
+  # ==============================================================================
+  # 5. Antigravity Live IDE Mirror Agent
+  # ==============================================================================
+  - id: antigravity_process_queue
+    agent: antigravity
+    task: process_queue
+    description: "Process pending queued prompts, refresh transcript mirror and enforce token budgets"
+    schedule_type: interval
+    interval_minutes: 5
+    enabled: true
+    notify: false
+
+  # ==============================================================================
+  # 6. Roadmap & Backlog Agent
+  # ==============================================================================
+  - id: backlog_grooming
+    agent: backlog
+    task: backlog_grooming
+    description: "Weekly backlog grooming, priority evaluation (P1/P2/P3) and task hygiene"
+    schedule_type: time_of_day
+    time: "09:00"
+    days: ["monday"]
+    enabled: true
+    notify: false
+
+  # ==============================================================================
+  # 7. Admin PR Review & CI Quality Gate Agent
+  # ==============================================================================
+  - id: pr_review_check_ci
+    agent: pr_review
+    task: check_ci_status
+    description: "Hourly audit of GitHub pull requests and main branch CI quality gates"
+    schedule_type: interval
+    interval_hours: 1
+    enabled: false
+    notify: false
+

@@ -5,7 +5,7 @@ Manages metabolic tracking, vitals, water logging, medication compliance,
 """
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from fleet.core.base_agent import FleetAgent
 from fleet.api import health_api
 
@@ -34,3 +34,28 @@ class HealthAgent(FleetAgent):
     def register_routes(self, router) -> None:
         # Re-export / wire the modular health routes
         router.include_router(health_api.router)
+
+    def execute_task(self, task: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        t_low = (task or "").lower()
+        health_messages = {
+            "smoothie_reminder": ("🥤 Early Morning Smoothie Time", "Drink your 250ml Green/White Smoothie on empty stomach with methi, cinnamon & haldi."),
+            "breakfast_meds": ("🥗 Breakfast & Morning Prescriptions", "25-25-50% Breakfast! Take your scheduled morning supplements."),
+            "lunch_meds": ("🍲 Lunch & Afternoon Prescriptions", "25% Quad Plate (Salad, Veg, Dal, Grain). Take your scheduled afternoon supplements."),
+            "afternoon_snack": ("🥜 Afternoon Smoothie & Soaked Nuts", "250ml Smoothie + 5-6 soaked almonds, 4-5 walnuts & 4 tsp mixed seeds."),
+            "dinner_meds": ("🍽️ Early Dinner & Evening Prescriptions", "Finish dinner before 8:30 PM (4th morsel rule). Take your scheduled evening supplements."),
+            "sleep_recovery": ("💤 Sleep & Metabolic Recovery", "Wind down screens! Aim for 7-8 hours sound rest. In bed by 11:00 PM latest."),
+        }
+        for k, (title, msg) in health_messages.items():
+            if k in t_low:
+                return {"status": "success", "title": title, "message": msg}
+
+        if "routine" in t_low:
+            routines = self.db.list_routines() if hasattr(self.db, "list_routines") else []
+            pending = [r for r in routines if not r.get("completed_today")]
+            return {
+                "status": "success",
+                "title": f"📋 Daily Routines: {len(pending)} Remaining",
+                "message": f"{len(pending)} uncompleted routine(s) today.",
+                "pending_routines": pending,
+            }
+        return {"status": "SUCCESS", "agent": self.id, "task": task}

@@ -241,6 +241,76 @@ On startup, [`AgentRegistry`](../fleet/core/registry.py) discovers your custom a
 
 ---
 
+## ⏱️ Method 4: Automated Agent Scheduling via YAML (`schedules.yaml` & `fleet.yaml`)
+
+Personal Agentic Fleet features a built-in, deterministic **Zero-Token Scheduling Engine** ([`fleet/core/scheduler.py`](../fleet/core/scheduler.py)). Users can run any agent on customized schedules using YAML or REST APIs.
+
+### Default Schedule (Active Out of the Box)
+If you don't provide a custom schedule, Fleet automatically runs a comprehensive default schedule from [`fleet/config/schedules.yaml`](../fleet/config/schedules.yaml):
+
+| Agent | Task | Trigger Timing | Days / Window | Notify |
+| :--- | :--- | :--- | :--- | :--- |
+| **`overview`** | `morning_briefing` | `08:30` | Everyday | ✅ Toast |
+| **`overview`** | `evening_review` | `20:00` | Everyday | ✅ Toast |
+| **`health`** | `smoothie_reminder` | `07:15` | Everyday | ✅ Toast |
+| **`health`** | `breakfast_meds` | `08:30` | Everyday | ✅ Toast |
+| **`health`** | `lunch_meds` | `13:30` | Everyday | ✅ Toast |
+| **`health`** | `afternoon_snack` | `16:15` | Everyday | ✅ Toast |
+| **`health`** | `dinner_meds` | `19:30` | Everyday | ✅ Toast |
+| **`health`** | `sleep_recovery` | `22:30` | Everyday | ✅ Toast |
+| **`optimizer`** | `quick_optimize` | Every 6 hours | Continuous | ❌ Silent |
+| **`antigravity`**| `process_queue` | Every 5 mins | Continuous | ❌ Silent |
+| **`backlog`** | `backlog_grooming` | `09:00` | Mondays | ❌ Silent |
+| **`gmail`** | `sync_and_classify`| Every 2 hours | 08:00 - 18:00 Mon-Fri | ❌ Silent |
+| **`pr_review`** | `check_ci_status` | Every 1 hour | Continuous | ❌ Silent |
+
+### Customizing Schedules in `schedules.yaml` or `fleet.yaml`
+To customize any schedule or add schedules for custom agents, copy [`schedules.yaml.example`](../schedules.yaml.example) to `schedules.yaml` in your workspace root, or add a `schedules:` block in `fleet.yaml`:
+
+```yaml
+version: "1.0"
+timezone: "Asia/Kolkata"
+
+schedules:
+  # 1. Customize morning briefing time to 09:00 on weekdays only
+  - id: overview_morning_briefing
+    agent: overview
+    task: morning_briefing
+    time: "09:00"
+    days: ["monday", "tuesday", "wednesday", "thursday", "friday"]
+    enabled: true
+    notify: true
+
+  # 2. Change PC Optimizer to run every 3 hours
+  - id: optimizer_quick_optimize
+    agent: optimizer
+    task: quick_optimize
+    interval_hours: 3
+    enabled: true
+
+  # 3. Schedule your custom agent using Cron syntax
+  - id: custom_weather_alert
+    agent: weather_agent
+    task: check_morning_forecast
+    cron: "0 7 * * 1-5"          # 7:00 AM on weekdays (minute hour day month dow)
+    enabled: true
+    notify: true
+```
+
+### Supported Scheduling Modes
+
+1. **Time of Day (`time_of_day`)**: `time: "HH:MM"` or `times: ["08:30", "14:00", "20:00"]`.
+2. **Recurring Interval (`interval`)**: `interval_hours: 2`, `interval_minutes: 30`, `interval_seconds: 45`, or `every: "2h"`.
+3. **Cron Syntax (`cron`)**: Standard 5-field cron: `"0 9 * * 1-5"`, `"*/15 * * * *"`.
+4. **Conditional Filters**:
+   - `days: ["monday", "wednesday", "friday"]`
+   - `weekdays_only: true` (Monday through Friday)
+   - `active_hours: "08:00-18:00"` (Restricts interval execution to working hours)
+   - `enabled: true / false` (Toggle schedule on/off)
+   - `notify: true / false` (Sends native OS notification on execution)
+
+---
+
 ## 🔒 Package Isolation Invariants Checklist
 
 When customizing or creating agents, ensure:

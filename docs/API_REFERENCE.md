@@ -50,7 +50,16 @@ All responses return standard JSON with `Content-Type: application/json` unless 
 
 ---
 
-### 1.4 Antigravity Mirror & Parallel Agent Pool Endpoints
+### 1.5 Automated Agent Schedules Endpoints
+
+| Method | Endpoint | Description | Request Body / Parameters | Response Schema |
+| :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/api/schedules` | Lists all automated agent schedules with next/last run times and active status. | None | `{"status": "success", "schedules": [...], "timezone": "Asia/Kolkata"}` |
+| `POST` | `/api/schedules/toggle` | Enables or disables an automated agent schedule. | `{"id": "overview_morning_briefing", "enabled": false}` | `{"status": "success", "id": "...", "enabled": false}` |
+| `POST` | `/api/schedules/run` | Triggers an immediate ad-hoc or scheduled agent task run. | `{"id": "health_smoothie_reminder"}` or `{"agent": "health", "task": "smoothie_reminder"}` | `{"id": "...", "agent": "health", "status": "SUCCESS", "duration": 0.05, ...}` |
+| `POST` | `/api/schedules/reload` | Dynamically reloads schedule configurations from `schedules.yaml` and `fleet.yaml`. | `{}` | `{"status": "success", "count": 13}` |
+
+---
 
 | Method | Endpoint | Description | Request Body / Parameters | Response Schema |
 | :--- | :--- | :--- | :--- | :--- |
@@ -151,6 +160,9 @@ Personal Agentic Fleet registers as an MCP server under the name `personal-fleet
 | `fleet_run_developer_tool` | Invokes an AI developer tool across `'copilot'`, `'claude_code'`, `'gemini_cli'`, or `'aws_q'`. | `tool_name` (str, req), `prompt` (str, req) |
 | `fleet_customize_agent` | Dynamically customizes any agent's display name, icon, order, provider, model, or system prompt. | `agent_id` (str, req), `name` (str), `icon` (str), `order` (int), `provider` (str), `model` (str), `system_prompt` (str) |
 | `fleet_create_custom_agent` | Scaffolds a new isolated custom agent with manifest, backend logic, and UI pane in user vault. | `agent_id` (str, req), `name` (str, req), `icon` (str), `description` (str), `order` (int) |
+| `fleet_list_schedules` | Lists all recurring automated agent schedules, frequencies, trigger times, and live status. | None |
+| `fleet_toggle_schedule` | Enables or disables an automated agent schedule by its unique ID. | `schedule_id` (str, req), `enabled` (bool, opt) |
+| `fleet_run_scheduled_task` | Triggers an immediate manual execution of any agent schedule on demand. | `schedule_id` (str, opt), `agent` (str, opt), `task` (str, opt) |
 
 ---
 

@@ -80,3 +80,52 @@ security:
   scan_interval_minutes: 60             # Automatic background scan frequency in FleetDaemon
   block_commits_on_findings: true
   toast_alerts_on_findings: true
+
+# ==============================================================================
+# Automated Agent Schedules (Customizable by user in YAML or schedules.yaml)
+# Built-in default schedules are automatically active if omitted.
+# Customize execution time, interval, days, active hours, or enable/disable.
+# ==============================================================================
+schedules:
+  # Customize morning briefing time to 09:00 on weekdays
+  - id: overview_morning_briefing
+    agent: overview
+    task: morning_briefing
+    description: "Daily morning briefing with top priorities"
+    schedule_type: time_of_day
+    time: "08:30"
+    days: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    enabled: true
+    notify: true
+
+  # Evening reflection & wrap-up
+  - id: overview_evening_review
+    agent: overview
+    task: evening_review
+    description: "Evening review and task reflection"
+    schedule_type: time_of_day
+    time: "20:00"
+    enabled: true
+    notify: true
+
+  # PC Optimizer frequency
+  - id: optimizer_quick_optimize
+    agent: optimizer
+    task: quick_optimize
+    description: "Periodic RAM optimization and memory check"
+    schedule_type: interval
+    interval_hours: 6
+    enabled: true
+    notify: false
+
+  # Email intelligence pulse during working hours
+  - id: gmail_sync_and_classify
+    agent: gmail
+    task: sync_and_classify
+    description: "Bi-hourly email classification pulse during workday"
+    schedule_type: interval
+    interval_hours: 2
+    active_hours: "08:00-18:00"
+    weekdays_only: true
+    enabled: false                      # Set to true when Gmail credentials are provided
+    notify: false

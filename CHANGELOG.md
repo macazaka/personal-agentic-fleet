@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.3.0] - 2026-10-26
+
+### Added
+- **Automated & Customizable YAML Agent Scheduling Engine (`fleet/core/scheduler.py`)**:
+  - **Zero-Dependency Pure-Python YAML Parser & Serializer (`fleet/core/yaml_helper.py`)**:
+    - Implemented robust pure-Python YAML parser (`safe_load_yaml`, `load_yaml_file`) and serializer (`dump_yaml`, `save_yaml_file`) supporting nested dictionaries, lists of objects, inline arrays, and type conversions without requiring third-party libraries (`PyYAML` optional).
+  - **Flexible Timing Modes & Evaluators**:
+    - Exact time-of-day triggering: single `time: "08:30"` or multiple `times: ["08:30", "20:00"]` with daily date-stamped execution tracking.
+    - Recurring intervals: `interval_hours: 6`, `interval_minutes: 30`, `interval_seconds: 30`, or human strings `every: "2h"`.
+    - Standard 5-field cron syntax: `cron: "0 9 * * 1-5"` or `*/15 * * * *` with step, range, and list parsing.
+    - Filter guards: `days: ["mon", "wed", "fri"]`, `weekdays_only: true`, and `active_hours: "08:00-18:00"`.
+  - **Pre-Configured Out-Of-The-Box Schedules (`fleet/config/schedules.yaml`)**:
+    - Default schedules configured for all 7 agent packages: `overview` morning briefing (08:30) & evening review (20:00), `health` smoothie (07:00), breakfast meds (08:30), lunch meds (13:30), afternoon snack (16:15), dinner meds (20:00), sleep recovery (22:30), `optimizer` quick optimize (every 6h), `gmail` sync (every 2h), `antigravity` process queue (every 15m), and `backlog` grooming (Fridays 17:00).
+    - Provided root template `schedules.yaml.example` for instant user overrides.
+  - **Agent Task Dispatching Interface (`execute_task`)**:
+    - Added `execute_task(self, task: str, payload: Optional[Dict[str, Any]]) -> Dict[str, Any]` to `FleetAgent` and implemented task handlers across all agents in `fleet/agents/` maintaining strict package isolation.
+  - **Background Daemon, REST API & MCP Integration**:
+    - Integrated scheduler loop into `FleetDaemon.check_and_trigger()`.
+    - Added REST endpoints: `GET /api/schedules`, `POST /api/schedules/toggle`, `POST /api/schedules/run`, `POST /api/schedules/reload`.
+    - Added MCP tools: `fleet_list_schedules`, `fleet_toggle_schedule`, `fleet_run_scheduled_task`.
+  - **Automated Test Coverage**:
+    - Comprehensive unit and integration test suites: `tests/test_yaml_helper.py` (4 tests) and `tests/test_scheduler.py` (11 tests), plus REST API test coverage in `tests/test_server.py`.
+
+---
+
 ## [2.2.0] - 2026-10-26
 
 ### Added

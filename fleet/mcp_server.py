@@ -322,6 +322,50 @@ def fleet_run_developer_tool(tool_name: str, prompt: str) -> str:
     return json.dumps(res, indent=2)
 
 
+@mcp.tool(description="List recurring automated agent schedules, their trigger times, intervals, and current status.")
+def fleet_list_schedules() -> str:
+    """List all automated agent schedules."""
+    from fleet.core.scheduler import get_fleet_scheduler
+    scheduler = get_fleet_scheduler()
+    scheds = scheduler.get_schedules()
+    if not scheds:
+        return "No agent schedules configured."
+    lines = [f"**Fleet Agent Schedules ({scheduler.timezone}):**"]
+    for s in scheds:
+        status_icon = "🟢" if s.get("enabled") else "⚪"
+        stype = s.get("schedule_type", "interval")
+        if stype == "time_of_day":
+            timing = f"Daily at {s.get('time') or ', '.join(s.get('times', []))}"
+        elif stype == "interval":
+            timing = f"Every {s.get('interval_hours')}h" if s.get("interval_hours") else f"Every {s.get('interval_minutes') or (s.get('interval_seconds', 0)//60)}m"
+        else:
+            timing = f"Cron: {s.get('cron')}"
+        lines.append(f"- {status_icon} **{s['agent']}**.{s['task']} ({timing}) - {s.get('description', '')} [ID: `{s['id']}`]")
+    return "\n".join(lines)
+
+
+@mcp.tool(description="Enable or disable an automated agent schedule by its ID.")
+def fleet_toggle_schedule(schedule_id: str, enabled: Optional[bool] = None) -> str:
+    """Toggle or set enabled status of an agent schedule."""
+    from fleet.core.scheduler import get_fleet_scheduler
+    scheduler = get_fleet_scheduler()
+    res = scheduler.toggle_schedule(schedule_id, enabled=enabled)
+    if res.get("status") == "success":
+        return res["message"]
+    return f"Error: {res.get('message')}"
+
+
+@mcp.tool(description="Execute a scheduled agent task immediately on-demand.")
+def fleet_run_scheduled_task(schedule_id: Optional[str] = None, agent: Optional[str] = None, task: Optional[str] = None) -> str:
+    """Run an agent schedule immediately."""
+    from fleet.core.scheduler import get_fleet_scheduler
+    scheduler = get_fleet_scheduler()
+    res = scheduler.run_now(schedule_id=schedule_id, agent_id=agent, task=task)
+    if res.get("status") == "SUCCESS":
+        return f"Successfully executed scheduled task '{res.get('task')}' on agent '{res.get('agent')}' (took {res.get('duration')}s)."
+    return f"Failed to execute task: {res.get('result', {}).get('error', 'Unknown error')}"
+
+
 if __name__ == "__main__":
     # Runs the stdio MCP server for Antigravity, Claude Code, GitHub Copilot, and Cursor
     mcp.run(transport="stdio")
