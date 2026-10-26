@@ -133,7 +133,10 @@ def _setup_win32_console_ctrl():
         return
 
     try:
-        HandlerRoutine = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_ulong)
+        win_func = getattr(ctypes, "WINFUNCTYPE", getattr(ctypes, "CFUNCTYPE", None))
+        if not win_func:
+            return
+        HandlerRoutine = win_func(ctypes.c_bool, ctypes.c_ulong)
 
         def _win_handler(ctrl_type: int) -> bool:
             # 0=CTRL_C_EVENT, 1=CTRL_BREAK_EVENT, 2=CTRL_CLOSE_EVENT, 5=CTRL_LOGOFF_EVENT, 6=CTRL_SHUTDOWN_EVENT

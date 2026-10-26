@@ -39,4 +39,4 @@ jobs:
       env:
         PYTHONPATH: .
       run: |
-        python -m fleet.tools.ci_runner
+        python -m pytest tests/ -v
