@@ -78,117 +78,130 @@ def run_test_suite(db: Optional[FleetDatabase] = None) -> Dict[str, Any]:
     Executes the full unit test suite with code coverage analysis.
     Returns structured results and stores them in database and JSON.
     """
+    old_test_mode = os.environ.get("FLEET_TEST_MODE")
+    old_prod_server = os.environ.get("FLEET_PRODUCTION_SERVER")
+
     # Set headless SDL drivers for pygame tests and enforce zero-token test mode
     os.environ["SDL_VIDEODRIVER"] = "dummy"
     os.environ["SDL_AUDIODRIVER"] = "dummy"
     os.environ["FLEET_TEST_MODE"] = "1"
-
-    database = db or FleetDatabase()
-    database.set_setting("token_exhaustion_override", "")
-    try:
-        from fleet.core.antigravity_mirror import AGENT_STATE, set_active_model
-        AGENT_STATE["status"] = "idle"
-        set_active_model("gemini-3.8-flash-high")
-    except Exception:
-        pass
-    start_time = time.time()
-
-    # Configure Coverage
-    cov = coverage.Coverage(
-        config_file=str(PROJECT_ROOT / ".coveragerc"),
-    ) if coverage is not None else None
-
-    if cov is not None:
-        cov.start()
-
-    # Ensure pre-imported modules are fully traced under coverage
-    import importlib
-    for mod_name in list(sys.modules.keys()):
-        if (mod_name.startswith("fleet") or mod_name == "pong") and mod_name != "fleet.tools.test_runner":
-            try:
-                importlib.reload(sys.modules[mod_name])
-            except Exception:
-                pass
-
-
-
-    plugin = TestStatsPlugin()
-    tests_dir = str(PROJECT_ROOT / "tests")
-
-    # Run pytest
-    exit_code = pytest.main(
-
-        [
-            "-q",
-            "--tb=short",
-            tests_dir,
-        ],
-        plugins=[plugin]
-    )
-
-    cov.stop()
-    cov.save()
+    os.environ.pop("FLEET_PRODUCTION_SERVER", None)
 
     try:
+        database = db or FleetDatabase()
         database.set_setting("token_exhaustion_override", "")
-        from fleet.core.antigravity_mirror import AGENT_STATE, set_active_model
-        AGENT_STATE["status"] = "idle"
-        set_active_model("gemini-3.8-flash-high")
-    except Exception:
-        pass
+        try:
+            from fleet.core.antigravity_mirror import AGENT_STATE, set_active_model
+            AGENT_STATE["status"] = "idle"
+            set_active_model("gemini-3.8-flash-high")
+        except Exception:
+            pass
+        start_time = time.time()
 
-    # Capture coverage report
-    rep_io = io.StringIO()
-    try:
-        coverage_pct = round(cov.report(file=rep_io), 2)
-    except Exception:
-        coverage_pct = 0.0
+        # Configure Coverage
+        cov = coverage.Coverage(
+            config_file=str(PROJECT_ROOT / ".coveragerc"),
+        ) if coverage is not None else None
 
-    duration = round(time.time() - start_time, 2)
-    total_tests = plugin.total
-    passed_tests = plugin.passed
-    failed_tests = plugin.failed + plugin.errors
-    pass_pct = round((passed_tests / total_tests * 100), 1) if total_tests > 0 else 0.0
-    status = "PASS" if failed_tests == 0 and total_tests > 0 else "FAIL"
+        if cov is not None:
+            cov.start()
 
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Ensure pre-imported modules are fully traced under coverage
+        import importlib
+        for mod_name in list(sys.modules.keys()):
+            if (mod_name.startswith("fleet") or mod_name == "pong") and mod_name != "fleet.tools.test_runner":
+                try:
+                    importlib.reload(sys.modules[mod_name])
+                except Exception:
+                    pass
 
-    results: Dict[str, Any] = {
-        "timestamp": now_str,
-        "total_tests": total_tests,
-        "passed_tests": passed_tests,
-        "failed_tests": failed_tests,
-        "skipped_tests": plugin.skipped,
-        "pass_pct": pass_pct,
-        "coverage_pct": coverage_pct,
-        "duration_sec": duration,
-        "status": status,
-        "exit_code": int(exit_code),
-        "tests": plugin.tests[:60],
-    }
+        plugin = TestStatsPlugin()
+        tests_dir = str(PROJECT_ROOT / "tests")
 
-    # Save to database
-    try:
-        run_id = database.save_test_run(
-            total_tests=total_tests,
-            passed_tests=passed_tests,
-            failed_tests=failed_tests,
-            pass_pct=pass_pct,
-            coverage_pct=coverage_pct,
-            duration_sec=duration,
-            status=status,
-            details_json=json.dumps(results)
+        # Run pytest
+        exit_code = pytest.main(
+            [
+                "-q",
+                "--tb=short",
+                tests_dir,
+            ],
+            plugins=[plugin]
         )
-        results["run_id"] = run_id
-    except Exception as e:
-        results["db_error"] = str(e)
 
-    # Save to JSON file for instant API retrieval
-    try:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        RESULTS_FILE.write_text(json.dumps(results, indent=2), encoding="utf-8")
-    except Exception:
-        pass
+        if cov is not None:
+            cov.stop()
+            cov.save()
+
+        try:
+            database.set_setting("token_exhaustion_override", "")
+            from fleet.core.antigravity_mirror import AGENT_STATE, set_active_model
+            AGENT_STATE["status"] = "idle"
+            set_active_model("gemini-3.8-flash-high")
+        except Exception:
+            pass
+
+        # Capture coverage report
+        rep_io = io.StringIO()
+        try:
+            coverage_pct = round(cov.report(file=rep_io), 2) if cov is not None else 0.0
+        except Exception:
+            coverage_pct = 0.0
+
+        duration = round(time.time() - start_time, 2)
+        total_tests = plugin.total
+        passed_tests = plugin.passed
+        failed_tests = plugin.failed + plugin.errors
+        pass_pct = round((passed_tests / total_tests * 100), 1) if total_tests > 0 else 0.0
+        status = "PASS" if failed_tests == 0 and total_tests > 0 else "FAIL"
+
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        results: Dict[str, Any] = {
+            "timestamp": now_str,
+            "total_tests": total_tests,
+            "passed_tests": passed_tests,
+            "failed_tests": failed_tests,
+            "skipped_tests": plugin.skipped,
+            "pass_pct": pass_pct,
+            "coverage_pct": coverage_pct,
+            "duration_sec": duration,
+            "status": status,
+            "exit_code": int(exit_code),
+            "tests": plugin.tests[:60],
+        }
+
+        # Save to database
+        try:
+            run_id = database.save_test_run(
+                total_tests=total_tests,
+                passed_tests=passed_tests,
+                failed_tests=failed_tests,
+                pass_pct=pass_pct,
+                coverage_pct=coverage_pct,
+                duration_sec=duration,
+                status=status,
+                details_json=json.dumps(results)
+            )
+            results["run_id"] = run_id
+        except Exception as e:
+            results["db_error"] = str(e)
+
+        # Save to JSON file for instant API retrieval
+        try:
+            DATA_DIR.mkdir(parents=True, exist_ok=True)
+            RESULTS_FILE.write_text(json.dumps(results, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+
+    finally:
+        if old_test_mode is None:
+            os.environ.pop("FLEET_TEST_MODE", None)
+        else:
+            os.environ["FLEET_TEST_MODE"] = old_test_mode
+        if old_prod_server is None:
+            os.environ.pop("FLEET_PRODUCTION_SERVER", None)
+        else:
+            os.environ["FLEET_PRODUCTION_SERVER"] = old_prod_server
 
     return results
 
@@ -230,12 +243,18 @@ def run_test_suite_isolated(db: Optional[FleetDatabase] = None) -> Dict[str, Any
             si.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0x00000001)
             si.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
             hidden_kwargs["startupinfo"] = si
+
+        sub_env = os.environ.copy()
+        sub_env["FLEET_TEST_MODE"] = "1"
+        sub_env.pop("FLEET_PRODUCTION_SERVER", None)
+
         subprocess.run(
             [sys.executable, "-m", "fleet.tools.test_runner"],
             capture_output=True,
             text=True,
             timeout=180,
             cwd=str(PROJECT_ROOT),
+            env=sub_env,
             **hidden_kwargs,
         )
         results = get_latest_results(db)

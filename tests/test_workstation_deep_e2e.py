@@ -53,6 +53,10 @@ class LiveServerHarness:
         self.port = get_free_port()
         self.host = "127.0.0.1"
         self.base_url = f"http://{self.host}:{self.port}"
+        from fleet.config import TEST_DB_PATH
+        import fleet.server as srv
+        self._orig_db = srv.db
+        srv.db = FleetDatabase(db_path=TEST_DB_PATH)
         self.server = ThreadingHTTPServer((self.host, self.port), FleetDashboardHandler)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
 
@@ -72,6 +76,13 @@ class LiveServerHarness:
         try:
             self.server.shutdown()
             self.server.server_close()
+        except Exception:
+            pass
+        import fleet.server as srv
+        srv.db = self._orig_db
+        try:
+            from fleet.core.db.pool import pool
+            pool.close_all()
         except Exception:
             pass
 
@@ -185,10 +196,10 @@ def test_tasks_lifecycle(server_harness: LiveServerHarness):
     """Tests creating, listing, and completing tasks."""
     # 1. Add Task
     new_task = {
-        "title": "E2E Deep Verification Task",
-        "description": "Verifying workstation control center in depth",
+        "title": "Quarterly Workstation Audit",
+        "description": "Verify system health, diagnostics, and routine logs",
         "priority": "P1",
-        "source": "E2E_Test",
+        "source": "Dashboard",
     }
     status, _, body = server_harness.request("POST", "/api/tasks", data=new_task)
     assert status in (200, 201)
@@ -199,12 +210,16 @@ def test_tasks_lifecycle(server_harness: LiveServerHarness):
     status, _, body = server_harness.request("GET", "/api/tasks")
     assert status == 200
     tasks = json.loads(body.decode("utf-8"))
-    matching = [t for t in tasks if t["title"] == "E2E Deep Verification Task"]
+    matching = [t for t in tasks if t["title"] == "Quarterly Workstation Audit"]
     assert len(matching) > 0
     task_id = matching[0]["id"]
 
     # 3. Toggle Task Completion
     status, _, body = server_harness.request("POST", "/api/tasks/toggle", data={"id": task_id})
+    assert status == 200
+
+    # 4. Clean up / Delete Task
+    status, _, body = server_harness.request("POST", "/api/tasks/delete", data={"id": task_id})
     assert status == 200
 
 

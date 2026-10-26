@@ -1,8 +1,20 @@
 """Unit tests for fleet.app."""
+import os
 import sys
 from unittest.mock import MagicMock, patch
+import pytest
 
 import fleet.app as app_mod
+
+
+@pytest.fixture(autouse=True)
+def preserve_env():
+    old_prod = os.environ.get("FLEET_PRODUCTION_SERVER")
+    yield
+    if old_prod is None:
+        os.environ.pop("FLEET_PRODUCTION_SERVER", None)
+    else:
+        os.environ["FLEET_PRODUCTION_SERVER"] = old_prod
 
 
 def test_is_port_in_use():

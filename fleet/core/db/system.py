@@ -3,6 +3,7 @@ System preferences, activity logging, test run metrics, and token vault mixin fo
 """
 
 import json
+import os
 import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -74,6 +75,18 @@ class SystemMixin:
 
     # --- Activity Log Operations ---
     def log_activity(self, agent: str, action: str, details: str):
+        # In production workstation mode, strictly reject unit test logging
+        if os.environ.get("FLEET_PRODUCTION_SERVER") == "1":
+            ag_low = (agent or "").lower()
+            ac_low = (action or "").lower()
+            dt_low = (details or "").lower()
+            if ag_low in ('testagent', 'e2e_test', 'pytest', 'testrunner', 'tester'):
+                return
+            if ac_low in ('test_run', 'run_test_suite'):
+                return
+            if 'e2e deep' in dt_low or 'test task' in dt_low:
+                return
+
         now = datetime.now().isoformat()
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -83,12 +96,32 @@ class SystemMixin:
             """, (agent, action, details, now))
             conn.commit()
 
-    def get_recent_activities(self, limit: int = 25) -> List[Dict[str, Any]]:
+    def get_recent_activities(self, limit: int = 25, exclude_tests: bool = True) -> List[Dict[str, Any]]:
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                SELECT * FROM activity_logs ORDER BY id DESC LIMIT ?
-            """, (limit,))
+            if exclude_tests:
+                cursor.execute("""
+                    SELECT * FROM activity_logs 
+                    WHERE (agent IS NULL OR (
+                        LOWER(agent) NOT IN ('testagent', 'e2e_test', 'pytest', 'testrunner', 'tester')
+                        AND LOWER(agent) NOT LIKE '%test%'
+                    ))
+                    AND (action IS NULL OR (
+                        LOWER(action) NOT IN ('test_run', 'run_test_suite')
+                        AND LOWER(action) NOT LIKE '%test%'
+                    ))
+                    AND (details IS NULL OR (
+                        LOWER(details) NOT LIKE '%e2e deep verification%'
+                        AND LOWER(details) NOT LIKE '%test task%'
+                        AND LOWER(details) NOT LIKE '%ran test%'
+                        AND LOWER(details) NOT LIKE '%passed test%'
+                    ))
+                    ORDER BY id DESC LIMIT ?
+                """, (limit,))
+            else:
+                cursor.execute("""
+                    SELECT * FROM activity_logs ORDER BY id DESC LIMIT ?
+                """, (limit,))
             return [dict(row) for row in cursor.fetchall()]
 
 

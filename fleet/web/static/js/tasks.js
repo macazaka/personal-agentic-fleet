@@ -2,7 +2,12 @@
     async function fetchTasks() {
       try {
         const res = await fetch('/api/tasks');
-        const tasks = await res.json();
+        const rawTasks = await res.json();
+        const tasks = (Array.isArray(rawTasks) ? rawTasks : []).filter(t => {
+          const s = (t.source || '').toLowerCase();
+          const title = (t.title || '').toLowerCase();
+          return !s.includes('test') && !s.includes('e2e') && !title.includes('test task') && !title.includes('e2e deep');
+        });
         const list = document.getElementById('taskList');
         document.getElementById('taskCounter').innerText = `${tasks.length} Total`;
         

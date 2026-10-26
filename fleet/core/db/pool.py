@@ -110,3 +110,8 @@ def close_all_pooled_connections() -> None:
     """Closes all pooled connections on shutdown."""
     _GLOBAL_POOL.close_all()
 
+
+# Backward-compatible alias
+pool = _GLOBAL_POOL
+
+

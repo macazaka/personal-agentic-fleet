@@ -197,7 +197,7 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             self._send_json(data)
 
         elif path == "/api/tasks":
-            tasks = db.list_tasks()
+            tasks = db.list_tasks(exclude_tests=True)
             self._send_json(tasks)
 
         elif path == "/api/backlog":
@@ -266,7 +266,7 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             self._send_json(data)
 
         elif path == "/api/logs":
-            logs = db.get_recent_activities(limit=15)
+            logs = db.get_recent_activities(limit=15, exclude_tests=True)
             self._send_json(logs)
 
         elif path == "/api/status":
@@ -803,6 +803,13 @@ class RobustThreadingHTTPServer(ThreadingHTTPServer):
 
 def start_server(port: int = PORT):
     """Starts the Personal Agentic Fleet Dashboard server."""
+    os.environ["FLEET_PRODUCTION_SERVER"] = "1"
+    os.environ.pop("FLEET_TEST_MODE", None)
+    os.environ.pop("PYTEST_CURRENT_TEST", None)
+    global db, briefing_engine
+    from fleet.config import DB_PATH
+    db = FleetDatabase(db_path=DB_PATH)
+    briefing_engine = BriefingEngine(db)
     agent_registry.startup_all()
     server = RobustThreadingHTTPServer(("127.0.0.1", port), FleetDashboardHandler)
     print(f"Personal Agentic Fleet Dashboard running at: http://127.0.0.1:{port}")

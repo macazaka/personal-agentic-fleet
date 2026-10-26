@@ -2,7 +2,12 @@
     async function fetchLogs() {
       try {
         const res = await fetch('/api/logs');
-        const logs = await res.json();
+        const rawLogs = await res.json();
+        const logs = (Array.isArray(rawLogs) ? rawLogs : []).filter(l => {
+          const a = (l.agent || '').toLowerCase();
+          const d = (l.details || '').toLowerCase();
+          return !a.includes('test') && !d.includes('test task') && !d.includes('e2e deep') && !d.includes('ran test') && !d.includes('passed test');
+        });
         const stream = document.getElementById('logStream');
         stream.innerHTML = logs.map(l => `
           <div class="log-entry">

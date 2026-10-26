@@ -97,6 +97,12 @@ if not hasattr(discovery_mod, "build"):
 @pytest.fixture(autouse=True, scope="session")
 def isolate_test_session():
     """Session-level isolation ensuring production database is protected."""
+    try:
+        from fleet.core.db.pool import pool
+        pool.close_all()
+    except Exception:
+        pass
+
     for ext in ("", "-shm", "-wal"):
         p = Path(str(TEST_DB_PATH) + ext)
         if p.exists():
@@ -106,6 +112,12 @@ def isolate_test_session():
                 pass
 
     yield
+
+    try:
+        from fleet.core.db.pool import pool
+        pool.close_all()
+    except Exception:
+        pass
 
     for ext in ("", "-shm", "-wal"):
         p = Path(str(TEST_DB_PATH) + ext)

@@ -24,8 +24,13 @@ def is_test_environment() -> bool:
 
 def get_effective_db_path(custom_path: Optional[Path] = None) -> Path:
     """Returns the effective SQLite database path, strictly isolating test runs from production."""
-    if custom_path is not None and custom_path != DB_PATH:
+    # Production Workstation Control Center server is strictly bound to production database
+    if os.environ.get("FLEET_PRODUCTION_SERVER") == "1":
+        return custom_path or DB_PATH
+
+    if custom_path is not None:
         return custom_path
+
     db_module = sys.modules.get("fleet.core.database")
     check_fn = getattr(db_module, "is_test_environment", is_test_environment) if db_module else is_test_environment
     if check_fn():

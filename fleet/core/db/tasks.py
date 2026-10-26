@@ -3,6 +3,7 @@ Tasks & Routines domain repository mixin for FleetDatabase.
 """
 
 import json
+import os
 import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -17,6 +18,14 @@ class TasksMixin:
         clean_title = (title or "").strip()
         clean_desc = (description or "").strip()
         task_source = (source or assigned_agent or "Manual").strip()
+
+        # In production workstation mode, strictly reject unit test task pollution
+        if os.environ.get("FLEET_PRODUCTION_SERVER") == "1":
+            s_low = task_source.lower()
+            t_low = clean_title.lower()
+            if s_low in ('e2e_test', 'testagent', 'pytest', 'unittest') or 'e2e deep' in t_low:
+                return -1
+
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
@@ -28,7 +37,7 @@ class TasksMixin:
             self.log_activity(assigned_agent, "add_task", f"Created task #{task_id}: {clean_title} [Source: {task_source}]")
             return task_id
 
-    def list_tasks(self, status: Optional[str] = None, limit: int = 50, require_description: bool = True) -> List[Dict[str, Any]]:
+    def list_tasks(self, status: Optional[str] = None, limit: int = 50, require_description: bool = True, exclude_tests: bool = True) -> List[Dict[str, Any]]:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             conditions = []
@@ -38,6 +47,20 @@ class TasksMixin:
                 params.append(status)
             if require_description:
                 conditions.append("description IS NOT NULL AND TRIM(description) != ''")
+
+            if exclude_tests:
+                conditions.append("""(
+                    (source IS NULL OR (
+                        LOWER(source) NOT IN ('test', 'unittest', 'pytest', 'testagent', 'e2e_test', 'test_runner')
+                        AND LOWER(source) NOT LIKE '%test%'
+                    ))
+                    AND (title IS NULL OR (
+                        LOWER(title) NOT LIKE '%test task%'
+                        AND LOWER(title) NOT LIKE '%e2e deep verification%'
+                        AND LOWER(title) NOT LIKE '%automated test task%'
+                        AND LOWER(title) NOT LIKE '%unauthorized task%'
+                    ))
+                )""")
 
             where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
             if status:

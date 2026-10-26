@@ -73,6 +73,10 @@ def open_browser_delayed(url: str, delay: float = 1.0):
 
 
 def main():
+    if "pytest" not in sys.modules and not os.environ.get("FLEET_TEST_MODE"):
+        os.environ["FLEET_PRODUCTION_SERVER"] = "1"
+        os.environ.pop("FLEET_TEST_MODE", None)
+        os.environ.pop("PYTEST_CURRENT_TEST", None)
     no_browser = "--no-browser" in sys.argv
 
     # If already running, simply focus/open browser and exit
