@@ -101,6 +101,20 @@ All responses return standard JSON with `Content-Type: application/json` unless 
 
 ---
 
+### 1.8 Agent Registry, Customization & Package Scaffolding Endpoints
+
+| Method | Endpoint | Description | Request Body | Response Schema |
+| :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/api/fleet/agents` | Lists UI manifests for all loaded agents in sorted tab order. | None | `{"status": "ok", "count": 7, "agents": [...]}` |
+| `GET` | `/api/fleet/agents/{id}/config` | Returns an agent's active configuration, preferred provider/model, and prompt. | None | `{"status": "ok", "id": "health", "config": {...}, "preferred_provider": "auto"}` |
+| `POST` | `/api/fleet/agents/{id}/config` | Dynamically customizes any agent (name, icon, order, provider, model, prompt). | `{"name": "...", "icon": "...", "provider": "anthropic", "model": "..."}` | `{"status": "success", "agent": {...}}` |
+| `POST` | `/api/fleet/agents/{id}/reset` | Resets an agent's configuration back to built-in package defaults. | `{}` | `{"status": "success", "agent": {...}}` |
+| `POST` | `/api/fleet/agents/custom/create` | Scaffolds a new isolated custom agent in `fleet/data/user/custom_agents/`. | `{"id": "my_agent", "name": "...", "icon": "✨", "permissions": ["db:read", "ui:render"]}` | `{"status": "success", "agent": {...}}` |
+| `GET` | `/api/fleet/agents/{id}/style.css` | Serves scoped CSS styling for the agent's isolated UI panel. | None | `text/css` |
+| `GET` | `/api/fleet/agents/{id}/script.js` | Serves scoped JavaScript for the agent's isolated UI panel. | None | `application/javascript` |
+
+---
+
 ## 2. Model Context Protocol (FastMCP) Tools Reference
 
 Personal Agentic Fleet registers as an MCP server under the name `personal-fleet`. Connect via `mcp.run(transport="stdio")` in `fleet/mcp_server.py`.
@@ -135,6 +149,8 @@ Personal Agentic Fleet registers as an MCP server under the name `personal-fleet
 | `fleet_list_hyperscalers_and_tools`| Lists all supported hyperscalers (Google, Microsoft, AWS, Anthropic, OpenAI, Ollama) and detected dev tools. | None |
 | `fleet_query_hyperscaler` | Dispatches an inference prompt through the Fleet Multi-Hyperscaler Gateway with Tier 0 local caching. | `prompt` (str, req), `provider` ('google'/'microsoft'/'aws'/'anthropic'/'openai'/'ollama'), `model` (str) |
 | `fleet_run_developer_tool` | Invokes an AI developer tool across `'copilot'`, `'claude_code'`, `'gemini_cli'`, or `'aws_q'`. | `tool_name` (str, req), `prompt` (str, req) |
+| `fleet_customize_agent` | Dynamically customizes any agent's display name, icon, order, provider, model, or system prompt. | `agent_id` (str, req), `name` (str), `icon` (str), `order` (int), `provider` (str), `model` (str), `system_prompt` (str) |
+| `fleet_create_custom_agent` | Scaffolds a new isolated custom agent with manifest, backend logic, and UI pane in user vault. | `agent_id` (str, req), `name` (str, req), `icon` (str), `description` (str), `order` (int) |
 
 ---
 

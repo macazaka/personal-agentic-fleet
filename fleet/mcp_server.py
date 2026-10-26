@@ -237,6 +237,68 @@ def fleet_query_hyperscaler(prompt: str, provider: str = "auto", model: str = ""
     return json.dumps(res, indent=2)
 
 
+@mcp.tool(description="Customize any agent's display name, icon, order, default tab status, preferred LLM provider/model, system prompt, or settings.")
+def fleet_customize_agent(
+    agent_id: str,
+    name: str = "",
+    icon: str = "",
+    order: int = -1,
+    is_default: bool = False,
+    provider: str = "",
+    model: str = "",
+    system_prompt: str = "",
+    enabled: bool = True,
+) -> str:
+    """Customize an existing agent at runtime."""
+    from fleet.server import agent_registry
+    updates: dict[str, Any] = {}
+    if name:
+        updates["name"] = name
+    if icon:
+        updates["icon"] = icon
+    if order >= 0:
+        updates["order"] = order
+    if is_default:
+        updates["is_default"] = True
+    if provider:
+        updates["provider"] = provider
+    if model:
+        updates["model"] = model
+    if system_prompt:
+        updates["system_prompt"] = system_prompt
+    updates["enabled"] = enabled
+
+    try:
+        manifest = agent_registry.customize_agent(agent_id, updates)
+        return json.dumps({"status": "success", "agent": manifest}, indent=2)
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)}, indent=2)
+
+
+@mcp.tool(description="Create and scaffold a new custom agent with panel UI and backend logic in the user's private vault.")
+def fleet_create_custom_agent(
+    agent_id: str,
+    name: str,
+    icon: str = "✨",
+    description: str = "",
+    order: int = 80,
+) -> str:
+    """Scaffold a brand new custom agent."""
+    from fleet.server import agent_registry
+    try:
+        manifest = agent_registry.create_custom_agent(
+            agent_id=agent_id,
+            name=name,
+            icon=icon,
+            description=description,
+            initial_order=order,
+        )
+        return json.dumps({"status": "success", "agent": manifest}, indent=2)
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)}, indent=2)
+
+
+
 @mcp.tool(description="Execute a developer tool command across GitHub Copilot CLI ('copilot'), Anthropic Claude Code CLI ('claude_code'), Google Gemini CLI ('gemini_cli'), or Amazon Q Developer ('aws_q').")
 def fleet_run_developer_tool(tool_name: str, prompt: str) -> str:
     """Invoke an AI developer CLI tool or its cloud API fallback."""

@@ -1,0 +1,38 @@
+<div class="panel-section" id="prReviewSection">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-title-icon">🛡️</span>
+      <span>Admin PR Review & CI Quality Gate</span>
+    </div>
+    <div class="section-actions">
+      <button class="btn btn-primary btn-sm" onclick="fetchPRReviewStatus()">
+        🔄 Audit PRs & CI Now
+      </button>
+    </div>
+  </div>
+
+  <div class="metrics-grid" style="grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+    <div class="metric-card">
+      <div class="metric-label">Open Pull Requests</div>
+      <div class="metric-val" id="prOpenCount" style="color: #38bdf8;">0</div>
+      <div class="metric-sub" id="prTriageStatus">Audit pending</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">CI Health Status</div>
+      <div class="metric-val" id="ciHealthStatus" style="color: #4ade80;">PASSING</div>
+      <div class="metric-sub">9 Matrix Jobs Monitored</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Token Consumption</div>
+      <div class="metric-val" style="color: #fbbf24;">$0.00</div>
+      <div class="metric-sub">100% Deterministic Local Audit</div>
+    </div>
+  </div>
+
+  <div class="card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 20px;">
+    <h4 style="margin-bottom: 12px; font-size: 15px; color: #e2e8f0;">Active Pull Requests & Security Triage</h4>
+    <div id="prListContainer" style="color: #94a3b8; font-size: 13px;">
+      <p>No open pull requests currently pending review.</p>
+    </div>
+  </div>
+</div>

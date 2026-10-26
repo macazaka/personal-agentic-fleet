@@ -4,28 +4,59 @@
     "port": 7890,
     "default_agent": "health"
   },
+  "custom_agents_dir": "fleet/data/user/custom_agents",
   "agents": {
     "health": {
       "enabled": true,
+      "name": "Health & Metabolic Command",
+      "icon": "🌿",
+      "order": 10,
+      "is_default": true,
       "videos_directory": "./data/videos",
       "reminders_enabled": true
     },
     "overview": {
-      "enabled": true
+      "enabled": true,
+      "name": "Overview & Tasks",
+      "icon": "⚡",
+      "order": 20,
+      "provider": "auto"
     },
     "optimizer": {
       "enabled": true,
+      "name": "PC Turbo Optimizer",
+      "icon": "🚀",
+      "order": 30,
       "scan_interval_hours": 6
     },
     "antigravity": {
-      "enabled": true
+      "enabled": true,
+      "name": "Antigravity Live IDE Mirror",
+      "icon": "🤖",
+      "order": 40,
+      "provider": "anthropic",
+      "model": "claude-3-7-sonnet-20241022"
     },
     "backlog": {
-      "enabled": true
+      "enabled": true,
+      "name": "Roadmap & Backlog",
+      "icon": "📋",
+      "order": 50
     },
     "gmail": {
       "enabled": false,
+      "name": "Email Intelligence",
+      "icon": "📬",
+      "order": 60,
       "credentials_path": "fleet/data/user/client_secret.json"
+    },
+    "pr_review": {
+      "enabled": false,
+      "name": "Admin PR Review & CI Quality Gate",
+      "icon": "🛡️",
+      "order": 70,
+      "repository": "macazaka/personal-agentic-fleet",
+      "interval_minutes": 60
     }
   },
   "security": {
@@ -34,4 +65,3 @@
     "toast_alerts_on_findings": true
   }
 }
-

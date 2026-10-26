@@ -1,0 +1,192 @@
+<div id="viewOverview" style="display: none;">
+      <!-- Morning Briefing Card -->
+      <div class="briefing-box" id="briefingBox">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <span style="font-size: 12px; font-weight: 600; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 1px;" id="greetingText">Good Morning</span>
+          <div class="briefing-headline" id="briefingHeadline">Loading today's briefing...</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn" style="font-size: 12px;" onclick="speakBriefing()" title="Listen to spoken audio briefing">🔊 Speak</button>
+          <button class="btn" style="font-size: 12px;" onclick="fetchBriefing()">🔄 Refresh</button>
+        </div>
+      </div>
+      <div class="briefing-stats" id="statsContainer">
+        <!-- Rendered via JS -->
+      </div>
+      <div id="briefingMeetingsContainer" style="display: none; margin-top: 14px; padding: 12px 14px; border-radius: 8px; background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.25);">
+      </div>
+    </div>
+
+    <!-- Automated Unit Test Suite & Code Coverage Card -->
+    <div class="test-card" style="margin-bottom: 24px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 18px 22px; backdrop-filter: blur(12px);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 20px;">🧪</span>
+          <div>
+            <div style="font-size: 15px; font-weight: 700; color: var(--text);">Automated Unit Test Suite & Code Coverage</div>
+            <div style="font-size: 11.5px; color: var(--text-muted); display: flex; gap: 14px; margin-top: 3px; flex-wrap: wrap;">
+              <span>⚡ Frequency: <strong style="color: var(--accent-cyan);">Every 30 Mins (Auto)</strong></span>
+              <span>🕒 Last Run: <strong id="testLastRun" style="color: var(--text);">-</strong></span>
+              <span>💰 Compute Cost: <strong style="color: var(--accent-green);">$0.00 (0 Tokens)</strong></span>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span id="testStatusBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 12px; padding: 4px 10px;">PASS</span>
+          <button class="btn btn-primary" id="btnRunTests" style="font-size: 12px; padding: 6px 14px;" onclick="runTestsNow()">⚡ Run Tests Now</button>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 12px 14px;">
+          <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Pass Rate</div>
+          <div id="testPassPct" style="font-size: 22px; font-weight: 800; color: var(--accent-cyan); margin-top: 4px;">100.0%</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 12px 14px;">
+          <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Tests Run</div>
+          <div id="testRunCount" style="font-size: 22px; font-weight: 800; color: var(--accent-blue); margin-top: 4px;">25 / 25</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 12px 14px;">
+          <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Code Coverage</div>
+          <div id="testCoveragePct" style="font-size: 22px; font-weight: 800; color: var(--accent-green); margin-top: 4px;">98.5%</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 12px 14px;">
+          <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Execution Time</div>
+          <div id="testDuration" style="font-size: 22px; font-weight: 800; color: var(--accent-purple); margin-top: 4px;">1.2s</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="dashboard-grid">
+      <!-- Left Column: Tasks & Email Intelligence -->
+      <div>
+        <!-- Task Management Card -->
+        <div class="card">
+          <div class="card-title">
+            <span>🎯 Daily Tasks & Goals</span>
+            <span style="font-size: 12px; color: var(--text-muted);" id="taskCounter">0 Tasks</span>
+          </div>
+
+          <!-- Add Task Form -->
+          <div class="task-input-bar">
+            <input type="text" id="taskTitle" placeholder="Task title (e.g. 'Review quarterly budget')..." style="flex: 1.2;">
+            <input type="text" id="taskDesc" placeholder="Description / details (required)..." style="flex: 1.8;" onkeypress="if(event.key==='Enter') addTask()">
+            <select id="taskPriority" style="min-width: 110px;">
+              <option value="P1">🔴 P1 High</option>
+              <option value="P2" selected>🟡 P2 Medium</option>
+              <option value="P3">🟢 P3 Low</option>
+            </select>
+            <select id="taskSource" style="min-width: 120px;">
+              <option value="Dashboard" selected>💻 Dashboard</option>
+              <option value="Manual">📍 Manual</option>
+              <option value="Antigravity">⚡ Antigravity</option>
+              <option value="Meeting">📅 Meeting</option>
+              <option value="Email">📬 Email</option>
+            </select>
+            <button class="btn btn-primary" onclick="addTask()">+ Add</button>
+          </div>
+
+          <!-- Task List -->
+          <div class="task-list" id="taskList">
+            <!-- Dynamic task items -->
+          </div>
+        </div>
+
+        <!-- Email Intelligence Card -->
+        <div class="card">
+          <div class="card-title">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <span>📬 Email Intelligence</span>
+              <span style="font-size: 12px; color: var(--text-muted);">(This Month & Last Month)</span>
+              <span style="font-size: 11px; padding: 2px 7px; border-radius: 6px; background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 600;" title="Tier 0 Deterministic: Email intelligence never uses tokens. Tokens are strictly reserved for code enhancement.">⚡ 0 Tokens ($0.00)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span id="emailLiveStatus" style="font-size: 11px; padding: 3px 8px; border-radius: 6px; background: rgba(0, 242, 254, 0.1); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.3);">5 Folders</span>
+              <button class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;" id="btnSyncEmails" onclick="syncEmails()">
+                ⚡ Sync & Classify
+              </button>
+            </div>
+          </div>
+
+          <!-- Folder Category Pills -->
+          <div class="email-pill-grid" id="emailPillGrid">
+            <!-- Rendered via JS -->
+          </div>
+
+          <!-- Filter Tabs -->
+          <div style="display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto;" id="emailFilterBar">
+            <button class="filter-btn active" onclick="filterEmails('ALL')">All</button>
+            <button class="filter-btn" onclick="filterEmails('Meetings')">📅 Meetings</button>
+            <button class="filter-btn" onclick="filterEmails('Respond')">💬 Respond</button>
+            <button class="filter-btn" onclick="filterEmails('Note')">📝 Note</button>
+            <button class="filter-btn" onclick="filterEmails('FYI')">ℹ️ FYI</button>
+            <button class="filter-btn" onclick="filterEmails('Ignore')">🚫 Ignore</button>
+          </div>
+
+          <!-- Email Feed -->
+          <div id="emailList" style="max-height: 380px; overflow-y: auto;">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Routines, Performance & Activity -->
+      <div>
+        <!-- Quick PC Performance Card -->
+        <div class="card">
+          <div class="card-title" style="margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span>🚀 PC Performance & Tuning</span>
+              <span id="quickOptBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); font-size: 11px;">Health: --/100</span>
+            </div>
+            <button class="btn btn-primary" style="font-size: 11px; padding: 4px 10px;" onclick="switchTab('optimizer')">
+              Optimizer Pane →
+            </button>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+            <div class="stat-pill" style="min-width: unset; padding: 8px 10px;">
+              <span class="label">RAM Load</span>
+              <span class="val" id="quickOptRam" style="font-size: 15px; font-weight: 700; color: #fff;">--%</span>
+            </div>
+            <div class="stat-pill" style="min-width: unset; padding: 8px 10px;">
+              <span class="label">C: Free</span>
+              <span class="val" id="quickOptDisk" style="font-size: 15px; font-weight: 700; color: var(--accent-green);">-- GB</span>
+            </div>
+            <div class="stat-pill" style="min-width: unset; padding: 8px 10px;">
+              <span class="label">Junk Temp</span>
+              <span class="val" id="quickOptTemp" style="font-size: 15px; font-weight: 700; color: var(--accent-amber);">-- MB</span>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 11.5px; color: var(--text-muted); flex: 1; min-width: 160px;" id="quickOptAdvice">System tuned & optimal</span>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn" style="font-size: 11px; padding: 4px 9px;" onclick="runCleanTemp()">🧹 Clean</button>
+              <button class="btn btn-primary" style="font-size: 11px; padding: 4px 9px;" onclick="runCompleteOptimization()">⚡ Tune Up</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Daily Routine / Habits -->
+        <div class="card">
+          <div class="card-title">
+            <span>🔄 Daily Routine & Habits</span>
+          </div>
+          <div id="routineList">
+            <!-- Dynamic routines -->
+          </div>
+        </div>
+
+        <!-- System & Activity Logs -->
+        <div class="card">
+          <div class="card-title">
+            <span>📡 Fleet Activity Logs</span>
+          </div>
+          <div class="log-stream" id="logStream">
+            <!-- Dynamic logs -->
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>

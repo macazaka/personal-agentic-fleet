@@ -4,11 +4,13 @@ Runs the complete CI matrix locally before any code reaches GitHub:
   1. Minimum Python Runtime Requirement (>=3.10)
   2. Fleet Doctor & TLS/Database/ACL Security Invariants
   3. 12-Layer Deterministic Security & Privacy Audit (0 findings)
-  4. Comprehensive Documentation Integrity & Link Verification
-  5. Full Pytest Suite (all 130+ unit tests)
+  4. Agent Package Isolation & Strict Manifest Audit (fleet/agents/)
+  5. Comprehensive Documentation Integrity & Link Verification
+  6. Full Pytest Suite (all 130+ unit tests)
 Exit code 0 on PASS, 1 on FAIL. Consumes 0 LLM tokens ($0.00).
 """
 
+import json
 import os
 from pathlib import Path
 import re
@@ -33,8 +35,75 @@ REQUIRED_DOCUMENTS: List[str] = [
     "docs/PREREQUISITES_AND_OS.md",
     "docs/API_REFERENCE.md",
     "docs/DEVELOPER_GUIDE.md",
+    "docs/CUSTOMIZING_AGENTS.md",
     "docs/MAINTAINING_DOCUMENTATION.md",
 ]
+
+
+def verify_agent_package_isolation(repo_root: Path = _ROOT) -> Dict[str, Any]:
+    """
+    Enforces strict package isolation for every agent in fleet/agents/:
+      1. Every agent directory MUST contain a valid manifest.json declaring least-privilege permissions.
+      2. Manifest ID must strictly match the directory name.
+      3. All permissions must be recognized in ALLOWED_AGENT_PERMISSIONS.
+      4. Every agent package must contain an agent.py subclassing FleetAgent.
+      5. Every agent package must contain an isolated ui/panel.html.
+    """
+    from fleet.core.plugin_sandbox import ALLOWED_AGENT_PERMISSIONS
+
+    agents_dir = repo_root / "fleet" / "agents"
+    findings: List[str] = []
+    verified_agents = 0
+
+    if not agents_dir.exists():
+        return {"status": "FAIL", "verified_agents": 0, "findings": ["fleet/agents directory does not exist"]}
+
+    for item in sorted(agents_dir.iterdir()):
+        if not item.is_dir() or item.name.startswith((".", "_")):
+            continue
+
+        agent_id = item.name
+
+        # 1. Mandatory manifest.json
+        manifest_file = item / "manifest.json"
+        if not manifest_file.is_file():
+            findings.append(f"Agent '{agent_id}' violates package isolation: missing mandatory manifest.json")
+            continue
+
+        try:
+            m_data = json.loads(manifest_file.read_text(encoding="utf-8"))
+        except Exception as e:
+            findings.append(f"Agent '{agent_id}' has malformed manifest.json: {e}")
+            continue
+
+        if m_data.get("id") != agent_id:
+            findings.append(f"Agent '{agent_id}' manifest ID '{m_data.get('id')}' does not match directory name")
+
+        perms = m_data.get("permissions")
+        if not isinstance(perms, list):
+            findings.append(f"Agent '{agent_id}' manifest permissions must be a list")
+        else:
+            unknown = [p for p in perms if p not in ALLOWED_AGENT_PERMISSIONS]
+            if unknown:
+                findings.append(f"Agent '{agent_id}' declared unrecognized permissions: {unknown}")
+
+        # 2. Mandatory agent.py
+        agent_py = item / "agent.py"
+        if not agent_py.is_file():
+            findings.append(f"Agent '{agent_id}' violates package isolation: missing agent.py")
+
+        # 3. Mandatory isolated ui/panel.html
+        panel_file = item / "ui" / "panel.html"
+        if not panel_file.is_file():
+            findings.append(f"Agent '{agent_id}' violates package isolation: missing ui/panel.html")
+
+        verified_agents += 1
+
+    return {
+        "status": "PASS" if not findings else "FAIL",
+        "verified_agents": verified_agents,
+        "findings": findings,
+    }
 
 
 def verify_documentation_integrity(repo_root: Path = _ROOT) -> Dict[str, Any]:
@@ -89,7 +158,7 @@ def run_preflight_gate(repo_root: Path = _ROOT) -> int:
     print("==================================================================")
 
     # 1. Run Fleet Doctor (Verifies Runtime, OpenSSL, SQLite, Git Hooks, Vault ACL)
-    print("[1/4] Running Fleet Doctor Invariants...")
+    print("[1/5] Running Fleet Doctor Invariants...")
     doc_res = run_fleet_doctor(repo_root=repo_root)
     if doc_res["status"] != "PASS":
         print(f"[-] Fleet Doctor FAILED (Score: {doc_res['security_score']}/100)")
@@ -100,7 +169,7 @@ def run_preflight_gate(repo_root: Path = _ROOT) -> int:
     print(f"[OK] Fleet Doctor Passed (Python {doc_res['python_version']}, Security 100/100)")
 
     # 2. Run 12-Layer Security & Privacy Scanner
-    print("[2/4] Running 12-Layer Security & Privacy Scanner...")
+    print("[2/5] Running 12-Layer Security & Privacy Scanner...")
     sec_res = run_security_scan(repo_root=repo_root)
     if sec_res["status"] != "PASS" or sec_res.get("total_findings", 0) > 0:
         print(f"[-] Security Scanner FAILED with {sec_res.get('total_findings', 0)} finding(s).")
@@ -109,8 +178,18 @@ def run_preflight_gate(repo_root: Path = _ROOT) -> int:
         return 1
     print(f"[OK] 12-Layer Security Scanner Passed (Score: 100/100, 0 findings)")
 
-    # 3. Verify Documentation Integrity & Link Validations
-    print("[3/4] Verifying Comprehensive Documentation Integrity...")
+    # 3. Enforce Agent Package Isolation & Strict Manifest Audit
+    print("[3/5] Verifying Agent Package Isolation & Strict Manifest Contracts...")
+    iso_res = verify_agent_package_isolation(repo_root=repo_root)
+    if iso_res["status"] != "PASS":
+        print(f"[-] Agent Package Isolation FAILED with {len(iso_res['findings'])} finding(s):")
+        for finding in iso_res["findings"]:
+            print(f"    - {finding}")
+        return 1
+    print(f"[OK] Agent Package Isolation Passed ({iso_res['verified_agents']} agents verified with strict manifest.json contracts)")
+
+    # 4. Verify Documentation Integrity & Link Validations
+    print("[4/5] Verifying Comprehensive Documentation Integrity...")
     doc_check = verify_documentation_integrity(repo_root=repo_root)
     if doc_check["status"] != "PASS":
         print(f"[-] Documentation Integrity Check FAILED with {len(doc_check['findings'])} finding(s):")
@@ -119,8 +198,8 @@ def run_preflight_gate(repo_root: Path = _ROOT) -> int:
         return 1
     print(f"[OK] Documentation Passed ({doc_check['verified_files']}/{doc_check['total_required']} docs valid, 0 broken links)")
 
-    # 4. Run Pytest Suite in Clean Environment with PYTHONPATH
-    print("[4/4] Running Full Unit Test Suite (pytest tests/)...")
+    # 5. Run Pytest Suite in Clean Environment with PYTHONPATH
+    print("[5/5] Running Full Unit Test Suite (pytest tests/)...")
     hidden_kw = {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)} if os.name == "nt" else {}
     env = os.environ.copy()
     env["PYTHONPATH"] = str(repo_root)

@@ -47,6 +47,17 @@ class PRReviewAgent(FleetAgent):
     def icon(self) -> str:
         return "🛡️"
 
+    @property
+    def order(self) -> int:
+        return 70
+
+    def register_routes(self, router) -> None:
+        @router.get("/api/pr_review/status")
+        def get_pr_review_status(handler: Any, parsed_url: Any):
+            prs = self.audit_pull_requests()
+            ci = self.check_ci_status()
+            handler._send_json({"status": "ok", "prs": prs, "ci": ci})
+
     def audit_pull_requests(self) -> Dict[str, Any]:
         """
         Polls GitHub API for open PRs, audits status checks, and returns actionable recommendations.

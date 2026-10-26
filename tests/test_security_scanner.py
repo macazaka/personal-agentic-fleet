@@ -337,8 +337,17 @@ def test_preflight_documentation_integrity_verifier():
     from fleet.tools.preflight_gate import verify_documentation_integrity
     res = verify_documentation_integrity()
     assert res["status"] == "PASS"
-    assert res["verified_files"] == 10
-    assert res["total_required"] == 10
+    assert res["verified_files"] == 11
+    assert res["total_required"] == 11
     assert len(res["findings"]) == 0
+
+
+def test_agent_package_isolation_verifier():
+    from fleet.tools.preflight_gate import verify_agent_package_isolation
+    res = verify_agent_package_isolation()
+    assert res["status"] == "PASS"
+    assert res["verified_agents"] >= 7
+    assert len(res["findings"]) == 0
+
 
 

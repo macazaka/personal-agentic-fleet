@@ -6,34 +6,77 @@ server:
   port: 7890
   default_agent: "health"       # Default tab opened on startup: 'health', 'overview', 'optimizer', etc.
 
-# Modular Plug-and-Play Agents
+# User Custom Agents Directory (persisted, git-ignored, and immune to git pulls)
+custom_agents_dir: "fleet/data/user/custom_agents"
+
+# Modular Plug-and-Play Agents (Customize ANY agent below)
+# Supported customization keys for any agent:
+#   - enabled: true/false
+#   - name: "Custom Display Name"
+#   - icon: "✨" (Any Emoji or SVG)
+#   - order: 10 (Lower numbers appear first in dashboard navigation)
+#   - is_default: true/false (Active tab on startup)
+#   - provider: "auto" / "google" / "anthropic" / "microsoft" / "aws" / "ollama"
+#   - model: "gemini-2.5-pro" / "claude-3-7-sonnet" / "gpt-4o" / "llama3.2"
+#   - system_prompt: "Custom system instruction for this agent"
+#   - custom_panel_path: "path/to/custom_panel.html" (Overrides frontend UI pane)
+#   - settings: { ... } (Agent-specific custom dictionary)
+
 agents:
   health:
     enabled: true
+    name: "Health & Metabolic Command"  # Optional display name override
+    icon: "🌿"                          # Optional icon override
+    order: 10
+    is_default: true
     videos_directory: "./data/videos"   # Customize to your local fitness folder
     reminders_enabled: true
 
   overview:
     enabled: true
+    name: "Overview & Tasks"
+    icon: "⚡"
+    order: 20
+    provider: "auto"                    # Route through preferred hyperscaler
 
   optimizer:
     enabled: true
+    name: "PC Turbo Optimizer"
+    icon: "🚀"
+    order: 30
     scan_interval_hours: 6
 
   antigravity:
     enabled: true
+    name: "Antigravity Live IDE Mirror"
+    icon: "🤖"
+    order: 40
+    provider: "anthropic"               # Example: use Claude 3.7 Sonnet for code synthesis
+    model: "claude-3-7-sonnet-20241022"
 
   backlog:
     enabled: true
+    name: "Roadmap & Backlog"
+    icon: "📋"
+    order: 50
 
   gmail:
-    enabled: false              # Set to true and provide credentials to enable Gmail Intelligence
+    enabled: false                      # Set to true and provide credentials to enable Gmail Intelligence
+    name: "Email Intelligence"
+    icon: "📬"
+    order: 60
     credentials_path: "fleet/data/user/client_secret.json"
+
+  pr_review:
+    enabled: false                      # Admin-only Pull Request audit agent
+    name: "Admin PR Review & CI Quality Gate"
+    icon: "🛡️"
+    order: 70
+    repository: "macazaka/personal-agentic-fleet"
+    interval_minutes: 60
 
 # Automated Security & Privacy Scanner Configuration
 security:
-  scan_interval_minutes: 60     # Automatic background scan frequency in FleetDaemon
+  scan_interval_minutes: 60             # Automatic background scan frequency in FleetDaemon
   block_commits_on_findings: true
   toast_alerts_on_findings: true
-
-
