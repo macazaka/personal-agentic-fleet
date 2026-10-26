@@ -38,6 +38,7 @@ REQUIRED_DOCUMENTS: List[str] = [
     "docs/CUSTOMIZING_AGENTS.md",
     "docs/MAINTAINING_DOCUMENTATION.md",
     "docs/ROBUSTNESS_BACKLOG.md",
+    "docs/DEPLOYMENT_AND_SCENARIOS.md",
 ]
 
 

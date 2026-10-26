@@ -12,7 +12,7 @@ Welcome to **Personal Agentic Fleet**! Because the core microkernel, HTTP server
 | :--- | :--- | :--- |
 | **Windows 11 (64-bit)** | 🟢 **Primary Target** | Full native integration: in-process Win32 `PSAPI` memory telemetry, hardware-backed **DPAPI `crypt32.dll`** at-rest vault, WinRT toast notifications, NTFS user ACL hardening (`icacls`), and PowerShell 7 / 5.1 launcher. |
 | **Windows 10 (64-bit, Build 18362+)** | 🟢 **Primary Target** | Identical feature parity to Windows 11: native DPAPI encryption, windowless background processes (`CREATE_NO_WINDOW`), WinRT notifications, and local user ACL isolation. |
-| **macOS (12.0+ Monterey or later)** | 🟡 **Core Supported** | Full dashboard, microkernel, SQLite, 12-layer security scanner, and zero-token RAG engine; POSIX `chmod 0700` user vault isolation. |
+| **macOS (12+ Monterey, Ventura, Sonoma, Sequoia on Apple Silicon & Intel)** | 🟢 **Primary Target (Fully Supported)** | Full native parity: Apple Keychain Services (`/usr/bin/security`) hardware vault, AppleScript Notification Center banners (`osascript`), `sysctl` & `vm_stat` memory pressure telemetry, Directory Services DNS flush (`dscacheutil`), RAM sweep (`purge`), LaunchAgents service management, and Homebrew CLI discovery. |
 | **Linux (Ubuntu, Debian, Fedora, Arch)** | 🟡 **Core Supported / CI** | Core engine, CLI, and dashboard verified across Ubuntu in GitHub Actions CI matrix (Python 3.10, 3.11, 3.12). |
 | **Windows 7 / 8 / 8.1 / 32-bit (x86)** | 🔴 **NOT Supported** | **Incompatible.** Missing TLS 1.3 cryptographic suites, modern Python `>=3.10` runtime support, WinRT toast notification subsystems, and NTFS security semantics. |
 | **Mobile (iOS, Android, ChromeOS)** | 🔴 **NOT Supported** | **Incompatible.** Not built as a mobile app. The Control Center runs as a local PC daemon and can be accessed via local LAN browser. |
@@ -247,3 +247,35 @@ python -m pytest tests/ -v
 - **PowerShell `Activate.ps1` Blocked by Execution Policy**:
   Run `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned` in PowerShell.
 
+---
+
+## 🐳 11. Containerized Deployments (Docker, Docker Compose & Podman)
+
+Personal Agentic Fleet publishes official, rootless multi-architecture container images to GitHub Container Registry (**GHCR**).
+
+### 1-Command Docker Run
+```bash
+docker run -d \
+  --name personal-fleet \
+  --restart unless-stopped \
+  -p 7890:7890 \
+  -v $(pwd)/fleet-data:/app/fleet/data \
+  ghcr.io/macazaka/personal-agentic-fleet:latest
+```
+
+### Docker Compose
+```bash
+# Clone the repository and launch via Docker Compose
+docker compose up -d
+```
+
+---
+
+## 📱 12. Remote LAN, Homelab & Mobile Access (Tailscale VPN)
+
+Fleet runs locally on your workstation or headless home server, accessible securely across your local network:
+1. Start with `$env:FLEET_HOST = "0.0.0.0"` (Windows) or `FLEET_HOST=0.0.0.0 python3 -m fleet.app` (macOS/Linux).
+2. Access `http://<your-workstation-ip>:7890` from phone, iPad, or laptop on the same WiFi.
+3. For encrypted access outside the home without opening router ports, connect via [Tailscale](https://tailscale.com) and navigate to `http://<tailscale-ip>:7890`.
+
+👉 For comprehensive deployment guides across all operating systems and detailed operational scenarios, see **[docs/DEPLOYMENT_AND_SCENARIOS.md](docs/DEPLOYMENT_AND_SCENARIOS.md)**.

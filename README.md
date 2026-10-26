@@ -24,6 +24,7 @@
 | 🛡️ **[Security Architecture (`docs/SECURITY.md`)](docs/SECURITY.md)** | 12-layer defense-in-depth model, Windows DPAPI at-rest encryption, threat model, SAST, and automated audits. |
 | 🌐 **[Hyperscalers & Dev Tools (`docs/HYPERSCALERS_AND_DEV_TOOLS.md`)](docs/HYPERSCALERS_AND_DEV_TOOLS.md)** | Multi-provider LLM gateway, stdlib AWS SigV4, GitHub Copilot, Claude Code, Gemini CLI, and Amazon Q. |
 | 💻 **[OS Prerequisites & Platform Matrix (`docs/PREREQUISITES_AND_OS.md`)](docs/PREREQUISITES_AND_OS.md)** | Detailed OS matrix: Windows 10/11 & macOS primary, Linux CI, unsupported OSes & hardware requirements. |
+| 🌐 **[Multi-OS Deployment & Scenarios (`docs/DEPLOYMENT_AND_SCENARIOS.md`)](docs/DEPLOYMENT_AND_SCENARIOS.md)** | Step-by-step setup across Windows, macOS, Linux, Docker containers, homelab, and real-world operational scenarios. |
 | 🔌 **[API & FastMCP Reference (`docs/API_REFERENCE.md`)](docs/API_REFERENCE.md)** | REST endpoints, FastMCP tool schemas, CLI commands, and Dashboard slash commands. |
 | 🛠️ **[Developer & Contribution Guide (`docs/DEVELOPER_GUIDE.md`)](docs/DEVELOPER_GUIDE.md)** | Architecture rules, 3-step agent creation, adding hyperscalers, testing practices, and preflight gate. |
 | 🎨 **[Agent Customization & Package Isolation (`docs/CUSTOMIZING_AGENTS.md`)](docs/CUSTOMIZING_AGENTS.md)** | Customizing any agent (name, icon, order, default tab, provider, model, prompt, panel) and building isolated private agents. |

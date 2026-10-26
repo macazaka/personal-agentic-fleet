@@ -97,3 +97,15 @@ chmod +x bootstrap.sh
 ./bootstrap.sh
 ```
 
+---
+
+## 6. Comprehensive Deployment Guides & Real-World Scenarios
+
+For complete, step-by-step deployment manuals and operational scenarios across all platforms:
+- **Windows 11 & Windows 10 (64-bit)**: Automated bootstrap, silent background VBS execution, Task Scheduler autostart, and WSL2 interoperability.
+- **macOS (Apple Silicon & Intel)**: Homebrew setup, Apple Keychain integration, LaunchAgents background service, and Notification Center permissions.
+- **Linux & Headless Homelab**: Systemd user service, Ubuntu Server / Raspberry Pi, and headless daemon operation.
+- **Containerized Environments**: Official Docker images (`ghcr.io/macazaka/personal-agentic-fleet`), Docker Compose, and rootless Podman.
+- **Operational Scenarios**: Zero-token offline mode, multi-hyperscaler cloud gateway, AI developer tools bridge, athletic strength training splits, automated YAML scheduling, FastMCP tools, and secure Tailscale VPN access.
+
+👉 See **[docs/DEPLOYMENT_AND_SCENARIOS.md](DEPLOYMENT_AND_SCENARIOS.md)** for the complete multi-OS deployment and scenario runbook.

@@ -29,6 +29,7 @@ The local preflight gate ([`fleet/tools/preflight_gate.py`](../fleet/tools/prefl
 - `docs/DEVELOPER_GUIDE.md`
 - docs/CUSTOMIZING_AGENTS.md
 - docs/ROBUSTNESS_BACKLOG.md
+- `docs/DEPLOYMENT_AND_SCENARIOS.md`
 - `.github/copilot-instructions.md`
 - `CLAUDE.md`
 - `GEMINI.md`
@@ -43,6 +44,7 @@ Before committing changes:
 - [ ] **Code Changes Documented**: If adding an endpoint, add it to `docs/API_REFERENCE.md`. If adding an agent, update `docs/ARCHITECTURE.md` and `docs/DEVELOPER_GUIDE.md`.
 - docs/CUSTOMIZING_AGENTS.md
 - docs/ROBUSTNESS_BACKLOG.md
+- `docs/DEPLOYMENT_AND_SCENARIOS.md`
 - [ ] **Security Changes Updated**: If introducing a new security invariant, document it in `docs/SECURITY.md`.
 - [ ] **Synchronize AI Instructions**: Run `python -c "from fleet.core.dev_tools import sync_all_developer_tool_instructions; sync_all_developer_tool_instructions()"` to update Copilot, Claude, and Gemini prompt guidelines.
 - [ ] **Run Preflight Gate**: Execute `python -m fleet.tools.preflight_gate` to verify that all 130+ tests, the 12-layer security scanner, and documentation audits pass 100%.
