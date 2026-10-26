@@ -106,7 +106,7 @@ def update_fleet_settings(handler: Any, body: Dict[str, Any]):
 @router.post("/api/settings/agents/toggle")
 def toggle_agent_activation(handler: Any, body: Dict[str, Any]):
     """Activates or deactivates an agent by ID at runtime and persists state."""
-    agent_id = str(body.get("id", "")).strip()
+    agent_id = str(body.get("id", "") or body.get("agent_id", "")).strip()
     if not agent_id:
         handler._send_json({"status": "error", "message": "Missing required field 'id'"}, status=400)
         return
@@ -141,7 +141,7 @@ def toggle_agent_activation(handler: Any, body: Dict[str, Any]):
 @router.post("/api/settings/agents/customize")
 def customize_agent_settings(handler: Any, body: Dict[str, Any]):
     """Customizes an agent's display properties, LLM model, prompt, or default status."""
-    agent_id = str(body.get("id", "")).strip()
+    agent_id = str(body.get("id", "") or body.get("agent_id", "")).strip()
     if not agent_id:
         handler._send_json({"status": "error", "message": "Missing required field 'id'"}, status=400)
         return
@@ -175,7 +175,7 @@ def customize_agent_settings(handler: Any, body: Dict[str, Any]):
 @router.post("/api/settings/agents/reset")
 def reset_agent_settings(handler: Any, body: Dict[str, Any]):
     """Resets an agent back to factory built-in configuration."""
-    agent_id = str(body.get("id", "")).strip()
+    agent_id = str(body.get("id", "") or body.get("agent_id", "")).strip()
     if not agent_id:
         handler._send_json({"status": "error", "message": "Missing required field 'id'"}, status=400)
         return
@@ -362,6 +362,10 @@ def create_new_agent_endpoint(handler: Any, body: Dict[str, Any]):
         "network:http": "network:outbound",
         "notifications:send": "event_bus:publish",
         "system:exec": "system:diagnostics",
+        "storage:data_read": "db:read",
+        "storage:data_write": "db:write",
+        "storage:read": "db:read",
+        "storage:write": "db:write",
     }
     raw_perms = body.get("permissions")
     if not isinstance(raw_perms, list) or not raw_perms:
