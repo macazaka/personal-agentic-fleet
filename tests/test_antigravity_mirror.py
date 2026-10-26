@@ -489,7 +489,7 @@ def test_parallel_agent_pool_and_fast_track():
     sync_agent_state()
     assert get_active_agent_count() == 0
 
-    with patch("threading.Thread.start"):
+    with patch("threading.Thread.start"), patch("fleet.core.antigravity_mirror.process_next_in_queue"):
         agent1 = _spawn_parallel_agent_worker("Task 1 in parallel")
         agent2 = _spawn_parallel_agent_worker("Task 2 in parallel")
         assert agent1 == "Agent-1"

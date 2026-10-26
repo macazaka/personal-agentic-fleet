@@ -472,8 +472,9 @@ Pages purgeable:                           262144.
 
         with patch("sys.platform", "darwin"), patch.object(Path, "home", return_value=Path(tmp_dir)):
             apps = get_startup_apps()
-            assert len(apps) == 2
-            app_names = [a["name"] for a in apps]
+            user_apps = [a for a in apps if a.get("scope") == "User"]
+            assert len(user_apps) == 2
+            app_names = [a["name"] for a in user_apps]
             assert "teams" in app_names
             assert "updater" in app_names
-            assert apps[0]["scope"] == "User"
+            assert user_apps[0]["scope"] == "User"

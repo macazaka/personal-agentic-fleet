@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 
 import subprocess
 import threading
+import uuid
 
 from fleet.core.briefing import BriefingEngine
 from fleet.core.database import FleetDatabase
@@ -548,6 +549,7 @@ def _spawn_parallel_agent_worker(task_text: str, queue_id: Optional[int] = None,
                                  model: Optional[str] = None) -> str:
     target_model = model or get_active_model()
     now_str = datetime.now().strftime("%H:%M:%S")
+    worker_uuid = uuid.uuid4().hex
 
     with _agent_lock:
         used_ids = set(ACTIVE_PARALLEL_AGENTS.keys())
@@ -558,6 +560,7 @@ def _spawn_parallel_agent_worker(task_text: str, queue_id: Optional[int] = None,
 
         ACTIVE_PARALLEL_AGENTS[agent_id] = {
             "agent_id": agent_id,
+            "worker_uuid": worker_uuid,
             "task": task_text[:120],
             "queue_id": queue_id,
             "model": target_model,
@@ -582,7 +585,8 @@ def _spawn_parallel_agent_worker(task_text: str, queue_id: Optional[int] = None,
                 db.log_activity("ParallelAgent", "error", f"{agent_id} error: {e}")
         finally:
             with _agent_lock:
-                ACTIVE_PARALLEL_AGENTS.pop(agent_id, None)
+                if ACTIVE_PARALLEL_AGENTS.get(agent_id, {}).get("worker_uuid") == worker_uuid:
+                    ACTIVE_PARALLEL_AGENTS.pop(agent_id, None)
             sync_agent_state()
             process_next_in_queue()
 
