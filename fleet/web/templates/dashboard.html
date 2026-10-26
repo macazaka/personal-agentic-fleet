@@ -355,15 +355,20 @@
 
       <!-- Command Console & Action Bar -->
       <div class="ag-cmd-console" id="agConsoleContainer">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div class="ag-quick-chips">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+          <div class="ag-quick-chips" style="flex-wrap: wrap;">
             <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">QUICK ACTIONS:</span>
-            <span class="quick-chip" onclick="fillCommand('/sync')">⚡ /sync (Gmail 2-Month)</span>
+            <span class="quick-chip" onclick="fillCommand('/sync')">⚡ /sync</span>
             <span class="quick-chip" onclick="fillCommand('/briefing')">📅 /briefing</span>
-            <span class="quick-chip" onclick="fillCommand('/task ')">🎯 /task &lt;title&gt;</span>
-            <span class="quick-chip" onclick="fillCommand('/notify ')">🔔 /notify &lt;msg&gt;</span>
+            <span class="quick-chip" onclick="fillCommand('/task ')">🎯 /task</span>
+            <span class="quick-chip" onclick="fillCommand('/copilot ')" title="GitHub Copilot CLI & Azure Fallback">🐙 /copilot</span>
+            <span class="quick-chip" onclick="fillCommand('/claude ')" title="Anthropic Claude Code CLI & Direct API">🟣 /claude</span>
+            <span class="quick-chip" onclick="fillCommand('/vertex ')" title="Google Cloud Vertex AI & Gemini CLI">🟢 /vertex</span>
+            <span class="quick-chip" onclick="fillCommand('/azure ')" title="Microsoft Azure OpenAI & Foundry">🔵 /azure</span>
+            <span class="quick-chip" onclick="fillCommand('/bedrock ')" title="Amazon Web Services Bedrock & Amazon Q">🟠 /bedrock</span>
+            <span class="quick-chip" onclick="fillCommand('/providers')" title="Inspect All Hyperscalers & Dev Tools">☁️ /providers</span>
           </div>
-          <span style="font-size: 11px; color: var(--accent-green);">● Standalone Antigravity Hub</span>
+          <span style="font-size: 11px; color: var(--accent-green);">● Multi-Hyperscaler & Dev Tools Hub</span>
         </div>
 
         <div class="ag-input-row" style="align-items: center;">

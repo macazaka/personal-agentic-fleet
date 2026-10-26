@@ -292,14 +292,20 @@ let availableModels = [];
       modal.style.display = 'flex';
       content.innerHTML = '<div style="color:var(--text-muted); padding:10px;">Loading usage metrics...</div>';
       try {
-        const [usageRes, tokenRes] = await Promise.all([
+        const [usageRes, tokenRes, provRes, toolsRes] = await Promise.all([
           fetch('/api/antigravity/usage'),
-          fetch('/api/antigravity/tokens')
+          fetch('/api/antigravity/tokens'),
+          fetch('/api/hyperscalers/providers'),
+          fetch('/api/hyperscalers/dev_tools')
         ]);
         if (!usageRes.ok) throw new Error('HTTP ' + usageRes.status + ' loading usage');
         if (!tokenRes.ok) throw new Error('HTTP ' + tokenRes.status + ' loading token health');
         const d = await usageRes.json();
         const t = await tokenRes.json();
+        const provData = provRes.ok ? await provRes.json() : { providers: [] };
+        const toolsData = toolsRes.ok ? await toolsRes.json() : { tools: {} };
+        const provList = provData.providers || [];
+        const toolsList = Object.values(toolsData.tools || {});
 
         const pct = t.percent_used || 0;
         const barColor = t.status === 'exhausted' ? '#ef4444' : (t.status === 'warning' ? '#f59e0b' : 'var(--accent-cyan)');
@@ -344,6 +350,21 @@ let availableModels = [];
             </div>
           </div>
 
+          <div style="background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:8px; padding:12px; margin-top:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-size:11px; font-weight:700; color:var(--accent-cyan); text-transform:uppercase; letter-spacing:0.5px;">
+                ☁️ Multi-Hyperscaler Gateway & AI Developer Tools
+              </span>
+              <button class="btn" style="font-size:10.5px; padding:3px 9px;" onclick="syncAllDevToolInstructions()">🔄 Sync Copilot / Claude / Gemini Rules</button>
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+              ${provList.map(p => `<span class="ag-pill-badge ${p.is_configured ? 'green' : 'gray'}" style="font-size:10px;" title="${escapeHtml((p.methods||[]).join(', '))}">${p.is_configured ? '●' : '○'} ${escapeHtml(p.hyperscaler)}</span>`).join('')}
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              ${toolsList.map(tl => `<span class="ag-pill-badge ${tl.installed ? 'blue' : 'purple'}" style="font-size:10px;">${tl.installed ? '✓' : '☁️'} ${escapeHtml(tl.name)}</span>`).join('')}
+            </div>
+          </div>
+
           <div style="font-size:11.5px; color:var(--text-muted); margin-top:4px; line-height:1.4;">
             Provider: <strong>${escapeHtml(d.provider)}</strong>.<br>
             Strictly follows Tier 0 computational optimization ($0.00 / 0 Tokens) for all local fleet routines.
@@ -359,6 +380,25 @@ let availableModels = [];
           </div>
           <button class="btn btn-primary" style="font-size: 11.5px; padding: 6px 14px;" onclick="openUsageModal()">🔄 Retry</button>
         `;
+      }
+    }
+
+    async function syncAllDevToolInstructions() {
+      try {
+        const res = await fetch('/api/hyperscalers/dev_tools/sync_all_instructions', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({})
+        });
+        const data = await res.json();
+        const toast = document.getElementById('cmdToast');
+        if (toast) {
+          toast.style.display = 'block';
+          toast.innerText = data.message || 'Synchronized Copilot, Claude Code, and Gemini CLI instructions!';
+          setTimeout(() => { toast.style.display = 'none'; }, 4000);
+        }
+      } catch (e) {
+        console.error('Error syncing instructions:', e);
       }
     }
 

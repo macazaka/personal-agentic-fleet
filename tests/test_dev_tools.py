@@ -1,5 +1,5 @@
 """
-Unit tests for Developer Tools integration (GitHub Copilot, Claude Code, Antigravity, Ollama).
+Unit tests for Developer Tools integration (GitHub Copilot, Claude Code, Google Gemini CLI, Amazon Q, Antigravity, Cursor, Ollama).
 """
 
 from pathlib import Path
@@ -8,8 +8,13 @@ from unittest.mock import MagicMock, patch
 
 from fleet.core.dev_tools import (
     detect_developer_tools,
+    execute_aws_q_developer,
     execute_claude_code,
     execute_github_copilot_command,
+    execute_google_gemini_cli,
+    sync_all_developer_tool_instructions,
+    sync_claude_code_instructions,
+    sync_gemini_instructions,
     sync_github_copilot_instructions,
 )
 
@@ -17,14 +22,19 @@ from fleet.core.dev_tools import (
 def test_detect_developer_tools():
     tools = detect_developer_tools()
     assert "antigravity" in tools
+    assert "gemini_cli" in tools
     assert "claude_code" in tools
     assert "github_copilot" in tools
+    assert "aws_q" in tools
     assert "vscode" in tools
+    assert "cursor" in tools
     assert "ollama" in tools
 
     assert tools["claude_code"]["provider"] == "Anthropic"
     assert tools["github_copilot"]["provider"] == "Microsoft / GitHub"
     assert tools["antigravity"]["provider"] == "Google"
+    assert tools["gemini_cli"]["provider"] == "Google Cloud"
+    assert tools["aws_q"]["provider"] == "Amazon Web Services"
     assert tools["ollama"]["provider"] == "Local / Open Source"
 
 
@@ -71,6 +81,7 @@ def test_execute_github_copilot_command_cli_success():
             assert res["status"] == "success"
             assert res["tool"] == "github_copilot_cli"
             assert "git commit" in res["output"]
+            mock_sub.assert_called_once()
 
 
 def test_execute_github_copilot_fallback_to_azure():
@@ -90,7 +101,24 @@ def test_execute_github_copilot_fallback_to_azure():
             assert "git status" in res["output"]
 
 
-def test_sync_github_copilot_instructions():
+def test_execute_google_gemini_cli_and_aws_q_fallbacks():
+    with patch("fleet.core.dev_tools.detect_developer_tools") as mock_detect:
+        mock_detect.return_value = {
+            "gemini_cli": {"installed": False, "path": None},
+            "aws_q": {"installed": False, "path": None},
+        }
+        with patch("fleet.core.hyperscalers.HyperscalerGateway.complete") as mock_complete:
+            mock_complete.return_value = {"response": "Vertex & Bedrock ready", "tokens_used": 20, "cost_usd": "$0.00"}
+            res_gem = execute_google_gemini_cli("Deploy Cloud Run service")
+            assert res_gem["status"] == "success"
+            assert res_gem["tool"] == "google_gemini_api_fallback"
+
+            res_q = execute_aws_q_developer("Create IAM role for Bedrock")
+            assert res_q["status"] == "success"
+            assert res_q["tool"] == "aws_bedrock_fallback"
+
+
+def test_sync_github_copilot_and_all_instructions():
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_root = Path(tmpdir)
         res = sync_github_copilot_instructions(repo_root=repo_root)
@@ -98,9 +126,10 @@ def test_sync_github_copilot_instructions():
         copilot_md = repo_root / ".github" / "copilot-instructions.md"
         assert copilot_md.is_file()
         content = copilot_md.read_text(encoding="utf-8")
-        assert "Tier 0 Cost & Token Governance" in content
-        assert "Multi-Hyperscaler Architecture" in content
-        assert "Google" in content
-        assert "Microsoft" in content
-        assert "AWS" in content
-        assert "Anthropic" in content
+        assert "Tier 0" in content
+        assert "HyperscalerGateway" in content
+
+        res_all = sync_all_developer_tool_instructions(repo_root=repo_root)
+        assert res_all["status"] == "synced"
+        assert (repo_root / "CLAUDE.md").is_file()
+        assert (repo_root / "GEMINI.md").is_file()

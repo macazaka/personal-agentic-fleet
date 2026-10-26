@@ -26,7 +26,7 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 UPLOADS_DIR = DATA_DIR / "uploads"
 
 AVAILABLE_MODELS = [
-    # 1. Google (Antigravity & Gemini Direct / Vertex AI)
+    # 1. Google (Antigravity, AI Studio Gemini REST, Vertex AI, Gemini CLI)
     {
         "id": "gemini-3.8-flash-high",
         "name": "Google Gemini 3.8 Flash (Antigravity)",
@@ -39,13 +39,33 @@ AVAILABLE_MODELS = [
     },
     {
         "id": "gemini-2.5-pro",
-        "name": "Google Gemini 2.5 Pro (Direct / Vertex AI)",
+        "name": "Google Gemini 2.5 Pro (AI Studio REST API)",
         "provider": "google",
         "effort": "High",
         "badge": "Google",
         "badge_color": "green",
         "available": True,
-        "description": "Direct Google Cloud Vertex AI & Gemini REST API."
+        "description": "Direct Google AI Studio Gemini REST API."
+    },
+    {
+        "id": "google-vertex-gemini-2.5-pro",
+        "name": "Google Cloud Vertex AI (Gemini 2.5 Pro)",
+        "provider": "google_vertex",
+        "effort": "High",
+        "badge": "Vertex AI",
+        "badge_color": "green",
+        "available": True,
+        "description": "Enterprise Google Cloud Vertex AI endpoint with IAM / gcloud ADC authentication."
+    },
+    {
+        "id": "google-gemini-cli",
+        "name": "Google Gemini CLI & Cloud SDK",
+        "provider": "google",
+        "effort": "Medium",
+        "badge": "Gemini CLI",
+        "badge_color": "green",
+        "available": True,
+        "description": "Google Gemini terminal CLI (`gemini`) and Cloud SDK agent bridge."
     },
     {
         "id": "gemini-4-argon",
@@ -57,7 +77,7 @@ AVAILABLE_MODELS = [
         "available": False,
         "description": "Next-gen experimental multimodal architecture."
     },
-    # 2. Microsoft (Azure OpenAI Service & GitHub Copilot)
+    # 2. Microsoft (Azure OpenAI, Azure AI Foundry, GitHub Models & GitHub Copilot)
     {
         "id": "azure-gpt-4o",
         "name": "Microsoft Azure OpenAI GPT-4o",
@@ -79,6 +99,26 @@ AVAILABLE_MODELS = [
         "description": "High-efficiency, cost-optimized Azure OpenAI reasoning."
     },
     {
+        "id": "azure-foundry-phi4",
+        "name": "Microsoft Azure AI Foundry (Phi-4 / DeepSeek)",
+        "provider": "microsoft",
+        "effort": "Medium",
+        "badge": "Foundry",
+        "badge_color": "blue",
+        "available": True,
+        "description": "Microsoft Azure AI Foundry serverless model endpoint."
+    },
+    {
+        "id": "github-models-gpt-4o",
+        "name": "GitHub Models Inference (GPT-4o)",
+        "provider": "microsoft",
+        "effort": "High",
+        "badge": "GitHub",
+        "badge_color": "blue",
+        "available": True,
+        "description": "GitHub Models API (`models.inference.ai.azure.com`) powered by GITHUB_TOKEN."
+    },
+    {
         "id": "github-copilot",
         "name": "GitHub Copilot (CLI & IDE)",
         "provider": "microsoft",
@@ -88,7 +128,17 @@ AVAILABLE_MODELS = [
         "available": True,
         "description": "GitHub Copilot CLI shell suggestions and VS Code instructions bridge."
     },
-    # 3. Amazon Web Services (AWS Bedrock)
+    # 3. Amazon Web Services (AWS Bedrock SigV4 / Bearer & Amazon Q Developer)
+    {
+        "id": "aws-bedrock-claude-3-7-sonnet",
+        "name": "AWS Bedrock Claude 3.7 Sonnet",
+        "provider": "aws",
+        "effort": "High",
+        "badge": "AWS",
+        "badge_color": "orange",
+        "available": True,
+        "description": "Amazon Bedrock managed Anthropic Claude 3.7 Sonnet foundation model."
+    },
     {
         "id": "aws-bedrock-claude-3-5-sonnet",
         "name": "AWS Bedrock Claude 3.5 Sonnet",
@@ -100,6 +150,16 @@ AVAILABLE_MODELS = [
         "description": "Amazon Bedrock managed Anthropic Claude 3.5 Sonnet foundation model."
     },
     {
+        "id": "aws-bedrock-nova-pro",
+        "name": "AWS Bedrock Amazon Nova Pro",
+        "provider": "aws",
+        "effort": "High",
+        "badge": "AWS",
+        "badge_color": "orange",
+        "available": True,
+        "description": "Amazon Nova Pro multimodal foundation model on AWS Bedrock."
+    },
+    {
         "id": "aws-bedrock-titan",
         "name": "AWS Bedrock Amazon Titan Text",
         "provider": "aws",
@@ -108,6 +168,16 @@ AVAILABLE_MODELS = [
         "badge_color": "orange",
         "available": True,
         "description": "Amazon Titan Text Express on AWS Bedrock."
+    },
+    {
+        "id": "aws-q-developer",
+        "name": "Amazon Q Developer CLI",
+        "provider": "aws",
+        "effort": "High",
+        "badge": "AWS Q",
+        "badge_color": "orange",
+        "available": True,
+        "description": "Amazon Q Developer CLI (`q`) and AWS architecture assistant."
     },
     # 4. Anthropic Claude (Direct API & Claude Code CLI)
     {
@@ -150,7 +220,17 @@ AVAILABLE_MODELS = [
         "available": True,
         "description": "Anthropic Claude Sonnet 5.5 balanced coding & analysis."
     },
-    # 5. Local & Open Weights (Offline 0-Token)
+    # 5. OpenAI Direct & Local Offline (0-Token)
+    {
+        "id": "openai-gpt-4o",
+        "name": "OpenAI GPT-4o (Direct API)",
+        "provider": "openai",
+        "effort": "High",
+        "badge": "OpenAI",
+        "badge_color": "teal",
+        "available": True,
+        "description": "Direct OpenAI Chat Completions REST API."
+    },
     {
         "id": "ollama-llama3",
         "name": "Local Ollama Llama 3 (Offline)",
@@ -600,16 +680,33 @@ def _execute_agy_or_fallback(prompt_text: str, images: Optional[List[str]] = Non
         db.log_activity("GitHubCopilot", "prompt_executed", prompt_text[:120])
         return execute_github_copilot_command(full_prompt)
 
-    # 3. Multi-Hyperscaler Gateway (Microsoft Azure, AWS Bedrock, Anthropic Claude, Local Ollama, Google Direct)
-    is_hyperscaler = any(target_model.startswith(pfx) for pfx in ["azure-", "aws-", "ollama-", "gemini-2"]) or (target_model.startswith("claude-") and not agy_exe.exists())
+    # 2b. Developer Tool: Google Gemini CLI & Cloud SDK
+    if target_model == "google-gemini-cli":
+        from fleet.core.dev_tools import execute_google_gemini_cli
+        db.log_activity("GoogleGeminiCLI", "prompt_executed", prompt_text[:120])
+        return execute_google_gemini_cli(full_prompt)
+
+    # 2c. Developer Tool: Amazon Q Developer CLI
+    if target_model == "aws-q-developer":
+        from fleet.core.dev_tools import execute_aws_q_developer
+        db.log_activity("AmazonQDeveloper", "prompt_executed", prompt_text[:120])
+        return execute_aws_q_developer(full_prompt)
+
+    # 3. Multi-Hyperscaler Gateway (Google Vertex/Gemini, Microsoft Azure/Foundry/GitHub Models, AWS Bedrock, Anthropic Claude, OpenAI, Local Ollama)
+    is_hyperscaler = (
+        any(target_model.startswith(pfx) for pfx in ["azure-", "github-models-", "aws-", "ollama-", "gemini-2", "google-vertex-", "openai-"])
+        or (target_model.startswith("claude-") and not agy_exe.exists())
+    )
     if is_hyperscaler:
         from fleet.core.hyperscalers import HyperscalerGateway
         gateway = HyperscalerGateway()
         provider = (
-            "microsoft" if "azure" in target_model
+            "google_vertex" if target_model.startswith("google-vertex-")
+            else "microsoft" if ("azure" in target_model or "github-models" in target_model)
             else "aws" if "aws" in target_model
             else "ollama" if "ollama" in target_model
             else "anthropic" if "claude" in target_model
+            else "openai" if "openai" in target_model
             else "google"
         )
         res_hs = gateway.complete(prompt=full_prompt, provider=provider, model=target_model)
@@ -946,6 +1043,47 @@ def execute_dashboard_command(cmd_text: str, images: Optional[List[str]] = None,
             "type": "notification",
             "message": f"Windows Notification {'delivered' if sent else 'sent'}: {msg}"
         }
+
+    # 5a. Multi-Hyperscaler & Developer Tool Slash Commands (/copilot, /claude, /gemini, /vertex, /azure, /aws, /ollama, /providers)
+    if lower in ("/providers", "providers", "/tools", "/hyperscalers"):
+        from fleet.core.dev_tools import detect_developer_tools, sync_all_developer_tool_instructions
+        from fleet.core.hyperscalers import HyperscalerGateway
+        provs = HyperscalerGateway.list_available_providers()
+        tools = detect_developer_tools()
+        sync_all_developer_tool_instructions()
+        p_lines = [f"- **{p['name']}** (`{p['id']}`): {'✅ Configured' if p['is_configured'] else '⚪ Ready (Set Key in Vault)'}" for p in provs]
+        t_lines = [f"- **{t['name']}** ({t['provider']}): {'✅ Installed' if t['installed'] else '☁️ API Fallback Active'}" for t in tools.values()]
+        msg = (
+            "### ☁️ Multi-Hyperscaler LLM Gateway\n" + "\n".join(p_lines) +
+            "\n\n### 🛠️ AI Developer Tools Bridge\n" + "\n".join(t_lines) +
+            "\n\n*Synchronized `.github/copilot-instructions.md`, `CLAUDE.md`, and `GEMINI.md`.*"
+        )
+        return {"status": "success", "type": "hyperscaler_status", "message": msg}
+
+    if lower.startswith("/copilot "):
+        from fleet.core.dev_tools import execute_github_copilot_command
+        q = text[9:].strip()
+        r = execute_github_copilot_command(q)
+        return {"status": "success", "type": "dev_tool", "tool": "github_copilot", "message": r.get("output") or r.get("message", "Executed via GitHub Copilot.")}
+
+    if lower.startswith("/claude "):
+        from fleet.core.dev_tools import execute_claude_code
+        q = text[8:].strip()
+        r = execute_claude_code(q)
+        return {"status": "success", "type": "dev_tool", "tool": "claude_code", "message": r.get("output") or r.get("message", "Executed via Claude Code.")}
+
+    if lower.startswith("/gemini "):
+        from fleet.core.dev_tools import execute_google_gemini_cli
+        q = text[8:].strip()
+        r = execute_google_gemini_cli(q)
+        return {"status": "success", "type": "dev_tool", "tool": "google_gemini", "message": r.get("output") or r.get("message", "Executed via Google Gemini.")}
+
+    for pfx, prov_id in [("/vertex ", "google_vertex"), ("/azure ", "microsoft"), ("/aws ", "aws"), ("/bedrock ", "aws"), ("/ollama ", "ollama")]:
+        if lower.startswith(pfx):
+            from fleet.core.hyperscalers import HyperscalerGateway
+            q = text[len(pfx):].strip()
+            r = HyperscalerGateway().complete(prompt=q, provider=prov_id)
+            return {"status": "success", "type": "hyperscaler_response", "provider": prov_id, "message": r.get("text") or r.get("response", "")}
 
     # 5b. Tier 0 Extended Deterministic Intent Router ($0.00 / 0 Tokens)
     if not images:

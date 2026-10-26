@@ -7,17 +7,17 @@ You are assisting with the **Personal Agentic Fleet** codebase. Always follow th
 - Never make outbound external LLM API calls when deterministic regex, local SQLite lookups, or local BM25 RAG can solve the user's intent.
 - Preserve SHA-256 caching and prompt compression (`fleet/core/token_optimizer.py`).
 
-## 2. Multi-Hyperscaler Architecture
-- The fleet works with multiple hyperscalers and models:
-  - **Google**: Google Antigravity CLI (`agy`), Google Gemini API (`generativelanguage.googleapis.com`), and Google Cloud Vertex AI.
-  - **Microsoft**: Azure OpenAI Service (GPT-4o, GPT-4o-mini), Azure AI Foundry (Phi-3.5/Phi-4), and GitHub Copilot.
-  - **Amazon Web Services (AWS)**: Amazon Bedrock (Claude 3.5 Sonnet, Amazon Titan, Meta Llama 3) and SageMaker.
-  - **Anthropic Claude**: Claude Code CLI (`claude`), Claude Direct API (Claude 3.7 Sonnet, Claude 3.5 Haiku, Claude 3 Opus).
-  - **Offline / Local**: Ollama / vLLM (Llama 3, Mistral, Qwen).
-- Always use the unified gateway `HyperscalerGateway` in `fleet/core/hyperscalers.py` rather than hardcoding vendor SDKs.
+## 2. Multi-Hyperscaler & Developer Tool Architecture
+- The fleet works seamlessly across all major hyperscalers and AI developer tools:
+  - **Google**: Google Antigravity CLI (`agy`), Google Gemini REST API (`generativelanguage.googleapis.com`), Google Cloud Vertex AI (`aiplatform.googleapis.com`), and Google Gemini CLI (`gemini`).
+  - **Microsoft & GitHub**: Azure OpenAI Service (GPT-4o, GPT-4o-mini, o1, o3-mini), Azure AI Foundry (Phi-4, DeepSeek-R1), GitHub Models (`models.inference.ai.azure.com`), and GitHub Copilot (`gh copilot` & VS Code).
+  - **Amazon Web Services (AWS)**: Amazon Bedrock Runtime with pure-stdlib SigV4 IAM & Bearer auth (Claude 3.7/3.5 Sonnet, Amazon Nova Pro, Amazon Titan, Meta Llama 3.3) and Amazon Q Developer CLI (`q`).
+  - **Anthropic Claude**: Claude Code CLI (`claude`), Anthropic Direct Messages API (Claude 3.7 Sonnet, Claude 3.5 Sonnet/Haiku, Claude 3 Opus).
+  - **Offline / Local**: Ollama / vLLM (Llama 3.2, Qwen 2.5 Coder, DeepSeek-R1, Mistral).
+- Always route LLM completions through `HyperscalerGateway` in `fleet/core/hyperscalers.py` and developer tool invocations through `fleet/core/dev_tools.py`.
 
 ## 3. Platform & Security Rules
-- All code must run natively on both **Windows 10/11** and **Linux/Ubuntu**.
-- Zero external socket calls during tests (enforced by `conftest.py` socket guard).
-- Never commit raw API keys or PII: use `get_secure_secret()` or Windows DPAPI vault.
-- Maintain 100/100 score on the Fleet 12-layer security scanner (`fleet.tools.security_scanner`).
+- All code must run natively on both **Windows 10/11** and **Linux/Ubuntu** (Python 3.10–3.14).
+- Zero external socket calls during unit tests (enforced by `conftest.py` socket guard).
+- Never commit raw API keys or PII: use `get_secure_secret()` or the Windows DPAPI vault (`fleet/core/crypto_vault.py`).
+- Maintain a 100/100 score on the Fleet 12-layer security scanner (`python -m fleet.tools.preflight_gate`).

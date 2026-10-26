@@ -218,7 +218,49 @@ def fleet_classify_recent_emails(dry_run: bool = False, auto_archive_ignore: boo
     return f"Error classifying emails: {result.get('message')}"
 
 
+@mcp.tool(description="List all supported hyperscaler LLM providers (Google Gemini/Vertex, Microsoft Azure/Foundry/GitHub Models, AWS Bedrock, Anthropic Claude, OpenAI, Ollama) and detected AI developer tools (GitHub Copilot, Claude Code, Google Antigravity, Gemini CLI, Amazon Q).")
+def fleet_list_hyperscalers_and_tools() -> str:
+    """Return availability status of all hyperscalers and AI developer tools."""
+    from fleet.core.dev_tools import detect_developer_tools
+    from fleet.core.hyperscalers import HyperscalerGateway
+    providers = HyperscalerGateway.list_available_providers()
+    tools = detect_developer_tools()
+    return json.dumps({"providers": providers, "developer_tools": tools}, indent=2)
+
+
+@mcp.tool(description="Execute a prompt through the Fleet Multi-Hyperscaler Gateway (tier-0 local check first, then Google Gemini, Google Cloud Vertex AI, Microsoft Azure OpenAI/Foundry, AWS Bedrock, Anthropic Claude, OpenAI, or Local Ollama).")
+def fleet_query_hyperscaler(prompt: str, provider: str = "auto", model: str = "") -> str:
+    """Route an inference request to any configured hyperscaler with Tier 0 local caching."""
+    from fleet.core.hyperscalers import HyperscalerGateway
+    gw = HyperscalerGateway()
+    res = gw.complete(prompt=prompt, provider=provider, model=model or None)
+    return json.dumps(res, indent=2)
+
+
+@mcp.tool(description="Execute a developer tool command across GitHub Copilot CLI ('copilot'), Anthropic Claude Code CLI ('claude_code'), Google Gemini CLI ('gemini_cli'), or Amazon Q Developer ('aws_q').")
+def fleet_run_developer_tool(tool_name: str, prompt: str) -> str:
+    """Invoke an AI developer CLI tool or its cloud API fallback."""
+    from fleet.core.dev_tools import (
+        execute_aws_q_developer,
+        execute_claude_code,
+        execute_github_copilot_command,
+        execute_google_gemini_cli,
+    )
+    t = tool_name.lower().strip()
+    if t in ("copilot", "github_copilot", "gh"):
+        res = execute_github_copilot_command(prompt)
+    elif t in ("claude", "claude_code"):
+        res = execute_claude_code(prompt)
+    elif t in ("gemini", "gemini_cli", "google"):
+        res = execute_google_gemini_cli(prompt)
+    elif t in ("aws", "aws_q", "q"):
+        res = execute_aws_q_developer(prompt)
+    else:
+        res = {"status": "error", "message": f"Unknown tool '{tool_name}'. Supported: copilot, claude_code, gemini_cli, aws_q"}
+    return json.dumps(res, indent=2)
+
+
 if __name__ == "__main__":
-    # Runs the stdio MCP server for Antigravity
+    # Runs the stdio MCP server for Antigravity, Claude Code, GitHub Copilot, and Cursor
     mcp.run(transport="stdio")
 
