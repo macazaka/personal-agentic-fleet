@@ -30,8 +30,8 @@ def test_circuit_breaker_transitions():
     with pytest.raises(CircuitBreakerOpenException):
         cb.before_request()
 
-    # Wait for cooldown
-    time.sleep(0.25)
+    # Wait for cooldown with margin for Windows timer resolution
+    time.sleep(0.4)
     cb.before_request()
     assert cb.state == "HALF_OPEN"
 

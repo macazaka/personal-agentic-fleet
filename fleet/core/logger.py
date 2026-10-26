@@ -77,7 +77,11 @@ class RingBufferLogHandler(logging.Handler):
                 "metadata": metadata,
             }
             if record.exc_info:
-                entry["exception"] = self.formatException(record.exc_info)
+                if self.formatter:
+                    entry["exception"] = self.formatter.formatException(record.exc_info)
+                else:
+                    import traceback
+                    entry["exception"] = "".join(traceback.format_exception(*record.exc_info))
 
             with self._lock:
                 self._buffer.append(entry)

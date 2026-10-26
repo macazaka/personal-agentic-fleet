@@ -60,7 +60,10 @@ def test_supervisor_worker_revival():
     )
 
     worker.start()
-    time.sleep(0.3)
+    for _ in range(20):
+        if len(attempts) >= 2:
+            break
+        time.sleep(0.05)
     worker.stop()
 
     assert len(attempts) >= 2
