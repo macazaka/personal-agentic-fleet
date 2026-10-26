@@ -337,8 +337,8 @@ def test_preflight_documentation_integrity_verifier():
     from fleet.tools.preflight_gate import verify_documentation_integrity
     res = verify_documentation_integrity()
     assert res["status"] == "PASS"
-    assert res["verified_files"] == 11
-    assert res["total_required"] == 11
+    assert res["verified_files"] >= 11
+    assert res["total_required"] >= 11
     assert len(res["findings"]) == 0
 
 

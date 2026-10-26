@@ -28,6 +28,7 @@
 | 🛠️ **[Developer & Contribution Guide (`docs/DEVELOPER_GUIDE.md`)](docs/DEVELOPER_GUIDE.md)** | Architecture rules, 3-step agent creation, adding hyperscalers, testing practices, and preflight gate. |
 | 🎨 **[Agent Customization & Package Isolation (`docs/CUSTOMIZING_AGENTS.md`)](docs/CUSTOMIZING_AGENTS.md)** | Customizing any agent (name, icon, order, default tab, provider, model, prompt, panel) and building isolated private agents. |
 | 🔄 **[Documentation Maintenance Guide (`docs/MAINTAINING_DOCUMENTATION.md`)](docs/MAINTAINING_DOCUMENTATION.md)** | Continuous documentation verification invariants, commit checklist, and update cadence. |
+| 🛡️ **[Native Robustness Architecture Backlog (`docs/ROBUSTNESS_BACKLOG.md`)](docs/ROBUSTNESS_BACKLOG.md)** | 6-pillar framework robustness roadmap: thread supervisors, connection pool, OS job objects, circuit breakers, and crash forensics. |
 | 🤝 **[Community Contributing Guide (`CONTRIBUTING.md`)](CONTRIBUTING.md)** | Branching workflow, pull request guidelines, security disclosure policy, and code style. |
 
 ---
