@@ -29,9 +29,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Pages
+        id: setup_pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
+        continue-on-error: true
 
       - name: Build Documentation Site
         run: |
@@ -68,11 +68,18 @@ jobs:
           "
 
       - name: Upload artifact
+        if: steps.setup_pages.outcome == 'success'
         uses: actions/upload-pages-artifact@v3
         with:
           path: '_site'
 
       - name: Deploy to GitHub Pages
+        if: steps.setup_pages.outcome == 'success'
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Pages Setup Notice
+        if: steps.setup_pages.outcome != 'success'
+        run: |
+          echo "::notice title=GitHub Pages Setup::To publish documentation to Pages, navigate to GitHub Repository Settings -> Pages -> Build and deployment -> Source: select 'GitHub Actions'."
 

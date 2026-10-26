@@ -170,6 +170,7 @@ def test_yaml_helper_uncovered_branches():
 
 def test_daemon_uncovered_branches():
     from fleet.daemon import FleetDaemon
+    import fleet.agents.pr_review.agent
 
     d = FleetDaemon()
     mock_pr = MagicMock()

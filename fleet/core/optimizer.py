@@ -152,11 +152,13 @@ def _hidden_subprocess_kwargs() -> Dict[str, Any]:
     """Returns Windows creationflags and STARTUPINFO to run child processes completely hidden without stealing focus."""
     kwargs: Dict[str, Any] = {}
     if os.name == "nt":
-        kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
-        si = subprocess.STARTUPINFO()
-        si.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0x00000001)
-        si.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
-        kwargs["startupinfo"] = si
+        if hasattr(subprocess, "CREATE_NO_WINDOW"):
+            kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+        if hasattr(subprocess, "STARTUPINFO"):
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0x00000001)
+            si.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+            kwargs["startupinfo"] = si
     return kwargs
 
 

@@ -58,10 +58,11 @@ def test_lifecycle_signals_and_ctrl(tmp_path):
     lc_mod._SHUTDOWN_CALLBACKS = [cb for cb in lc_mod._SHUTDOWN_CALLBACKS if cb[1] != "failing_callback"]
 
     # Win32 console ctrl hook
-    with patch("os.name", "nt"):
-        with patch("ctypes.windll.kernel32.SetConsoleCtrlHandler") as mock_ctrl:
-            lc_mod._setup_win32_console_ctrl()
-            mock_ctrl.assert_called()
+    mock_kernel32 = MagicMock()
+    with patch("os.name", "nt"), patch("ctypes.windll", create=True) as mock_windll:
+        mock_windll.kernel32 = mock_kernel32
+        lc_mod._setup_win32_console_ctrl()
+        mock_kernel32.SetConsoleCtrlHandler.assert_called()
 
 
 # ==============================================================================

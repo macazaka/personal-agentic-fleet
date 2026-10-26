@@ -88,8 +88,7 @@ def test_linux_xdg_autostart_and_systemd(tmp_path):
     svc.write_text("[Unit]\nDescription=Agent Cron\n", encoding="utf-8")
 
     with patch("sys.platform", "linux"), \
-         patch("pathlib.Path.home", return_value=tmp_path), \
-         patch("pathlib.Path", side_effect=lambda p: tmp_path / p if p == "/etc/xdg/autostart" else Path(p)):
+         patch("pathlib.Path.home", return_value=tmp_path):
         apps = get_startup_apps()
         assert len(apps) >= 2
         discord_app = next((a for a in apps if a["name"] == "Discord"), None)

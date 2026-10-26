@@ -168,6 +168,7 @@ def test_scheduler_built_in_agent_dispatches(tmp_path):
         assert res_gm["status"] == "success"
 
     # PR Review Agent
+    import fleet.agents.pr_review.agent
     with patch("fleet.agents.pr_review.agent.PRReviewAgent") as mock_pra:
         inst = mock_pra.return_value
         inst.audit_pull_requests.return_value = {"open_count": 0}
