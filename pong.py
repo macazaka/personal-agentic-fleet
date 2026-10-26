@@ -11,8 +11,11 @@ import struct
 import sys
 import wave
 
-# Suppress Pygame welcome message
+# Suppress Pygame welcome message and configure headless drivers if headless
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+if "DISPLAY" not in os.environ and "WAYLAND_DISPLAY" not in os.environ and sys.platform != "win32":
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame
 
 # --- Game Configuration ---

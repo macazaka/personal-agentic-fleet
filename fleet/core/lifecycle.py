@@ -27,6 +27,9 @@ _SHUTDOWN_TRIGGERED = False
 
 def _safe_log(msg: str, level: str = "info") -> None:
     try:
+        import sys
+        if getattr(sys, "stderr", None) is None or getattr(sys.stderr, "closed", False):
+            return
         import logging as _l
         for h in list(_l.root.handlers) + list(logger.handlers):
             stream = getattr(h, "stream", None)
