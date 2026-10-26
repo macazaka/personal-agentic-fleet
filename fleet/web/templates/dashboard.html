@@ -51,6 +51,9 @@
         <button class="btn btn-icon settings-trigger-btn" id="btnFleetSettings" onclick="openSettingsModal()" title="Fleet Settings & Agent Customizations" aria-label="Settings" style="background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; cursor: pointer; font-size: 16px; color: var(--text-primary); transition: all 0.2s ease;">
           ⚙️
         </button>
+        <button class="btn btn-icon create-agent-trigger-btn" id="btnCreateAgent" onclick="openCreateAgentModal()" title="Create New Agent (Workflow Wizard & Skill)" aria-label="Create New Agent" style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: var(--radius-sm); padding: 8px 12px; cursor: pointer; font-size: 16px; color: var(--accent-cyan); font-weight: 700; transition: all 0.2s ease; margin-left: 4px;">
+          ➕
+        </button>
       </div>
     </header>
 
@@ -1865,6 +1868,335 @@
     </div>
   </div>
 
+
+  <!-- Create New Agent Workflow Modal (Powered by create-agent Skill) -->
+  <div id="createAgentModal" class="ag-modal-overlay" style="display: none;" onclick="if(event.target===this) closeCreateAgentModal()">
+    <div class="ag-modal-box create-agent-modal-box" style="width: 820px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; padding: 0;">
+      
+      <!-- Wizard Header -->
+      <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.4);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); display: flex; align-items: center; justify-content: center; font-size: 20px;">
+            ✨
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <strong style="font-size: 17px; color: var(--text);">Create New Agent Workflow</strong>
+              <span class="badge" style="background: rgba(56, 189, 248, 0.15); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.3); font-size: 11px; padding: 2px 8px;">create-agent Skill</span>
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+              Follow the simple 4-step workflow to scaffold, configure, and instantly launch a new agent.
+            </div>
+          </div>
+        </div>
+        <button class="btn" style="padding: 6px 12px; font-size: 13px;" onclick="closeCreateAgentModal()">✕</button>
+      </div>
+
+      <!-- Step Indicator Bar -->
+      <div style="display: flex; border-bottom: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.02); padding: 8px 16px; overflow-x: auto;">
+        <div class="wizard-step-pill active" id="wizardPill_1" onclick="goToWizardStep(1)">
+          <span class="wizard-step-num">1</span>
+          <span>Identity</span>
+        </div>
+        <div class="wizard-step-divider">→</div>
+        <div class="wizard-step-pill" id="wizardPill_2" onclick="goToWizardStep(2)">
+          <span class="wizard-step-num">2</span>
+          <span>Capabilities</span>
+        </div>
+        <div class="wizard-step-divider">→</div>
+        <div class="wizard-step-pill" id="wizardPill_3" onclick="goToWizardStep(3)">
+          <span class="wizard-step-num">3</span>
+          <span>Settings</span>
+        </div>
+        <div class="wizard-step-divider">→</div>
+        <div class="wizard-step-pill" id="wizardPill_4" onclick="goToWizardStep(4)">
+          <span class="wizard-step-num">4</span>
+          <span>Launch</span>
+        </div>
+      </div>
+
+      <!-- Wizard Body Container -->
+      <div style="flex: 1; overflow-y: auto; padding: 24px;" id="wizardStepsContainer">
+        
+        <!-- STEP 1: IDENTITY & METADATA -->
+        <div class="wizard-step-pane" id="wizardStep_1">
+          <div style="margin-bottom: 20px;">
+            <h4 style="margin: 0 0 6px 0; font-size: 15px; color: var(--text);">Step 1: Agent Identity & Metadata</h4>
+            <p style="margin: 0; font-size: 12.5px; color: var(--text-muted);">
+              Name your agent and pick an icon that will appear in the navigation bar and agent cards.
+            </p>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 140px; gap: 16px; margin-bottom: 16px;">
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">AGENT DISPLAY NAME *</label>
+              <input type="text" id="newAgentName" placeholder="e.g. Weather Reporter, Invoice Sentinel, Crypto Bot" style="width: 100%; padding: 10px 14px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text); font-size: 13.5px;" oninput="onNewAgentNameInput(this.value)">
+            </div>
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">ICON / EMOJI</label>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="newAgentIcon" value="⚡" maxlength="4" style="width: 55px; text-align: center; padding: 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text); font-size: 18px;" oninput="updateLiveWizardPreview()">
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Icon Picker -->
+          <div style="margin-bottom: 18px;">
+            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">Quick Icon Picker:</div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="btn" style="padding: 4px 8px; font-size: 15px;" onclick="selectWizardIcon('🌤️')">🌤️</button>
+              <button type="button" class="btn" style="padding: 4px 8px; font-size: 15px;" onclick="selectWizardIcon('📈')">📈</button>
+              <button type="button" class="btn" style="padding: 4px 8px; font-size: 15px;" onclick="selectWizardIcon('🏠')">🏠</button>
+              <button type="button" class="btn" style="padding: 4px 8px; font-size: 15px;" onclick="selectWizardIcon('📑')">📑</button>
+              <button type="button" class="btn" style="padding: 4px 8px; font-size: 15px;" onclick="selectWizardIcon('🤖')">🤖</button>
+              <button type="button" class="btn" style="padding: 4px 8px; font-size: 15px;" onclick="selectWizardIcon('🎵')">🎵</button>
+              <button type="button" class="btn" style="padding: 4px 8px; font-size: 15px;" onclick="selectWizardIcon('🛡️')">🛡️</button>
+              <button type="button" class="btn" style="padding: 4px 8px; font-size: 15px;" onclick="selectWizardIcon('💡')">💡</button>
+              <button type="button" class="btn" style="padding: 4px 8px; font-size: 15px;" onclick="selectWizardIcon('🎯')">🎯</button>
+              <button type="button" class="btn" style="padding: 4px 8px; font-size: 15px;" onclick="selectWizardIcon('🧠')">🧠</button>
+              <button type="button" class="btn" style="padding: 4px 8px; font-size: 15px;" onclick="selectWizardIcon('⚡')">⚡</button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">UNIQUE AGENT ID (SLUG) *</label>
+              <input type="text" id="newAgentId" placeholder="e.g. weather_reporter" style="width: 100%; padding: 10px 14px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: 8px; color: var(--accent-cyan); font-family: monospace; font-size: 13px;" oninput="updateLiveWizardPreview()">
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Auto-derived from name. Lowercase alphanumeric and underscores.</div>
+            </div>
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">CATEGORY / DOMAIN</label>
+              <select id="newAgentCategory" style="width: 100%; padding: 10px 14px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text); font-size: 13px;">
+                <option value="Productivity">⚡ Productivity & Workflow</option>
+                <option value="Monitoring">🔍 Monitoring & Watcher</option>
+                <option value="AI & Research">🧠 AI & Deep Research</option>
+                <option value="Smart Home">🏠 Smart Home & IoT</option>
+                <option value="Finance">💰 Personal Finance & Markets</option>
+                <option value="Utility">🛠️ General Utility</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">SHORT DESCRIPTION / PURPOSE</label>
+            <textarea id="newAgentDesc" rows="3" placeholder="What does this agent automate or monitor? (e.g. Periodically polls weather APIs and sends desktop alerts when rain is expected.)" style="width: 100%; padding: 10px 14px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text); font-size: 13px; resize: vertical;" oninput="updateLiveWizardPreview()"></textarea>
+          </div>
+        </div>
+
+        <!-- STEP 2: CAPABILITIES & PERMISSIONS -->
+        <div class="wizard-step-pane" id="wizardStep_2" style="display: none;">
+          <div style="margin-bottom: 20px;">
+            <h4 style="margin: 0 0 6px 0; font-size: 15px; color: var(--text);">Step 2: Sandboxed Capabilities & Permissions</h4>
+            <p style="margin: 0; font-size: 12.5px; color: var(--text-muted);">
+              Choose a quick preset or declare granular, least-privilege permissions enforced by the Fleet sandbox.
+            </p>
+          </div>
+
+          <!-- Quick Presets -->
+          <div style="font-size: 11px; font-weight: 600; color: var(--accent-cyan); text-transform: uppercase; margin-bottom: 8px;">Quick Capability Presets:</div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 20px;">
+            <div class="wizard-preset-card" onclick="applyWizardPreset('observer')">
+              <div style="font-size: 18px; margin-bottom: 4px;">🔍</div>
+              <strong style="font-size: 12.5px; color: var(--text);">Watcher / Observer</strong>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">HTTP APIs + UI Panel</div>
+            </div>
+            <div class="wizard-preset-card" onclick="applyWizardPreset('notifier')">
+              <div style="font-size: 18px; margin-bottom: 4px;">🔔</div>
+              <strong style="font-size: 12.5px; color: var(--text);">Alert & Notifier</strong>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Toasts + UI Panel</div>
+            </div>
+            <div class="wizard-preset-card" onclick="applyWizardPreset('analyst')">
+              <div style="font-size: 18px; margin-bottom: 4px;">📊</div>
+              <strong style="font-size: 12.5px; color: var(--text);">Dashboard Widget</strong>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">DB Read + UI Panel</div>
+            </div>
+            <div class="wizard-preset-card" onclick="applyWizardPreset('autonomous')">
+              <div style="font-size: 18px; margin-bottom: 4px;">⚡</div>
+              <strong style="font-size: 12.5px; color: var(--text);">Autonomous Worker</strong>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Full sandboxed access</div>
+            </div>
+          </div>
+
+          <!-- Granular Checkboxes -->
+          <div style="font-size: 11px; font-weight: 600; color: var(--accent-cyan); text-transform: uppercase; margin-bottom: 8px;">Granular Permissions Checklist:</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <label class="wizard-perm-item">
+              <input type="checkbox" id="perm_ui_render" checked onchange="updateLiveWizardPreview()">
+              <div>
+                <strong style="font-size: 12.5px; color: var(--text);">ui:render</strong>
+                <div style="font-size: 11px; color: var(--text-muted);">Render custom HTML control panel in dashboard</div>
+              </div>
+            </label>
+            <label class="wizard-perm-item">
+              <input type="checkbox" id="perm_db_read" checked onchange="updateLiveWizardPreview()">
+              <div>
+                <strong style="font-size: 12.5px; color: var(--text);">db:read</strong>
+                <div style="font-size: 11px; color: var(--text-muted);">Read tasks, logs, and settings from SQLite memory</div>
+              </div>
+            </label>
+            <label class="wizard-perm-item">
+              <input type="checkbox" id="perm_db_write" onchange="updateLiveWizardPreview()">
+              <div>
+                <strong style="font-size: 12.5px; color: var(--text);">db:write</strong>
+                <div style="font-size: 11px; color: var(--text-muted);">Write/update tasks, habits, and activity records</div>
+              </div>
+            </label>
+            <label class="wizard-perm-item">
+              <input type="checkbox" id="perm_notifications_send" checked onchange="updateLiveWizardPreview()">
+              <div>
+                <strong style="font-size: 12.5px; color: var(--text);">notifications:send</strong>
+                <div style="font-size: 11px; color: var(--text-muted);">Dispatch native OS desktop toast notifications</div>
+              </div>
+            </label>
+            <label class="wizard-perm-item">
+              <input type="checkbox" id="perm_network_http" onchange="updateLiveWizardPreview()">
+              <div>
+                <strong style="font-size: 12.5px; color: var(--text);">network:http</strong>
+                <div style="font-size: 11px; color: var(--text-muted);">Make external HTTP requests to APIs / web feeds</div>
+              </div>
+            </label>
+            <label class="wizard-perm-item">
+              <input type="checkbox" id="perm_system_exec" onchange="updateLiveWizardPreview()">
+              <div>
+                <strong style="font-size: 12.5px; color: var(--text);">system:exec</strong>
+                <div style="font-size: 11px; color: var(--text-muted);">Execute sandboxed local system commands</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- STEP 3: CUSTOM SETTINGS & ROUTINE -->
+        <div class="wizard-step-pane" id="wizardStep_3" style="display: none;">
+          <div style="margin-bottom: 20px;">
+            <h4 style="margin: 0 0 6px 0; font-size: 15px; color: var(--text);">Step 3: Agent Settings Schema & Scheduled Tasks</h4>
+            <p style="margin: 0; font-size: 12.5px; color: var(--text-muted);">
+              Define configurable settings (editable in the browser Settings modal) and routine task triggers.
+            </p>
+          </div>
+
+          <div style="background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <strong style="font-size: 13px; color: var(--text);">Configurable Agent Settings</strong>
+            <p style="font-size: 11.5px; color: var(--text-muted); margin: 4px 0 12px 0;">
+              These settings will appear automatically in the Settings modal when you click "Agent Settings".
+            </p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div>
+                <label style="font-size: 11px; color: var(--text-muted); font-weight: 600;">SETTING 1: SYNC INTERVAL (SEC)</label>
+                <input type="number" id="settingSyncInterval" value="60" min="5" max="86400" style="width: 100%; margin-top: 4px; padding: 8px 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text); font-size: 13px;" oninput="updateLiveWizardPreview()">
+              </div>
+              <div>
+                <label style="font-size: 11px; color: var(--text-muted); font-weight: 600;">SETTING 2: ENABLE DESKTOP ALERTS</label>
+                <select id="settingEnableAlerts" style="width: 100%; margin-top: 4px; padding: 8px 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text); font-size: 13px;" onchange="updateLiveWizardPreview()">
+                  <option value="true">True (Enabled)</option>
+                  <option value="false">False (Disabled)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div style="background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <strong style="font-size: 13px; color: var(--text);">Scheduled Background Task (Optional)</strong>
+            <p style="font-size: 11.5px; color: var(--text-muted); margin: 4px 0 12px 0;">
+              Declare an automated routine task for the Fleet scheduler.
+            </p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div>
+                <label style="font-size: 11px; color: var(--text-muted); font-weight: 600;">TASK NAME</label>
+                <input type="text" id="newAgentTaskName" placeholder="e.g. check_updates, poll_feed" style="width: 100%; margin-top: 4px; padding: 8px 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text); font-size: 13px;" oninput="updateLiveWizardPreview()">
+              </div>
+              <div>
+                <label style="font-size: 11px; color: var(--text-muted); font-weight: 600;">EXECUTION CADENCE</label>
+                <select id="newAgentSchedule" style="width: 100%; margin-top: 4px; padding: 8px 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text); font-size: 13px;">
+                  <option value="every_30_min">Every 30 Minutes</option>
+                  <option value="hourly">Hourly</option>
+                  <option value="daily_morning">Daily at 08:30 IST</option>
+                  <option value="manual_only">Manual / Ad-hoc Only</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">CUSTOM SYSTEM PROMPT (OPTIONAL FOR AI ROLES)</label>
+            <textarea id="newAgentSystemPrompt" rows="2" placeholder="e.g. You are a vigilant automated watcher analyzing incoming signals for high-priority alerts." style="width: 100%; padding: 8px 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text); font-size: 12.5px; resize: vertical;" oninput="updateLiveWizardPreview()"></textarea>
+          </div>
+        </div>
+
+        <!-- STEP 4: REVIEW & LAUNCH -->
+        <div class="wizard-step-pane" id="wizardStep_4" style="display: none;">
+          <div style="margin-bottom: 16px;">
+            <h4 style="margin: 0 0 6px 0; font-size: 15px; color: var(--text);">Step 4: Review, Code Preview & Launch</h4>
+            <p style="margin: 0; font-size: 12.5px; color: var(--text-muted);">
+              Review the generated package files. Clicking "Scaffold & Activate" immediately writes files and registers the agent live.
+            </p>
+          </div>
+
+          <!-- Summary Pill Box -->
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span id="previewSummaryIcon" style="font-size: 28px;">⚡</span>
+              <div>
+                <strong id="previewSummaryName" style="font-size: 15px; color: var(--text);">Agent Name</strong>
+                <div style="font-size: 12px; color: var(--accent-cyan); font-family: monospace;" id="previewSummaryId">id: agent_slug</div>
+              </div>
+            </div>
+            <div id="previewSummaryPerms" style="display: flex; gap: 6px; flex-wrap: wrap;"></div>
+          </div>
+
+          <!-- Live Code Tabs -->
+          <div style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; margin-bottom: 16px;">
+            <div style="display: flex; background: rgba(15, 23, 42, 0.8); border-bottom: 1px solid var(--border-color); padding: 4px 8px;">
+              <button type="button" class="btn" id="codeTabBtn_py" style="padding: 4px 10px; font-size: 12px; background: rgba(56, 189, 248, 0.2); color: var(--accent-cyan);" onclick="switchCodePreviewTab('py')">🐍 agent.py</button>
+              <button type="button" class="btn" id="codeTabBtn_json" style="padding: 4px 10px; font-size: 12px; margin-left: 6px;" onclick="switchCodePreviewTab('json')">📄 manifest.json</button>
+              <button type="button" class="btn" id="codeTabBtn_html" style="padding: 4px 10px; font-size: 12px; margin-left: 6px;" onclick="switchCodePreviewTab('html')">🌐 ui/panel.html</button>
+            </div>
+            <pre id="wizardCodePreview" style="margin: 0; padding: 14px; background: #0b0f19; color: #38bdf8; font-family: monospace; font-size: 11.5px; max-height: 180px; overflow: auto; line-height: 1.45;"></pre>
+          </div>
+
+          <!-- Skill Callout & AI Prompt -->
+          <div style="padding: 12px 16px; background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+            <div>
+              <strong style="font-size: 12.5px; color: #c084fc;">💡 create-agent Skill Activated</strong>
+              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+                Want Antigravity AI to write complex custom logic for this agent? Copy the one-click prompt to chat.
+              </div>
+            </div>
+            <button type="button" class="btn" style="font-size: 11px; white-space: nowrap; border-color: #c084fc; color: #c084fc;" onclick="copyWizardSkillPrompt()">📋 Copy Prompt</button>
+          </div>
+
+          <!-- Status / Error Notification -->
+          <div id="wizardStatusNotice" style="display: none; padding: 10px 14px; border-radius: 6px; font-size: 12.5px; margin-bottom: 12px;"></div>
+
+          <!-- Success Celebration Panel (Hidden until success) -->
+          <div id="wizardSuccessBox" style="display: none; padding: 20px; text-align: center; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px;">
+            <div style="font-size: 32px; margin-bottom: 8px;">🎉</div>
+            <h3 style="margin: 0 0 6px 0; color: #10b981; font-size: 17px;">Agent Successfully Created & Activated!</h3>
+            <p style="margin: 0 0 16px 0; font-size: 13px; color: var(--text);" id="wizardSuccessMsg">
+              Agent is now running in your Personal Agentic Fleet.
+            </p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+              <button type="button" class="btn btn-primary" id="btnOpenNewAgent" onclick="openNewlyCreatedAgent()">👉 Switch to New Agent Pane</button>
+              <button type="button" class="btn" onclick="closeCreateAgentModal()">Close</button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Wizard Navigation Footer -->
+      <div style="padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.6);" id="wizardFooterBar">
+        <button type="button" class="btn" id="btnWizardBack" onclick="prevWizardStep()" disabled>← Back</button>
+        <div style="font-size: 12px; color: var(--text-muted);" id="wizardStepCountText">Step 1 of 4</div>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn btn-primary" id="btnWizardNext" onclick="nextWizardStep()">Next Step →</button>
+          <button type="button" class="btn btn-primary" id="btnWizardSubmit" onclick="submitCreateAgentWizard()" style="display: none; background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%); color: #000; font-weight: 700;">🚀 Scaffold & Activate Agent</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Modular Client Engines -->
   <script src="/static/js/core.js"></script>
   <script src="/static/js/briefing.js"></script>
@@ -1878,6 +2210,7 @@
   <script src="/static/js/optimizer.js"></script>
   <script src="/static/js/health.js"></script>
   <script src="/static/js/settings.js"></script>
+  <script src="/static/js/create_agent.js"></script>
   <script src="/static/js/app.js"></script>
 
 </body>

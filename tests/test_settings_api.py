@@ -531,3 +531,85 @@ def test_updater_and_settings_edge_cases(mock_fleet_env):
     finally:
         srv_mod.agent_registry = orig_reg
 
+
+
+def test_create_new_agent_endpoint(mock_fleet_env):
+    from fleet.api.settings_api import create_new_agent_endpoint
+    import fleet.server as srv_mod
+
+    handler = MagicMock()
+
+    # 1. Non-dict body
+    create_new_agent_endpoint(handler, "not-a-dict")
+    assert handler._send_json.call_args[1].get("status") == 400
+
+    # 2. Missing name
+    handler.reset_mock()
+    create_new_agent_endpoint(handler, {"name": ""})
+    assert handler._send_json.call_args[1].get("status") == 400
+
+    # 3. Invalid sanitized ID
+    handler.reset_mock()
+    create_new_agent_endpoint(handler, {"name": "???", "id": "???"})
+    assert handler._send_json.call_args[1].get("status") == 400
+
+    # 4. Registry unavailable (503)
+    handler.reset_mock()
+    orig_reg = getattr(srv_mod, "agent_registry", None)
+    try:
+        srv_mod.agent_registry = None
+        create_new_agent_endpoint(handler, {"name": "Test Agent", "id": "test_agent"})
+        assert handler._send_json.call_args[1].get("status") == 503
+    finally:
+        srv_mod.agent_registry = orig_reg
+
+    # 5. Duplicate agent ID (409)
+    handler.reset_mock()
+    create_new_agent_endpoint(handler, {"name": "Health Duplicate", "id": "health"})
+    assert handler._send_json.call_args[1].get("status") == 409
+
+    # 5b. Invalid permissions (400)
+    handler.reset_mock()
+    create_new_agent_endpoint(handler, {"name": "Hacker Agent", "id": "hacker_agent", "permissions": ["unauthorized:all"]})
+    assert handler._send_json.call_args[1].get("status") == 400
+
+    # 6. Successful creation with custom settings and prompts
+    handler.reset_mock()
+    create_new_agent_endpoint(handler, {
+        "name": "Weather Sentinel",
+        "id": "weather_sentinel",
+        "icon": "🌤️",
+        "description": "Monitors atmospheric changes.",
+        "permissions": ["db:read", "ui:render", "network:http"],
+        "settings": {
+            "poll_interval": 120,
+            "enable_rain_alert": True
+        },
+        "system_prompt": "You are a weather watcher.",
+        "prompt": "Check radar"
+    })
+    assert handler._send_json.called
+    res = handler._send_json.call_args[0][0]
+    assert res["status"] == "success"
+    assert res["agent_id"] == "weather_sentinel"
+    assert "manifest" in res
+
+    # Verify agent was loaded into live registry
+    registry = mock_fleet_env["registry"]
+    agent = registry.agents.get("weather_sentinel")
+    assert agent is not None
+    assert agent.name == "Weather Sentinel"
+    assert agent.icon == "🌤️"
+    assert agent.get_setting("poll_interval") == 120
+
+    # 7. Unexpected exception during creation (500)
+    handler.reset_mock()
+    with patch.object(srv_mod.agent_registry, "create_custom_agent", side_effect=RuntimeError("Disk full")):
+        create_new_agent_endpoint(handler, {"name": "Failing Agent", "id": "failing_agent"})
+        assert handler._send_json.call_args[1].get("status") == 500
+
+    # 8. ValueError during creation (400)
+    handler.reset_mock()
+    with patch.object(srv_mod.agent_registry, "create_custom_agent", side_effect=ValueError("Invalid config")):
+        create_new_agent_endpoint(handler, {"name": "Bad Agent", "id": "bad_agent"})
+        assert handler._send_json.call_args[1].get("status") == 400

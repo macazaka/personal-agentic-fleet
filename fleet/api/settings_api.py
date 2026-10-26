@@ -7,6 +7,7 @@ hyperscaler defaults, and runtime activation/deactivation of agents.
 from datetime import datetime
 import json
 from pathlib import Path
+import re
 import shutil
 from typing import Any, Dict
 import urllib.parse
@@ -321,5 +322,95 @@ def install_catalog_agent(handler: Any, body: Dict[str, Any]):
         handler._send_json(res)
     except ValueError as ve:
         handler._send_json({"status": "error", "message": str(ve)}, status=404)
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+
+@router.post("/api/settings/agents/create")
+def create_new_agent_endpoint(handler: Any, body: Dict[str, Any]):
+    """Scaffolds, registers, and activates a brand-new agent package in the user custom agents vault."""
+    if not isinstance(body, dict):
+        handler._send_json({"status": "error", "message": "Expected a JSON object"}, status=400)
+        return
+
+    name = str(body.get("name", "")).strip()
+    if not name:
+        handler._send_json({"status": "error", "message": "Agent name is required"}, status=400)
+        return
+
+    raw_id = str(body.get("id", "")).strip() or name
+    clean_id = re.sub(r"[^a-zA-Z0-9_]", "_", raw_id.lower()).strip("_")
+    clean_id = re.sub(r"_+", "_", clean_id)
+    if not clean_id:
+        handler._send_json({"status": "error", "message": f"Invalid agent ID '{raw_id}'"}, status=400)
+        return
+
+    if not hasattr(srv, "agent_registry") or not srv.agent_registry:
+        handler._send_json({"status": "error", "message": "Agent registry unavailable"}, status=503)
+        return
+
+    if clean_id in srv.agent_registry.agents:
+        handler._send_json({"status": "error", "message": f"Agent with ID '{clean_id}' already exists"}, status=409)
+        return
+
+    icon = str(body.get("icon", "⚡")).strip() or "⚡"
+    description = str(body.get("description", "")).strip() or f"User custom agent: {name}"
+    
+    # Sandboxed permissions validation and alias mapping
+    from fleet.core.plugin_sandbox import ALLOWED_AGENT_PERMISSIONS
+    perm_aliases = {
+        "network:http": "network:outbound",
+        "notifications:send": "event_bus:publish",
+        "system:exec": "system:diagnostics",
+    }
+    raw_perms = body.get("permissions")
+    if not isinstance(raw_perms, list) or not raw_perms:
+        permissions = ["db:read", "ui:render"]
+    else:
+        permissions = [perm_aliases.get(p, p) for p in raw_perms]
+        invalid = [p for p in permissions if p not in ALLOWED_AGENT_PERMISSIONS]
+        if invalid:
+            handler._send_json({"status": "error", "message": f"Invalid permissions: {invalid}"}, status=400)
+            return
+
+    initial_order = int(body.get("order", 70))
+
+    try:
+        manifest = srv.agent_registry.create_custom_agent(
+            agent_id=clean_id,
+            name=name,
+            icon=icon,
+            permissions=permissions,
+            description=description,
+            initial_order=initial_order,
+        )
+
+        custom_settings = body.get("settings")
+        system_prompt = body.get("system_prompt")
+        prompt = body.get("prompt")
+        overrides = {}
+        if custom_settings and isinstance(custom_settings, dict):
+            overrides["settings"] = custom_settings
+        if system_prompt:
+            overrides["system_prompt"] = str(system_prompt)
+        if prompt:
+            overrides["prompt"] = str(prompt)
+        if overrides:
+            srv.agent_registry.customize_agent(clean_id, overrides)
+
+        if hasattr(srv, "db") and srv.db:
+            srv.db.log_activity("FleetAgentCreator", "agent_created", f"Created and registered custom agent '{clean_id}' ({name})")
+
+        from fleet.tools.system_tools import send_notification
+        send_notification("⚡ New Agent Created", f"Agent '{name}' was created and activated in your fleet.")
+
+        handler._send_json({
+            "status": "success",
+            "message": f"Agent '{name}' successfully created and activated.",
+            "agent_id": clean_id,
+            "manifest": manifest,
+        })
+    except ValueError as ve:
+        handler._send_json({"status": "error", "message": str(ve)}, status=400)
     except Exception as e:
         handler._send_json({"status": "error", "message": str(e)}, status=500)
