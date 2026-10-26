@@ -45,6 +45,27 @@ async function initDynamicAgentTabs() {
     if (!res.ok) return;
     const data = await res.json();
     if (data.status === 'ok' && Array.isArray(data.agents) && data.agents.length > 0) {
+      // Dynamic injection of custom styles/scripts declared by active agents
+      data.agents.forEach(agent => {
+        if (agent.css_url) {
+          const link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = agent.css_url;
+          document.head.appendChild(link);
+        }
+        if (agent.js_url) {
+          const script = document.createElement('script');
+          script.src = agent.js_url;
+          document.body.appendChild(script);
+        }
+      });
+
+      // For 100+ agents scalability, delegate tab and stage management to FleetNavigator
+      if (typeof FleetNavigator !== 'undefined' && typeof FleetNavigator.fetchFleetData === 'function') {
+        FleetNavigator.fetchFleetData();
+        return;
+      }
+
       const navContainer = document.getElementById('dynamicNavTabs');
       if (navContainer) {
         navContainer.innerHTML = '';
@@ -55,19 +76,6 @@ async function initDynamicAgentTabs() {
           btn.innerHTML = `${agent.icon} ${agent.name}`;
           btn.onclick = () => switchTab(agent.id);
           navContainer.appendChild(btn);
-
-          // If agent has custom CSS or JS, load dynamically
-          if (agent.css_url) {
-            const link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = agent.css_url;
-            document.head.appendChild(link);
-          }
-          if (agent.js_url) {
-            const script = document.createElement('script');
-            script.src = agent.js_url;
-            document.body.appendChild(script);
-          }
         });
 
         // Keep currently selected tab if still active, otherwise fallback to default

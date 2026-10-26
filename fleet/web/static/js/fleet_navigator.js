@@ -1,0 +1,783 @@
+/**
+ * Fleet Navigator & Operations Center Engine (fleet_navigator.js)
+ * High-Density Scalability for 100+ Concurrent Agents
+ * Powered by Antigravity
+ */
+
+const FleetNavigator = {
+  agents: [],
+  pinnedIds: new Set(['health', 'overview', 'antigravity', 'optimizer']),
+  filterStatus: 'all',
+  filterCategory: 'all',
+  searchQuery: '',
+  viewMode: 'matrix', // 'matrix' | 'dense' | 'category'
+  currentPage: 1,
+  pageSize: 24,
+  paletteResults: [],
+  paletteSelectedIndex: 0,
+  activeAgentId: null,
+
+  init() {
+    this.loadPersistedState();
+    this.bindKeyboardShortcuts();
+    this.fetchFleetData();
+  },
+
+  loadPersistedState() {
+    try {
+      const savedPinned = localStorage.getItem('fleet_pinned_agents');
+      if (savedPinned) {
+        this.pinnedIds = new Set(JSON.parse(savedPinned));
+      }
+      const savedViewMode = localStorage.getItem('fleet_view_mode');
+      if (savedViewMode) {
+        this.viewMode = savedViewMode;
+      }
+      const savedPageSize = localStorage.getItem('fleet_page_size');
+      if (savedPageSize) {
+        this.pageSize = parseInt(savedPageSize, 10) || 24;
+      }
+    } catch (e) {
+      console.warn('Could not load navigator state:', e);
+    }
+  },
+
+  savePersistedState() {
+    try {
+      localStorage.setItem('fleet_pinned_agents', JSON.stringify([...this.pinnedIds]));
+      localStorage.setItem('fleet_view_mode', this.viewMode);
+      localStorage.setItem('fleet_page_size', String(this.pageSize));
+    } catch (e) {}
+  },
+
+  bindKeyboardShortcuts() {
+    window.addEventListener('keydown', (e) => {
+      // Ctrl+K or Cmd+K
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        this.openCommandPalette();
+        return;
+      }
+      // Slash '/' when not inside input or textarea
+      if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+        e.preventDefault();
+        this.openCommandPalette();
+        return;
+      }
+      // Escape closes drawer & palette
+      if (e.key === 'Escape') {
+        this.closeCommandPalette();
+        this.closeFleetDrawer();
+      }
+      // Palette Navigation
+      const palette = document.getElementById('commandPaletteModal');
+      if (palette && palette.style.display !== 'none') {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          this.paletteNavigate(1);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          this.paletteNavigate(-1);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          this.paletteSelectCurrent();
+        }
+      }
+    });
+  },
+
+  async fetchFleetData() {
+    try {
+      const res = await fetch('/api/fleet/agents?all=true');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.status === 'ok' && Array.isArray(data.agents)) {
+        this.agents = data.agents.map(a => this.enrichAgent(a));
+        this.updateHeaderSummary();
+        this.renderPinnedTray();
+        this.renderDrawerList();
+        this.renderOperationsCenter();
+      }
+    } catch (e) {
+      console.warn('Error fetching fleet agents:', e);
+    }
+  },
+
+  enrichAgent(agent) {
+    // Derive domain category if missing
+    let category = agent.category || 'Productivity';
+    const id = (agent.id || '').toLowerCase();
+    const name = (agent.name || '').toLowerCase();
+    const perms = agent.permissions || [];
+
+    if (id.includes('crypto') || id.includes('finance') || id.includes('budget') || id.includes('invoice') || id.includes('trader')) {
+      category = 'Finance & Markets';
+    } else if (id.includes('home') || id.includes('iot') || id.includes('device') || id.includes('automation')) {
+      category = 'Smart Home & IoT';
+    } else if (id.includes('weather') || id.includes('scraper') || id.includes('monitor') || id.includes('watch') || id.includes('feed')) {
+      category = 'Monitoring & Watchers';
+    } else if (id.includes('research') || id.includes('paper') || id.includes('scholar') || id.includes('antigravity') || id.includes('ai')) {
+      category = 'AI & Research';
+    } else if (id.includes('pr_review') || id.includes('optimizer') || id.includes('git') || id.includes('docker') || id.includes('backup')) {
+      category = 'DevOps & System';
+    } else if (id.includes('health') || id.includes('habit') || id.includes('fitness') || id.includes('sleep') || id.includes('med')) {
+      category = 'Health & Lifestyle';
+    } else if (agent.is_custom) {
+      category = 'Custom Agents';
+    }
+
+    // Determine status
+    let status = 'idle';
+    if (!agent.enabled) {
+      status = 'disabled';
+    } else if (agent.is_busy || agent.is_running || id === 'antigravity' || id === 'overview') {
+      status = 'working';
+    }
+
+    return {
+      ...agent,
+      category,
+      status,
+      is_pinned: this.pinnedIds.has(agent.id),
+      last_active: agent.last_active || 'Recent'
+    };
+  },
+
+  updateHeaderSummary() {
+    const countBadge = document.getElementById('fleetAgentCountNavBadge');
+    if (countBadge) {
+      const total = this.agents.length;
+      const active = this.agents.filter(a => a.enabled).length;
+      countBadge.textContent = `${total} (${active} Active)`;
+    }
+  },
+
+  renderPinnedTray() {
+    const tray = document.getElementById('pinnedAgentsNavTray');
+    if (!tray) return;
+
+    tray.innerHTML = '';
+    const pinned = this.agents.filter(a => this.pinnedIds.has(a.id));
+
+    pinned.forEach(agent => {
+      const btn = document.createElement('button');
+      btn.className = `nav-tab ${this.activeAgentId === agent.id ? 'active' : ''}`;
+      btn.id = `pinnedNavBtn_${agent.id}`;
+      btn.title = `${agent.name} (Pinned)`;
+      btn.innerHTML = `
+        <span>${agent.icon || '⚡'}</span>
+        <span class="pinned-tab-title">${agent.name}</span>
+      `;
+      btn.onclick = () => this.switchAgent(agent.id);
+      tray.appendChild(btn);
+    });
+  },
+
+  togglePin(agentId, e) {
+    if (e) e.stopPropagation();
+    if (this.pinnedIds.has(agentId)) {
+      this.pinnedIds.delete(agentId);
+    } else {
+      this.pinnedIds.add(agentId);
+    }
+    this.savePersistedState();
+    this.agents.forEach(a => {
+      a.is_pinned = this.pinnedIds.has(a.id);
+    });
+    this.renderPinnedTray();
+    this.renderDrawerList();
+    this.renderOperationsCenter();
+  },
+
+  // --- Off-Canvas Fleet Drawer ---
+  toggleFleetDrawer() {
+    const drawer = document.getElementById('fleetNavigatorDrawer');
+    if (!drawer) return;
+    if (drawer.classList.contains('open')) {
+      this.closeFleetDrawer();
+    } else {
+      this.openFleetDrawer();
+    }
+  },
+
+  openFleetDrawer() {
+    const drawer = document.getElementById('fleetNavigatorDrawer');
+    const backdrop = document.getElementById('fleetDrawerBackdrop');
+    if (drawer) drawer.classList.add('open');
+    if (backdrop) backdrop.style.display = 'block';
+    const input = document.getElementById('drawerSearchInput');
+    if (input) {
+      input.value = '';
+      setTimeout(() => input.focus(), 150);
+    }
+    this.renderDrawerList();
+  },
+
+  closeFleetDrawer() {
+    const drawer = document.getElementById('fleetNavigatorDrawer');
+    const backdrop = document.getElementById('fleetDrawerBackdrop');
+    if (drawer) drawer.classList.remove('open');
+    if (backdrop) backdrop.style.display = 'none';
+  },
+
+  onDrawerSearch(query) {
+    this.searchQuery = (query || '').toLowerCase().trim();
+    this.renderDrawerList();
+  },
+
+  setDrawerFilter(filter) {
+    this.filterStatus = filter;
+    document.querySelectorAll('.drawer-filter-pill').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.filter === filter);
+    });
+    this.renderDrawerList();
+  },
+
+  renderDrawerList() {
+    const container = document.getElementById('drawerAgentsList');
+    if (!container) return;
+
+    let filtered = this.agents;
+
+    // Status filter
+    if (this.filterStatus === 'working') {
+      filtered = filtered.filter(a => a.status === 'working');
+    } else if (this.filterStatus === 'idle') {
+      filtered = filtered.filter(a => a.status === 'idle');
+    } else if (this.filterStatus === 'disabled') {
+      filtered = filtered.filter(a => a.status === 'disabled');
+    }
+
+    // Search query
+    if (this.searchQuery) {
+      filtered = filtered.filter(a =>
+        a.name.toLowerCase().includes(this.searchQuery) ||
+        a.id.toLowerCase().includes(this.searchQuery) ||
+        a.category.toLowerCase().includes(this.searchQuery) ||
+        (a.description || '').toLowerCase().includes(this.searchQuery)
+      );
+    }
+
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">
+          No matching agents found.
+        </div>`;
+      return;
+    }
+
+    // Group by category
+    const groups = {};
+    filtered.forEach(agent => {
+      const cat = agent.category || 'Productivity';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(agent);
+    });
+
+    let html = '';
+    for (const [catName, catAgents] of Object.entries(groups)) {
+      html += `
+        <div class="drawer-category-group">
+          <div class="drawer-category-header" onclick="this.parentElement.classList.toggle('collapsed')">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="drawer-cat-arrow">▾</span>
+              <strong>${catName}</strong>
+            </div>
+            <span class="badge" style="background: rgba(255,255,255,0.06); font-size: 11px;">${catAgents.length}</span>
+          </div>
+          <div class="drawer-category-items">
+            ${catAgents.map(a => this.renderDrawerItemHtml(a)).join('')}
+          </div>
+        </div>`;
+    }
+
+    container.innerHTML = html;
+  },
+
+  renderDrawerItemHtml(a) {
+    const isWorking = a.status === 'working';
+    const isDisabled = a.status === 'disabled';
+    const statusDotClass = isWorking ? 'status-dot-working' : (isDisabled ? 'status-dot-disabled' : 'status-dot-idle');
+    const statusText = isWorking ? 'Working' : (isDisabled ? 'Disabled' : 'Idle');
+
+    return `
+      <div class="drawer-agent-item ${this.activeAgentId === a.id ? 'active' : ''}" onclick="FleetNavigator.switchAgent('${a.id}')">
+        <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+          <span class="agent-status-dot ${statusDotClass}" title="${statusText}"></span>
+          <span style="font-size: 16px;">${a.icon || '⚡'}</span>
+          <div style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            <div style="font-size: 13px; font-weight: 600; color: var(--text);">${a.name}</div>
+            <div style="font-size: 11px; color: var(--text-muted); font-family: monospace;">${a.id}</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button class="btn-pin-star ${a.is_pinned ? 'pinned' : ''}" title="${a.is_pinned ? 'Unpin from bar' : 'Pin to bar'}" onclick="FleetNavigator.togglePin('${a.id}', event)">
+            ${a.is_pinned ? '★' : '☆'}
+          </button>
+        </div>
+      </div>`;
+  },
+
+  // --- Fleet Operations Center (In Overview View) ---
+  renderOperationsCenter() {
+    const kpiTotal = document.getElementById('kpiTotalAgents');
+    const kpiWorking = document.getElementById('kpiWorkingAgents');
+    const kpiIdle = document.getElementById('kpiIdleAgents');
+    const kpiDisabled = document.getElementById('kpiDisabledAgents');
+
+    const total = this.agents.length;
+    const working = this.agents.filter(a => a.status === 'working').length;
+    const idle = this.agents.filter(a => a.status === 'idle').length;
+    const disabled = this.agents.filter(a => a.status === 'disabled').length;
+
+    if (kpiTotal) kpiTotal.textContent = total;
+    if (kpiWorking) kpiWorking.textContent = working;
+    if (kpiIdle) kpiIdle.textContent = idle;
+    if (kpiDisabled) kpiDisabled.textContent = disabled;
+
+    // Populate category filter dropdown
+    const catSelect = document.getElementById('opsCategoryFilter');
+    if (catSelect && catSelect.options.length <= 1) {
+      const cats = Array.from(new Set(this.agents.map(a => a.category))).sort();
+      cats.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        catSelect.appendChild(opt);
+      });
+    }
+
+    this.renderOperationsGrid();
+  },
+
+  setOperationsStatusFilter(status) {
+    this.filterStatus = status;
+    document.querySelectorAll('.ops-status-pill').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.status === status);
+    });
+    this.currentPage = 1;
+    this.renderOperationsGrid();
+  },
+
+  setOperationsCategoryFilter(cat) {
+    this.filterCategory = cat;
+    this.currentPage = 1;
+    this.renderOperationsGrid();
+  },
+
+  onOperationsSearch(query) {
+    this.searchQuery = (query || '').toLowerCase().trim();
+    this.currentPage = 1;
+    this.renderOperationsGrid();
+  },
+
+  setOperationsViewMode(mode) {
+    this.viewMode = mode;
+    this.savePersistedState();
+    document.querySelectorAll('.ops-mode-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.mode === mode);
+    });
+    this.renderOperationsGrid();
+  },
+
+  getFilteredAgents() {
+    let filtered = this.agents;
+
+    if (this.filterStatus === 'working') {
+      filtered = filtered.filter(a => a.status === 'working');
+    } else if (this.filterStatus === 'idle') {
+      filtered = filtered.filter(a => a.status === 'idle');
+    } else if (this.filterStatus === 'disabled') {
+      filtered = filtered.filter(a => a.status === 'disabled');
+    }
+
+    if (this.filterCategory && this.filterCategory !== 'all') {
+      filtered = filtered.filter(a => a.category === this.filterCategory);
+    }
+
+    if (this.searchQuery) {
+      filtered = filtered.filter(a =>
+        a.name.toLowerCase().includes(this.searchQuery) ||
+        a.id.toLowerCase().includes(this.searchQuery) ||
+        a.category.toLowerCase().includes(this.searchQuery) ||
+        (a.description || '').toLowerCase().includes(this.searchQuery)
+      );
+    }
+
+    return filtered;
+  },
+
+  renderOperationsGrid() {
+    const container = document.getElementById('fleetOperationsContainer');
+    if (!container) return;
+
+    const filtered = this.getFilteredAgents();
+    const total = filtered.length;
+
+    if (total === 0) {
+      container.innerHTML = `
+        <div style="padding: 40px; text-align: center; color: var(--text-muted); background: var(--card-bg); border-radius: var(--radius); border: 1px solid var(--card-border);">
+          <div style="font-size: 32px; margin-bottom: 8px;">🔍</div>
+          <strong style="font-size: 15px; color: var(--text);">No matching agents found</strong>
+          <p style="margin-top: 4px; font-size: 13px;">Try adjusting your search query, status, or category filter.</p>
+        </div>`;
+      this.renderPagination(0, 0);
+      return;
+    }
+
+    // Apply pagination
+    const totalPages = Math.ceil(total / this.pageSize) || 1;
+    if (this.currentPage > totalPages) this.currentPage = totalPages;
+    const startIdx = (this.currentPage - 1) * this.pageSize;
+    const endIdx = Math.min(startIdx + this.pageSize, total);
+    const pageItems = filtered.slice(startIdx, endIdx);
+
+    if (this.viewMode === 'matrix') {
+      container.innerHTML = `
+        <div class="fleet-matrix-grid">
+          ${pageItems.map(a => this.renderMatrixCardHtml(a)).join('')}
+        </div>`;
+    } else if (this.viewMode === 'dense') {
+      container.innerHTML = `
+        <div class="fleet-table-wrapper">
+          <table class="fleet-dense-table">
+            <thead>
+              <tr>
+                <th style="width: 40px;">Status</th>
+                <th>Agent</th>
+                <th>Domain Category</th>
+                <th>Permissions</th>
+                <th>Last Active</th>
+                <th style="text-align: right;">Quick Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${pageItems.map(a => this.renderDenseRowHtml(a)).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    } else if (this.viewMode === 'category') {
+      const groups = {};
+      pageItems.forEach(a => {
+        if (!groups[a.category]) groups[a.category] = [];
+        groups[a.category].push(a);
+      });
+      container.innerHTML = Object.entries(groups).map(([cat, list]) => `
+        <div class="fleet-cat-accordion">
+          <div class="fleet-cat-accordion-header">
+            <strong>${cat}</strong>
+            <span class="badge">${list.length}</span>
+          </div>
+          <div class="fleet-matrix-grid" style="margin-top: 10px;">
+            ${list.map(a => this.renderMatrixCardHtml(a)).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    this.renderPagination(total, pageItems.length);
+  },
+
+  renderMatrixCardHtml(a) {
+    const isWorking = a.status === 'working';
+    const isDisabled = a.status === 'disabled';
+    const badgeColor = isWorking ? 'var(--accent-green)' : (isDisabled ? '#fca5a5' : 'var(--accent-cyan)');
+    const badgeBg = isWorking ? 'rgba(16,185,129,0.12)' : (isDisabled ? 'rgba(239,68,68,0.12)' : 'rgba(56,189,248,0.12)');
+    const statusLabel = isWorking ? '● Working' : (isDisabled ? '○ Disabled' : '● Standby');
+
+    return `
+      <div class="fleet-matrix-card ${a.enabled ? '' : 'card-disabled'}" onclick="FleetNavigator.switchAgent('${a.id}')">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="matrix-card-icon">${a.icon || '⚡'}</div>
+            <div>
+              <div class="matrix-card-title">${a.name}</div>
+              <div class="matrix-card-slug">${a.id}</div>
+            </div>
+          </div>
+          <button class="btn-pin-star ${a.is_pinned ? 'pinned' : ''}" onclick="FleetNavigator.togglePin('${a.id}', event)">
+            ${a.is_pinned ? '★' : '☆'}
+          </button>
+        </div>
+
+        <p class="matrix-card-desc">${a.description || 'Fleet automated agent module.'}</p>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 11.5px;">
+          <span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeColor}33;">
+            ${statusLabel}
+          </span>
+          <span style="color: var(--text-muted);">${a.category}</span>
+        </div>
+      </div>`;
+  },
+
+  renderDenseRowHtml(a) {
+    const isWorking = a.status === 'working';
+    const isDisabled = a.status === 'disabled';
+    const statusClass = isWorking ? 'status-dot-working' : (isDisabled ? 'status-dot-disabled' : 'status-dot-idle');
+
+    return `
+      <tr class="fleet-dense-row" onclick="FleetNavigator.switchAgent('${a.id}')">
+        <td style="text-align: center;"><span class="agent-status-dot ${statusClass}"></span></td>
+        <td>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 16px;">${a.icon || '⚡'}</span>
+            <strong>${a.name}</strong>
+            <span style="font-size: 11px; color: var(--text-muted); font-family: monospace;">(${a.id})</span>
+          </div>
+        </td>
+        <td><span class="badge" style="background: rgba(255,255,255,0.06);">${a.category}</span></td>
+        <td>
+          <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+            ${(a.permissions || []).slice(0, 3).map(p => `<span class="badge" style="font-size: 10px; padding: 1px 5px;">${p}</span>`).join('')}
+            ${(a.permissions || []).length > 3 ? `<span class="badge" style="font-size: 10px; padding: 1px 4px;">+${a.permissions.length - 3}</span>` : ''}
+          </div>
+        </td>
+        <td style="color: var(--text-muted); font-size: 12px;">${a.last_active}</td>
+        <td style="text-align: right;" onclick="event.stopPropagation()">
+          <button class="btn" style="padding: 3px 8px; font-size: 11px;" onclick="FleetNavigator.switchAgent('${a.id}')">Open Pane</button>
+          <button class="btn" style="padding: 3px 8px; font-size: 11px;" onclick="openAgentSettingsDrawer('${a.id}')">⚙️</button>
+        </td>
+      </tr>`;
+  },
+
+  renderPagination(total, pageCount) {
+    const bar = document.getElementById('fleetOperationsPagination');
+    if (!bar) return;
+
+    if (total <= this.pageSize) {
+      bar.innerHTML = `<span style="color: var(--text-muted); font-size: 12px;">Showing all ${total} agents</span>`;
+      return;
+    }
+
+    const totalPages = Math.ceil(total / this.pageSize) || 1;
+    const start = (this.currentPage - 1) * this.pageSize + 1;
+    const end = Math.min(start + pageCount - 1, total);
+
+    bar.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; font-size: 12px; color: var(--text-muted);">
+        <div>Showing <strong>${start}–${end}</strong> of <strong>${total}</strong> agents</div>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="FleetNavigator.changePage(${this.currentPage - 1})" ${this.currentPage <= 1 ? 'disabled' : ''}>← Prev</button>
+          <span style="padding: 0 8px;">Page <strong>${this.currentPage}</strong> of <strong>${totalPages}</strong></span>
+          <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="FleetNavigator.changePage(${this.currentPage + 1})" ${this.currentPage >= totalPages ? 'disabled' : ''}>Next →</button>
+        </div>
+      </div>`;
+  },
+
+  changePage(page) {
+    const total = this.getFilteredAgents().length;
+    const totalPages = Math.ceil(total / this.pageSize) || 1;
+    if (page < 1 || page > totalPages) return;
+    this.currentPage = page;
+    this.renderOperationsGrid();
+    const container = document.getElementById('fleetOperationsCenter');
+    if (container) container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  },
+
+  // --- Dynamic Agent Staging & View Switching ---
+  switchAgent(agentId) {
+    this.activeAgentId = agentId;
+    this.closeFleetDrawer();
+    this.closeCommandPalette();
+
+    const standardTabs = ['overview', 'health', 'antigravity', 'backlog', 'optimizer'];
+    if (standardTabs.includes(agentId)) {
+      if (typeof switchTab === 'function') switchTab(agentId);
+      this.renderPinnedTray();
+      return;
+    }
+
+    // Custom or dynamic agent stage
+    this.mountDynamicAgentPane(agentId);
+    this.renderPinnedTray();
+  },
+
+  mountDynamicAgentPane(agentId) {
+    const agent = this.agents.find(a => a.id === agentId);
+    if (!agent) {
+      if (typeof switchTab === 'function') switchTab('overview');
+      return;
+    }
+
+    // Hide all standard view divs
+    ['viewOverview', 'viewAntigravity', 'viewHealth', 'viewBacklog', 'viewOptimizer'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+
+    // Reset standard tab buttons
+    document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+
+    let stage = document.getElementById('viewActiveAgentStage');
+    if (!stage) {
+      console.warn('viewActiveAgentStage container missing in DOM.');
+      return;
+    }
+
+    stage.style.display = 'block';
+
+    // Update Stage Breadcrumb Header
+    const bc = document.getElementById('stageBreadcrumbTitle');
+    const bcCat = document.getElementById('stageBreadcrumbCategory');
+    const bcStatus = document.getElementById('stageStatusBadge');
+    if (bc) bc.innerHTML = `<span style="font-size: 20px;">${agent.icon || '⚡'}</span> <strong>${agent.name}</strong> <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">(${agent.id})</span>`;
+    if (bcCat) bcCat.textContent = agent.category;
+    if (bcStatus) {
+      const isWorking = agent.status === 'working';
+      bcStatus.className = `badge ${isWorking ? 'badge-success' : 'badge-neutral'}`;
+      bcStatus.textContent = isWorking ? '● Working' : '● Standby';
+    }
+
+    // Mount agent panel HTML
+    const panelContainer = document.getElementById('stagePanelContainer');
+    if (panelContainer) {
+      if (agent.panel_html) {
+        panelContainer.innerHTML = agent.panel_html;
+      } else {
+        panelContainer.innerHTML = `
+          <div class="card" style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 24px;">
+            <div style="font-size: 16px; font-weight: 700; color: var(--text);">${agent.icon || '⚡'} ${agent.name}</div>
+            <p style="color: var(--text-muted); font-size: 13px; margin-top: 8px;">${agent.description || 'Agent panel loaded.'}</p>
+            <div style="margin-top: 14px; padding: 12px; background: rgba(15,23,42,0.5); border-radius: 8px;">
+              <span class="badge" style="background: rgba(56,189,248,0.15); color: var(--accent-cyan);">Declared permissions: ${(agent.permissions || []).join(', ')}</span>
+            </div>
+          </div>`;
+      }
+    }
+  },
+
+  // --- Command Palette (Ctrl+K Spotlight) ---
+  openCommandPalette() {
+    const modal = document.getElementById('commandPaletteModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    this.paletteSelectedIndex = 0;
+    const input = document.getElementById('cmdPaletteInput');
+    if (input) {
+      input.value = '';
+      setTimeout(() => input.focus(), 80);
+    }
+    this.filterCommandPalette('');
+  },
+
+  closeCommandPalette() {
+    const modal = document.getElementById('commandPaletteModal');
+    if (modal) modal.style.display = 'none';
+  },
+
+  onPaletteInput(query) {
+    this.filterCommandPalette(query);
+  },
+
+  filterCommandPalette(query) {
+    const q = (query || '').toLowerCase().trim();
+    if (!q) {
+      this.paletteResults = this.agents.slice(0, 12);
+    } else {
+      this.paletteResults = this.agents.filter(a =>
+        a.name.toLowerCase().includes(q) ||
+        a.id.toLowerCase().includes(q) ||
+        a.category.toLowerCase().includes(q) ||
+        (a.description || '').toLowerCase().includes(q)
+      ).slice(0, 15);
+    }
+
+    this.paletteSelectedIndex = 0;
+    this.renderPaletteResults();
+  },
+
+  renderPaletteResults() {
+    const list = document.getElementById('cmdPaletteResultsList');
+    if (!list) return;
+
+    if (this.paletteResults.length === 0) {
+      list.innerHTML = `
+        <div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">
+          No matching agents found. Try a different keyword or create a new agent with ➕.
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = this.paletteResults.map((a, idx) => {
+      const isSelected = (idx === this.paletteSelectedIndex);
+      return `
+        <div class="cmd-palette-item ${isSelected ? 'selected' : ''}" onclick="FleetNavigator.paletteSelectIndex(${idx})">
+          <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+            <span style="font-size: 20px;">${a.icon || '⚡'}</span>
+            <div style="min-width: 0;">
+              <div style="font-size: 13.5px; font-weight: 600; color: var(--text);">${a.name}</div>
+              <div style="font-size: 11px; color: var(--text-muted);">${a.description || a.id}</div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="badge" style="font-size: 11px; background: rgba(255,255,255,0.06);">${a.category}</span>
+            <span style="font-size: 11px; color: var(--accent-cyan); font-family: monospace;">Jump ↵</span>
+          </div>
+        </div>`;
+    }).join('');
+  },
+
+  paletteNavigate(dir) {
+    if (this.paletteResults.length === 0) return;
+    this.paletteSelectedIndex = (this.paletteSelectedIndex + dir + this.paletteResults.length) % this.paletteResults.length;
+    this.renderPaletteResults();
+    const activeEl = document.querySelector('.cmd-palette-item.selected');
+    if (activeEl) activeEl.scrollIntoView({ block: 'nearest' });
+  },
+
+  paletteSelectCurrent() {
+    if (this.paletteResults[this.paletteSelectedIndex]) {
+      this.switchAgent(this.paletteResults[this.paletteSelectedIndex].id);
+    }
+  },
+
+  paletteSelectIndex(idx) {
+    if (this.paletteResults[idx]) {
+      this.switchAgent(this.paletteResults[idx].id);
+    }
+  }
+};
+
+// Global window helpers for inline HTML event handlers
+window.FleetNavigator = FleetNavigator;
+
+window.toggleFleetNavigator = function(open) {
+  if (open === true) {
+    FleetNavigator.openFleetDrawer();
+  } else if (open === false) {
+    FleetNavigator.closeFleetDrawer();
+  } else {
+    FleetNavigator.toggleFleetDrawer();
+  }
+};
+
+window.openCommandPalette = function() {
+  FleetNavigator.openCommandPalette();
+};
+
+window.closeCommandPalette = function() {
+  FleetNavigator.closeCommandPalette();
+};
+
+window.openAgentSettingsDrawer = function(agentId) {
+  if (typeof openSettingsModal === 'function') {
+    openSettingsModal().then(() => {
+      if (typeof switchSettingsModalTab === 'function') {
+        switchSettingsModalTab('agents');
+      }
+      const search = document.getElementById('settingsAgentSearchInput');
+      if (search && agentId) {
+        search.value = agentId;
+        if (typeof filterSettingsAgents === 'function') {
+          filterSettingsAgents(agentId);
+        }
+      }
+    });
+  }
+};
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  FleetNavigator.init();
+});

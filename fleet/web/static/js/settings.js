@@ -10,6 +10,7 @@ let fleetSettingsState = {
   catalog: [],
   activeTab: 'agents',
   searchQuery: '',
+  agentCategory: 'all',
   catalogQuery: '',
   catalogCategory: 'all',
   versionInfo: null,
@@ -88,15 +89,26 @@ function filterSettingsAgents(query) {
   renderSettingsAgents();
 }
 
+function filterSettingsAgentCategory(cat) {
+  fleetSettingsState.agentCategory = cat || 'all';
+  renderSettingsAgents();
+}
+
 function renderSettingsAgents() {
   const container = document.getElementById('settingsAgentsList');
   if (!container) return;
 
   const query = fleetSettingsState.searchQuery;
+  const cat = fleetSettingsState.agentCategory || 'all';
   const agents = fleetSettingsState.agents.filter(a => {
+    if (cat !== 'all') {
+      const aCat = a.category || 'Productivity';
+      if (aCat.toLowerCase() !== cat.toLowerCase()) return false;
+    }
     if (!query) return true;
     return (a.name || '').toLowerCase().includes(query) ||
            (a.id || '').toLowerCase().includes(query) ||
+           (a.category || '').toLowerCase().includes(query) ||
            (a.provider || '').toLowerCase().includes(query) ||
            (a.model || '').toLowerCase().includes(query);
   });

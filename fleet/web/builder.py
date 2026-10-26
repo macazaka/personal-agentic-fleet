@@ -26,6 +26,8 @@ JS_LOAD_ORDER = [
     "optimizer.js",
     "health.js",
     "settings.js",
+    "create_agent.js",
+    "fleet_navigator.js",
     "app.js",
 ]
 

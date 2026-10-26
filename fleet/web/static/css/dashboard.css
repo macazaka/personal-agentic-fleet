@@ -1192,3 +1192,272 @@
       accent-color: var(--accent-cyan);
       cursor: pointer;
     }
+
+
+    /* --- Scalable Fleet Navigator & Operations Center (100+ Agents UX) --- */
+    .pinned-tab-title {
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .btn-pin-star {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.25);
+      font-size: 15px;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all 0.15s ease;
+    }
+    .btn-pin-star:hover {
+      color: #fbbf24;
+      transform: scale(1.15);
+    }
+    .btn-pin-star.pinned {
+      color: #fbbf24;
+    }
+
+    /* Off-Canvas Fleet Drawer */
+    .fleet-drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 9998;
+      display: none;
+    }
+    .fleet-drawer {
+      position: fixed;
+      top: 0;
+      left: -380px;
+      width: 360px;
+      height: 100vh;
+      background: #0f172a;
+      border-right: 1px solid var(--border-color);
+      box-shadow: 20px 0 50px rgba(0, 0, 0, 0.8);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      transition: left 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .fleet-drawer.open {
+      left: 0;
+    }
+    .drawer-category-group {
+      margin-bottom: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.015);
+    }
+    .drawer-category-header {
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      font-size: 12.5px;
+      color: var(--text);
+      user-select: none;
+      background: rgba(255, 255, 255, 0.02);
+      transition: background 0.15s ease;
+    }
+    .drawer-category-header:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .drawer-cat-arrow {
+      font-size: 11px;
+      color: var(--text-muted);
+      transition: transform 0.2s ease;
+    }
+    .drawer-category-group.collapsed .drawer-cat-arrow {
+      transform: rotate(-90deg);
+    }
+    .drawer-category-group.collapsed .drawer-category-items {
+      display: none;
+    }
+    .drawer-category-items {
+      padding: 4px 6px;
+    }
+    .drawer-agent-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      margin-bottom: 2px;
+    }
+    .drawer-agent-item:hover {
+      background: rgba(56, 189, 248, 0.08);
+    }
+    .drawer-agent-item.active {
+      background: rgba(56, 189, 248, 0.16);
+      border-left: 3px solid var(--accent-cyan);
+    }
+
+    /* Status Dots */
+    .agent-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .status-dot-working {
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulseGreen 2s infinite;
+    }
+    .status-dot-idle {
+      background: #38bdf8;
+      opacity: 0.85;
+    }
+    .status-dot-disabled {
+      background: #64748b;
+      opacity: 0.5;
+    }
+
+    @keyframes pulseGreen {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    /* Operations Center Matrix Grid & Table */
+    .fleet-matrix-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px;
+    }
+    .fleet-matrix-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(10px);
+    }
+    .fleet-matrix-card:hover {
+      border-color: var(--accent-cyan);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+    .fleet-matrix-card.card-disabled {
+      opacity: 0.6;
+      border-style: dashed;
+    }
+    .matrix-card-icon {
+      font-size: 24px;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .matrix-card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .matrix-card-slug {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+    .matrix-card-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 8px 0 0 0;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Dense Data Table */
+    .fleet-table-wrapper {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      overflow-x: auto;
+    }
+    .fleet-dense-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    .fleet-dense-table th {
+      padding: 12px 14px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(15, 23, 42, 0.6);
+    }
+    .fleet-dense-row {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .fleet-dense-row:hover {
+      background: rgba(56, 189, 248, 0.06);
+    }
+    .fleet-dense-row td {
+      padding: 10px 14px;
+      vertical-align: middle;
+    }
+
+    /* Spotlight Command Palette */
+    .cmd-palette-box {
+      width: 620px;
+      max-width: 92vw;
+      background: #111827;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 12px;
+      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.9);
+      overflow: hidden;
+      padding: 0;
+      animation: modalSlideDown 0.15s ease-out;
+    }
+    @keyframes modalSlideDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .cmd-palette-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      transition: all 0.12s ease;
+    }
+    .cmd-palette-item:hover, .cmd-palette-item.selected {
+      background: rgba(56, 189, 248, 0.15);
+      border-left: 3px solid var(--accent-cyan);
+    }
+
+    /* Dynamic Stage Header */
+    .stage-header {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 16px 22px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(10px);
+    }
+

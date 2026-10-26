@@ -53,6 +53,7 @@
       const viewHealth = document.getElementById('viewHealth');
       const viewBacklog = document.getElementById('viewBacklog');
       const viewOptimizer = document.getElementById('viewOptimizer');
+      const viewStage = document.getElementById('viewActiveAgentStage');
 
       // Reset tabs
       document.querySelectorAll('.nav-tab').forEach(b => { if (b) b.classList.remove('active'); });
@@ -64,6 +65,7 @@
       if (viewHealth) viewHealth.style.display = 'none';
       if (viewBacklog) viewBacklog.style.display = 'none';
       if (viewOptimizer) viewOptimizer.style.display = 'none';
+      if (viewStage) viewStage.style.display = 'none';
 
       if (agInterval && tab !== 'antigravity') {
         clearInterval(agInterval);
