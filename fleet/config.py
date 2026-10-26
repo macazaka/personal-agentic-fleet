@@ -72,6 +72,21 @@ def get_secure_secret(key_name: str, fallback_env: str = "") -> str:
         except Exception:
             pass
 
+    # 1c. Native Linux SecretService CLI fallback via secret-tool (freedesktop standard)
+    if sys.platform.startswith("linux"):
+        try:
+            res = subprocess.run(
+                ["secret-tool", "lookup", "service", "fleet_os", "key", key_name],
+                capture_output=True,
+                text=True,
+                timeout=3,
+                check=False,
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                return res.stdout.strip()
+        except Exception:
+            pass
+
     # 2. Environment Variables
     env_name = fallback_env or key_name
     val = os.getenv(env_name)

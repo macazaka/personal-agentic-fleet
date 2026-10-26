@@ -50,6 +50,21 @@ def set_secure_secret(key_name: str, secret_value: str) -> bool:
         except Exception:
             pass
 
+    # Native Linux SecretService fallback via secret-tool (freedesktop standard)
+    if sys.platform.startswith("linux"):
+        try:
+            res = subprocess.run(
+                ["secret-tool", "store", "--label=Personal Agentic Fleet", "service", "fleet_os", "key", key_name],
+                input=secret_value,
+                text=True,
+                capture_output=True,
+                timeout=3,
+                check=False,
+            )
+            return res.returncode == 0
+        except Exception:
+            pass
+
     return False
 
 ENCRYPTION_PREFIX = "ENC:v1:"

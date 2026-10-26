@@ -42,10 +42,56 @@ def send_macos_notification(title: str, message: str) -> bool:
         return False
 
 
+def send_linux_notification(title: str, message: str) -> bool:
+    """Send a native Linux desktop notification via notify-send, zenity, or kdialog."""
+    if not ENABLE_WINDOWS_NOTIFICATIONS:
+        return False
+    # 1. Standard freedesktop libnotify notify-send
+    try:
+        res = subprocess.run(
+            ["notify-send", "-a", "Personal Agentic Fleet", "-i", "dialog-information", title, message],
+            capture_output=True,
+            timeout=5,
+            check=False,
+        )
+        if res.returncode == 0:
+            return True
+    except Exception:
+        pass
+
+    # 2. GNOME Zenity fallback
+    try:
+        res = subprocess.run(
+            ["zenity", "--notification", f"--text={title}: {message}"],
+            capture_output=True,
+            timeout=5,
+            check=False,
+        )
+        if res.returncode == 0:
+            return True
+    except Exception:
+        pass
+
+    # 3. KDE kdialog fallback
+    try:
+        res = subprocess.run(
+            ["kdialog", "--passivepopup", message, "5", "--title", title],
+            capture_output=True,
+            timeout=5,
+            check=False,
+        )
+        if res.returncode == 0:
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
 def send_windows_notification(title: str, message: str) -> bool:
     """
     Send a native OS notification.
-    Routes to macOS Notification Center on Darwin, notify-send on Linux, or Windows Toast on NT.
+    Routes to macOS Notification Center on Darwin, notify-send/zenity/kdialog on Linux, or Windows Toast on NT.
     """
     if not ENABLE_WINDOWS_NOTIFICATIONS:
         return False
@@ -54,11 +100,7 @@ def send_windows_notification(title: str, message: str) -> bool:
         return send_macos_notification(title, message)
 
     if os.name != "nt":
-        try:
-            res = subprocess.run(["notify-send", title, message], capture_output=True, timeout=5, check=False)
-            return res.returncode == 0
-        except Exception:
-            return False
+        return send_linux_notification(title, message)
 
     try:
         # PowerShell script to show a native Windows toast notification

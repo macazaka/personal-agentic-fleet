@@ -44,6 +44,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Automated Test Suite**:
     - Added comprehensive unit tests in `tests/test_settings_api.py` covering settings retrieval, updating, agent activation toggling, customization, resetting, and backup snapshots.
     - Test suite expanded to **190 tests passing** across 37 test suites with 100/100 security score.
+- **Comprehensive Native Linux OS Support & Hardware Parity**:
+  - **Linux Desktop Notifications**: Added native notification routing via `notify-send` (libnotify), GNOME `zenity`, and KDE `kdialog` with application branding and severity icons.
+  - **Linux Hardware & Working Set Memory**: Enhanced `get_process_memory_mb()` to extract exact resident set size (`VmRSS`) from `/proc/{pid}/status`, and hooked Glibc `malloc_trim(0)` into `optimize_ram()` to return freed heap memory to the Linux kernel.
+  - **XDG Autostart & systemd Scanning**: Enhanced `get_startup_apps()` to inspect both XDG user autostart entries (`~/.config/autostart/*.desktop`), system-wide autostart (`/etc/xdg/autostart/*.desktop`), and systemd user services (`~/.config/systemd/user/*.service`).
+  - **Multi-Desktop Environment Startup Panel**: Enhanced `open_startup_settings()` to launch GNOME (`gnome-session-properties`), KDE (`kcmshell5 autostart`), XFCE (`xfce4-session-settings`), or open the XDG directory via `xdg-open`.
+  - **Linux DNS Resolver Flushing**: Enhanced `flush_dns_cache()` to invoke `resolvectl flush-caches` with automatic fallback to `systemd-resolve --flush-caches`.
+  - **Linux SecretService Credential Storage**: Added native `secret-tool` CLI fallback in `get_secure_secret` and `set_secure_secret` for seamless integration with FreeDesktop SecretService / GNOME Keyring.
+  - **Native Linux Unit Test Suite**: Added `tests/test_linux_native.py` with 8 comprehensive unit tests, bringing the total suite to **198 tests passing**.
 
 ---
 

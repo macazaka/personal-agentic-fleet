@@ -7,6 +7,7 @@ Zero pip dependencies (ctypes / resource / socket stdlib only).
 import contextlib
 import logging
 import os
+from pathlib import Path
 import socket
 import sys
 from typing import Any, Callable, Dict, Iterable, Optional, Set, Tuple
@@ -159,6 +160,24 @@ def get_process_memory_mb(pid: Optional[int] = None) -> float:
                 ctypes.windll.psapi.GetProcessMemoryInfo(proc_handle, ctypes.byref(counters), counters.cb)
                 ctypes.windll.kernel32.CloseHandle(proc_handle)
                 return round(counters.WorkingSetSize / (1024 * 1024), 2)
+        except Exception:
+            pass
+    elif sys.platform.startswith("linux"):
+        try:
+            status_file = Path(f"/proc/{target_pid}/status")
+            if status_file.is_file():
+                for line in status_file.read_text(encoding="utf-8", errors="replace").splitlines():
+                    if line.startswith("VmRSS:"):
+                        parts = line.split()
+                        if len(parts) >= 2:
+                            return round(float(parts[1]) / 1024.0, 2)
+        except Exception:
+            pass
+    elif sys.platform == "darwin":
+        try:
+            import resource
+            usage = resource.getrusage(resource.RUSAGE_SELF)
+            return round(usage.ru_maxrss / (1024 * 1024), 2)
         except Exception:
             pass
     return 0.0

@@ -403,6 +403,50 @@ def get_startup_apps() -> List[Dict[str, Any]]:
                     pass
         return apps
 
+    if sys.platform.startswith("linux"):
+        user_autostart = Path.home() / ".config" / "autostart"
+        sys_autostart = Path("/etc/xdg/autostart")
+        systemd_user = Path.home() / ".config" / "systemd" / "user"
+
+        for autostart_dir, scope in [(user_autostart, "User"), (sys_autostart, "System")]:
+            if autostart_dir.is_dir():
+                try:
+                    for desktop_file in autostart_dir.glob("*.desktop"):
+                        name = desktop_file.stem
+                        cmd = ""
+                        try:
+                            for line in desktop_file.read_text(encoding="utf-8", errors="replace").splitlines():
+                                if line.startswith("Name=") and not name:
+                                    name = line[5:].strip()
+                                elif line.startswith("Exec="):
+                                    cmd = line[5:].strip()
+                        except Exception:
+                            pass
+                        clean_name = name.capitalize()
+                        apps.append({
+                            "name": clean_name,
+                            "raw_name": desktop_file.name,
+                            "command": cmd or str(desktop_file),
+                            "scope": scope,
+                            "impact": "High" if any(k in clean_name.lower() for k in ["discord", "steam", "slack", "dropbox", "update"]) else "Medium"
+                        })
+                except Exception:
+                    pass
+
+        if systemd_user.is_dir():
+            try:
+                for svc in systemd_user.glob("*.service"):
+                    apps.append({
+                        "name": svc.stem,
+                        "raw_name": svc.name,
+                        "command": str(svc),
+                        "scope": "Systemd User",
+                        "impact": "Medium"
+                    })
+            except Exception:
+                pass
+        return apps
+
     try:
         import winreg
         hives = [
@@ -503,6 +547,8 @@ def flush_dns_cache() -> Dict[str, Any]:
             }
         else:
             res = subprocess.run(["resolvectl", "flush-caches"], capture_output=True, text=True, timeout=5)
+            if res.returncode != 0:
+                res = subprocess.run(["systemd-resolve", "--flush-caches"], capture_output=True, text=True, timeout=5)
             msg = "Successfully flushed Linux DNS resolver cache." if res.returncode == 0 else "Cache flush attempted."
             return {"status": "success", "message": msg}
     except Exception as e:
@@ -577,6 +623,14 @@ def optimize_ram() -> Dict[str, Any]:
             ctypes.windll.psapi.EmptyWorkingSet(handle)
         except Exception:
             pass
+    elif sys.platform.startswith("linux"):
+        try:
+            import ctypes
+            libc = ctypes.CDLL("libc.so.6")
+            if hasattr(libc, "malloc_trim"):
+                libc.malloc_trim(0)
+        except Exception:
+            pass
     mem_after = get_memory_status()
     freed_mb = round(max(0.0, (mem_after["avail_gb"] - mem_before["avail_gb"]) * 1024), 1)
     return {
@@ -598,8 +652,17 @@ def open_startup_settings() -> Dict[str, Any]:
             subprocess.run(["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", "Start-Process ms-settings:startupapps"], capture_output=True, timeout=5, **_hidden_subprocess_kwargs())
             return {"status": "success", "message": "Opened Windows Startup Apps Settings."}
         else:
-            subprocess.run(["gnome-session-properties"], capture_output=True, timeout=5)
-            return {"status": "success", "message": "Opened Linux Startup Apps Settings."}
+            for launcher in [["gnome-session-properties"], ["kcmshell5", "autostart"], ["xfce4-session-settings"]]:
+                try:
+                    res = subprocess.run(launcher, capture_output=True, timeout=3)
+                    if res.returncode == 0:
+                        return {"status": "success", "message": "Opened Linux Startup Apps Settings."}
+                except Exception:
+                    pass
+            autostart_dir = Path.home() / ".config" / "autostart"
+            autostart_dir.mkdir(parents=True, exist_ok=True)
+            subprocess.run(["xdg-open", str(autostart_dir)], capture_output=True, timeout=3)
+            return {"status": "success", "message": "Opened Linux Autostart directory (~/.config/autostart)."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
