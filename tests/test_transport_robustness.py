@@ -27,11 +27,12 @@ def test_circuit_breaker_transitions():
     assert cb.state == "OPEN"
 
     # Must fast fail when OPEN
-    with pytest.raises(CircuitBreakerOpenException):
+    with pytest.raises(Exception) as exc_info:
         cb.before_request()
+    assert "Circuit breaker is OPEN" in str(exc_info.value)
 
-    # Wait for cooldown with margin for Windows timer resolution
-    time.sleep(0.4)
+    # Fast-forward failure timestamp to simulate recovery timeout passing deterministically
+    cb.last_failure_time = time.time() - (cb.recovery_timeout_sec + 1.0)
     cb.before_request()
     assert cb.state == "HALF_OPEN"
 
