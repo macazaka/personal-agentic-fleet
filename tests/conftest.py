@@ -6,6 +6,7 @@ Enforces strict test isolation:
 - Initializes clean test database (fleet_test_memory.db)
 - Ensures the production database (fleet_memory.db) is never written to during tests.
 """
+import mimetypes
 import os
 import sys
 import types
@@ -13,6 +14,8 @@ from pathlib import Path
 import pytest
 
 from fleet.config import DATA_DIR, TEST_DB_PATH
+
+mimetypes.init()
 
 os.environ["FLEET_TEST_MODE"] = "1"
 os.environ["SDL_VIDEODRIVER"] = "dummy"

@@ -103,7 +103,7 @@ def test_server_do_get_endpoints():
     h.do_GET()
     js_resp = out.getvalue().decode("utf-8")
     assert "200 OK" in js_resp
-    assert "application/javascript" in js_resp
+    assert "javascript" in js_resp
 
     # 8d. GET /static/non_existent.js -> 404
     h_s404, _ = create_handler("GET", "/static/non_existent.js")

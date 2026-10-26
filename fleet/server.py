@@ -322,14 +322,12 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             file_path = (STATIC_DIR / rel_path).resolve()
             # Security guard against directory traversal
             if file_path.is_file() and str(file_path).startswith(str(STATIC_DIR)):
-                content_type = mimetypes.guess_type(str(file_path))[0]
-                if not content_type:
-                    if file_path.suffix == ".css":
-                        content_type = "text/css; charset=utf-8"
-                    elif file_path.suffix == ".js":
-                        content_type = "application/javascript; charset=utf-8"
-                    else:
-                        content_type = "application/octet-stream"
+                if file_path.suffix == ".css":
+                    content_type = "text/css; charset=utf-8"
+                elif file_path.suffix == ".js":
+                    content_type = "application/javascript; charset=utf-8"
+                else:
+                    content_type = mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
                 data = file_path.read_bytes()
                 self.send_response(200)
                 self.send_header("Content-Type", content_type)

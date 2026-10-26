@@ -12,24 +12,21 @@ def main():
     res = subprocess.run(cmd, capture_output=True, text=True)
 
     if res.stdout:
-        print(res.stdout)
+        print(res.stdout, flush=True)
     if res.stderr:
-        print(res.stderr, file=sys.stderr)
-
-    try:
-        with open("pytest_log.txt", "w", encoding="utf-8") as f:
-            f.write(res.stdout + "\n" + res.stderr)
-    except Exception:
-        pass
+        print(res.stderr, file=sys.stderr, flush=True)
 
     if res.returncode != 0:
+        combined_lines = (res.stdout + "\n" + res.stderr).splitlines()
         failures = [
-            line for line in (res.stdout + "\n" + res.stderr).splitlines()
-            if line.startswith("FAILED") or line.startswith("ERROR")
+            line for line in combined_lines
+            if line.startswith("FAILED") or line.startswith("ERROR") or line.startswith("E   ")
         ]
-        for line in failures[:5]:
+        if not failures:
+            failures = combined_lines[-20:]
+        for line in failures[:15]:
             clean = line.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-            print(f"::error::{clean}", file=sys.stderr)
+            print(f"::error::{clean}", flush=True)
 
         sf = os.getenv("GITHUB_STEP_SUMMARY")
         if sf:

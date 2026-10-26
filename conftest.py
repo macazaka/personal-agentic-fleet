@@ -4,11 +4,15 @@ Enforces Fleet Rule 1 (Tier 0: 0 Tokens / $0.00) across all unit tests and cover
 Guarantees zero token consumption and blocks external network socket connections.
 """
 
+import mimetypes
 import os
 import socket
 import sys
 import types
 import pytest
+
+# Initialize mimetypes before any cross-platform winreg shims are registered
+mimetypes.init()
 
 # Enforce Test Mode and Headless Drivers before any test modules load
 os.environ["FLEET_TEST_MODE"] = "1"
