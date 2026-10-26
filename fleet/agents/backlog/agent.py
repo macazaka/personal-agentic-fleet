@@ -29,6 +29,38 @@ class BacklogAgent(FleetAgent):
     def is_default(self) -> bool:
         return False
 
+    def get_agent_settings_schema(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "id": "daily_grooming_time",
+                "label": "Morning Backlog Grooming Time",
+                "type": "text",
+                "default": "09:00",
+                "description": "Daily scheduled reminder time to review and prioritize backlog"
+            },
+            {
+                "id": "auto_prioritize_due_today",
+                "label": "Auto-Elevate Tasks Due Today",
+                "type": "boolean",
+                "default": True,
+                "description": "Automatically boost task priority to High when due date matches today"
+            },
+            {
+                "id": "show_completed_tasks_days",
+                "label": "Keep Completed Tasks Visible (Days)",
+                "type": "number",
+                "default": 7,
+                "description": "Number of days completed backlog items remain shown before archiving"
+            },
+            {
+                "id": "task_completion_sound",
+                "label": "Completion Audio Feedback",
+                "type": "boolean",
+                "default": True,
+                "description": "Play a subtle audio tone when marking tasks completed"
+            }
+        ]
+
     def register_routes(self, router) -> None:
         router.include_router(backlog_api.router)
 

@@ -120,6 +120,13 @@ def main():
     daemon_thread = threading.Thread(target=daemon.run_loop, kwargs={"poll_interval_sec": 30}, daemon=True)
     daemon_thread.start()
 
+    # Check for new version on GitHub and dispatch notification if available
+    try:
+        from fleet.core.updater import start_startup_update_check
+        start_startup_update_check(db=getattr(daemon, "db", None))
+    except Exception as e:
+        pass
+
     # Start HTTP Server on main thread
     try:
         start_server(PORT)

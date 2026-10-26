@@ -205,3 +205,329 @@ def test_settings_api_error_branches(mock_fleet_env):
         create_backup_snapshot(handler, {})
         assert handler._send_json.call_args[1].get("status") == 500
 
+
+
+def test_customize_agent_specific_settings(mock_fleet_env):
+    from fleet.api.settings_api import customize_agent_settings
+
+    handler = MagicMock()
+    customize_agent_settings(handler, {
+        "id": "health",
+        "settings": {
+            "daily_water_target_liters": 4.5,
+            "daily_calorie_target": 2200,
+            "enable_meal_reminders": False,
+        }
+    })
+
+    res = handler._send_json.call_args[0][0]
+    assert res["status"] == "success"
+    assert "agent" in res
+    assert res["agent"]["settings"]["daily_water_target_liters"] == 4.5
+    assert res["agent"]["settings"]["daily_calorie_target"] == 2200
+    assert res["agent"]["settings"]["enable_meal_reminders"] is False
+
+    # Check live agent instance
+    registry = mock_fleet_env["registry"]
+    agent = registry.agents.get("health")
+    assert agent is not None
+    assert agent.get_setting("daily_water_target_liters") == 4.5
+    assert agent.get_setting("daily_calorie_target") == 2200
+
+    # Check enriched schema in UI manifest
+    manifest = agent.get_ui_manifest()
+    water_schema = next((s for s in manifest["agent_settings_schema"] if s["id"] == "daily_water_target_liters"), None)
+    assert water_schema is not None
+    assert water_schema["value"] == 4.5
+
+
+def test_all_builtin_agents_declare_settings_schema(mock_fleet_env):
+    registry = mock_fleet_env["registry"]
+    manifests = registry.get_manifests(include_disabled=True)
+    expected_ids = {"health", "overview", "optimizer", "antigravity", "backlog", "gmail", "pr_review"}
+
+    for m in manifests:
+        if m["id"] in expected_ids:
+            agent = registry.agents.get(m["id"]) or registry.disabled_agents.get(m["id"])
+            assert agent is not None
+            schema = agent.get_agent_settings_schema()
+            assert isinstance(schema, list)
+            assert len(schema) >= 3
+            for item in schema:
+                assert "id" in item
+                assert "label" in item
+                assert "type" in item
+                assert "default" in item
+
+
+def test_version_endpoints_and_updater(mock_fleet_env):
+    from fleet.api.settings_api import get_fleet_version_status, check_fleet_version_update, apply_fleet_update
+    from fleet.core.updater import (
+        parse_version_tuple,
+        check_github_for_updates,
+        download_and_apply_update,
+        check_and_notify_on_startup,
+        start_startup_update_check,
+    )
+
+    # 1. Version parsing
+    assert parse_version_tuple("v2.5.0") == (2, 5, 0)
+    assert parse_version_tuple("2.6.1-beta") == (2, 6, 1)
+    assert parse_version_tuple("invalid") == (0, 0, 0)
+
+    # 2. Check for updates mock (newer version available)
+    with patch("urllib.request.urlopen") as mock_open:
+        mock_resp = MagicMock()
+        mock_resp.status = 200
+        mock_resp.read.return_value = json.dumps({
+            "tag_name": "v3.0.0",
+            "name": "Fleet Release v3.0.0",
+            "body": "Major release with new autonomous agent capabilities",
+            "html_url": "https://github.com/macazaka/personal-agentic-fleet/releases/tag/v3.0.0",
+            "zipball_url": "https://github.com/macazaka/personal-agentic-fleet/archive/refs/tags/v3.0.0.zip",
+            "published_at": "2026-10-27T00:00:00Z"
+        }).encode("utf-8")
+        mock_open.return_value.__enter__.return_value = mock_resp
+
+        res = check_github_for_updates()
+        assert res["status"] == "success"
+        assert res["update_available"] is True
+        assert res["latest_version"] == "3.0.0"
+
+    # 3. Check for updates mock (already up to date)
+    with patch("urllib.request.urlopen") as mock_open:
+        mock_resp = MagicMock()
+        mock_resp.status = 200
+        mock_resp.read.return_value = json.dumps({
+            "tag_name": "v2.5.0",
+            "name": "Fleet v2.5.0",
+            "body": "Current version",
+        }).encode("utf-8")
+        mock_open.return_value.__enter__.return_value = mock_resp
+
+        res_same = check_github_for_updates()
+        assert res_same["update_available"] is False
+
+    # 4. Check for updates mock (offline fallback)
+    with patch("urllib.request.urlopen", side_effect=Exception("Network down")):
+        res_off = check_github_for_updates()
+        assert res_off["status"] == "offline"
+        assert res_off["update_available"] is False
+
+    # 5. REST endpoints
+    handler = MagicMock()
+    with patch("fleet.core.updater.check_github_for_updates", return_value={"status": "success", "update_available": True, "latest_version": "2.6.0"}):
+        get_fleet_version_status(handler, urllib.parse.urlparse("/api/settings/version"))
+        assert handler._send_json.called
+        assert handler._send_json.call_args[0][0]["latest_version"] == "2.6.0"
+
+        handler.reset_mock()
+        check_fleet_version_update(handler, {})
+        assert handler._send_json.called
+
+    handler.reset_mock()
+    with patch("fleet.core.updater.download_and_apply_update", return_value={"status": "success", "message": "Pulled latest"}):
+        apply_fleet_update(handler, {})
+        assert handler._send_json.called
+        assert handler._send_json.call_args[0][0]["status"] == "success"
+
+    # 6. Startup notification check
+    with patch("fleet.core.updater.check_github_for_updates", return_value={"status": "success", "update_available": True, "latest_version": "2.9.0"}),          patch("fleet.core.updater.send_notification") as mock_notify:
+        check_and_notify_on_startup(mock_fleet_env["db"])
+        assert mock_notify.called
+        assert "2.9.0" in mock_notify.call_args[0][0]
+
+    # 7. Start thread helper
+    with patch("threading.Thread.start") as mock_thread_start:
+        start_startup_update_check(mock_fleet_env["db"])
+        assert mock_thread_start.called
+
+    # 8. Download and apply update (git pull branch & zip download branch)
+    tmp_repo = mock_fleet_env["tmp_path"] / "repo"
+    tmp_repo.mkdir(parents=True, exist_ok=True)
+    git_dir = tmp_repo / ".git"
+    git_dir.mkdir(parents=True, exist_ok=True)
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stdout="Updating e199cef..0813157\nFast-forward")
+        res_git = download_and_apply_update(repo_root=tmp_repo)
+        assert res_git["status"] == "success"
+        assert res_git["mode"] == "git_pull"
+
+    # Non-git directory fallback to zip download
+    non_git_repo = mock_fleet_env["tmp_path"] / "nongit"
+    non_git_repo.mkdir(parents=True, exist_ok=True)
+    with patch("urllib.request.urlretrieve") as mock_retrieve:
+        res_zip = download_and_apply_update(repo_root=non_git_repo)
+        assert res_zip["status"] == "success"
+        assert res_zip["mode"] == "zip_download"
+
+
+def test_agent_catalog_endpoints_and_install(mock_fleet_env):
+    from fleet.api.settings_api import get_agent_catalog_list, install_catalog_agent
+    from fleet.core.agent_catalog import get_agent_catalog, install_agent_from_catalog
+
+    # 1. Direct Catalog Listing
+    catalog = get_agent_catalog(installed_agent_ids={"health", "crypto_trader"})
+    assert len(catalog) >= 5
+    crypto_item = next((c for c in catalog if c["id"] == "crypto_trader"), None)
+    assert crypto_item is not None
+    assert crypto_item["is_installed"] is True
+    home_item = next((c for c in catalog if c["id"] == "home_assistant"), None)
+    assert home_item is not None
+    assert home_item["is_installed"] is False
+
+    # 2. REST GET /api/settings/agents/catalog
+    handler = MagicMock()
+    get_agent_catalog_list(handler, urllib.parse.urlparse("/api/settings/agents/catalog"))
+    assert handler._send_json.called
+    res = handler._send_json.call_args[0][0]
+    assert res["status"] == "ok"
+    assert "catalog" in res
+    assert res["total_available"] >= 5
+
+    # 3. Direct install of home_assistant
+    custom_dir = mock_fleet_env["tmp_path"] / "custom_agents"
+    registry = mock_fleet_env["registry"]
+    inst_res = install_agent_from_catalog("home_assistant", custom_dir, agent_registry=registry)
+    assert inst_res["status"] == "success"
+    assert inst_res["agent_id"] == "home_assistant"
+
+    # Verify files created on disk
+    agent_dir = custom_dir / "home_assistant"
+    assert (agent_dir / "manifest.json").is_file()
+    assert (agent_dir / "agent.py").is_file()
+    assert (agent_dir / "ui" / "panel.html").is_file()
+
+    # 4. REST install via endpoint
+    handler.reset_mock()
+    install_catalog_agent(handler, {"id": "research_scholar"})
+    assert handler._send_json.called
+    res_ep = handler._send_json.call_args[0][0]
+    assert res_ep["status"] == "success"
+    assert res_ep["agent_id"] == "research_scholar"
+
+    # 5. Invalid / unknown agent install error handling
+    handler.reset_mock()
+    install_catalog_agent(handler, {"id": ""})
+    assert handler._send_json.call_args[1].get("status") == 400
+
+    handler.reset_mock()
+    install_catalog_agent(handler, {"id": "unknown_super_agent_xyz"})
+    assert handler._send_json.call_args[1].get("status") == 404
+
+
+def test_updater_and_settings_edge_cases(mock_fleet_env):
+    import urllib.error
+    from fleet.api.settings_api import get_fleet_version_status, check_fleet_version_update, get_agent_catalog_list, install_catalog_agent
+    from fleet.core.updater import check_github_for_updates, download_and_apply_update
+
+    handler = MagicMock()
+
+    # 1. Fallback raw URL when Releases API fails
+    raw_payload = b'__version__ = "2.9.9"\n'
+    def fake_urlopen(req, *args, **kwargs):
+        url = req.full_url if hasattr(req, "full_url") else str(req)
+        if "releases/latest" in url:
+            raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
+        cm = MagicMock()
+        cm.__enter__.return_value = MagicMock(status=200, read=lambda: raw_payload)
+        return cm
+
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        info = check_github_for_updates()
+        assert info["latest_version"] == "2.9.9"
+        assert info["update_available"] is True
+
+    # 2. Both Releases API and Raw fail
+    with patch("urllib.request.urlopen", side_effect=Exception("Network down")):
+        info_down = check_github_for_updates()
+        assert info_down["status"] == "offline"
+        assert info_down["update_available"] is False
+
+    # 3. download_and_apply_update exception & failed git pull
+    tmp_repo = mock_fleet_env["tmp_path"] / "broken_git"
+    (tmp_repo / ".git").mkdir(parents=True)
+    with patch("subprocess.run", side_effect=RuntimeError("Git broken")):
+        res_fail = download_and_apply_update(repo_root=tmp_repo)
+        assert res_fail["status"] == "error"
+
+    with patch("subprocess.run") as mock_run_fail:
+        mock_run_fail.return_value = MagicMock(returncode=1, stderr="fatal: merge conflict", stdout="")
+        res_fail_pull = download_and_apply_update(repo_root=tmp_repo)
+        assert res_fail_pull["status"] == "error"
+        assert res_fail_pull["mode"] == "git_pull"
+
+    # 4. check_fleet_version_update POST exception
+    from fleet.api.settings_api import apply_fleet_update
+    handler.reset_mock()
+    with patch("fleet.core.updater.check_github_for_updates", side_effect=Exception("Check error")):
+        check_fleet_version_update(handler, {})
+        assert handler._send_json.call_args[1].get("status") == 500
+
+    # 5. apply_fleet_update POST exception
+    handler.reset_mock()
+    with patch("fleet.core.updater.download_and_apply_update", side_effect=Exception("Upgrade error")):
+        apply_fleet_update(handler, {})
+        assert handler._send_json.call_args[1].get("status") == 500
+
+    # 6. get_fleet_version_status GET exception
+    handler.reset_mock()
+    with patch("fleet.core.updater.check_github_for_updates", side_effect=Exception("Check error")):
+        get_fleet_version_status(handler, urllib.parse.urlparse("/api/settings/version"))
+        assert handler._send_json.call_args[1].get("status") == 500
+
+    # 7. get_agent_catalog_list exception
+    handler.reset_mock()
+    with patch("fleet.core.agent_catalog.get_agent_catalog", side_effect=Exception("Catalog failure")):
+        get_agent_catalog_list(handler, urllib.parse.urlparse("/api/settings/agents/catalog"))
+        assert handler._send_json.call_args[1].get("status") == 500
+
+    # 8. install_catalog_agent exception
+    handler.reset_mock()
+    with patch("fleet.core.agent_catalog.install_agent_from_catalog", side_effect=Exception("Install failure")):
+        install_catalog_agent(handler, {"id": "crypto_trader"})
+        assert handler._send_json.call_args[1].get("status") == 500
+
+    # 9. Additional settings_api branches
+    from fleet.api.settings_api import update_fleet_settings, create_backup_snapshot
+    import fleet.server as srv_mod
+
+    # Non-dict settings payload
+    handler.reset_mock()
+    update_fleet_settings(handler, "not-a-dict")
+    assert handler._send_json.call_args[1].get("status") == 400
+
+    handler.reset_mock()
+    update_fleet_settings(handler, {"settings": "not-a-dict"})
+    assert handler._send_json.call_args[1].get("status") == 400
+
+    # Skipped keys in update_fleet_settings
+    handler.reset_mock()
+    update_fleet_settings(handler, {"settings": {"status": "ignored", "dark_mode": "true"}})
+    assert handler._send_json.called
+
+    # Success path of create_backup_snapshot
+    handler.reset_mock()
+    create_backup_snapshot(handler, {})
+    assert handler._send_json.called
+    res_snap = handler._send_json.call_args[0][0]
+    assert res_snap["status"] == "success"
+
+    # install_catalog_agent registry unavailable & custom_dir fallback
+    handler.reset_mock()
+    orig_reg = getattr(srv_mod, "agent_registry", None)
+    try:
+        srv_mod.agent_registry = None
+        install_catalog_agent(handler, {"id": "crypto_trader"})
+        assert handler._send_json.call_args[1].get("status") == 503
+
+        # custom_dir fallback
+        srv_mod.agent_registry = MagicMock(custom_agents_dir=None)
+        with patch("fleet.core.agent_catalog.install_agent_from_catalog", return_value={"status": "success", "agent_id": "crypto_trader"}):
+            handler.reset_mock()
+            install_catalog_agent(handler, {"id": "crypto_trader"})
+            assert handler._send_json.called
+    finally:
+        srv_mod.agent_registry = orig_reg
+

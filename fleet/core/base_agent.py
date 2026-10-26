@@ -211,6 +211,13 @@ class FleetAgent(ABC):
         """
         return {"status": "NOT_IMPLEMENTED", "agent": self.id, "task": task}
 
+    def get_agent_settings_schema(self) -> List[Dict[str, Any]]:
+        """
+        Returns a list of agent-specific configurable settings declarations.
+        Subclasses override this to expose custom settings to the dashboard.
+        """
+        return []
+
     # === UI Manifest & Template Customization ===
 
     def get_ui_manifest(self) -> Dict[str, Any]:
@@ -253,6 +260,16 @@ class FleetAgent(ABC):
         has_css = (ui_dir / "style.css").is_file()
         has_js = (ui_dir / "script.js").is_file()
 
+        schema = self.get_agent_settings_schema()
+        current_settings = self.config.get("settings", {})
+        if not isinstance(current_settings, dict):
+            current_settings = {}
+        enriched_schema = []
+        for s in schema:
+            s_copy = dict(s)
+            s_copy["value"] = current_settings.get(s["id"], s.get("default"))
+            enriched_schema.append(s_copy)
+
         is_customized = bool(
             self.config.get("name")
             or self.config.get("icon")
@@ -261,6 +278,7 @@ class FleetAgent(ABC):
             or self.config.get("model")
             or self.config.get("system_prompt")
             or self.config.get("custom_panel_path")
+            or self.config.get("settings")
         )
 
         return {
@@ -272,6 +290,9 @@ class FleetAgent(ABC):
             "enabled": self.enabled,
             "provider": self.preferred_provider,
             "model": self.preferred_model,
+            "system_prompt": self.system_prompt,
+            "settings": current_settings,
+            "agent_settings_schema": enriched_schema,
             "is_customized": is_customized,
             "permissions": getattr(self, "permissions", []),
             "html": panel_html,

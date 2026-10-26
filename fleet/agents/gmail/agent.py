@@ -29,6 +29,45 @@ class GmailAgent(FleetAgent):
     def is_default(self) -> bool:
         return False
 
+    def get_agent_settings_schema(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "id": "sync_interval_minutes",
+                "label": "Mailbox Poll Interval (Minutes)",
+                "type": "number",
+                "default": 30,
+                "description": "Background routine pulse frequency for inbox classification"
+            },
+            {
+                "id": "max_emails_per_scan",
+                "label": "Max Unread Messages per Scan",
+                "type": "number",
+                "default": 25,
+                "description": "Maximum number of raw emails to triage per pulse"
+            },
+            {
+                "id": "auto_classify_urgency",
+                "label": "Zero-Token Urgency Classification",
+                "type": "boolean",
+                "default": True,
+                "description": "Automatically flag action-required and meeting messages locally"
+            },
+            {
+                "id": "notify_vip_senders_only",
+                "label": "VIP Contacts Only Alerts",
+                "type": "boolean",
+                "default": False,
+                "description": "Suppress alerts unless message is from a designated VIP address"
+            },
+            {
+                "id": "vip_senders",
+                "label": "Designated VIP Senders / Domains",
+                "type": "text",
+                "default": "",
+                "description": "Comma-separated email addresses or domain names (e.g. boss@corp.com, vip.org)"
+            }
+        ]
+
     def register_routes(self, router) -> None:
         router.include_router(email_api.router)
 

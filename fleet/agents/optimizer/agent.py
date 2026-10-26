@@ -29,6 +29,45 @@ class OptimizerAgent(FleetAgent):
     def is_default(self) -> bool:
         return False
 
+    def get_agent_settings_schema(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "id": "auto_ram_threshold_pct",
+                "label": "High RAM Warning Threshold (%)",
+                "type": "number",
+                "default": 80,
+                "description": "Trigger working set sweeps and warnings when RAM exceeds this level"
+            },
+            {
+                "id": "auto_clean_temp_mb",
+                "label": "Temp Bloat Warning Threshold (MB)",
+                "type": "number",
+                "default": 100,
+                "description": "Prompt for junk file purging when temporary folders exceed this size"
+            },
+            {
+                "id": "auto_flush_dns_on_wake",
+                "label": "Flush DNS Cache on Sleep Resume",
+                "type": "boolean",
+                "default": True,
+                "description": "Automatically purge stale resolver caches when workstation wakes"
+            },
+            {
+                "id": "auto_purge_dev_cache",
+                "label": "Auto-Purge PyCache Artifacts",
+                "type": "boolean",
+                "default": False,
+                "description": "Automatically remove __pycache__ and pytest artifacts on startup"
+            },
+            {
+                "id": "process_monitor_limit",
+                "label": "Top Processes Monitored",
+                "type": "number",
+                "default": 6,
+                "description": "Number of top memory-consuming processes to inspect in-process"
+            }
+        ]
+
     def register_routes(self, router) -> None:
         router.include_router(optimizer_api.router)
 

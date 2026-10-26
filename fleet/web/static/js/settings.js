@@ -7,8 +7,12 @@
 let fleetSettingsState = {
   settings: {},
   agents: [],
+  catalog: [],
   activeTab: 'agents',
   searchQuery: '',
+  catalogQuery: '',
+  catalogCategory: 'all',
+  versionInfo: null,
 };
 
 // --- Modal Lifecycle ---
@@ -32,7 +36,7 @@ function closeSettingsModal() {
 
 function switchSettingsModalTab(tab) {
   fleetSettingsState.activeTab = tab;
-  ['agents', 'general', 'ai', 'backups'].forEach(t => {
+  ['agents', 'catalog', 'updates', 'general', 'ai', 'backups'].forEach(t => {
     const btn = document.getElementById(`settingsNavBtn_${t}`);
     const view = document.getElementById(`settingsView_${t}`);
     if (btn) btn.classList.toggle('active', t === tab);
@@ -41,6 +45,10 @@ function switchSettingsModalTab(tab) {
 
   if (tab === 'agents') {
     renderSettingsAgents();
+  } else if (tab === 'catalog') {
+    loadAgentCatalog();
+  } else if (tab === 'updates') {
+    loadVersionStatus();
   } else if (tab === 'general') {
     populateGeneralSettingsForm();
   } else if (tab === 'ai') {
@@ -117,6 +125,7 @@ function renderSettingsAgents() {
               <div class="agent-card-title-row">
                 <strong class="agent-card-title">${escapeHtml(agent.name || agent.id)}</strong>
                 <code class="agent-card-id">${escapeHtml(agent.id)}</code>
+                ${isEnabled ? '<span class="agent-pill pill-active" style="background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 600;">🟢 Active</span>' : '<span class="agent-pill pill-disabled" style="background: rgba(255,255,255,0.06); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.1); font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 600;">⚪ Disabled</span>'}
                 ${isDefault ? '<span class="agent-pill pill-default">Default Tab</span>' : ''}
                 ${isCustomized ? '<span class="agent-pill pill-customized">Customized</span>' : ''}
               </div>
@@ -171,6 +180,64 @@ function renderSettingsAgents() {
               <textarea id="cfg_prompt_${agent.id}" class="form-control" rows="3" placeholder="Define customized persona or instructions...">${escapeHtml(agent.system_prompt || '')}</textarea>
             </div>
           </div>
+
+          <!-- Dynamic Agent-Specific Settings Section -->
+          ${(agent.agent_settings_schema && agent.agent_settings_schema.length > 0) ? `
+            <div style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed rgba(255,255,255,0.1);">
+              <div style="font-weight: 600; font-size: 12.5px; color: var(--accent-cyan); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                <span>🛠️</span>
+                <span>Agent-Specific Settings (${escapeHtml(agent.name || agent.id)})</span>
+              </div>
+              <div class="agent-form-grid">
+                ${agent.agent_settings_schema.map(s => {
+                  const sVal = (s.value !== undefined) ? s.value : s.default;
+                  const fieldId = `cfg_spec_${agent.id}_${s.id}`;
+                  if (s.type === 'boolean') {
+                    return `
+                      <div class="form-group" style="grid-column: span 2; display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.02); border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                        <div>
+                          <label style="margin: 0; font-size: 12px; font-weight: 600; color: var(--text);">${escapeHtml(s.label)}</label>
+                          <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(s.description || '')}</div>
+                        </div>
+                        <label class="toggle-switch">
+                          <input type="checkbox" id="${fieldId}" data-setting-id="${s.id}" data-type="boolean" ${Boolean(sVal) ? 'checked' : ''}>
+                          <span class="toggle-slider"></span>
+                        </label>
+                      </div>
+                    `;
+                  } else if (s.type === 'select') {
+                    return `
+                      <div class="form-group">
+                        <label style="font-size: 12px;">${escapeHtml(s.label)}</label>
+                        <select id="${fieldId}" data-setting-id="${s.id}" data-type="select" class="form-control" style="font-size: 12px;">
+                          ${(s.options || []).map(opt => `
+                            <option value="${escapeHtml(opt)}" ${String(sVal) === String(opt) ? 'selected' : ''}>${escapeHtml(opt)}</option>
+                          `).join('')}
+                        </select>
+                        <small style="font-size: 10.5px; color: var(--text-muted);">${escapeHtml(s.description || '')}</small>
+                      </div>
+                    `;
+                  } else if (s.type === 'number') {
+                    return `
+                      <div class="form-group">
+                        <label style="font-size: 12px;">${escapeHtml(s.label)}</label>
+                        <input type="number" id="${fieldId}" data-setting-id="${s.id}" data-type="number" class="form-control" value="${sVal !== undefined ? sVal : ''}" style="font-size: 12px;">
+                        <small style="font-size: 10.5px; color: var(--text-muted);">${escapeHtml(s.description || '')}</small>
+                      </div>
+                    `;
+                  } else {
+                    return `
+                      <div class="form-group" style="grid-column: span 2;">
+                        <label style="font-size: 12px;">${escapeHtml(s.label)}</label>
+                        <input type="text" id="${fieldId}" data-setting-id="${s.id}" data-type="text" class="form-control" value="${escapeHtml(String(sVal || ''))}" style="font-size: 12px;">
+                        <small style="font-size: 10.5px; color: var(--text-muted);">${escapeHtml(s.description || '')}</small>
+                      </div>
+                    `;
+                  }
+                }).join('')}
+              </div>
+            </div>
+          ` : ''}
 
           <div class="agent-drawer-footer">
             <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
@@ -249,6 +316,24 @@ async function saveAgentCustomization(agentId) {
   const prompt = (document.getElementById(`cfg_prompt_${agentId}`)?.value || '').trim();
   const isDefault = Boolean(document.getElementById(`cfg_default_${agentId}`)?.checked);
 
+  // Harvest agent-specific custom settings
+  const agent = fleetSettingsState.agents.find(a => a.id === agentId);
+  const specificSettings = {};
+  if (agent && agent.agent_settings_schema) {
+    agent.agent_settings_schema.forEach(s => {
+      const field = document.getElementById(`cfg_spec_${agentId}_${s.id}`);
+      if (field) {
+        if (s.type === 'boolean') {
+          specificSettings[s.id] = Boolean(field.checked);
+        } else if (s.type === 'number') {
+          specificSettings[s.id] = parseFloat(field.value) || 0;
+        } else {
+          specificSettings[s.id] = field.value;
+        }
+      }
+    });
+  }
+
   const payload = {
     id: agentId,
     name: name,
@@ -258,6 +343,7 @@ async function saveAgentCustomization(agentId) {
     model: model,
     system_prompt: prompt,
     is_default: isDefault,
+    settings: specificSettings,
   };
 
   try {
@@ -534,6 +620,284 @@ function showSettingsToast(msg, type = 'success') {
   }, 3500);
 }
 
+
+// --- Discover & Download Agents Catalog ---
+
+async function loadAgentCatalog() {
+  const notice = document.getElementById('settingsCatalogNotice');
+  if (notice) notice.innerHTML = '<span style="color: var(--accent-cyan);">Fetching available agents from catalog...</span>';
+
+  try {
+    const res = await fetch('/api/settings/agents/catalog');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.status === 'ok') {
+      fleetSettingsState.catalog = data.catalog || [];
+      if (notice) notice.innerHTML = '';
+      renderAgentCatalog();
+    }
+  } catch (err) {
+    console.error('Failed to load agent catalog:', err);
+    if (notice) {
+      notice.innerHTML = `<span style="color: #ef4444;">Failed to load catalog: ${escapeHtml(err.message)}</span>`;
+    }
+  }
+}
+
+async function refreshCatalogData() {
+  showSettingsToast('Checking GitHub for new agent packages...');
+  await loadAgentCatalog();
+}
+
+function filterCatalogAgents(query) {
+  fleetSettingsState.catalogQuery = (query || '').toLowerCase().trim();
+  renderAgentCatalog();
+}
+
+function setCatalogCategory(cat) {
+  fleetSettingsState.catalogCategory = cat;
+  renderAgentCatalog();
+}
+
+function renderAgentCatalog() {
+  const container = document.getElementById('settingsCatalogList');
+  const pillsContainer = document.getElementById('catalogCategoryPills');
+  if (!container) return;
+
+  const catalog = fleetSettingsState.catalog || [];
+  const query = fleetSettingsState.catalogQuery || '';
+  const currentCategory = fleetSettingsState.catalogCategory || 'all';
+
+  // Render category filter pills
+  if (pillsContainer) {
+    const categories = ['all', ...new Set(catalog.map(c => c.category).filter(Boolean))];
+    pillsContainer.innerHTML = categories.map(cat => {
+      const isSel = (cat === currentCategory);
+      return `
+        <button class="btn btn-sm ${isSel ? 'btn-primary' : 'btn-ghost'}" style="font-size: 11px; padding: 3px 8px;" onclick="setCatalogCategory('${cat}')">
+          ${cat === 'all' ? 'All Categories' : escapeHtml(cat)}
+        </button>
+      `;
+    }).join('');
+  }
+
+  const filtered = catalog.filter(item => {
+    const matchesCat = (currentCategory === 'all') || (item.category === currentCategory);
+    if (!matchesCat) return false;
+    if (!query) return true;
+    return (item.name || '').toLowerCase().includes(query) ||
+           (item.id || '').toLowerCase().includes(query) ||
+           (item.description || '').toLowerCase().includes(query) ||
+           (item.category || '').toLowerCase().includes(query);
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 40px 20px; color: var(--text-muted);">
+        <div style="font-size: 32px; margin-bottom: 8px;">🔍</div>
+        <div>No downloadable agents found matching "${escapeHtml(query)}"</div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = filtered.map(item => {
+    const isInstalled = Boolean(item.is_installed);
+    const perms = item.permissions || [];
+
+    return `
+      <div class="card" style="padding: 16px; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid var(--card-border); background: rgba(255,255,255,0.02); border-radius: 8px;">
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 26px;">${escapeHtml(item.icon || '📦')}</span>
+              <div>
+                <strong style="font-size: 14px; color: var(--text);">${escapeHtml(item.name)}</strong>
+                <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(item.category || 'General')} • v${escapeHtml(item.version || '1.0.0')}</div>
+              </div>
+            </div>
+            ${isInstalled ?
+              '<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 11px;">✓ Installed</span>' :
+              '<span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); font-size: 11px;">Available</span>'
+            }
+          </div>
+          <p style="font-size: 12px; color: var(--text-muted); margin: 6px 0 12px 0; line-height: 1.4;">
+            ${escapeHtml(item.description)}
+          </p>
+          <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 14px;">
+            ${perms.map(p => `<code style="font-size: 10px; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">${escapeHtml(p)}</code>`).join('')}
+          </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px;">
+          ${isInstalled ? `
+            <button class="btn btn-sm btn-ghost" onclick="switchSettingsModalTab('agents'); filterSettingsAgents('${item.id}');">
+              ⚙️ Configure in Agents
+            </button>
+          ` : `
+            <button class="btn btn-sm btn-primary" onclick="installCatalogAgent('${item.id}')">
+              📥 Download & Install
+            </button>
+          `}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function installCatalogAgent(agentId) {
+  try {
+    showSettingsToast(`Downloading agent '${agentId}' from catalog...`);
+    const res = await fetch('/api/settings/agents/catalog/install', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: agentId })
+    });
+    const data = await res.json();
+    if (!res.ok || data.status !== 'success') {
+      throw new Error(data.message || 'Installation failed');
+    }
+
+    showSettingsToast(`Agent '${data.name || agentId}' downloaded and activated!`);
+    await refreshSettingsData();
+    await loadAgentCatalog();
+
+    if (typeof initDynamicAgentTabs === 'function') {
+      await initDynamicAgentTabs();
+    }
+  } catch (err) {
+    console.error('Failed to install catalog agent:', err);
+    showSettingsToast('Failed to install agent: ' + err.message, 'error');
+  }
+}
+
+// --- GitHub Version & Updates Engine ---
+
+async function loadVersionStatus() {
+  const pill = document.getElementById('versionStatusPill');
+  const installedText = document.getElementById('installedVersionText');
+  const latestText = document.getElementById('latestVersionText');
+  const applyBtn = document.getElementById('btnApplyUpdate');
+  const notesBox = document.getElementById('updateReleaseNotesBox');
+  const releaseTitle = document.getElementById('updateReleaseTitle');
+  const notesContent = document.getElementById('updateReleaseNotesContent');
+
+  if (pill) pill.innerText = 'Checking GitHub...';
+
+  try {
+    const res = await fetch('/api/settings/version');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    fleetSettingsState.versionInfo = data;
+
+    if (installedText) installedText.innerText = `v${data.current_version}`;
+    if (latestText) latestText.innerText = `v${data.latest_version}`;
+
+    if (data.update_available) {
+      if (pill) {
+        pill.innerText = '🚀 Update Available';
+        pill.style.background = 'rgba(0, 242, 254, 0.2)';
+        pill.style.color = 'var(--accent-cyan)';
+      }
+      if (applyBtn) applyBtn.style.display = 'inline-block';
+      if (notesBox) notesBox.style.display = 'block';
+      if (releaseTitle) releaseTitle.innerText = data.release_name || `Personal Agentic Fleet v${data.latest_version}`;
+      if (notesContent) notesContent.innerText = data.release_notes || 'New release ready to download on GitHub.';
+
+      // Light up header update badge
+      updateHeaderBadge(true, data.latest_version);
+    } else {
+      if (pill) {
+        pill.innerText = '✓ Up to Date';
+        pill.style.background = 'rgba(16, 185, 129, 0.15)';
+        pill.style.color = '#10b981';
+      }
+      if (applyBtn) applyBtn.style.display = 'none';
+      if (notesBox) notesBox.style.display = 'none';
+      updateHeaderBadge(false);
+    }
+  } catch (err) {
+    console.error('Failed to load version status:', err);
+    if (pill) {
+      pill.innerText = 'Offline';
+      pill.style.background = 'rgba(255, 255, 255, 0.1)';
+      pill.style.color = 'var(--text-muted)';
+    }
+  }
+}
+
+async function checkGitHubUpdateManual() {
+  showSettingsToast('Checking GitHub for new releases...');
+  const pill = document.getElementById('versionStatusPill');
+  if (pill) pill.innerText = 'Checking GitHub...';
+
+  try {
+    const res = await fetch('/api/settings/version/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+    const data = await res.json();
+    fleetSettingsState.versionInfo = data;
+    await loadVersionStatus();
+
+    if (data.update_available) {
+      showSettingsToast(`New release v${data.latest_version} available from GitHub!`);
+    } else {
+      showSettingsToast(`Personal Agentic Fleet is up to date (v${data.current_version}).`);
+    }
+  } catch (err) {
+    showSettingsToast('Could not reach GitHub: ' + err.message, 'error');
+  }
+}
+
+async function applyGitHubUpdate() {
+  if (!confirm('Download and apply the latest update from GitHub now?')) return;
+
+  showSettingsToast('Applying update from GitHub...');
+  try {
+    const res = await fetch('/api/settings/version/upgrade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+    const data = await res.json();
+    if (data.status === 'success') {
+      alert(`Update Successful!
+
+${data.message}
+
+Please restart Fleet to apply all changes.`);
+      showSettingsToast('Update complete. Please restart server.');
+      await loadVersionStatus();
+    } else {
+      alert(`Update Notice: ${data.message}`);
+      showSettingsToast(data.message, 'error');
+    }
+  } catch (err) {
+    showSettingsToast('Failed to apply update: ' + err.message, 'error');
+  }
+}
+
+function updateHeaderBadge(available, version) {
+  const badge = document.getElementById('headerUpdateBadge');
+  const badgeText = document.getElementById('headerUpdateBadgeText');
+  if (badge) {
+    badge.style.display = available ? 'inline-flex' : 'none';
+    if (badgeText && version) {
+      badgeText.innerText = `Update v${version}`;
+    }
+  }
+}
+
+function openSettingsModalToUpdates() {
+  openSettingsModal();
+  switchSettingsModalTab('updates');
+}
+
+// Background version checker on page load
+setTimeout(() => {
+  fetch('/api/settings/version')
+    .then(r => r.json())
+    .then(d => {
+      if (d.update_available) {
+        updateHeaderBadge(true, d.latest_version);
+      }
+    })
+    .catch(() => {});
+}, 2000);
+
 // Export functions to window
 window.openSettingsModal = openSettingsModal;
 window.closeSettingsModal = closeSettingsModal;
@@ -551,3 +915,14 @@ window.testOllamaConnection = testOllamaConnection;
 window.triggerBackupSnapshotNow = triggerBackupSnapshotNow;
 window.showSettingsToast = showSettingsToast;
 
+
+window.loadAgentCatalog = loadAgentCatalog;
+window.refreshCatalogData = refreshCatalogData;
+window.filterCatalogAgents = filterCatalogAgents;
+window.setCatalogCategory = setCatalogCategory;
+window.renderAgentCatalog = renderAgentCatalog;
+window.installCatalogAgent = installCatalogAgent;
+window.loadVersionStatus = loadVersionStatus;
+window.checkGitHubUpdateManual = checkGitHubUpdateManual;
+window.applyGitHubUpdate = applyGitHubUpdate;
+window.openSettingsModalToUpdates = openSettingsModalToUpdates;

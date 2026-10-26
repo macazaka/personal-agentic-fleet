@@ -51,6 +51,39 @@ class PRReviewAgent(FleetAgent):
     def order(self) -> int:
         return 70
 
+    def get_agent_settings_schema(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "id": "review_rigor",
+                "label": "Code Review Strictness",
+                "type": "select",
+                "options": ["strict", "standard", "lenient"],
+                "default": "standard",
+                "description": "Heuristic strictness for PR diff inspections and lint checks"
+            },
+            {
+                "id": "auto_suggest_tests",
+                "label": "Require Unit Test Coverage",
+                "type": "boolean",
+                "default": True,
+                "description": "Flag pull requests that modify core code without accompanying tests"
+            },
+            {
+                "id": "check_security_invariants",
+                "label": "Enforce 12-Layer Security Invariants",
+                "type": "boolean",
+                "default": True,
+                "description": "Scan pull requests for hardcoded tokens, secret patterns, and SAST risks"
+            },
+            {
+                "id": "max_diff_lines",
+                "label": "Large Diff Warning Threshold (Lines)",
+                "type": "number",
+                "default": 1000,
+                "description": "Warn when a pull request diff exceeds this line count"
+            }
+        ]
+
     def register_routes(self, router) -> None:
         @router.get("/api/pr_review/status")
         def get_pr_review_status(handler: Any, parsed_url: Any):

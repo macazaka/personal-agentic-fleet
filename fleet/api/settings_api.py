@@ -67,6 +67,10 @@ def get_fleet_settings(handler: Any, parsed_url: urllib.parse.ParseResult):
 @router.post("/api/settings")
 def update_fleet_settings(handler: Any, body: Dict[str, Any]):
     """Updates global fleet settings and preferences in the database."""
+    if not isinstance(body, dict):
+        handler._send_json({"status": "error", "message": "Expected a JSON object of settings"}, status=400)
+        return
+
     settings_to_update = body.get("settings", body)
     if not isinstance(settings_to_update, dict):
         handler._send_json({"status": "error", "message": "Expected a JSON object of settings"}, status=400)
@@ -147,7 +151,7 @@ def customize_agent_settings(handler: Any, body: Dict[str, Any]):
 
     allowed = {
         "name", "icon", "order", "is_default", "enabled",
-        "provider", "model", "system_prompt", "prompt", "custom_panel_path"
+        "provider", "model", "system_prompt", "prompt", "custom_panel_path", "settings"
     }
     updates = {k: v for k, v in body.items() if k in allowed}
 
@@ -226,3 +230,96 @@ def create_backup_snapshot(handler: Any, body: Dict[str, Any]):
         "timestamp": datetime.now().isoformat(),
         "message": f"Backup snapshot created successfully: {dest_name}",
     })
+
+
+# --- Version & GitHub Update APIs ---
+
+@router.get("/api/settings/version")
+def get_fleet_version_status(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """Returns the current running version, latest GitHub release version, and update status."""
+    try:
+        from fleet.core.updater import check_github_for_updates
+        status = check_github_for_updates(timeout_sec=3.0)
+        handler._send_json(status)
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+
+@router.post("/api/settings/version/check")
+def check_fleet_version_update(handler: Any, body: Dict[str, Any]):
+    """Forces an immediate check against GitHub Releases for new updates."""
+    try:
+        from fleet.core.updater import check_github_for_updates
+        status = check_github_for_updates(timeout_sec=5.0)
+        handler._send_json(status)
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+
+@router.post("/api/settings/version/upgrade")
+def apply_fleet_update(handler: Any, body: Dict[str, Any]):
+    """Downloads/applies the latest release from GitHub (via git pull or zipball)."""
+    try:
+        from fleet.core.updater import download_and_apply_update
+        res = download_and_apply_update()
+        if hasattr(srv, "db") and srv.db:
+            srv.db.log_activity("FleetUpdater", "apply_update", f"Update applied: {res.get('message')}")
+        handler._send_json(res)
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+
+# --- Agent Catalog & Remote Download APIs ---
+
+@router.get("/api/settings/agents/catalog")
+def get_agent_catalog_list(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """Returns downloadable agents catalog with current installation status."""
+    try:
+        from fleet.core.agent_catalog import get_agent_catalog
+        installed_ids = set()
+        if hasattr(srv, "agent_registry") and srv.agent_registry:
+            manifests = srv.agent_registry.get_manifests(include_disabled=True)
+            installed_ids = {m["id"] for m in manifests}
+
+        catalog = get_agent_catalog(installed_agent_ids=installed_ids)
+        handler._send_json({
+            "status": "ok",
+            "catalog": catalog,
+            "total_available": len(catalog),
+            "total_installed": len([c for c in catalog if c["is_installed"]]),
+        })
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+
+@router.post("/api/settings/agents/catalog/install")
+def install_catalog_agent(handler: Any, body: Dict[str, Any]):
+    """Downloads and installs a new agent from the catalog into custom_agents."""
+    agent_id = str(body.get("id", "")).strip()
+    if not agent_id:
+        handler._send_json({"status": "error", "message": "Missing required field 'id'"}, status=400)
+        return
+
+    if not hasattr(srv, "agent_registry") or not srv.agent_registry:
+        handler._send_json({"status": "error", "message": "Agent registry unavailable"}, status=503)
+        return
+
+    from fleet.core.agent_catalog import install_agent_from_catalog
+    custom_dir = getattr(srv.agent_registry, "custom_agents_dir", None)
+    if not custom_dir:
+        from fleet.config import DATA_DIR
+        custom_dir = DATA_DIR / "user" / "custom_agents"
+
+    try:
+        res = install_agent_from_catalog(agent_id, custom_dir, agent_registry=srv.agent_registry)
+        if hasattr(srv, "db") and srv.db:
+            srv.db.log_activity("FleetSettings", "agent_install", f"Installed agent '{agent_id}' from catalog")
+
+        from fleet.tools.system_tools import send_notification
+        send_notification("⚡ New Agent Installed", f"Agent '{res.get('name', agent_id)}' was downloaded and activated.")
+
+        handler._send_json(res)
+    except ValueError as ve:
+        handler._send_json({"status": "error", "message": str(ve)}, status=404)
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)

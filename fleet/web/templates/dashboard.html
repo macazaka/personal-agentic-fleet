@@ -44,6 +44,10 @@
         <button class="btn btn-primary" onclick="triggerNotification()">
           🔔 Send Alert
         </button>
+        <div id="headerUpdateBadge" class="status-badge" style="display: none; cursor: pointer; border-color: rgba(0, 242, 254, 0.4); background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan);" onclick="openSettingsModalToUpdates()" title="New version available on GitHub">
+          <span>🚀</span>
+          <span id="headerUpdateBadgeText">Update Available</span>
+        </div>
         <button class="btn btn-icon settings-trigger-btn" id="btnFleetSettings" onclick="openSettingsModal()" title="Fleet Settings & Agent Customizations" aria-label="Settings" style="background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; cursor: pointer; font-size: 16px; color: var(--text-primary); transition: all 0.2s ease;">
           ⚙️
         </button>
@@ -1624,7 +1628,9 @@
 
       <!-- Navigation Tabs -->
       <div class="settings-nav-tabs">
-        <button class="settings-nav-tab active" id="settingsNavBtn_agents" onclick="switchSettingsModalTab('agents')">🤖 Agents & Extensions</button>
+        <button class="settings-nav-tab active" id="settingsNavBtn_agents" onclick="switchSettingsModalTab('agents')">🤖 Agents & Activation</button>
+        <button class="settings-nav-tab" id="settingsNavBtn_catalog" onclick="switchSettingsModalTab('catalog')">🛒 Discover & Download</button>
+        <button class="settings-nav-tab" id="settingsNavBtn_updates" onclick="switchSettingsModalTab('updates')">🚀 GitHub Updates</button>
         <button class="settings-nav-tab" id="settingsNavBtn_general" onclick="switchSettingsModalTab('general')">🌐 General & Automations</button>
         <button class="settings-nav-tab" id="settingsNavBtn_ai" onclick="switchSettingsModalTab('ai')">🧠 AI & Providers</button>
         <button class="settings-nav-tab" id="settingsNavBtn_backups" onclick="switchSettingsModalTab('backups')">💾 Backups & Maintenance</button>
@@ -1669,6 +1675,56 @@
           <!-- Dynamic List of Agent Cards -->
           <div id="settingsAgentsList">
             <!-- Rendered by settings.js -->
+          </div>
+        </div>
+
+        <!-- View: Discover & Download New Agents -->
+        <div id="settingsView_catalog" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 10px; flex-wrap: wrap;">
+            <div style="display: flex; gap: 8px; flex: 1; min-width: 260px;">
+              <input type="text" id="settingsCatalogSearch" class="form-control" placeholder="Search catalog agents by name, category, or capability..." style="font-size: 12.5px; padding: 6px 12px;" oninput="filterCatalogAgents(this.value)">
+              <button class="btn btn-sm" onclick="refreshCatalogData()" title="Check GitHub for newly released community agents">🔄 Refresh Catalog</button>
+            </div>
+            <div style="display: flex; gap: 6px;" id="catalogCategoryPills">
+              <!-- Filter pills rendered by settings.js -->
+            </div>
+          </div>
+          <div id="settingsCatalogNotice" style="margin-bottom: 12px; font-size: 12px;"></div>
+          <div id="settingsCatalogList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px;">
+            <!-- Rendered by settings.js -->
+          </div>
+        </div>
+
+        <!-- View: GitHub Version & Updates -->
+        <div id="settingsView_updates" style="display: none;">
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div style="padding: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--card-border); border-radius: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <strong style="font-size: 15px; color: var(--text);">Fleet Workstation Release</strong>
+                    <span id="versionStatusPill" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">Checking...</span>
+                  </div>
+                  <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+                    Installed Version: <code id="installedVersionText">Loading...</code> • GitHub Latest: <code id="latestVersionText">Loading...</code>
+                  </div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn btn-sm btn-outline" onclick="checkGitHubUpdateManual()">🔄 Check GitHub Now</button>
+                  <button class="btn btn-sm btn-primary" id="btnApplyUpdate" onclick="applyGitHubUpdate()" style="display: none;">⬇️ Download & Upgrade</button>
+                </div>
+              </div>
+              <div id="updateReleaseNotesBox" style="margin-top: 14px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 6px; font-size: 12px; color: var(--text-muted); display: none;">
+                <div style="font-weight: 600; color: var(--text); margin-bottom: 4px;" id="updateReleaseTitle"></div>
+                <div id="updateReleaseNotesContent" style="white-space: pre-wrap; max-height: 160px; overflow-y: auto;"></div>
+              </div>
+            </div>
+            <div style="padding: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--card-border); border-radius: 8px;">
+              <strong style="font-size: 13.5px; color: var(--text);">Automated GitHub Notification Invariant</strong>
+              <p style="font-size: 12px; color: var(--text-muted); margin: 6px 0 0 0;">
+                Personal Agentic Fleet automatically checks GitHub for newer releases and community agent packages in the background on workstation startup, dispatching native desktop toast notifications as soon as an update becomes available.
+              </p>
+            </div>
           </div>
         </div>
 

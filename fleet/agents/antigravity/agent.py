@@ -29,6 +29,31 @@ class AntigravityAgent(FleetAgent):
     def is_default(self) -> bool:
         return False
 
+    def get_agent_settings_schema(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "id": "mirror_sync_interval_sec",
+                "label": "Instruction Mirror Sync Interval (Seconds)",
+                "type": "number",
+                "default": 10,
+                "description": "Polling frequency to synchronize prompts between IDE and Fleet"
+            },
+            {
+                "id": "fastmcp_auto_expose",
+                "label": "Auto-Register Tools with FastMCP",
+                "type": "boolean",
+                "default": True,
+                "description": "Automatically expose newly installed Fleet tools to IDE MCP clients"
+            },
+            {
+                "id": "sync_open_editor_context",
+                "label": "Synchronize Active Editor Context",
+                "type": "boolean",
+                "default": True,
+                "description": "Keep currently open editor files reflected in fleet memory"
+            }
+        ]
+
     def register_routes(self, router) -> None:
         router.include_router(antigravity_api.router)
 

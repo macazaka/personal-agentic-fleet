@@ -31,6 +31,53 @@ class HealthAgent(FleetAgent):
     def is_default(self) -> bool:
         return True
 
+    def get_agent_settings_schema(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "id": "daily_water_target_liters",
+                "label": "Daily Hydration Target (Liters)",
+                "type": "number",
+                "default": 3.5,
+                "description": "Daily water consumption budget tracked in the health dashboard"
+            },
+            {
+                "id": "daily_calorie_target",
+                "label": "Daily Calorie Budget (kcal)",
+                "type": "number",
+                "default": 1800,
+                "description": "Metabolic reversal energy intake ceiling"
+            },
+            {
+                "id": "morning_smoothie_time",
+                "label": "Morning Smoothie Toast Alert Time",
+                "type": "text",
+                "default": "07:30",
+                "description": "Scheduled time for early green/white smoothie reminder"
+            },
+            {
+                "id": "evening_dinner_cutoff",
+                "label": "Evening Dinner Cutoff Time",
+                "type": "text",
+                "default": "20:30",
+                "description": "Target completion time for evening meal (4th morsel rule)"
+            },
+            {
+                "id": "strength_split_active",
+                "label": "Active Strength Training Regimen",
+                "type": "select",
+                "options": ["traditional_6day", "push_pull_legs", "upper_lower"],
+                "default": "traditional_6day",
+                "description": "Akhada traditional split (Mudgal / Samtola / Bhim Gadha)"
+            },
+            {
+                "id": "enable_meal_reminders",
+                "label": "Meal & Supplement Desktop Alerts",
+                "type": "boolean",
+                "default": True,
+                "description": "Dispatch native desktop toast reminders for quad plates and meds"
+            }
+        ]
+
     def register_routes(self, router) -> None:
         # Re-export / wire the modular health routes
         router.include_router(health_api.router)

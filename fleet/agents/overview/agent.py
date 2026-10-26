@@ -29,6 +29,38 @@ class OverviewAgent(FleetAgent):
     def is_default(self) -> bool:
         return False
 
+    def get_agent_settings_schema(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "id": "show_performance_gauge",
+                "label": "Display PC Health & RAM Gauge",
+                "type": "boolean",
+                "default": True,
+                "description": "Show the real-time memory and system performance meter on the overview panel"
+            },
+            {
+                "id": "show_quick_actions",
+                "label": "Display Quick Action Shortcuts",
+                "type": "boolean",
+                "default": True,
+                "description": "Show one-click PC cleanup and morning briefing trigger buttons"
+            },
+            {
+                "id": "daily_briefing_time",
+                "label": "Morning Executive Briefing Time",
+                "type": "text",
+                "default": "08:30",
+                "description": "Time of day to compile and dispatch morning intelligence summary"
+            },
+            {
+                "id": "evening_review_time",
+                "label": "Evening Routine Review Time",
+                "type": "text",
+                "default": "20:00",
+                "description": "Time of day for evening compliance checklist alert"
+            }
+        ]
+
     def register_routes(self, router) -> None:
         router.include_router(system_api.router)
         router.include_router(tasks_api.router)
