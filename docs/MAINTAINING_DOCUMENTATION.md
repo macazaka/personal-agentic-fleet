@@ -28,7 +28,8 @@ The local preflight gate ([`fleet/tools/preflight_gate.py`](../fleet/tools/prefl
 - `docs/API_REFERENCE.md`
 - `docs/DEVELOPER_GUIDE.md`
 - docs/CUSTOMIZING_AGENTS.md
-- docs/ROBUSTNESS_BACKLOG.md
+- `docs/ROBUSTNESS_BACKLOG.md`
+- `docs/ROBUSTNESS_GUIDE.md`
 - `docs/DEPLOYMENT_AND_SCENARIOS.md`
 - `.github/copilot-instructions.md`
 - `CLAUDE.md`

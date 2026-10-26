@@ -58,6 +58,11 @@ flowchart TD
 
 ---
 
+> [!NOTE]
+> For operational configuration, architecture specifications, and diagnostic APIs, refer to the companion **[Robustness Architecture & Operations Guide](ROBUSTNESS_GUIDE.md)**.
+
+---
+
 ## 📋 Prioritized Engineering Backlog
 
 | ID | Pillar | Item Title | Priority | Target | Complexity | Primary Risk Mitigated |

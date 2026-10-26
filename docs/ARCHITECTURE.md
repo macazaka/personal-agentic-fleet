@@ -211,3 +211,12 @@ Personal Agentic Fleet provides native OS parity across modern desktop operating
 - **Secure Delete**: `PRAGMA secure_delete = ON` guarantees deleted task or memory rows are physically zeroed out from disk immediately.
 - **At-Rest Hardware Encryption**: High-security settings, credentials, and notes are encrypted via Windows Data Protection API (`crypt32.dll`) and stored in `fleet/data/user/master.dpapi`.
 - **Database Path Routing**: Enforces strict test-mode isolation; all unit test suites redirect SQLite access to `fleet_test_memory.db` so production data in `fleet_memory.db` is never modified during tests.
+
+
+---
+
+## 9. Native Robustness Architecture & Engineering Backlog
+
+For deep technical specifications, design patterns, and operational runbooks covering the 6 pillars of framework robustness (Thread Supervision, Signal & WAL Traps, Connection Pooling, Online Backups, Resource Quotas, Socket Egress Gating, Circuit Breakers, Rate Limiting, and Power Awareness):
+- **[Robustness Architecture & Operations Guide](ROBUSTNESS_GUIDE.md)**: Architecture, operational procedures, diagnostic REST APIs, and troubleshooting matrix.
+- **[Native Robustness Engineering Backlog](ROBUSTNESS_BACKLOG.md)**: Prioritized engineering backlog, failure models, and verification tracking.

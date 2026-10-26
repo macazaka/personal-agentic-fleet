@@ -73,6 +73,7 @@ For deep technical details on OS capability matrices and runtime requirements, r
 - **🌿 Health & Wellness Command Center (Default Tab)**: Track metabolic reversal goals, hydration, daily prescriptions, a **6-Day Traditional Strength Split** (**Monday: Mudgal**, **Wednesday: Samtola**, **Friday: Bhim Gadha**, **Tue/Thu/Sat: Mandatory World's Best Warm-up & FFD Protocols**, **Sunday: Rest**), and stream local Exercise & Diet videos via HTTP 206 byte-range streaming with live HTML5 video thumbnails.
 - **🚀 Silent PC Optimizer**: In-process Win32 PSAPI memory monitoring (`0` external `tasklist.exe` windows), dev-cache purging, temp cleanup, and DNS flushing.
 - **🛡️ 12-Layer Automated Security & Privacy Scanner**: Runs automatically every **60 minutes** in the background daemon, on every **Git `pre-commit` & `pre-push`**, and daily via **GitHub Actions CI**, backed by native **Windows DPAPI (`crypt32.dll`) + HMAC-SHA256** at-rest encryption.
+- **🏗️ 6-Pillar Native Robustness Architecture**: Erlang-style thread supervisor, Win32/POSIX signal traps, SQLite connection pooling with WAL checkpointing, automated point-in-time snapshots, OS resource quotas (Windows Job Objects & POSIX rlimits), socket egress gating, circuit breakers, rate limiting, and sleep/wake power state awareness. See **[docs/ROBUSTNESS_GUIDE.md](docs/ROBUSTNESS_GUIDE.md)** and **[docs/ROBUSTNESS_BACKLOG.md](docs/ROBUSTNESS_BACKLOG.md)**.
 
 ---
 
