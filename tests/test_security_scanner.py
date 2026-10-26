@@ -351,3 +351,42 @@ def test_agent_package_isolation_verifier():
 
 
 
+
+
+def test_macos_keychain_vault_integration():
+    from unittest.mock import MagicMock, patch
+    from fleet.config import get_secure_secret
+    from fleet.core.crypto_vault import set_secure_secret, get_or_create_master_key
+
+    # 1. Native macOS Keychain fallback in set_secure_secret
+    with patch("sys.platform", "darwin"), \
+         patch.dict("sys.modules", {"keyring": None}), \
+         patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+        res = set_secure_secret("TEST_MAC_KEY", "secret123")
+        assert res is True
+        call_args = mock_run.call_args[0][0]
+        assert "/usr/bin/security" in call_args[0]
+        assert "add-generic-password" in call_args[1]
+        assert "-a" in call_args
+        assert "TEST_MAC_KEY" in call_args
+
+    # 2. Native macOS Keychain fallback in get_secure_secret
+    with patch("sys.platform", "darwin"), \
+         patch.dict("sys.modules", {"keyring": None}), \
+         patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stdout="found_secret_val\n")
+        val = get_secure_secret("TEST_MAC_KEY")
+        assert val == "found_secret_val"
+        call_args = mock_run.call_args[0][0]
+        assert "/usr/bin/security" in call_args[0]
+        assert "find-generic-password" in call_args[1]
+
+    # 3. Master key file permissions on POSIX
+    with patch("os.name", "posix"), \
+         patch.object(Path, "is_file", return_value=False), \
+         patch("fleet.core.crypto_vault.get_secure_secret", return_value=""), \
+         patch.object(Path, "chmod") as mock_chmod:
+        key = get_or_create_master_key()
+        assert len(key) == 32
+        mock_chmod.assert_called_with(0o600)

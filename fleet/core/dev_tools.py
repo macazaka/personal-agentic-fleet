@@ -38,9 +38,14 @@ def detect_developer_tools() -> Dict[str, Dict[str, Any]]:
     # 1. Google Antigravity CLI
     agy_path = shutil.which("agy") or shutil.which("agy.exe")
     if not agy_path:
-        candidate = user_home / ".gemini" / "bin" / ("agy.exe" if os.name == "nt" else "agy")
-        if candidate.is_file():
-            agy_path = str(candidate)
+        for c in [
+            user_home / ".gemini" / "bin" / ("agy.exe" if os.name == "nt" else "agy"),
+            Path("/opt/homebrew/bin/agy"),
+            Path("/usr/local/bin/agy"),
+        ]:
+            if c.is_file():
+                agy_path = str(c)
+                break
 
     # 2. Google Gemini CLI / Google Cloud SDK
     gemini_path = (
@@ -50,19 +55,34 @@ def detect_developer_tools() -> Dict[str, Dict[str, Any]]:
         or shutil.which("gcloud.cmd")
     )
     if not gemini_path:
-        npm_gemini = user_home / "AppData" / "Roaming" / "npm" / ("gemini.cmd" if os.name == "nt" else "gemini")
-        if npm_gemini.is_file():
-            gemini_path = str(npm_gemini)
+        for c in [
+            user_home / "AppData" / "Roaming" / "npm" / ("gemini.cmd" if os.name == "nt" else "gemini"),
+            Path("/opt/homebrew/bin/gemini"),
+            Path("/usr/local/bin/gemini"),
+        ]:
+            if c.is_file():
+                gemini_path = str(c)
+                break
 
     # 3. Anthropic Claude Code CLI (@anthropic-ai/claude-code)
     claude_path = shutil.which("claude") or shutil.which("claude.cmd")
     if not claude_path:
-        npm_global = user_home / "AppData" / "Roaming" / "npm" / ("claude.cmd" if os.name == "nt" else "claude")
-        if npm_global.is_file():
-            claude_path = str(npm_global)
+        for c in [
+            user_home / "AppData" / "Roaming" / "npm" / ("claude.cmd" if os.name == "nt" else "claude"),
+            Path("/opt/homebrew/bin/claude"),
+            Path("/usr/local/bin/claude"),
+        ]:
+            if c.is_file():
+                claude_path = str(c)
+                break
 
     # 4. GitHub CLI & Copilot extension
     gh_path = shutil.which("gh") or shutil.which("gh.exe")
+    if not gh_path:
+        for c in [Path("/opt/homebrew/bin/gh"), Path("/usr/local/bin/gh")]:
+            if c.is_file():
+                gh_path = str(c)
+                break
     has_copilot_ext = False
     if gh_path and os.environ.get("FLEET_TEST_MODE") != "1":
         try:
@@ -73,27 +93,53 @@ def detect_developer_tools() -> Dict[str, Dict[str, Any]]:
 
     # 5. Amazon Q Developer CLI / AWS CLI
     aws_q_path = shutil.which("q") or shutil.which("aws") or shutil.which("aws.exe")
+    if not aws_q_path:
+        for c in [
+            Path("/opt/homebrew/bin/q"),
+            Path("/opt/homebrew/bin/aws"),
+            Path("/usr/local/bin/q"),
+            Path("/usr/local/bin/aws"),
+        ]:
+            if c.is_file():
+                aws_q_path = str(c)
+                break
 
     # 6. VS Code
     code_path = shutil.which("code") or shutil.which("code.cmd")
     if not code_path:
-        candidate_code = user_home / "AppData" / "Local" / "Programs" / "Microsoft VS Code" / "bin" / ("code.cmd" if os.name == "nt" else "code")
-        if candidate_code.is_file():
-            code_path = str(candidate_code)
+        for c in [
+            user_home / "AppData" / "Local" / "Programs" / "Microsoft VS Code" / "bin" / ("code.cmd" if os.name == "nt" else "code"),
+            Path("/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"),
+            Path("/opt/homebrew/bin/code"),
+            Path("/usr/local/bin/code"),
+        ]:
+            if c.is_file():
+                code_path = str(c)
+                break
 
     # 7. Cursor AI Editor
     cursor_path = shutil.which("cursor") or shutil.which("cursor.cmd")
     if not cursor_path:
-        candidate_cursor = user_home / "AppData" / "Local" / "Programs" / "cursor" / "resources" / "app" / "bin" / ("cursor.cmd" if os.name == "nt" else "cursor")
-        if candidate_cursor.is_file():
-            cursor_path = str(candidate_cursor)
+        for c in [
+            user_home / "AppData" / "Local" / "Programs" / "cursor" / "resources" / "app" / "bin" / ("cursor.cmd" if os.name == "nt" else "cursor"),
+            Path("/Applications/Cursor.app/Contents/Resources/app/bin/cursor"),
+        ]:
+            if c.is_file():
+                cursor_path = str(c)
+                break
 
     # 8. Ollama Local Engine
     ollama_path = shutil.which("ollama") or shutil.which("ollama.exe")
     if not ollama_path:
-        candidate_ollama = user_home / "AppData" / "Local" / "Programs" / "Ollama" / ("ollama.exe" if os.name == "nt" else "ollama")
-        if candidate_ollama.is_file():
-            ollama_path = str(candidate_ollama)
+        for c in [
+            user_home / "AppData" / "Local" / "Programs" / "Ollama" / ("ollama.exe" if os.name == "nt" else "ollama"),
+            Path("/usr/local/bin/ollama"),
+            Path("/opt/homebrew/bin/ollama"),
+            Path("/Applications/Ollama.app/Contents/Resources/ollama"),
+        ]:
+            if c.is_file():
+                ollama_path = str(c)
+                break
 
     return {
         "antigravity": {

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.0] - 2026-10-26
+
+### Added
+- **Full Native macOS Compatibility & Cross-Platform Hardware Parity**:
+  - **Native AppleScript Notification Center Integration**:
+    - Implemented `send_macos_notification()` in `fleet/tools/system_tools.py` using AppleScript (`osascript`) with quotes and backslash escaping.
+    - Unified `send_windows_notification()` and `send_notification()` as cross-platform routers directing notifications to macOS Notification Center on Darwin, `notify-send` on Linux, and WinRT Toast Notifications on Windows NT.
+  - **macOS Memory & Hardware Telemetry**:
+    - Implemented `_get_memory_status_darwin()` in `fleet/core/optimizer.py` utilizing `sysctl -n hw.memsize`, `sysctl -n vm.pagesize`, and `vm_stat` free/inactive/purgeable page metrics.
+    - Implemented `_get_memory_status_linux()` reading `/proc/meminfo`.
+    - Rewrote POSIX process inspection to use standard `ps -A -o comm,rss` with in-memory Python sorting, resolving GNU `--sort` incompatibilities on macOS BSD `ps`.
+  - **Apple Keychain Services & Hardware-Backed Security**:
+    - Integrated native macOS Keychain CLI (`/usr/bin/security add-generic-password` and `find-generic-password`) into `fleet/core/crypto_vault.py` and `fleet/config.py`, providing hardware-backed Secure Enclave credential protection with zero pip dependencies.
+    - Hardened master key file permissions to POSIX `chmod 0600` on non-NT systems.
+  - **macOS System Optimizer Subsystems**:
+    - Added Directory Services DNS resolver cache flushing (`dscacheutil -flushcache` and `killall -HUP mDNSResponder`).
+    - Added macOS RAM optimization sweep via native `purge` command.
+    - Added macOS LaunchAgents startup inspection (`~/Library/LaunchAgents` and `/Library/LaunchAgents`) and one-click macOS System Settings launcher (`x-apple.systempreferences:com.apple.LoginItems-Settings.extension`).
+  - **Apple Silicon & Homebrew CLI Auto-Discovery**:
+    - Added path resolution in `fleet/core/dev_tools.py` for `/opt/homebrew/bin` (Apple Silicon M-series), `/usr/local/bin` (Intel Mac), and `/Applications/` bundles for `agy`, `gh`, `claude`, `gemini`, `aws`, `ollama`, `code`, and `cursor`.
+  - **Cross-Platform Continuous Integration Matrix**:
+    - Added `macos-latest` to `.github/workflows/ci.yml` matrix alongside `ubuntu-latest` and `windows-latest` across Python 3.10, 3.11, and 3.12.
+
+---
+
 ## [2.0.0] - 2026-10-24
 
 ### Added

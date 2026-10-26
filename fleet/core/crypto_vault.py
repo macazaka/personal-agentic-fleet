@@ -17,6 +17,7 @@ import hmac
 import os
 from pathlib import Path
 import secrets
+import subprocess
 import sys
 from typing import Optional
 
@@ -27,14 +28,29 @@ USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def set_secure_secret(key_name: str, secret_value: str) -> bool:
-    """Stores a secret in Windows Credential Manager (DPAPI keyring) if available, and os.environ."""
+    """Stores a secret in OS Credential Vault (Windows Credential Manager / macOS Keychain) and os.environ."""
     os.environ[key_name] = secret_value
     try:
         import keyring
         keyring.set_password("fleet_os", key_name, secret_value)
         return True
     except Exception:
-        return False
+        pass
+
+    # Native macOS Keychain fallback via /usr/bin/security
+    if sys.platform == "darwin":
+        try:
+            res = subprocess.run(
+                ["/usr/bin/security", "add-generic-password", "-s", "fleet_os", "-a", key_name, "-w", secret_value, "-U"],
+                capture_output=True,
+                timeout=3,
+                check=False,
+            )
+            return res.returncode == 0
+        except Exception:
+            pass
+
+    return False
 
 ENCRYPTION_PREFIX = "ENC:v1:"
 DPAPI_PREFIX = "ENC:dpapi:"
@@ -140,6 +156,8 @@ def get_or_create_master_key() -> bytes:
     try:
         dpapi_blob = _dpapi_encrypt_bytes(new_key)
         MASTER_KEY_FILE.write_bytes(dpapi_blob if dpapi_blob else new_key)
+        if os.name != "nt":
+            MASTER_KEY_FILE.chmod(0o600)
     except Exception:
         pass
     return new_key

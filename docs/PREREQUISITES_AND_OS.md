@@ -12,7 +12,7 @@ This document details the exact **Operating System Support Matrix**, **Designed 
 | **Windows 10 (64-bit, v1903+)** | Tier 1 | 🟢 **Primary Target (Designed For)** | 100% feature parity with Windows 11: in-process PSAPI memory enumeration, DPAPI crypto vault, WinRT toast alerts, silent windowless background execution (`CREATE_NO_WINDOW`), and local user ACL isolation. |
 | **Ubuntu Linux (20.04, 22.04, 24.04)** | Tier 2 | 🟢 **CI-Verified Cross-Platform** | Validated continuously across Python 3.10, 3.11, and 3.12 in GitHub Actions; standard POSIX `chmod 0700` user vault hardening; automated fallback for Windows-specific registry/audio calls. |
 | **Debian / Fedora / Arch / RHEL** | Tier 2 | 🟢 **Supported Cross-Platform** | Same as Ubuntu Linux; standard POSIX microkernel execution, SQLite WAL mode, zero-token RAG, and Web Dashboard support. |
-| **macOS (12+ Monterey, Ventura, Sonoma, Sequoia)** | Tier 2 | 🟡 **Core Engine Supported** | Microkernel, SQLite, 12-layer security scanner, zero-token RAG, and web dashboard run 100%; POSIX `chmod 0700` vault isolation; fallback notification and memory heuristics. |
+| **macOS (12+ Monterey, Ventura, Sonoma, Sequoia on Apple Silicon & Intel)** | Tier 1 | 🟢 **Primary Target (Fully Supported)** | Hardware-backed Apple **Keychain Services** via `/usr/bin/security`; native AppleScript Notification Center banners (`osascript`); native `sysctl` (`hw.memsize`) & `vm_stat` memory diagnostics; native Directory Services DNS cache flush (`dscacheutil`); RAM cache sweep (`purge`); LaunchAgents auto-start management; and Homebrew (`/opt/homebrew` & `/usr/local`) CLI discovery. |
 | **Windows 7 / 8 / 8.1 (All Editions)** | — | 🔴 **NOT Supported (Do Not Deploy)** | **Incompatible.** Lacks modern TLS 1.3 cryptographic cipher suites, lacks WinRT toast notification manager, lacks modern PowerShell 7+ capabilities, and cannot run official Python 3.10+ releases. |
 | **32-bit (x86) Operating Systems** | — | 🔴 **NOT Supported (Do Not Deploy)** | **Incompatible.** Fleet requires 64-bit address spaces for SQLite memory mapping, high-precision timer counters, and 64-bit Python runtimes. |
 | **Mobile OS (Android, iOS, iPadOS)** | — | 🔴 **NOT Supported (Do Not Deploy)** | **Incompatible.** Fleet is an autonomous personal desktop daemon and microkernel, not a mobile application. Access the dashboard from mobile devices via local LAN browser at `http://<desktop-ip>:7890`. |
@@ -28,8 +28,18 @@ Personal Agentic Fleet was engineered from day one to deliver a seamless, unobtr
 - **In-Process Win32 Memory Telemetry**: Rather than constantly spawning `tasklist.exe` (which spikes CPU and flickers windows), Fleet queries process WorkingSet sizes in-process via `CreateToolhelp32Snapshot`, `OpenProcess`, and `GetProcessMemoryInfo` (`psapi.dll`).
 - **Native Toast Notifications**: Actionable notifications for morning briefings, token limit warnings, and security findings are delivered via Windows Action Center Toast Notifications.
 
-### Linux & macOS (Cross-Platform Parity)
-- While Windows offers hardware-bound DPAPI and Win32 PSAPI optimizations, all core business logic, SQLite WAL persistence, 12-layer security audits, zero-token intent routing, BM25 knowledge RAG, FastMCP server, and Web Dashboard are 100% portable Python Standard Library code verified on Linux and macOS.
+### macOS (Apple Silicon M1/M2/M3/M4 & Intel 64-bit) (Primary Designed OS)
+Personal Agentic Fleet delivers first-class native operating system integration on modern macOS workstations:
+- **Native AppleScript Notification Center Alerts**: System reminders, morning briefings, and token limit warnings are dispatched directly to the macOS Notification Center via `osascript -e 'display notification ...'`.
+- **Apple Keychain Services & Hardware-Backed Security**: Secret API keys and private tokens are protected transparently via macOS Keychain Services (`/usr/bin/security add-generic-password` and `find-generic-password`), backed by the Mac's hardware Secure Enclave and user login keychain.
+- **Native Memory & Kernel Diagnostics**: Real-time memory pressure and usage are collected using native macOS `sysctl` (`hw.memsize`, `vm.pagesize`) and `vm_stat` page counters, avoiding heavy external tools.
+- **Process Memory Diagnostics**: Processes and RSS are monitored using POSIX BSD `ps -A -o comm,rss` with in-memory Python sorting.
+- **Native Cache Optimization & DNS Resolver Flush**: DNS resolution latency and stale directory records are purged using macOS `dscacheutil -flushcache` and `killall -HUP mDNSResponder`; memory cache sweeps invoke the native macOS `purge` command.
+- **macOS Startup & Login Items**: Background daemons and auto-start applications are audited directly from `~/Library/LaunchAgents` and `/Library/LaunchAgents`, with one-click access to macOS System Settings (`x-apple.systempreferences:com.apple.LoginItems-Settings.extension`).
+- **Apple Silicon & Homebrew CLI Auto-Discovery**: Automatic path resolution detects Developer CLIs across `/opt/homebrew/bin` (Apple Silicon M-series) and `/usr/local/bin` (Intel) for `agy`, `gh`, `claude`, `gemini`, `aws`, `ollama`, and `/Applications/Visual Studio Code.app`.
+
+### Linux (Cross-Platform Parity)
+- While Windows and macOS offer hardware-bound DPAPI/Keychain and kernel-specific optimizations, all core business logic, SQLite WAL persistence, 12-layer security audits, zero-token intent routing, BM25 knowledge RAG, FastMCP server, and Web Dashboard are 100% portable Python Standard Library code verified continuously on Ubuntu Linux in CI.
 
 ---
 

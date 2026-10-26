@@ -392,3 +392,91 @@ def test_optimizer_edge_cases_and_error_handling():
         res_ram = optimize_ram()
         assert res_ram["status"] == "success"
 
+
+
+def test_macos_optimizer_capabilities():
+    from fleet.core.optimizer import (
+        _get_memory_status_darwin,
+        _get_memory_status_linux,
+        flush_dns_cache,
+        get_startup_apps,
+        open_startup_settings,
+        optimize_ram,
+    )
+
+    # 1. macOS memory status calculation
+    def mock_sysctl_vmstat(cmd, *args, **kwargs):
+        if cmd == ["sysctl", "-n", "hw.memsize"]:
+            return MagicMock(returncode=0, stdout="17179869184\n")  # 16 GB
+        elif cmd == ["sysctl", "-n", "vm.pagesize"]:
+            return MagicMock(returncode=0, stdout="4096\n")
+        elif cmd == ["vm_stat"]:
+            vm_out = """Mach Virtual Memory Statistics: (page size of 4096 bytes)
+Pages free:                               1048576.
+Pages active:                             1500000.
+Pages inactive:                            524288.
+Pages purgeable:                           262144.
+"""
+            return MagicMock(returncode=0, stdout=vm_out)
+        return MagicMock(returncode=1, stdout="")
+
+    with patch("subprocess.run", side_effect=mock_sysctl_vmstat):
+        mem_mac = _get_memory_status_darwin()
+        assert mem_mac is not None
+        assert mem_mac["total_gb"] == 16.0
+        assert mem_mac["avail_gb"] == 7.0
+        assert mem_mac["percent_used"] == 56
+        assert mem_mac["status"] == "Optimal"
+
+    # macOS memory status error fallback
+    with patch("subprocess.run", side_effect=Exception("sysctl not found")):
+        assert _get_memory_status_darwin() is None
+
+    # 2. Linux memory status
+    with patch.object(Path, "is_file", return_value=True), \
+         patch.object(Path, "read_text", return_value="MemTotal:       16384000 kB\nMemAvailable:    8192000 kB\n"):
+        mem_linux = _get_memory_status_linux()
+        assert mem_linux is not None
+        assert mem_linux["total_gb"] == 15.62
+        assert mem_linux["avail_gb"] == 7.81
+
+    # 3. macOS DNS flush
+    with patch("sys.platform", "darwin"), patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stdout="")
+        res_dns = flush_dns_cache()
+        assert res_dns["status"] == "success"
+        assert "macOS Directory Service and DNS cache" in res_dns["message"]
+        # Verified dscacheutil was invoked
+        called_cmds = [call[0][0] for call in mock_run.call_args_list]
+        assert ["dscacheutil", "-flushcache"] in called_cmds
+
+    # 4. macOS RAM optimization (purge command)
+    with patch("sys.platform", "darwin"), patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+        res_opt = optimize_ram()
+        assert res_opt["status"] == "success"
+        called_cmds = [call[0][0] for call in mock_run.call_args_list]
+        assert ["purge"] in called_cmds
+
+    # 5. macOS Startup Settings
+    with patch("sys.platform", "darwin"), patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+        res_open = open_startup_settings()
+        assert res_open["status"] == "success"
+        assert "macOS Login Items" in res_open["message"]
+        assert "x-apple.systempreferences:com.apple.LoginItems-Settings.extension" in mock_run.call_args[0][0][1]
+
+    # 6. macOS Startup Apps LaunchAgents scan
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        mac_agent_dir = Path(tmp_dir) / "Library" / "LaunchAgents"
+        mac_agent_dir.mkdir(parents=True)
+        (mac_agent_dir / "com.example.teams.plist").write_text("<plist></plist>", encoding="utf-8")
+        (mac_agent_dir / "com.custom.updater.plist").write_text("<plist></plist>", encoding="utf-8")
+
+        with patch("sys.platform", "darwin"), patch.object(Path, "home", return_value=Path(tmp_dir)):
+            apps = get_startup_apps()
+            assert len(apps) == 2
+            app_names = [a["name"] for a in apps]
+            assert "teams" in app_names
+            assert "updater" in app_names
+            assert apps[0]["scope"] == "User"

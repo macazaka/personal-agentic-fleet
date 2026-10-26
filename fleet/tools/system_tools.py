@@ -1,11 +1,12 @@
 """
-System and OS integration tools for Windows.
+System and OS integration tools for Windows, macOS, and Linux.
 Includes native notifications, disk health, directory scanning, and safe file organization.
 """
 
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from fleet.config import ENABLE_WINDOWS_NOTIFICATIONS
@@ -14,7 +15,7 @@ from fleet.config import ENABLE_WINDOWS_NOTIFICATIONS
 FILE_CATEGORIES = {
     "Documents": [".pdf", ".docx", ".doc", ".xlsx", ".pptx", ".txt", ".csv", ".epub", ".md"],
     "Images": [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp", ".ico"],
-    "Installers": [".exe", ".msi", ".iso"],
+    "Installers": [".exe", ".msi", ".iso", ".dmg", ".pkg"],
     "Archives": [".zip", ".rar", ".7z", ".tar", ".gz"],
     "Audio": [".mp3", ".wav", ".flac", ".m4a", ".aac"],
     "Video": [".mp4", ".mkv", ".mov", ".avi", ".wmv"],
@@ -22,10 +23,43 @@ FILE_CATEGORIES = {
 }
 
 
-def send_windows_notification(title: str, message: str) -> bool:
-    """Send a native Windows Toast notification without external pip packages."""
+def send_macos_notification(title: str, message: str) -> bool:
+    """Send a native macOS Notification Center alert via AppleScript (osascript)."""
     if not ENABLE_WINDOWS_NOTIFICATIONS:
         return False
+    try:
+        safe_title = title.replace("\\", "\\\\").replace('"', '\\"')
+        safe_msg = message.replace("\\", "\\\\").replace('"', '\\"')
+        script = f'display notification "{safe_msg}" with title "{safe_title}"'
+        res = subprocess.run(
+            ["osascript", "-e", script],
+            capture_output=True,
+            timeout=5,
+            check=False,
+        )
+        return res.returncode == 0
+    except Exception:
+        return False
+
+
+def send_windows_notification(title: str, message: str) -> bool:
+    """
+    Send a native OS notification.
+    Routes to macOS Notification Center on Darwin, notify-send on Linux, or Windows Toast on NT.
+    """
+    if not ENABLE_WINDOWS_NOTIFICATIONS:
+        return False
+
+    if sys.platform == "darwin":
+        return send_macos_notification(title, message)
+
+    if os.name != "nt":
+        try:
+            res = subprocess.run(["notify-send", title, message], capture_output=True, timeout=5, check=False)
+            return res.returncode == 0
+        except Exception:
+            return False
+
     try:
         # PowerShell script to show a native Windows toast notification
         # Escaping backticks, subexpression $, and quotes safely against command injection
@@ -188,3 +222,7 @@ def organize_directory(dir_path: str, dry_run: bool = True) -> Dict[str, Any]:
         "actions": moves[:30],  # sample up to 30 actions
         "status": "Preview only (run with dry_run=False to apply)" if dry_run else "Successfully organized"
     }
+
+
+# Universal cross-platform alias
+send_notification = send_windows_notification

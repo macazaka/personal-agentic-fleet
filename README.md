@@ -6,6 +6,7 @@
 [![Zero-Token Engine](https://img.shields.io/badge/Architecture-Zero--Token%20Microkernel-orange.svg)](docs/ARCHITECTURE.md)
 [![Privacy: Local-First](https://img.shields.io/badge/Privacy-100%25%20Local--First%20DPAPI-teal.svg)](docs/SECURITY.md)
 [![Hyperscalers](https://img.shields.io/badge/Hyperscalers-Google%20%7C%20Azure%20%7C%20AWS%20%7C%20Claude%20%7C%20Ollama-purple.svg)](docs/HYPERSCALERS_AND_DEV_TOOLS.md)
+[![macOS: Universal](https://img.shields.io/badge/macOS-Apple%20Silicon%20%7C%20Intel-black.svg?logo=apple)](docs/PREREQUISITES_AND_OS.md)
 [![Dev Tools](https://img.shields.io/badge/Dev%20Tools-Copilot%20%7C%20Claude%20Code%20%7C%20Gemini%20%7C%20Amazon%20Q-blueviolet.svg)](docs/HYPERSCALERS_AND_DEV_TOOLS.md)
 
 > **An open-source, local-first agentic operating system with a plug-and-play microkernel architecture.**
@@ -22,7 +23,7 @@
 | 🏛️ **[System Architecture (`docs/ARCHITECTURE.md`)](docs/ARCHITECTURE.md)** | Microkernel subsystems, deterministic event bus, Tier 0 engine, SQLite WAL persistence, and data flow. |
 | 🛡️ **[Security Architecture (`docs/SECURITY.md`)](docs/SECURITY.md)** | 12-layer defense-in-depth model, Windows DPAPI at-rest encryption, threat model, SAST, and automated audits. |
 | 🌐 **[Hyperscalers & Dev Tools (`docs/HYPERSCALERS_AND_DEV_TOOLS.md`)](docs/HYPERSCALERS_AND_DEV_TOOLS.md)** | Multi-provider LLM gateway, stdlib AWS SigV4, GitHub Copilot, Claude Code, Gemini CLI, and Amazon Q. |
-| 💻 **[OS Prerequisites & Platform Matrix (`docs/PREREQUISITES_AND_OS.md`)](docs/PREREQUISITES_AND_OS.md)** | Detailed OS matrix: Windows 10/11 primary, Linux CI, macOS core, unsupported OSes & hardware requirements. |
+| 💻 **[OS Prerequisites & Platform Matrix (`docs/PREREQUISITES_AND_OS.md`)](docs/PREREQUISITES_AND_OS.md)** | Detailed OS matrix: Windows 10/11 & macOS primary, Linux CI, unsupported OSes & hardware requirements. |
 | 🔌 **[API & FastMCP Reference (`docs/API_REFERENCE.md`)](docs/API_REFERENCE.md)** | REST endpoints, FastMCP tool schemas, CLI commands, and Dashboard slash commands. |
 | 🛠️ **[Developer & Contribution Guide (`docs/DEVELOPER_GUIDE.md`)](docs/DEVELOPER_GUIDE.md)** | Architecture rules, 3-step agent creation, adding hyperscalers, testing practices, and preflight gate. |
 | 🎨 **[Agent Customization & Package Isolation (`docs/CUSTOMIZING_AGENTS.md`)](docs/CUSTOMIZING_AGENTS.md)** | Customizing any agent (name, icon, order, default tab, provider, model, prompt, panel) and building isolated private agents. |
@@ -37,7 +38,7 @@
 | :--- | :--- | :--- |
 | **Windows 11 (64-bit)** | 🟢 **Officially Supported (Primary)** | Native Win32 `Kernel32`/`PSAPI` (zero popup windows), at-rest **DPAPI `crypt32.dll`** hardware-bound encryption, WinRT Toast Notifications, NTFS User ACLs (`icacls`), and dual PowerShell 7 / 5.1 support. |
 | **Windows 10 (64-bit, v1903+)** | 🟢 **Officially Supported (Primary)** | Full parity with Windows 11: in-process PSAPI memory enumeration, DPAPI crypto vault, WinRT toast alerts, and silent windowless background execution (`CREATE_NO_WINDOW`). |
-| **macOS (12+ Monterey / Ventura / Sonoma / Sequoia)** | 🟡 **Supported (Core Engine)** | Core microkernel, SQLite, 12-layer security scanner, zero-token RAG, and web dashboard run 100%; POSIX `chmod 0700` user vault hardening; fallback notification & memory heuristics. |
+| **macOS (12+ Monterey / Ventura / Sonoma / Sequoia on Apple Silicon & Intel)** | 🟢 **Officially Supported (Primary)** | Native AppleScript Notification Center alerts (`osascript`), hardware-backed **Apple Keychain Services** (`/usr/bin/security`), native `sysctl` (`hw.memsize`) & `vm_stat` memory telemetry, Directory Services DNS flush (`dscacheutil`), RAM cache purge (`purge`), LaunchAgents auto-start auditing, and Homebrew (`/opt/homebrew` & `/usr/local`) CLI discovery. |
 | **Linux (Ubuntu 20.04+, Debian 11+, Fedora 38+, Arch)** | 🟡 **Supported (Core Engine & CI)** | Continuous multi-version CI validation across Ubuntu Linux; standard POSIX permissions and process monitoring. |
 | **Windows 7 / 8 / 8.1 / 32-bit (x86)** | 🔴 **Not Supported** | Missing modern WinRT notification subsystems, TLS 1.3 cryptographic cipher suites, and modern Python 3.10+ runtimes. Do not deploy on legacy Windows. |
 | **Mobile / Android / iOS** | 🔴 **Not Supported** | Designed as a local workstation control center, not a mobile app. Access remotely via desktop browser over local LAN/VPN. |

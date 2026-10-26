@@ -9,6 +9,7 @@ import gc
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -16,7 +17,7 @@ from fleet.config import BASE_DIR
 from fleet.tools.system_tools import get_disk_usage
 
 
-def get_memory_status() -> Dict[str, Any]:
+def _get_memory_status_win32() -> Optional[Dict[str, Any]]:
     """Retrieve detailed physical RAM statistics on Windows via GlobalMemoryStatusEx."""
     try:
         import ctypes
@@ -49,6 +50,93 @@ def get_memory_status() -> Dict[str, Any]:
             }
     except Exception:
         pass
+    return None
+
+
+def _get_memory_status_darwin() -> Optional[Dict[str, Any]]:
+    """Retrieve physical RAM statistics on macOS via sysctl (hw.memsize) and vm_stat."""
+    try:
+        res_mem = subprocess.run(["sysctl", "-n", "hw.memsize"], capture_output=True, text=True, timeout=3)
+        if res_mem.returncode != 0 or not res_mem.stdout.strip():
+            return None
+        total_bytes = int(res_mem.stdout.strip())
+        total_gb = round(total_bytes / (1024 ** 3), 2)
+
+        res_psize = subprocess.run(["sysctl", "-n", "vm.pagesize"], capture_output=True, text=True, timeout=3)
+        page_size = int(res_psize.stdout.strip()) if res_psize.returncode == 0 and res_psize.stdout.strip().isdigit() else 4096
+
+        res_vm = subprocess.run(["vm_stat"], capture_output=True, text=True, timeout=3)
+        free_pages = 0
+        inactive_pages = 0
+        purgeable_pages = 0
+        if res_vm.returncode == 0:
+            for line in res_vm.stdout.splitlines():
+                if "Pages free:" in line:
+                    free_pages = int(line.split(":")[1].strip().rstrip("."))
+                elif "Pages inactive:" in line:
+                    inactive_pages = int(line.split(":")[1].strip().rstrip("."))
+                elif "Pages purgeable:" in line:
+                    purgeable_pages = int(line.split(":")[1].strip().rstrip("."))
+
+        avail_bytes = (free_pages + inactive_pages + purgeable_pages) * page_size
+        avail_gb = round(avail_bytes / (1024 ** 3), 2)
+        avail_gb = min(avail_gb, total_gb)
+        used_gb = round(max(0.0, total_gb - avail_gb), 2)
+        load = int(round((used_gb / total_gb) * 100)) if total_gb > 0 else 50
+        status = "Heavy" if load >= 80 else ("Moderate" if load >= 60 else "Optimal")
+        return {
+            "total_gb": total_gb,
+            "avail_gb": avail_gb,
+            "used_gb": used_gb,
+            "percent_used": load,
+            "status": status
+        }
+    except Exception:
+        return None
+
+
+def _get_memory_status_linux() -> Optional[Dict[str, Any]]:
+    """Retrieve physical RAM statistics on Linux via /proc/meminfo."""
+    try:
+        meminfo = Path("/proc/meminfo")
+        if not meminfo.is_file():
+            return None
+        total_kb = 0
+        avail_kb = 0
+        for line in meminfo.read_text(encoding="utf-8").splitlines():
+            if line.startswith("MemTotal:"):
+                total_kb = int(line.split()[1])
+            elif line.startswith("MemAvailable:"):
+                avail_kb = int(line.split()[1])
+        if total_kb > 0:
+            total_gb = round(total_kb / (1024 * 1024), 2)
+            avail_gb = round(avail_kb / (1024 * 1024), 2)
+            used_gb = round(max(0.0, total_gb - avail_gb), 2)
+            load = int(round((used_gb / total_gb) * 100))
+            status = "Heavy" if load >= 80 else ("Moderate" if load >= 60 else "Optimal")
+            return {
+                "total_gb": total_gb,
+                "avail_gb": avail_gb,
+                "used_gb": used_gb,
+                "percent_used": load,
+                "status": status
+            }
+    except Exception:
+        return None
+
+
+def get_memory_status() -> Dict[str, Any]:
+    """Retrieve detailed physical RAM statistics across Windows, macOS, and Linux."""
+    res = None
+    if sys.platform == "win32":
+        res = _get_memory_status_win32()
+    elif sys.platform == "darwin":
+        res = _get_memory_status_darwin()
+    elif sys.platform.startswith("linux"):
+        res = _get_memory_status_linux()
+
+    if res:
+        return res
 
     # Fallback estimation
     return {
@@ -194,21 +282,23 @@ def get_top_processes(limit: int = 6) -> List[Dict[str, Any]]:
         pass
 
     if not proc_map and os.name != "nt":
+        # Cross-platform POSIX process memory inspection (macOS BSD ps & Linux GNU ps)
         try:
             res_ps = subprocess.run(
-                ["ps", "-eo", "comm,rss", "--sort=-rss"],
+                ["ps", "-A", "-o", "comm,rss"],
                 capture_output=True,
                 text=True,
                 timeout=5,
             )
             if res_ps.returncode == 0 and res_ps.stdout:
-                for line in res_ps.stdout.strip().splitlines()[1:limit+1]:
-                    parts = line.split()
-                    if len(parts) >= 2:
-                        p_name = parts[0]
+                for line in res_ps.stdout.strip().splitlines()[1:]:
+                    parts = line.strip().rsplit(None, 1)
+                    if len(parts) == 2:
+                        p_name = os.path.basename(parts[0])
                         try:
                             mem_kb = float(parts[1])
-                            proc_map[p_name] = round(mem_kb / 1024.0, 1)
+                            mem_mb = round(mem_kb / 1024.0, 1)
+                            proc_map[p_name] = proc_map.get(p_name, 0.0) + mem_mb
                         except ValueError:
                             continue
         except Exception:
@@ -291,8 +381,28 @@ def get_dev_cache_info(root_dir: Optional[str] = None, target_path: Optional[str
 
 
 def get_startup_apps() -> List[Dict[str, Any]]:
-    """Scan Windows registry Run keys for startup programs."""
+    """Scan Windows registry Run keys or macOS LaunchAgents for startup programs."""
     apps = []
+    if sys.platform == "darwin":
+        user_agents = Path.home() / "Library" / "LaunchAgents"
+        sys_agents = Path("/Library/LaunchAgents")
+        for agents_dir, scope in [(user_agents, "User"), (sys_agents, "System")]:
+            if agents_dir.is_dir():
+                try:
+                    for plist in agents_dir.glob("*.plist"):
+                        name = plist.stem
+                        clean_name = name.split(".")[-1] if "." in name else name
+                        apps.append({
+                            "name": clean_name,
+                            "raw_name": name,
+                            "command": str(plist),
+                            "scope": scope,
+                            "impact": "High" if any(k in clean_name.lower() for k in ["teams", "discord", "onedrive", "dropbox", "update"]) else "Medium"
+                        })
+                except Exception:
+                    pass
+        return apps
+
     try:
         import winreg
         hives = [
@@ -373,15 +483,28 @@ def clean_temp_files() -> Dict[str, Any]:
 
 
 def flush_dns_cache() -> Dict[str, Any]:
-    """Flush the Windows DNS resolver cache to optimize network resolution."""
+    """Flush DNS resolver cache across Windows (ipconfig), macOS (dscacheutil), and Linux (resolvectl)."""
     try:
-        res = subprocess.run(["ipconfig", "/flushdns"], capture_output=True, text=True, timeout=5, **_hidden_subprocess_kwargs())
-        out = (res.stdout or res.stderr or "").strip()
-        msg = "Successfully flushed the DNS Resolver Cache." if "Successfully" in out or res.returncode == 0 else out
-        return {
-            "status": "success",
-            "message": msg
-        }
+        if sys.platform == "darwin":
+            res = subprocess.run(["dscacheutil", "-flushcache"], capture_output=True, text=True, timeout=5)
+            try:
+                subprocess.run(["killall", "-HUP", "mDNSResponder"], capture_output=True, text=True, timeout=3)
+            except Exception:
+                pass
+            msg = "Successfully flushed macOS Directory Service and DNS cache." if res.returncode == 0 else (res.stderr or res.stdout or "Flushed cache.")
+            return {"status": "success", "message": msg}
+        elif os.name == "nt":
+            res = subprocess.run(["ipconfig", "/flushdns"], capture_output=True, text=True, timeout=5, **_hidden_subprocess_kwargs())
+            out = (res.stdout or res.stderr or "").strip()
+            msg = "Successfully flushed the DNS Resolver Cache." if "Successfully" in out or res.returncode == 0 else out
+            return {
+                "status": "success",
+                "message": msg
+            }
+        else:
+            res = subprocess.run(["resolvectl", "flush-caches"], capture_output=True, text=True, timeout=5)
+            msg = "Successfully flushed Linux DNS resolver cache." if res.returncode == 0 else "Cache flush attempted."
+            return {"status": "success", "message": msg}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -439,15 +562,21 @@ def purge_dev_caches(target_path: Optional[str] = None) -> Dict[str, Any]:
 
 
 def optimize_ram() -> Dict[str, Any]:
-    """Performs RAM optimization sweep and garbage collection."""
+    """Performs RAM optimization sweep and garbage collection across Windows, macOS, and Linux."""
     mem_before = get_memory_status()
     gc.collect()
-    try:
-        import ctypes
-        handle = ctypes.windll.kernel32.GetCurrentProcess()
-        ctypes.windll.psapi.EmptyWorkingSet(handle)
-    except Exception:
-        pass
+    if sys.platform == "darwin":
+        try:
+            subprocess.run(["purge"], capture_output=True, timeout=5)
+        except Exception:
+            pass
+    elif sys.platform == "win32":
+        try:
+            import ctypes
+            handle = ctypes.windll.kernel32.GetCurrentProcess()
+            ctypes.windll.psapi.EmptyWorkingSet(handle)
+        except Exception:
+            pass
     mem_after = get_memory_status()
     freed_mb = round(max(0.0, (mem_after["avail_gb"] - mem_before["avail_gb"]) * 1024), 1)
     return {
@@ -460,10 +589,16 @@ def optimize_ram() -> Dict[str, Any]:
 
 
 def open_startup_settings() -> Dict[str, Any]:
-    """Launch native Windows Startup Apps configuration panel."""
+    """Launch native OS Startup Apps configuration panel (Windows ms-settings, macOS Login Items)."""
     try:
-        subprocess.run(["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", "Start-Process ms-settings:startupapps"], capture_output=True, timeout=5, **_hidden_subprocess_kwargs())
-        return {"status": "success", "message": "Opened Windows Startup Apps Settings."}
+        if sys.platform == "darwin":
+            subprocess.run(["open", "x-apple.systempreferences:com.apple.LoginItems-Settings.extension"], capture_output=True, timeout=5)
+            return {"status": "success", "message": "Opened macOS Login Items Settings."}
+        elif os.name == "nt":
+            subprocess.run(["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", "Start-Process ms-settings:startupapps"], capture_output=True, timeout=5, **_hidden_subprocess_kwargs())
+            return {"status": "success", "message": "Opened Windows Startup Apps Settings."}
+        else:
+            return {"status": "success", "message": "Startup settings panel not available on Linux headless."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -474,7 +609,7 @@ def get_pc_performance_diagnostics() -> Dict[str, Any]:
     Tier 0: Pure deterministic calculations (0 Tokens / $0.00).
     """
     mem = get_memory_status()
-    disk = get_disk_usage("C:")
+    disk = get_disk_usage(None)
     temp = get_temp_bloat_info()
     dev_cache = get_dev_cache_info()
     startup_apps = get_startup_apps()

@@ -4,6 +4,7 @@ Supports Google Gemini, OpenAI, Local Ollama, and an Offline Smart Heuristic mod
 """
 
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -46,7 +47,7 @@ def get_secure_secret(key_name: str, fallback_env: str = "") -> str:
     2. Windows User & Process Environment Variables
     3. fleet.yaml / fleet.json configuration
     """
-    # 1. Windows Credential Manager (DPAPI)
+    # 1. Windows Credential Manager / macOS Keychain / Linux SecretService (via keyring)
     try:
         import keyring
         val = keyring.get_password("fleet_os", key_name)
@@ -54,6 +55,21 @@ def get_secure_secret(key_name: str, fallback_env: str = "") -> str:
             return val
     except Exception:
         pass
+
+    # 1b. Native macOS Keychain CLI fallback via /usr/bin/security
+    if sys.platform == "darwin":
+        try:
+            res = subprocess.run(
+                ["/usr/bin/security", "find-generic-password", "-s", "fleet_os", "-a", key_name, "-w"],
+                capture_output=True,
+                text=True,
+                timeout=3,
+                check=False,
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                return res.stdout.strip()
+        except Exception:
+            pass
 
     # 2. Environment Variables
     env_name = fallback_env or key_name

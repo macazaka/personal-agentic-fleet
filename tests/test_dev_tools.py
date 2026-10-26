@@ -133,3 +133,16 @@ def test_sync_github_copilot_and_all_instructions():
         assert res_all["status"] == "synced"
         assert (repo_root / "CLAUDE.md").is_file()
         assert (repo_root / "GEMINI.md").is_file()
+
+
+def test_detect_developer_tools_macos_homebrew(monkeypatch):
+    def mock_is_file(self):
+        p_str = getattr(self, 'as_posix', lambda: str(self))()
+        return 'homebrew/bin/gh' in p_str or 'Visual Studio Code.app' in p_str
+
+    monkeypatch.setattr(Path, 'is_file', mock_is_file)
+    with patch('shutil.which', return_value=None):
+        tools = detect_developer_tools()
+        assert tools['github_copilot']['installed'] is True
+        assert 'gh' in tools['github_copilot']['path']
+        assert tools['vscode']['installed'] is True

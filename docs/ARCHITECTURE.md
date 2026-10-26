@@ -20,7 +20,7 @@ flowchart TD
     subgraph SecurityPerimeter["Localhost Security Perimeter"]
         AuthGuard["Localhost Session Auth & CSRF Guard\n(fleet/core/session_auth.py)"]
         SecHeaders["Security Headers & DNS Rebinding Blocker\n(CSP + CORS Lock + Host Whitelist)"]
-        DPAPIVault["Windows DPAPI Hardware-Bound Vault\n(fleet/core/crypto_vault.py)"]
+        DPAPIVault["Hardware-Bound OS Vault (Windows DPAPI & macOS Keychain)\n(fleet/core/crypto_vault.py)"]
     end
 
     subgraph Microkernel["Microkernel & Core Services"]
@@ -183,7 +183,23 @@ The `FleetDaemon` executes silently in the background on a periodic loop:
 
 ---
 
-## 7. Data & Storage Architecture
+## 7. Platform Abstraction Layer (Windows, macOS, Linux)
+
+Personal Agentic Fleet provides native OS parity across modern desktop operating systems through its zero-dependency platform abstraction layer:
+
+| Subsystem | Windows 10 / 11 Native | macOS (Apple Silicon & Intel) Native | Linux (Ubuntu, Debian, Fedora) |
+| :--- | :--- | :--- | :--- |
+| **Notifications** | WinRT Toast Notification Manager via PowerShell | AppleScript Notification Center (`osascript`) | Desktop notification daemon (`notify-send`) |
+| **Secret Vault** | Windows DPAPI (`crypt32.dll`) | Apple Keychain Services CLI (`/usr/bin/security`) | Standard POSIX user vault (`chmod 0700`) |
+| **RAM & Diagnostics** | In-process Win32 `PSAPI` & `GlobalMemoryStatusEx` | Native `sysctl` (`hw.memsize`) & `vm_stat` | `/proc/meminfo` & POSIX `ps -A -o comm,rss` |
+| **DNS Resolver Flush** | `ipconfig /flushdns` | `dscacheutil -flushcache` + `killall -HUP mDNSResponder` | `resolvectl flush-caches` |
+| **Memory Purge** | In-process `EmptyWorkingSet` | Native macOS `purge` command | Python `gc.collect()` |
+| **Startup Services** | Registry Run keys (`HKCU` & `HKLM`) | `~/Library/LaunchAgents` & `/Library/LaunchAgents` | systemd user services |
+| **CLI Tool Paths** | `%LOCALAPPDATA%\Programs`, `%APPDATA%\npm` | `/opt/homebrew/bin`, `/usr/local/bin`, `/Applications` | `/usr/bin`, `/usr/local/bin`, `~/.local/bin` |
+
+---
+
+## 8. Data & Storage Architecture
 
 - **SQLite Engine**: Embedded database with Write-Ahead Logging (`PRAGMA journal_mode = WAL`) and synchronous checkpointing.
 - **Secure Delete**: `PRAGMA secure_delete = ON` guarantees deleted task or memory rows are physically zeroed out from disk immediately.
