@@ -90,3 +90,4 @@ def test_schema_migrations(tmp_path):
     cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='offline_spool'")
     assert cur.fetchone() is not None
     conn.close()
+

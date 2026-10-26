@@ -109,3 +109,4 @@ def get_pooled_connection(db_path: Path, timeout: float = 10.0) -> sqlite3.Conne
 def close_all_pooled_connections() -> None:
     """Closes all pooled connections on shutdown."""
     _GLOBAL_POOL.close_all()
+

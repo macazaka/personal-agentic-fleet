@@ -52,3 +52,4 @@ def test_socket_egress_enforcement():
             pytest.fail("Egress guard incorrectly blocked agent with network:outbound permission!")
         finally:
             s.close()
+

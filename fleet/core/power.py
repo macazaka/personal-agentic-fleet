@@ -126,3 +126,4 @@ class PowerLifecycleManager:
 
 # Global singleton instance
 power_manager = PowerLifecycleManager()
+

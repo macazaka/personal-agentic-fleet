@@ -100,3 +100,4 @@ def apply_migrations(db_path: Path) -> Dict[str, Any]:
             "error": str(exc),
             "applied": applied_list,
         }
+

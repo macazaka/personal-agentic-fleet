@@ -197,3 +197,4 @@ _DEFAULT_CLIENT = ResilientHttpClient()
 def get_resilient_http_client() -> ResilientHttpClient:
     """Returns singleton resilient HTTP client."""
     return _DEFAULT_CLIENT
+

@@ -212,3 +212,4 @@ def enforce_agent_egress(agent_id: str, permissions: Iterable[str]):
         yield
     finally:
         socket.socket.connect = orig_connect
+

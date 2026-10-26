@@ -29,3 +29,4 @@ def test_power_lifecycle_resume_handling():
         assert manager.is_in_cooldown is False
         assert len(wake_events) == 1
         assert wake_events[0] == 15.5
+
