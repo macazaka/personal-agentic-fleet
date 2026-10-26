@@ -332,3 +332,13 @@ def test_fleet_doctor_and_vault_acl_hardening():
     assert doc_report["security_score"] == 100
     assert doc_report["tokens_used"] == 0
 
+
+def test_preflight_documentation_integrity_verifier():
+    from fleet.tools.preflight_gate import verify_documentation_integrity
+    res = verify_documentation_integrity()
+    assert res["status"] == "PASS"
+    assert res["verified_files"] == 10
+    assert res["total_required"] == 10
+    assert len(res["findings"]) == 0
+
+
