@@ -12,14 +12,20 @@ import sqlite3
 import sys
 import threading
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from fleet.config import DATA_DIR, DB_PATH
 
 logger = logging.getLogger("fleet.lifecycle")
 
+PID_FILE = DATA_DIR / "fleet.pid"
+SHUTDOWN_EVENT = threading.Event()
 
-def _safe_log(msg: str, level: str = "info"):
+_SHUTDOWN_CALLBACKS: List[Tuple] = []  # (priority, name, callable)
+_LOCK = threading.Lock()
+_SHUTDOWN_TRIGGERED = False
+
+def _safe_log(msg: str, level: str = "info") -> None:
     try:
         import logging as _l
         for h in list(_l.root.handlers) + list(logger.handlers):
@@ -29,14 +35,6 @@ def _safe_log(msg: str, level: str = "info"):
         getattr(logger, level)(msg)
     except Exception:
         pass
-
-
-PID_FILE = DATA_DIR / "fleet.pid"
-SHUTDOWN_EVENT = threading.Event()
-
-_SHUTDOWN_CALLBACKS: List[Tuple] = []  # (priority, name, callable)
-_LOCK = threading.Lock()
-_SHUTDOWN_TRIGGERED = False
 
 
 def register_shutdown_callback(name: str, fn: Callable[[], None], priority: int = 50) -> None:
@@ -80,14 +78,16 @@ def checkpoint_sqlite_wal(db_path: Path = DB_PATH) -> bool:
 
 def execute_clean_shutdown(exit_code: int = 0) -> None:
     """Coordinates the 3-second structured clean shutdown sequence."""
-    logging.raiseExceptions = False
     global _SHUTDOWN_TRIGGERED
     with _LOCK:
         if _SHUTDOWN_TRIGGERED:
             return
         _SHUTDOWN_TRIGGERED = True
 
-    _safe_log("Initiating Fleet clean shutdown protocol...")
+    try:
+        _safe_log("Initiating Fleet clean shutdown protocol...")
+    except Exception:
+        pass
     SHUTDOWN_EVENT.set()
 
     # 1. Execute registered shutdown callbacks
@@ -113,7 +113,10 @@ def execute_clean_shutdown(exit_code: int = 0) -> None:
     # 4. Remove PID lock
     remove_pid_file()
 
-    _safe_log("Fleet shutdown complete.")
+    try:
+        _safe_log("Fleet shutdown complete.")
+    except Exception:
+        pass
 
 
 # Signal Handlers
