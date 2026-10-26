@@ -34,13 +34,9 @@ def test_get_memory_status_normal():
 
 
 def test_get_memory_status_fallback():
-    import ctypes
-    if hasattr(ctypes, "windll"):
-        with patch("ctypes.windll.kernel32.GlobalMemoryStatusEx", side_effect=Exception("ctypes failed")):
-            mem = get_memory_status()
-            assert mem["total_gb"] == 16.0
-            assert mem["percent_used"] == 50
-    else:
+    with patch("fleet.core.optimizer._get_memory_status_win32", return_value=None), \
+         patch("fleet.core.optimizer._get_memory_status_darwin", return_value=None), \
+         patch("fleet.core.optimizer._get_memory_status_linux", return_value=None):
         mem = get_memory_status()
         assert mem["total_gb"] == 16.0
         assert mem["percent_used"] == 50
@@ -356,11 +352,12 @@ def test_optimizer_edge_cases_and_error_handling():
             assert res_err["dir_count"] == 0
 
     # 4. EnumValue error in get_startup_apps
-    with patch("winreg.OpenKey"):
-        with patch("winreg.QueryInfoKey", return_value=(0, 1, 0)):
-            with patch("winreg.EnumValue", side_effect=OSError("Registry read error")):
-                apps = get_startup_apps()
-                assert apps == []
+    with patch("sys.platform", "win32"):
+        with patch("winreg.OpenKey"):
+            with patch("winreg.QueryInfoKey", return_value=(0, 1, 0)):
+                with patch("winreg.EnumValue", side_effect=OSError("Registry read error")):
+                    apps = get_startup_apps()
+                    assert apps == []
 
     # 5. rmdir error in clean_temp_files
     with tempfile.TemporaryDirectory() as tmp_dir:

@@ -589,16 +589,17 @@ def optimize_ram() -> Dict[str, Any]:
 
 
 def open_startup_settings() -> Dict[str, Any]:
-    """Launch native OS Startup Apps configuration panel (Windows ms-settings, macOS Login Items)."""
+    """Launch native OS Startup Apps configuration panel (Windows ms-settings, macOS Login Items, Linux gnome-session-properties)."""
     try:
         if sys.platform == "darwin":
             subprocess.run(["open", "x-apple.systempreferences:com.apple.LoginItems-Settings.extension"], capture_output=True, timeout=5)
-            return {"status": "success", "message": "Opened macOS Login Items Settings."}
+            return {"status": "success", "message": "Opened macOS Login Items & Startup Apps Settings."}
         elif os.name == "nt":
             subprocess.run(["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", "Start-Process ms-settings:startupapps"], capture_output=True, timeout=5, **_hidden_subprocess_kwargs())
             return {"status": "success", "message": "Opened Windows Startup Apps Settings."}
         else:
-            return {"status": "success", "message": "Startup settings panel not available on Linux headless."}
+            subprocess.run(["gnome-session-properties"], capture_output=True, timeout=5)
+            return {"status": "success", "message": "Opened Linux Startup Apps Settings."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
