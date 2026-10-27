@@ -29,6 +29,15 @@ repo_root = Path(__file__).resolve().parent.parent.parent
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
+print("[Fleet Auto-Fixer] Running zero-intervention CodeQL & VS Code auto-remediation (pre-commit)...")
+try:
+    from fleet.tools.auto_fixer import run_auto_fixer
+    af_res = run_auto_fixer(repo_root=repo_root, stage_changes=True, run_pyright_cli=False)
+    if af_res.get("fixes_applied_count", 0) > 0:
+        print(f"=== Fleet Auto-Fixer Applied {{af_res['fixes_applied_count']}} Fix(es) & Staged Automatically ===")
+except Exception:
+    pass
+
 print("[Fleet Security Gate] Running 12-layer Security & Privacy Audit (pre-commit)...")
 from fleet.tools.security_scanner import run_security_scan
 
@@ -42,34 +51,41 @@ if report.get("total_findings", 0) > 0:
     print("==================================================================")
     sys.exit(1)
 
-# Proactive Static Typing Verification Gate
+# Proactive Static Typing Verification & Auto-Remediation Gate
 print("[Fleet Type Gate] Running Pyright Type Diagnostics (pre-commit)...")
 try:
     import shutil
     import subprocess
-    if os.name == "nt":
-        npx_cmd = shutil.which("npx.cmd") or shutil.which("npx") or "npx.cmd"
+    npx_cmd = (
+        shutil.which("npx.cmd") or shutil.which("npx") or "npx.cmd"
+        if os.name == "nt"
+        else shutil.which("npx") or "npx"
+    )
+    hidden_flags = {{"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}} if os.name == "nt" else {{}}
+    pyright_res = subprocess.run(
+        [npx_cmd, "pyright", "fleet", "tests", "conftest.py", "pong.py"],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        check=False,
+        **hidden_flags,
+    )
+    if pyright_res.returncode != 0:
+        print("[Fleet Type Gate] Diagnostics detected; running automatic VS Code/Pyright auto-fixer...")
+        from fleet.tools.auto_fixer import run_auto_fixer
+        run_auto_fixer(repo_root=repo_root, stage_changes=True, run_pyright_cli=True)
         pyright_res = subprocess.run(
             [npx_cmd, "pyright", "fleet", "tests", "conftest.py", "pong.py"],
             cwd=str(repo_root),
             capture_output=True,
             text=True,
             check=False,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
-        )
-    else:
-        npx_cmd = shutil.which("npx") or "npx"
-        pyright_res = subprocess.run(
-            [npx_cmd, "pyright", "fleet", "tests", "conftest.py", "pong.py"],
-            cwd=str(repo_root),
-            capture_output=True,
-            text=True,
-            check=False,
+            **hidden_flags,
         )
     if pyright_res.returncode != 0:
         print(pyright_res.stdout)
         print("==================================================================")
-        print("[BLOCKED] Fleet Type Gate: Type checking failed. Fix errors above.")
+        print("[BLOCKED] Fleet Type Gate: Type checking failed after auto-remediation.")
         print("==================================================================")
         sys.exit(1)
     print("=== Fleet Type Check [PASS] | 0 errors, 0 warnings ===")

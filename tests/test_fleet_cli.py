@@ -177,6 +177,20 @@ class TestFleetCLI(unittest.TestCase):
             ret = main(["wiki", "--dry-run"])
             self.assertEqual(ret, 0)
 
+    def test_cli_autofix_json(self):
+        import fleet.tools.auto_fixer
+        with patch.object(fleet.tools.auto_fixer, "run_auto_fixer", return_value={
+            "status": "PASS",
+            "fixes_applied_count": 0,
+            "security_fixes_count": 0,
+            "vscode_type_fixes_count": 0,
+            "fixes": [],
+        }):
+            ret = main(["autofix", "--json"])
+            self.assertEqual(ret, 0)
+            data = json.loads(self.held_stdout.getvalue())
+            self.assertEqual(data["status"], "PASS")
+
 
 if __name__ == "__main__":
     unittest.main()

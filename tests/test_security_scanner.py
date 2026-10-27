@@ -400,3 +400,26 @@ def test_codeql_proactive_security_invariants():
     assert sast_check["status"] == "PASS"
     assert sast_check["findings_count"] == 0
 
+
+def test_autonomous_codeql_and_vscode_auto_fixer(tmp_path):
+    """Validates that the autonomous auto-fixer repairs CodeQL and VS Code issues automatically."""
+    from fleet.tools.auto_fixer import run_auto_fixer
+    sample_dir = tmp_path / "fleet"
+    sample_dir.mkdir(parents=True, exist_ok=True)
+    sample_py = sample_dir / "sample_vuln.py"
+    sample_py.write_text(
+        'import hashlib, os, subprocess\n'
+        'h = hashlib.md5(b"abc")\n'
+        'subprocess.run(["echo", "hi"], shell=True)\n'
+        'getattr(os, "startfile")("foo.txt")\n',
+        encoding="utf-8",
+    )
+    res = run_auto_fixer(repo_root=tmp_path, stage_changes=False, run_pyright_cli=False)
+    assert res["status"] == "PASS"
+    assert res["fixes_applied_count"] >= 3
+    fixed_text = sample_py.read_text(encoding="utf-8")
+    assert "usedforsecurity=False" in fixed_text
+    assert "shell=False" in fixed_text
+    assert 'getattr(os, "startfile")(' in fixed_text
+
+

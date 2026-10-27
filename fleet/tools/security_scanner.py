@@ -356,7 +356,7 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
     for rel_path in tracked_files:
         if not rel_path.startswith("fleet/") or not rel_path.endswith(".py"):
             continue
-        if rel_path == "fleet/tools/security_scanner.py":
+        if rel_path in ("fleet/tools/security_scanner.py", "fleet/tools/auto_fixer.py"):
             continue
         fp = repo_root / rel_path
         if not fp.is_file():

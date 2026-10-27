@@ -372,9 +372,11 @@ class ProactiveLogScanner:
 
                 counters = PROCESS_MEMORY_COUNTERS()
                 counters.cb = ctypes.sizeof(PROCESS_MEMORY_COUNTERS)
-                handle = ctypes.windll.kernel32.GetCurrentProcess()
-                if ctypes.windll.psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
-                    working_set_mb = round(counters.WorkingSetSize / (1024 * 1024), 2)
+                windll = getattr(ctypes, "windll", None)
+                if windll is not None:
+                    handle = windll.kernel32.GetCurrentProcess()
+                    if windll.psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
+                        working_set_mb = round(counters.WorkingSetSize / (1024 * 1024), 2)
         except Exception:
             pass
 
@@ -651,8 +653,10 @@ class AutonomousAutoHealer:
         if sys.platform == "win32":
             try:
                 import ctypes
-                handle = ctypes.windll.kernel32.GetCurrentProcess()
-                ctypes.windll.psapi.EmptyWorkingSet(handle)
+                windll = getattr(ctypes, "windll", None)
+                if windll is not None:
+                    handle = windll.kernel32.GetCurrentProcess()
+                    windll.psapi.EmptyWorkingSet(handle)
             except Exception:
                 pass
 
@@ -686,9 +690,11 @@ class AutonomousAutoHealer:
 
                 counters = PROCESS_MEMORY_COUNTERS()
                 counters.cb = ctypes.sizeof(PROCESS_MEMORY_COUNTERS)
-                handle = ctypes.windll.kernel32.GetCurrentProcess()
-                if ctypes.windll.psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
-                    ws_after_mb = round(counters.WorkingSetSize / (1024 * 1024), 2)
+                windll = getattr(ctypes, "windll", None)
+                if windll is not None:
+                    handle = windll.kernel32.GetCurrentProcess()
+                    if windll.psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
+                        ws_after_mb = round(counters.WorkingSetSize / (1024 * 1024), 2)
         except Exception:
             pass
 

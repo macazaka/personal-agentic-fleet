@@ -142,6 +142,20 @@ def verify_static_type_integrity(repo_root: Path = _ROOT) -> Dict[str, Any]:
             check=False,
         )
     if res.returncode != 0:
+        try:
+            from fleet.tools.auto_fixer import run_auto_fixer
+            run_auto_fixer(repo_root=repo_root, stage_changes=True, run_pyright_cli=True)
+            res = subprocess.run(  # type: ignore[reportCallIssue]
+                [npx_bin, "pyright", "fleet", "tests", "conftest.py", "pong.py"],
+                cwd=str(repo_root),
+                capture_output=True,
+                text=True,
+                check=False,
+                **({"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)} if os.name == "nt" else {}),  # type: ignore[reportArgumentType]
+            )
+        except Exception:
+            pass
+    if res.returncode != 0:
         return {
             "status": "FAIL",
             "detail": res.stdout or res.stderr,
@@ -200,6 +214,13 @@ def run_preflight_gate(repo_root: Path = _ROOT) -> int:
     print("==================================================================")
     print("  Personal Agentic Fleet — Preflight CI & Security Quality Gate")
     print("==================================================================")
+
+    # 0. Autonomous Zero-Intervention Auto-Fixer (CodeQL & VS Code Diagnostics)
+    try:
+        from fleet.tools.auto_fixer import run_auto_fixer
+        run_auto_fixer(repo_root=repo_root, stage_changes=True, run_pyright_cli=False)
+    except Exception:
+        pass
 
     # 1. Run Fleet Doctor (Verifies Runtime, OpenSSL, SQLite, Git Hooks, Vault ACL)
     print("[1/6] Running Fleet Doctor Invariants...")

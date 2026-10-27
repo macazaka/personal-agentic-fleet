@@ -234,11 +234,13 @@ def cmd_status(args: argparse.Namespace) -> int:
 
             pmc = PROCESS_MEMORY_COUNTERS_EX()
             pmc.cb = ctypes.sizeof(PROCESS_MEMORY_COUNTERS_EX)
-            handle = ctypes.windll.kernel32.OpenProcess(0x0400 | 0x0010, False, pid)
-            if handle:
-                ctypes.windll.psapi.GetProcessMemoryInfo(handle, ctypes.byref(pmc), pmc.cb)
-                ctypes.windll.kernel32.CloseHandle(handle)
-                rss_mb = round(pmc.WorkingSetSize / (1024 * 1024), 2)
+            windll = getattr(ctypes, "windll", None)
+            if windll is not None:
+                handle = windll.kernel32.OpenProcess(0x0400 | 0x0010, False, pid)
+                if handle:
+                    windll.psapi.GetProcessMemoryInfo(handle, ctypes.byref(pmc), pmc.cb)
+                    windll.kernel32.CloseHandle(handle)
+                    rss_mb = round(pmc.WorkingSetSize / (1024 * 1024), 2)
         except Exception:
             pass
 
@@ -481,6 +483,22 @@ def cmd_wiki(args: argparse.Namespace) -> int:
         sys.argv = original_argv
 
 
+def cmd_autofix(args: argparse.Namespace) -> int:
+    """Automatically repairs VS Code (Pyright/Pylance) and GitHub CodeQL issues with zero human intervention."""
+    from fleet.tools.auto_fixer import main as autofix_main
+    af_args = []
+    if getattr(args, "stage", False):
+        af_args.append("--stage")
+    if getattr(args, "json", False):
+        af_args.append("--json")
+    original_argv = sys.argv
+    try:
+        sys.argv = ["fleet-autofix"] + af_args
+        return autofix_main() or 0
+    finally:
+        sys.argv = original_argv
+
+
 def cmd_version(args: argparse.Namespace) -> int:
     """Displays version and system platform information."""
     print(f"Personal Agentic Fleet v{VERSION}")
@@ -555,6 +573,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_wiki = subparsers.add_parser("wiki", help="Synchronize documentation to GitHub Wiki")
     p_wiki.add_argument("--dry-run", action="store_true", help="Preview changes without pushing")
 
+    # Autofix
+    p_autofix = subparsers.add_parser("autofix", help="Auto-fix VS Code & GitHub CodeQL issues automatically")
+    p_autofix.add_argument("--stage", action="store_true", help="Stage auto-fixed files in Git")
+    p_autofix.add_argument("--json", action="store_true", help="Output report in JSON format")
+
     # Version
     subparsers.add_parser("version", help="Display fleet version and system information")
 
@@ -584,6 +607,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "heal": cmd_heal,
         "test": cmd_test,
         "wiki": cmd_wiki,
+        "autofix": cmd_autofix,
         "version": cmd_version,
     }
 

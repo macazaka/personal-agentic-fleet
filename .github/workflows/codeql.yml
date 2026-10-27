@@ -32,4 +32,31 @@ jobs:
       uses: github/codeql-action/analyze@v3
       with:
         category: "/language:python"
+        output: sarif-results
 
+    - name: Verify Zero CodeQL Alerts in SARIF Output
+      shell: bash
+      run: |
+        python3 - << 'EOF'
+        import glob, json, sys
+        sarif_files = glob.glob("sarif-results/*.sarif")
+        total_alerts = 0
+        for sf in sarif_files:
+            data = json.load(open(sf, encoding="utf-8"))
+            for run in data.get("runs", []):
+                for res in run.get("results", []):
+                    rule_id = res.get("ruleId", "unknown")
+                    msg = res.get("message", {}).get("text", "").replace("\n", " ")
+                    locs = res.get("locations", [])
+                    loc_str = "unknown"
+                    if locs:
+                        ploc = locs[0].get("physicalLocation", {})
+                        uri = ploc.get("artifactLocation", {}).get("uri", "")
+                        line = ploc.get("region", {}).get("startLine", 0)
+                        loc_str = f"{uri}:{line}"
+                    print(f"::error title=CodeQL Alert ({rule_id})::{loc_str} -> {msg}")
+                    total_alerts += 1
+        print(f"Total CodeQL SARIF alerts found: {total_alerts}")
+        if total_alerts > 0:
+            sys.exit(1)
+        EOF
