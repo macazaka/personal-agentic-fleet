@@ -240,17 +240,18 @@ def execute_claude_code(
 
     if claude_info.get("installed") and claude_info.get("path"):
         exec_path = str(claude_info["path"])
-        cmd = [exec_path, "-p", "--", safe_prompt]
+        cmd = [exec_path, "-p"]
         if dangerously_skip_permissions:
             cmd.insert(1, "--dangerously-skip-permissions")
 
         try:
             res = subprocess.run(
                 cmd,
+                input=safe_prompt,
                 capture_output=True,
                 text=True,
                 shell=False,
-                cwd=cwd or str(BASE_DIR.parent),
+                cwd=str(BASE_DIR.parent),
                 timeout=120,
             )
             return {
@@ -298,9 +299,16 @@ def execute_github_copilot_command(
     if gh_info.get("installed") and gh_info.get("has_copilot_cli") and gh_info.get("path"):
         exec_path = str(gh_info["path"])
         subcmd = "suggest" if command_type == "suggest" else "explain"
-        cmd = [exec_path, "copilot", subcmd, "--", safe_prompt]
+        cmd = [exec_path, "copilot", subcmd]
         try:
-            res = subprocess.run(cmd, capture_output=True, text=True, shell=False, timeout=30)
+            res = subprocess.run(
+                cmd,
+                input=safe_prompt,
+                capture_output=True,
+                text=True,
+                shell=False,
+                timeout=30,
+            )
             return {
                 "status": "success" if res.returncode == 0 else "error",
                 "tool": "github_copilot_cli",
@@ -346,14 +354,15 @@ def execute_google_gemini_cli(
 
     if gem_info.get("installed") and gem_path and "gemini" in Path(gem_path).name.lower():
         exec_path = str(gem_path)
-        cmd = [exec_path, "-p", "--", safe_prompt]
+        cmd = [exec_path, "-p"]
         try:
             res = subprocess.run(
                 cmd,
+                input=safe_prompt,
                 capture_output=True,
                 text=True,
                 shell=False,
-                cwd=cwd or str(BASE_DIR.parent),
+                cwd=str(BASE_DIR.parent),
                 timeout=90,
             )
             return {
@@ -398,14 +407,15 @@ def execute_aws_q_developer(
 
     if q_info.get("installed") and q_path and Path(q_path).stem.lower() == "q":
         exec_path = str(q_path)
-        cmd = [exec_path, "chat", "--no-interactive", safe_prompt]
+        cmd = [exec_path, "chat", "--no-interactive"]
         try:
             res = subprocess.run(
                 cmd,
+                input=safe_prompt,
                 capture_output=True,
                 text=True,
                 shell=False,
-                cwd=cwd or str(BASE_DIR.parent),
+                cwd=str(BASE_DIR.parent),
                 timeout=90,
             )
             return {

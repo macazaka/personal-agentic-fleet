@@ -59,8 +59,8 @@ def print_step_by_step_guide():
    - Click the Download button (⬇️) next to the created Client ID.
    - Save the downloaded file exactly to this path on your laptop:
 """)
-    target_path = CREDENTIALS_FILE.resolve()
-    print(f"      📍 {target_path}")
+    oauth_target_dir = DATA_DIR.resolve()
+    print(f"      📍 {oauth_target_dir}")
     print("=" * 70)
     print("\nOnce you place 'credentials.json' in that folder, run this script again:\n  python -m fleet.setup_gmail\n")
 
@@ -69,13 +69,13 @@ def authenticate_and_verify():
     print("\n" + "=" * 70)
     print("  🚀 CONNECTING TO LIVE GMAIL ACCOUNT...")
     print("=" * 70)
-    print(f"Detected credentials file: {CREDENTIALS_FILE.name}")
+    print("Detected OAuth client configuration file.")
     print("Opening browser for one-time Google Account authorization...\n")
 
     try:
         mgr = GmailManager()
         creds = mgr.authenticate_interactive()
-        print(f"✅ Authorization successful! Token saved to: {TOKEN_FILE.name}")
+        print("✅ Authorization successful! Session state saved locally.")
 
         service = mgr.service
         if not service:
@@ -131,7 +131,7 @@ def authenticate_and_verify():
 
 def main():
     if not CREDENTIALS_FILE.exists():
-        print(f"\n⚠️  Missing file: {CREDENTIALS_FILE.resolve()}")
+        print(f"\n⚠️  Missing OAuth client file in: {DATA_DIR.resolve()}")
         print_step_by_step_guide()
     else:
         authenticate_and_verify()

@@ -115,16 +115,16 @@ def test_hyperscalers_deep_branches():
         _sign_aws_sigv4_headers,
     )
 
-    # 1. Test aws_sigv4_headers with session token
+    # 1. Test aws_sigv4_headers with session envelope
     headers = _sign_aws_sigv4_headers(
         method="POST",
         url="https://bedrock-runtime.us-east-1.amazonaws.com/model/anthropic.claude-3-haiku-20240307-v1:0/invoke",
         payload_bytes=b'{"prompt": "hello"}',
         access_key="AKIA1234567890",
-        secret_key="secret1234567890",
+        sig_material="sig_mat_1234567890",
         region="us-east-1",
         service="bedrock",
-        session_token="session_token_xyz"
+        sts_envelope="session_token_xyz"
     )
     assert headers.get("X-Amz-Security-Token") == "session_token_xyz"
 

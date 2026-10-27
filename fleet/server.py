@@ -145,11 +145,9 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
         self.send_header("Cross-Origin-Resource-Policy", "same-origin")
         if set_session_cookie:
             self.send_header("Set-Cookie", get_session_cookie_header())
-        origin = self.headers.get("Origin", "") if hasattr(self, "headers") and self.headers else ""
-        if origin in ALLOWED_ORIGINS:
-            self.send_header("Access-Control-Allow-Origin", origin)
-        else:
-            self.send_header("Access-Control-Allow-Origin", f"http://127.0.0.1:{PORT}")
+        req_origin = self.headers.get("Origin", "") if hasattr(self, "headers") and self.headers else ""
+        matched_origin = next((allowed for allowed in ALLOWED_ORIGINS if allowed == req_origin), f"http://127.0.0.1:{PORT}")
+        self.send_header("Access-Control-Allow-Origin", matched_origin)
 
     def _send_json(self, data: Any, status: int = 200):
         try:

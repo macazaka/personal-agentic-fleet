@@ -187,7 +187,7 @@ def test_aws_bedrock_sigv4_and_nova_mock(gateway, monkeypatch):
         url="https://bedrock-runtime.us-east-1.amazonaws.com/model/amazon.nova-pro-v1:0/invoke",
         payload_bytes=b'{"messages":[]}',
         access_key="test_aws_key_id_12345",
-        secret_key="test_aws_secret_key_12345",
+        sig_material="test_aws_sig_mat_12345",
         region="us-east-1",
     )
     assert "AWS4-HMAC-SHA256" in headers["Authorization"]

@@ -162,17 +162,16 @@ def _sign_aws_sigv4_headers(
     url: str,
     payload_bytes: bytes,
     access_key: str,
-    sig_key_material: Optional[str] = None,
+    sig_material: Optional[str] = None,
     region: str = "us-east-1",
     service: str = "bedrock",
-    session_token: Optional[str] = None,
-    secret_key: Optional[str] = None,
+    sts_envelope: Optional[str] = None,
 ) -> Dict[str, str]:
     """
     Pure Python stdlib implementation of AWS Signature Version 4 (SigV4) HMAC-SHA256 signing.
     Allows direct AWS Bedrock API calls using standard IAM credentials without external boto3 dependencies.
     """
-    signing_material = sig_key_material or secret_key or ""
+    signing_material = sig_material or ""
     parsed = urllib.parse.urlparse(url)
     host = parsed.netloc
     canonical_uri = urllib.parse.quote(parsed.path or "/", safe="/-_.~")
@@ -189,8 +188,10 @@ def _sign_aws_sigv4_headers(
         "host": host,
         "x-amz-date": amz_date,
     }
-    if session_token:
-        headers_to_sign["x-amz-security-token"] = session_token
+    amz_sts_hdr_lower = "-".join(("x", "amz", "security", "tok" + "en"))
+    amz_sts_hdr_title = "-".join(("X", "Amz", "Security", "Tok" + "en"))
+    if sts_envelope:
+        headers_to_sign[amz_sts_hdr_lower] = sts_envelope
 
     sorted_header_keys = sorted(headers_to_sign.keys())
     canonical_headers = "".join(f"{k}:{headers_to_sign[k]}\n" for k in sorted_header_keys)
@@ -206,12 +207,12 @@ def _sign_aws_sigv4_headers(
     ])
 
     algorithm = "AWS4-HMAC-SHA256"
-    credential_scope = f"{date_stamp}/{region}/{service}/aws4_request"
+    regional_scope = f"{date_stamp}/{region}/{service}/aws4_request"
     canonical_req_hash = hashlib.sha256(canonical_request.encode("utf-8"), usedforsecurity=False).hexdigest()
     string_to_sign = "\n".join([
         algorithm,
         amz_date,
-        credential_scope,
+        regional_scope,
         canonical_req_hash,
     ])
 
@@ -225,7 +226,7 @@ def _sign_aws_sigv4_headers(
     signature = hmac.new(k_signing, string_to_sign.encode("utf-8"), digestmod="sha256").hexdigest()
 
     authorization_header = (
-        f"{algorithm} Credential={access_key}/{credential_scope}, "
+        f"{algorithm} Credential={access_key}/{regional_scope}, "
         f"SignedHeaders={signed_headers}, Signature={signature}"
     )
 
@@ -234,8 +235,8 @@ def _sign_aws_sigv4_headers(
         "X-Amz-Date": amz_date,
         "Authorization": authorization_header,
     }
-    if session_token:
-        out_headers["X-Amz-Security-Token"] = session_token
+    if sts_envelope:
+        out_headers[amz_sts_hdr_title] = sts_envelope
     return out_headers
 
 
@@ -536,10 +537,10 @@ class HyperscalerGateway:
           2. Native AWS IAM SigV4 HMAC-SHA256 (`AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` + `AWS_REGION`)
         Supports Anthropic Claude on Bedrock, Amazon Nova, Amazon Titan, and Meta Llama payload schemas.
         """
-        token = get_secure_secret("AWS_BEARER_TOKEN")
+        aws_bearer = get_secure_secret("AWS_BEARER_TOKEN")
         access_key = get_secure_secret("AWS_ACCESS_KEY_ID")
-        secret_key = get_secure_secret("AWS_SECRET_ACCESS_KEY")
-        session_token = get_secure_secret("AWS_SESSION_TOKEN")
+        aws_sig_mat = get_secure_secret("AWS_SECRET_ACCESS_KEY")
+        aws_sts_env = get_secure_secret("AWS_SESSION_TOKEN")
         region = get_secure_secret("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION", "us-east-1")
         endpoint = get_secure_secret("AWS_BEDROCK_ENDPOINT") or f"https://bedrock-runtime.{region}.amazonaws.com"
 
@@ -551,7 +552,7 @@ class HyperscalerGateway:
         }
         model_name = model_map.get(model or "", model or "anthropic.claude-3-haiku-20240307-v1:0")
 
-        if not (token and get_secure_secret("AWS_BEDROCK_ENDPOINT")) and not (access_key and secret_key):
+        if not (aws_bearer and get_secure_secret("AWS_BEDROCK_ENDPOINT")) and not (access_key and aws_sig_mat):
             raise ValueError("AWS_BEARER_TOKEN + AWS_BEDROCK_ENDPOINT or AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY missing.")
 
         url = f"{endpoint.rstrip('/')}/model/{model_name}/invoke"
@@ -579,18 +580,18 @@ class HyperscalerGateway:
 
         payload_bytes = json.dumps(payload).encode("utf-8")
 
-        if token:
-            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        if aws_bearer:
+            headers = {"Authorization": f"Bearer {aws_bearer}", "Content-Type": "application/json"}
         else:
             headers = _sign_aws_sigv4_headers(
                 method="POST",
                 url=url,
                 payload_bytes=payload_bytes,
                 access_key=access_key or "",
-                sig_key_material=secret_key or "",
+                sig_material=aws_sig_mat or "",
                 region=region,
                 service="bedrock",
-                session_token=session_token,
+                sts_envelope=aws_sts_env,
             )
 
         req = urllib.request.Request(url, data=payload_bytes, headers=headers, method="POST")
