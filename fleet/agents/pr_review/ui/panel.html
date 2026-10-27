@@ -1,14 +1,8 @@
 <div class="panel-section" id="prReviewSection">
-  <div class="section-header">
-    <div class="section-title">
-      <span class="section-title-icon">🛡️</span>
-      <span>Admin PR Review & CI Quality Gate</span>
-    </div>
-    <div class="section-actions">
-      <button class="btn btn-primary btn-sm" onclick="fetchPRReviewStatus()">
-        🔄 Audit PRs & CI Now
-      </button>
-    </div>
+  <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+    <button class="btn btn-primary btn-sm" onclick="fetchPRReviewStatus()">
+      🔄 Audit PRs & CI Now
+    </button>
   </div>
 
   <div class="metrics-grid" style="grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">

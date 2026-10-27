@@ -660,3 +660,38 @@ def test_scalable_layouts_and_themes_for_100_agents(mock_fleet_env):
     ):
         assert required_token in standalone_html, f"Missing {required_token} in bundled dashboard HTML"
 
+
+def test_zero_duplicate_agent_info_on_wcc(mock_fleet_env):
+    """Verifies zero duplicate agent entries, zero duplicate DOM IDs, and zero duplicate sections per agent."""
+    import collections
+    import pathlib
+    import re
+    from fleet.api.settings_api import get_fleet_settings
+
+    # 1. Verify /api/settings returns strictly unique agent IDs
+    handler = MagicMock()
+    parsed_url = urllib.parse.urlparse("/api/settings")
+    get_fleet_settings(handler, parsed_url)
+    res = handler._send_json.call_args[0][0]
+    agent_ids = [a["id"] for a in res["agents"]]
+    assert len(agent_ids) == len(set(agent_ids)), f"Duplicate agent IDs in /api/settings: {agent_ids}"
+
+    # 2. Verify zero duplicate HTML element IDs in dashboard.html
+    root_dir = pathlib.Path(__file__).resolve().parent.parent
+    dash_html = (root_dir / "fleet" / "web" / "templates" / "dashboard.html").read_text(encoding="utf-8")
+    dom_ids = re.findall(r'\bid="([^"]+)"', dash_html)
+    dup_dom_ids = {k: v for k, v in collections.Counter(dom_ids).items() if v > 1}
+    assert not dup_dom_ids, f"Duplicate HTML element IDs found in dashboard.html: {dup_dom_ids}"
+
+    # 3. Verify removed duplicate widgets/inputs are absent from dashboard.html
+    for removed_dup_id in ("settingsAgentSearch", "createAgentInlineForm", "healthWaterBigCount", "quickOptRam"):
+        assert f'id="{removed_dup_id}"' not in dash_html, f"Duplicate widget {removed_dup_id} should be removed"
+
+    # 4. Verify FleetNavigator deduplicates agents in fetchFleetData and renderLeftSidebarDock
+    nav_js = (root_dir / "fleet" / "web" / "static" / "js" / "fleet_navigator.js").read_text(encoding="utf-8")
+    assert "uniqueMap" in nav_js
+    assert "coreAndPinnedIds" in nav_js
+    assert "!coreAndPinnedIds.has(a.id)" in nav_js
+    assert "duplicateTitle" in nav_js
+
+

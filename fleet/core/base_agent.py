@@ -297,6 +297,7 @@ class FleetAgent(ABC):
             "is_customized": is_customized,
             "permissions": getattr(self, "permissions", []),
             "html": panel_html,
+            "panel_html": panel_html,
             "css_url": f"/api/fleet/agents/{self.id}/style.css" if has_css else None,
             "js_url": f"/api/fleet/agents/{self.id}/script.js" if has_js else None,
         }

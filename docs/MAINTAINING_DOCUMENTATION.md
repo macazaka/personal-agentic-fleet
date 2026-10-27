@@ -8,7 +8,7 @@ To ensure Personal Agentic Fleet's release numbers, documentation, and GitHub Wi
 
 Every commit and push automatically enforces five core invariants:
 1. **Zero Dead Links**: All relative markdown links across `README.md`, `INSTALL.md`, `CONTRIBUTING.md`, `docs/*.md`, and `wiki/*.md` must resolve to active files.
-2. **Proactive Semantic Version Parity (`v2.7.0`)**: `fleet.tools.release_manager` automatically evaluates Conventional Commits (`feat:`, `fix:`, `security:`, `BREAKING CHANGE`) since the last Git tag, bumps the semantic version at relevant times, synthesizes categorized release notes in `CHANGELOG.md`, and synchronizes the version across `fleet/__init__.py`, `fleet/config.py`, `pyproject.toml`, `fleet/web/templates/dashboard.html`, `README.md`, `wiki/`, and `fleet/data/sbom.cdx.json`.
+2. **Proactive Semantic Version Parity (`v2.8.0`)**: `fleet.tools.release_manager` automatically evaluates Conventional Commits (`feat:`, `fix:`, `security:`, `BREAKING CHANGE`) since the last Git tag, bumps the semantic version at relevant times, synthesizes categorized release notes in `CHANGELOG.md`, and synchronizes the version across `fleet/__init__.py`, `fleet/config.py`, `pyproject.toml`, `fleet/web/templates/dashboard.html`, `README.md`, `wiki/`, and `fleet/data/sbom.cdx.json`.
 3. **Proactive Documentation & Wiki Enhancement**: `fleet.tools.doc_wiki_enhancer` introspects live agents (`fleet/agents/*/manifest.json`), CLI subcommands (`fleet/cli.py`), automation tools (`fleet/tools/*.py`), and test counts to keep `docs/` and `wiki/` (`_Sidebar.md`, `_Footer.md`, `Home.md`, `Release-Notes.md`, `CLI-and-Automation-Tools.md`) continuously updated.
 4. **Hyperscaler & Developer Tool Parity**: `sync_all_developer_tool_instructions()` synchronizes `.github/copilot-instructions.md`, `CLAUDE.md`, and `GEMINI.md`.
 5. **Zero VS Code & CodeQL Diagnostics**: `fleet.tools.auto_fixer` automatically repairs static type and SAST issues prior to every commit.
@@ -23,7 +23,7 @@ Every commit and push automatically enforces five core invariants:
 | `python -m fleet.tools.release_manager` | Semantic version auto-bumper, `CHANGELOG.md` synthesizer, and 8-file version synchronizer. |
 | `python -m fleet.tools.doc_wiki_enhancer` | Live codebase introspector updating `docs/` and `wiki/` pages automatically. |
 | `python -m fleet.tools.auto_fixer` | Zero-intervention VS Code (Pylance/Pyright) and GitHub CodeQL SAST auto-remediator. |
-| `python -m fleet.tools.preflight_gate` | 6-stage pre-push gate verifying Fleet Doctor, 12-Layer Security (`100/100`), Agent Isolation, Docs/Wiki links, Pyright (`0 errors`), and all `411+` unit tests. |
+| `python -m fleet.tools.preflight_gate` | 6-stage pre-push gate verifying Fleet Doctor, 12-Layer Security (`100/100`), Agent Isolation, Docs/Wiki links, Pyright (`0 errors`), and all `412+` unit tests. |
 | `python -m fleet.tools.sync_wiki` | Synchronizes `wiki/*.md` to `macazaka/personal-agentic-fleet.wiki.git`. |
 
 ---

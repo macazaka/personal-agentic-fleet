@@ -206,7 +206,13 @@ const FleetNavigator = {
       if (!res.ok) return;
       const data = await res.json();
       if (data.status === 'ok' && Array.isArray(data.agents)) {
-        this.agents = data.agents.map(a => this.enrichAgent(a));
+        const uniqueMap = new Map();
+        data.agents.forEach(a => {
+          if (a && a.id && !uniqueMap.has(a.id)) {
+            uniqueMap.set(a.id, this.enrichAgent(a));
+          }
+        });
+        this.agents = Array.from(uniqueMap.values());
         this.updateHeaderSummary();
         this.renderPinnedTray();
         this.renderLeftSidebarDock();
@@ -354,23 +360,27 @@ const FleetNavigator = {
       return true;
     };
 
-    // 1. Pinned & Core Favorites
-    const coreAndPinned = this.agents.filter(a => (STATIC_CORE_TAB_IDS.has(a.id) || this.pinnedIds.has(a.id)) && matchesSearch(a));
+    // 1. Pinned & Core Favorites (Rendered once in top section)
+    const coreAndPinned = this.agents.filter(a => (STATIC_CORE_TAB_IDS.has(a.id) || this.pinnedIds.has(a.id)) && matchesSearch(a) && matchesFilter(a));
+    const coreAndPinnedIds = new Set(coreAndPinned.map(a => a.id));
+
     if (coreAndPinned.length === 0) {
       pinnedContainer.innerHTML = `<div style="font-size: 11px; color: var(--text-muted); padding: 4px 8px;">No matching pinned agents</div>`;
     } else {
       pinnedContainer.innerHTML = coreAndPinned.map(a => this.renderSidebarAgentItemHtml(a)).join('');
     }
 
-    // 2. Collapsible Domain Categories Tree for 100+ Agents
-    const filteredAll = this.agents.filter(a => matchesSearch(a) && matchesFilter(a));
-    if (filteredAll.length === 0) {
-      categoriesContainer.innerHTML = `<div style="font-size: 11.5px; color: var(--text-muted); padding: 12px 8px; text-align: center;">No agents match "${q}"</div>`;
+    // 2. Collapsible Domain Categories Tree for Additional / Unpinned Agents (Zero Duplication with Pinned List)
+    const unpinnedDomainAgents = this.agents.filter(a => !coreAndPinnedIds.has(a.id) && matchesSearch(a) && matchesFilter(a));
+    if (unpinnedDomainAgents.length === 0) {
+      categoriesContainer.innerHTML = q
+        ? `<div style="font-size: 11.5px; color: var(--text-muted); padding: 12px 8px; text-align: center;">No additional domain agents match "${q}"</div>`
+        : `<div style="font-size: 11px; color: var(--text-muted); padding: 8px 10px; background: rgba(255,255,255,0.02); border-radius: 6px;">All active agents are pinned above. Add or unpin agents to browse by domain.</div>`;
       return;
     }
 
     const groups = {};
-    filteredAll.forEach(a => {
+    unpinnedDomainAgents.forEach(a => {
       const cat = a.category || 'Productivity';
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(a);
@@ -947,16 +957,27 @@ const FleetNavigator = {
       bcStatus.textContent = isWorking ? '● Working' : '● Standby';
     }
 
-    // Mount agent panel HTML
+    // Mount agent panel HTML without repeating header identity already shown in .stage-header
     const panelContainer = document.getElementById('stagePanelContainer');
     if (panelContainer) {
-      if (agent.panel_html) {
-        panelContainer.innerHTML = agent.panel_html;
+      const rawHtml = agent.panel_html || agent.html || '';
+      if (rawHtml) {
+        panelContainer.innerHTML = rawHtml;
+        // Strip redundant inner .section-title if it duplicates the stage header title
+        const duplicateTitle = panelContainer.querySelector('.section-header .section-title');
+        if (duplicateTitle) {
+          const parentHeader = duplicateTitle.closest('.section-header');
+          const actions = parentHeader ? parentHeader.querySelector('.section-actions') : null;
+          if (parentHeader && !actions) {
+            parentHeader.remove();
+          } else {
+            duplicateTitle.remove();
+          }
+        }
       } else {
         panelContainer.innerHTML = `
           <div class="card" style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 24px;">
-            <div style="font-size: 16px; font-weight: 700; color: var(--text);">${agent.icon || '⚡'} ${agent.name}</div>
-            <p style="color: var(--text-muted); font-size: 13px; margin-top: 8px;">${agent.description || 'Agent panel loaded.'}</p>
+            <p style="color: var(--text-muted); font-size: 13.5px; margin: 0;">${agent.description || 'Agent operational pane ready.'}</p>
             <div style="margin-top: 14px; padding: 12px; background: rgba(15,23,42,0.5); border-radius: 8px;">
               <span class="badge" style="background: rgba(56,189,248,0.15); color: var(--accent-cyan);">Declared permissions: ${(agent.permissions || []).join(', ')}</span>
             </div>

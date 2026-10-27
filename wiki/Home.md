@@ -2,7 +2,7 @@
 
 Welcome to the official **Personal Agentic Fleet Documentation Wiki**!
 
-[![Release: v2.7.0](https://img.shields.io/badge/Release-v2.7.0-00b4d8.svg)](Release-Notes)
+[![Release: v2.8.0](https://img.shields.io/badge/Release-v2.8.0-00b4d8.svg)](Release-Notes)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%5B12%20Layers%5D-brightgreen.svg)](Security-Model)

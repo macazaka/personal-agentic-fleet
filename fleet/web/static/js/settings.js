@@ -70,8 +70,14 @@ async function refreshSettingsData() {
     const data = await res.json();
     if (data.status === 'ok') {
       fleetSettingsState.settings = data.settings || {};
-      fleetSettingsState.agents = data.agents || [];
-      updateSettingsBadgeCounts(data.active_agents_count, data.total_agents_count);
+      const uniqueMap = new Map();
+      (data.agents || []).forEach(a => {
+        if (a && a.id && !uniqueMap.has(a.id)) {
+          uniqueMap.set(a.id, a);
+        }
+      });
+      fleetSettingsState.agents = Array.from(uniqueMap.values());
+      updateSettingsBadgeCounts(data.active_agents_count, fleetSettingsState.agents.length);
     }
   } catch (err) {
     console.error('Failed to load fleet settings:', err);
@@ -417,6 +423,11 @@ async function resetAgentToDefaults(agentId) {
 // --- Quick Add Custom Agent ---
 
 function toggleCreateAgentForm() {
+  if (typeof openCreateAgentModal === 'function') {
+    closeSettingsModal();
+    openCreateAgentModal();
+    return;
+  }
   const form = document.getElementById('createAgentInlineForm');
   if (form) {
     form.style.display = form.style.display === 'none' ? 'block' : 'none';

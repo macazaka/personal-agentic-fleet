@@ -326,21 +326,14 @@ class {class_name}(FleetAgent):
 '''
         (agent_folder / "agent.py").write_text(agent_code, encoding="utf-8")
 
-        # 3. ui/panel.html
+        # 3. ui/panel.html (Header identity is rendered once by #viewActiveAgentStage)
         panel_html = f'''<div class="panel-section">
-  <div class="section-header">
-    <div class="section-title">
-      <span class="section-title-icon">{icon}</span>
-      <span>{name}</span>
-    </div>
-    <span class="badge badge-success">Custom Agent</span>
-  </div>
   <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 24px;">
     <p style="color: #94a3b8; font-size: 14px; margin-bottom: 16px;">
       {description or "Welcome to your custom agent pane. Edit this panel in fleet/data/user/custom_agents/" + clean_id + "/ui/panel.html"}
     </p>
     <div style="font-family: monospace; font-size: 12px; color: #38bdf8; background: #0f172a; padding: 12px; border-radius: 8px;">
-      ID: {clean_id} | Permissions: {', '.join(permissions or ['db:read', 'ui:render'])}
+      Declared Permissions: {', '.join(permissions or ['db:read', 'ui:render'])}
     </div>
   </div>
 </div>

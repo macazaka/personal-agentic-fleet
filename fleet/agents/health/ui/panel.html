@@ -122,7 +122,7 @@
         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;" id="healthMedsNextDose">Next dose: --</div>
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 11px; color: var(--accent-green);" id="healthMedsStatus">Adherence: Optimal</span>
-          <button class="btn" style="font-size: 10.5px; padding: 2px 8px;" onclick="toggleAddMedCard()">+ Manage</button>
+          <span style="font-size: 10.5px; color: var(--text-muted);">IST Schedule</span>
         </div>
       </div>
 
@@ -197,30 +197,20 @@
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px;">
       <!-- Left Column: Medications Schedule & Hydration Widget -->
       <div style="display: flex; flex-direction: column; gap: 18px;">
-        <!-- Hydration Tracker Detail Card -->
+        <!-- Interactive Glasses Schedule Grid Card (Complements Top Hydration KPI Without Duplication) -->
         <div class="card" style="margin: 0; padding: 18px 20px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="font-size: 18px;">💧</span>
-              <strong style="font-size: 15px; color: #fff;">Water & Hydration Tracker</strong>
+              <span style="font-size: 18px;">🥛</span>
+              <strong style="font-size: 15px; color: #fff;">Interactive 250ml Glass Schedule</strong>
             </div>
-            <button class="btn" style="font-size: 11px; padding: 3px 8px;" onclick="promptWaterGoal()">⚙️ Set Goal</button>
-          </div>
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; background: rgba(0, 242, 254, 0.04); border: 1px solid rgba(0, 242, 254, 0.15); border-radius: 10px; padding: 12px 16px;">
-            <div>
-              <div style="font-size: 22px; font-weight: 800; color: var(--accent-cyan);" id="healthWaterBigCount">0 / 10 Glasses</div>
-              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;" id="healthWaterReminderText">💧 Time for a glass of water!</div>
-            </div>
-            <div style="display: flex; gap: 6px;">
-              <button class="btn btn-primary" style="font-size: 12px; padding: 6px 14px;" onclick="logWater(1, 250)">+ 1 Glass (250ml)</button>
-              <button class="btn" style="font-size: 12px; padding: 6px 12px;" onclick="logWater(2, 500)">+ 2 Glasses</button>
-            </div>
+            <button class="btn" style="font-size: 11px; padding: 3px 8px;" onclick="promptWaterGoal()">⚙️ Set Daily Goal</button>
           </div>
           <!-- Glasses Indicator Grid -->
           <div id="healthGlassesGrid" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;"></div>
           <div style="font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between;">
             <span id="healthWaterLastDrank">Last drank: Never</span>
-            <span>Target: 250ml every 45-60 mins</span>
+            <span>Click any glass above to toggle • Target: 250ml / 45m</span>
           </div>
         </div>
 
