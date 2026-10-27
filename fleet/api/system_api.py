@@ -8,7 +8,7 @@ from typing import Any, Dict
 import urllib.parse
 
 from fleet.api.router import router
-from fleet.config import CHANGELOG_PATH, VERSION
+from fleet.config import CHANGELOG_PATH, VERSION, get_live_release_date, get_live_version
 import fleet.server as srv
 
 
@@ -28,10 +28,11 @@ def get_logs(handler: Any, parsed_url: urllib.parse.ParseResult):
 
 @router.get("/api/status")
 def get_status(handler: Any, parsed_url: urllib.parse.ParseResult):
+    live_ver = get_live_version()
     disk = srv.get_disk_usage("C:")
     handler._send_json({
         "status": "online",
-        "version": VERSION,
+        "version": live_ver,
         "time": datetime.now().isoformat(),
         "disk": disk
     })
@@ -39,19 +40,21 @@ def get_status(handler: Any, parsed_url: urllib.parse.ParseResult):
 
 @router.get("/api/version")
 def get_version(handler: Any, parsed_url: urllib.parse.ParseResult):
+    live_ver = get_live_version()
     handler._send_json({
-        "version": VERSION,
+        "version": live_ver,
         "name": "Personal Agentic Fleet",
-        "release_date": "2026-10-14",
+        "release_date": get_live_release_date(),
         "status": "operational"
     })
 
 
 @router.get("/api/release_notes")
 def get_release_notes(handler: Any, parsed_url: urllib.parse.ParseResult):
+    live_ver = get_live_version()
     notes = CHANGELOG_PATH.read_text(encoding="utf-8") if CHANGELOG_PATH.exists() else "No release notes available."
     handler._send_json({
-        "version": VERSION,
+        "version": live_ver,
         "changelog_markdown": notes
     })
 

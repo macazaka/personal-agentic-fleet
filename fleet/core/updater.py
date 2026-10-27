@@ -18,6 +18,7 @@ from typing import Any, Dict, Optional, Tuple
 import urllib.request
 
 from fleet import __version__ as CURRENT_VERSION
+from fleet.config import get_live_version
 from fleet.tools.system_tools import send_notification
 
 logger = logging.getLogger("fleet.updater")
@@ -45,6 +46,8 @@ def check_github_for_updates(timeout_sec: float = 4.0) -> Dict[str, Any]:
     Compares against the currently running Fleet version.
     Zero external dependencies ($0.00 / 0 tokens).
     """
+    global CURRENT_VERSION
+    CURRENT_VERSION = get_live_version()
     latest_ver_str = CURRENT_VERSION
     release_name = f"Personal Agentic Fleet v{CURRENT_VERSION}"
     release_notes = "You are currently running the latest official version."

@@ -15,6 +15,42 @@ MIN_PYTHON_VERSION = (3, 10)
 PORT = 7890
 
 
+def get_live_version() -> str:
+    """
+    Dynamically reads the current Fleet version from fleet/__init__.py or fleet/config.py on disk
+    so long-running Workstation Control Center daemons always report the exact current release version
+    without requiring a process restart.
+    """
+    global VERSION
+    import re
+    try:
+        init_file = Path(__file__).resolve().parent / "__init__.py"
+        if init_file.is_file():
+            m = re.search(r'^__version__\s*=\s*["\']([^"\']+)["\']', init_file.read_text(encoding="utf-8", errors="ignore"), re.M)
+            if m:
+                VERSION = m.group(1).strip()
+                if "fleet" in sys.modules:
+                    setattr(sys.modules["fleet"], "__version__", VERSION)
+                return VERSION
+    except Exception:
+        pass
+    return VERSION
+
+
+def get_live_release_date() -> str:
+    """Extracts the release date of the current version from CHANGELOG.md."""
+    import re
+    try:
+        cl_file = Path(__file__).resolve().parent.parent / "CHANGELOG.md"
+        if cl_file.is_file():
+            m = re.search(r"^## \[\d+\.\d+\.\d+\]\s*-\s*(\d{4}-\d{2}-\d{2})", cl_file.read_text(encoding="utf-8", errors="ignore"), re.M)
+            if m:
+                return m.group(1).strip()
+    except Exception:
+        pass
+    return "2026-10-27"
+
+
 def check_minimum_python_version(version_info=None) -> bool:
     """Verifies that the active Python interpreter meets the minimum >= 3.10 requirement."""
     current = version_info if version_info is not None else sys.version_info

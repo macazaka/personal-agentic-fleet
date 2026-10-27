@@ -71,21 +71,17 @@ jobs:
           cd ..
           sha256sum fleet/data/sbom.cdx.json >> checksums.sha256
 
-      - name: Publish or Update GitHub Release
-        shell: bash
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_meta.outputs.tag }}
+          name: Personal Agentic Fleet ${{ steps.release_meta.outputs.tag }}
+          body_path: release_body.md
+          generate_release_notes: true
+          files: |
+            dist/*
+            fleet/data/sbom.cdx.json
+            checksums.sha256
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ steps.release_meta.outputs.tag }}
-        run: |
-          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
-            gh release edit "$TAG_NAME" \
-              --title "Personal Agentic Fleet $TAG_NAME" \
-              --notes-file release_body.md
-            gh release upload "$TAG_NAME" dist/* fleet/data/sbom.cdx.json checksums.sha256 --clobber
-          else
-            gh release create "$TAG_NAME" \
-              dist/* fleet/data/sbom.cdx.json checksums.sha256 \
-              --title "Personal Agentic Fleet $TAG_NAME" \
-              --notes-file release_body.md \
-              --target "${{ github.sha }}"
-          fi
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

@@ -456,6 +456,52 @@ def ensure_git_tag(repo_root: Path = REPO_ROOT, version: str = "") -> bool:
         return False
 
 
+def ensure_workstation_version_parity(repo_root: Path = REPO_ROOT, target_version: str = "2.6.0") -> bool:
+    """
+    Ensures the local Workstation Control Center (`http://127.0.0.1:7890`) and any mirror
+    workspace stay in 100% version parity with GitHub Releases.
+    If the running Workstation Control Center reports an older in-memory version, stops and restarts it
+    silently in the background so `/api/version` and `/api/status` immediately match `target_version`.
+    """
+    clean_ver = format_semver(parse_semver(target_version))
+    if os.environ.get("FLEET_TEST_MODE") == "1":
+        return False
+
+    # 1. Sync sibling drive mirror workspace if present and different from repo_root
+    try:
+        rel_parts = repo_root.resolve().parts[1:]
+        if rel_parts:
+            c_mirror = Path("C:\\").joinpath(*rel_parts)
+            if c_mirror.is_dir() and c_mirror.resolve() != repo_root.resolve():
+                sync_version_everywhere(c_mirror, clean_ver)
+    except Exception:
+        pass
+
+    # 2. Check live Workstation Control Center at http://127.0.0.1:7890/api/version
+    try:
+        import urllib.request
+        with urllib.request.urlopen("http://127.0.0.1:7890/api/version", timeout=1.5) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode("utf-8"))
+                live_ver = str(data.get("version", "")).strip()
+                if live_ver and live_ver != clean_ver:
+                    from fleet.cli import cmd_stop
+                    cmd_stop(argparse.Namespace())
+                    pythonw = Path(sys.executable).with_name("pythonw.exe")
+                    exe = str(pythonw) if pythonw.is_file() else sys.executable
+                    app_script = repo_root / "fleet" / "app.py"
+                    if app_script.is_file():
+                        subprocess.Popen(
+                            [exe, str(app_script), "--no-browser"],
+                            cwd=str(repo_root),
+                            **_hidden_subprocess_kwargs(),
+                        )
+                        return True
+    except Exception:
+        pass
+    return False
+
+
 def run_proactive_release_check(
     repo_root: Path = REPO_ROOT,
     force_bump: Optional[str] = None,
@@ -482,15 +528,19 @@ def run_proactive_release_check(
         target_ver = bump_semver(base_ver, bump_applied)
     else:
         # Automatic proactive mode:
-        # If current_ver <= latest_tag and qualifying commits/changes exist since latest_tag, bump automatically!
+        # 1. If local version is behind the latest Git tag, sync up to latest_tag immediately.
+        # 2. If local version equals latest_tag and a new feature (minor) or breaking change (major)
+        #    landed since latest_tag, bump automatically so release.yml publishes the new GitHub Release.
         if latest_tag:
-            if parse_semver(current_ver) <= parse_semver(latest_tag):
+            if parse_semver(current_ver) < parse_semver(latest_tag):
+                target_ver = format_semver(parse_semver(latest_tag))
+                bump_applied = "sync_to_tag"
+            elif parse_semver(current_ver) == parse_semver(latest_tag):
                 auto_level = determine_bump_level(commits, changed_files)
-                if auto_level != "none":
+                if auto_level in ("major", "minor"):
                     bump_applied = auto_level
                     target_ver = bump_semver(latest_tag, auto_level)
         elif not latest_tag and commits:
-            # Repository without tags: ensure current_ver is synced
             target_ver = current_ver
 
     updates = sync_version_everywhere(repo_root, target_ver)
@@ -508,6 +558,10 @@ def run_proactive_release_check(
     if create_tag:
         tag_created = ensure_git_tag(repo_root, target_ver)
 
+    workstation_restarted = False
+    if repo_root.resolve() == REPO_ROOT.resolve():
+        workstation_restarted = ensure_workstation_version_parity(repo_root, target_ver)
+
     return {
         "status": "PASS",
         "previous_version": current_ver,
@@ -516,6 +570,7 @@ def run_proactive_release_check(
         "bump_applied": bump_applied,
         "commits_since_tag": len(commits),
         "tag_created": tag_created,
+        "workstation_restarted": workstation_restarted,
         "updates_count": len(updates),
         "updates": updates,
         "tokens_used": 0,
