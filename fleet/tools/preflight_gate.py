@@ -215,10 +215,10 @@ def run_preflight_gate(repo_root: Path = _ROOT) -> int:
     print("  Personal Agentic Fleet — Preflight CI & Security Quality Gate")
     print("==================================================================")
 
-    # 0. Autonomous Zero-Intervention Auto-Fixer (CodeQL & VS Code Diagnostics)
+    # 0. Autonomous Proactive Lifecycle (CodeQL/VS Code Auto-Fixer + Release Sync + Doc/Wiki Enhancer + SBOM)
     try:
-        from fleet.tools.auto_fixer import run_auto_fixer
-        run_auto_fixer(repo_root=repo_root, stage_changes=True, run_pyright_cli=False)
+        from fleet.tools.proactive_lifecycle import run_proactive_lifecycle
+        run_proactive_lifecycle(repo_root=repo_root, stage_changes=True, run_pyright_cli=False)
     except Exception:
         pass
 

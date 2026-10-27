@@ -433,4 +433,82 @@ def test_autonomous_codeql_and_vscode_auto_fixer(tmp_path):
     assert "python.autoComplete.extraPaths" in fixed_settings
 
 
+def test_proactive_release_manager_and_doc_wiki_enhancer(tmp_path):
+    """Validates proactive semantic version bumping, CHANGELOG synthesis, and Wiki/Doc enhancement."""
+    from fleet.tools.release_manager import (
+        bump_semver,
+        determine_bump_level,
+        parse_semver,
+        sync_version_everywhere,
+        update_changelog,
+    )
+    from fleet.tools.doc_wiki_enhancer import run_proactive_doc_wiki_enhancement
+    from fleet.tools.proactive_lifecycle import run_proactive_lifecycle
+
+    assert parse_semver("v2.5.0") == (2, 5, 0)
+    assert bump_semver("2.5.0", "patch") == "2.5.1"
+    assert bump_semver("2.5.0", "minor") == "2.6.0"
+    assert bump_semver("2.5.0", "major") == "3.0.0"
+
+    assert determine_bump_level([{"sha": "123", "subject": "feat(mind): add cognitive layer"}]) == "minor"
+    assert determine_bump_level([{"sha": "456", "subject": "fix(vscode): resolve pylance warning"}]) == "patch"
+    assert determine_bump_level([{"sha": "789", "subject": "feat!: breaking api change"}]) == "major"
+    assert determine_bump_level([{"sha": "000", "subject": "docs: update readme"}]) == "none"
+
+    # Set up synthetic repo structure in tmp_path
+    (tmp_path / "fleet").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "fleet" / "__init__.py").write_text('__version__ = "2.5.0"\n', encoding="utf-8")
+    (tmp_path / "fleet" / "config.py").write_text('VERSION = "2.5.0"\n', encoding="utf-8")
+    (tmp_path / "pyproject.toml").write_text('[project]\nname = "test"\nversion = "2.5.0"\n', encoding="utf-8")
+    (tmp_path / "README.md").write_text(
+        "# Fleet\n\n[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "CHANGELOG.md").write_text(
+        "# Changelog\n\n---\n\n## [2.5.0] - 2026-10-26\n\n### Added\n- Initial 2.5.0 release.\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "wiki").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "wiki" / "Home.md").write_text(
+        "# Wiki\n\n[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "wiki" / "_Footer.md").write_text("*Personal Agentic Fleet v2.5.0*\n", encoding="utf-8")
+    (tmp_path / "docs").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "docs" / "MAINTAINING_DOCUMENTATION.md").write_text("# Old Docs\n", encoding="utf-8")
+
+    updates = sync_version_everywhere(tmp_path, "2.6.0")
+    assert len(updates) >= 5
+    assert '__version__ = "2.6.0"' in (tmp_path / "fleet" / "__init__.py").read_text(encoding="utf-8")
+    assert 'VERSION = "2.6.0"' in (tmp_path / "fleet" / "config.py").read_text(encoding="utf-8")
+    assert 'version = "2.6.0"' in (tmp_path / "pyproject.toml").read_text(encoding="utf-8")
+    assert "Release-v2.6.0" in (tmp_path / "README.md").read_text(encoding="utf-8")
+
+    cl_updated = update_changelog(
+        tmp_path,
+        "2.6.0",
+        [
+            {"sha": "a1", "subject": "feat(cli): add unified fleet CLI"},
+            {"sha": "b2", "subject": "security(codeql): resolve all SAST alerts"},
+            {"sha": "c3", "subject": "fix(vscode): eliminate Pylance warning"},
+        ],
+    )
+    assert cl_updated is True
+    cl_text = (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert "## [2.6.0]" in cl_text
+    assert "### Added" in cl_text
+    assert "### Security" in cl_text
+    assert "### Fixed" in cl_text
+
+    dw_res = run_proactive_doc_wiki_enhancement(repo_root=tmp_path, sync_remote_wiki=False)
+    assert dw_res["status"] == "PASS"
+    assert (tmp_path / "wiki" / "Release-Notes.md").is_file()
+    assert (tmp_path / "wiki" / "CLI-and-Automation-Tools.md").is_file()
+    assert (tmp_path / "wiki" / "_Sidebar.md").is_file()
+
+    lc_res = run_proactive_lifecycle(repo_root=tmp_path, stage_changes=False, run_pyright_cli=False)
+    assert lc_res["status"] == "PASS"
+
+
+
 

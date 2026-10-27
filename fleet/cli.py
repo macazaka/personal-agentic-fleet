@@ -499,6 +499,64 @@ def cmd_autofix(args: argparse.Namespace) -> int:
         sys.argv = original_argv
 
 
+def cmd_release(args: argparse.Namespace) -> int:
+    """Proactively evaluates, bumps, and synchronizes semantic release versions and CHANGELOG.md."""
+    from fleet.tools.release_manager import main as release_main
+    rel_args = []
+    bump_val = getattr(args, "bump", "auto")
+    if bump_val:
+        rel_args.extend(["--bump", bump_val])
+    set_ver = getattr(args, "set_version", "")
+    if set_ver:
+        rel_args.extend(["--set-version", set_ver])
+    if getattr(args, "tag", False):
+        rel_args.append("--tag")
+    if getattr(args, "json", False):
+        rel_args.append("--json")
+    original_argv = sys.argv
+    try:
+        sys.argv = ["fleet-release"] + rel_args
+        return release_main() or 0
+    finally:
+        sys.argv = original_argv
+
+
+def cmd_docs(args: argparse.Namespace) -> int:
+    """Proactively enhances documentation and synchronizes GitHub Wiki pages."""
+    from fleet.tools.doc_wiki_enhancer import main as docs_main
+    doc_args = []
+    if getattr(args, "sync_wiki", False):
+        doc_args.append("--sync-wiki")
+    if getattr(args, "json", False):
+        doc_args.append("--json")
+    original_argv = sys.argv
+    try:
+        sys.argv = ["fleet-docs"] + doc_args
+        return docs_main() or 0
+    finally:
+        sys.argv = original_argv
+
+
+def cmd_lifecycle(args: argparse.Namespace) -> int:
+    """Runs the complete proactive lifecycle (Auto-Fixer + Release Sync + Doc/Wiki Enhancer + SBOM)."""
+    from fleet.tools.proactive_lifecycle import main as lifecycle_main
+    lc_args = []
+    if getattr(args, "stage", False):
+        lc_args.append("--stage")
+    if getattr(args, "tag", False):
+        lc_args.append("--tag")
+    if getattr(args, "sync_wiki", False):
+        lc_args.append("--sync-wiki")
+    if getattr(args, "json", False):
+        lc_args.append("--json")
+    original_argv = sys.argv
+    try:
+        sys.argv = ["fleet-lifecycle"] + lc_args
+        return lifecycle_main() or 0
+    finally:
+        sys.argv = original_argv
+
+
 def cmd_version(args: argparse.Namespace) -> int:
     """Displays version and system platform information."""
     print(f"Personal Agentic Fleet v{VERSION}")
@@ -578,6 +636,25 @@ def build_parser() -> argparse.ArgumentParser:
     p_autofix.add_argument("--stage", action="store_true", help="Stage auto-fixed files in Git")
     p_autofix.add_argument("--json", action="store_true", help="Output report in JSON format")
 
+    # Release
+    p_release = subparsers.add_parser("release", help="Proactively bump/sync release versions and CHANGELOG.md")
+    p_release.add_argument("--bump", choices=["auto", "patch", "minor", "major"], default="auto", help="Semantic bump mode")
+    p_release.add_argument("--set-version", type=str, default="", help="Explicitly set version X.Y.Z")
+    p_release.add_argument("--tag", action="store_true", help="Create annotated Git tag vX.Y.Z")
+    p_release.add_argument("--json", action="store_true", help="Output report in JSON format")
+
+    # Docs
+    p_docs = subparsers.add_parser("docs", help="Proactively enhance documentation and GitHub Wiki pages")
+    p_docs.add_argument("--sync-wiki", action="store_true", help="Push updated wiki/ pages to GitHub Wiki remote")
+    p_docs.add_argument("--json", action="store_true", help="Output report in JSON format")
+
+    # Lifecycle
+    p_lifecycle = subparsers.add_parser("lifecycle", help="Run full proactive lifecycle (Auto-Fixer + Release + Docs/Wiki + SBOM)")
+    p_lifecycle.add_argument("--stage", action="store_true", help="Stage all updated files in Git")
+    p_lifecycle.add_argument("--tag", action="store_true", help="Create annotated Git tag vX.Y.Z")
+    p_lifecycle.add_argument("--sync-wiki", action="store_true", help="Push updated wiki/ pages to GitHub Wiki remote")
+    p_lifecycle.add_argument("--json", action="store_true", help="Output report in JSON format")
+
     # Version
     subparsers.add_parser("version", help="Display fleet version and system information")
 
@@ -608,6 +685,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         "test": cmd_test,
         "wiki": cmd_wiki,
         "autofix": cmd_autofix,
+        "release": cmd_release,
+        "docs": cmd_docs,
+        "lifecycle": cmd_lifecycle,
         "version": cmd_version,
     }
 

@@ -14,11 +14,14 @@ def test_config_paths():
 
 
 def test_config_constants():
-    assert cfg.VERSION == "2.5.0"
+    import re
+    assert re.match(r"^\d+\.\d+\.\d+$", cfg.VERSION)
     assert cfg.CHANGELOG_PATH.exists()
     assert cfg.CHANGELOG_PATH.is_file()
     import fleet
     assert fleet.__version__ == cfg.VERSION
+    pyproject_text = (cfg.BASE_DIR.parent / "pyproject.toml").read_text(encoding="utf-8")
+    assert f'version = "{cfg.VERSION}"' in pyproject_text
     assert cfg.TIMEZONE == "Asia/Kolkata"
     assert cfg.TIMEZONE_NAME == "IST"
     assert cfg.TIMEZONE_OFFSET == "+05:30"

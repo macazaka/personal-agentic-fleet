@@ -6,6 +6,11 @@ on:
       - main
     paths:
       - 'wiki/**'
+      - 'docs/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - 'fleet/__init__.py'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -19,6 +24,10 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Enhance Wiki Pages from Live Codebase
+        run: |
+          python3 -m fleet.tools.doc_wiki_enhancer
 
       - name: Checkout Wiki Repository
         uses: actions/checkout@v4

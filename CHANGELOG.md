@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.6.0] - 2026-10-27
+
+### Added
+- **Autofix**: Add zero-intervention VSCode & CodeQL auto-fixer and SARIF CI verifier.
+- **CLI**: Provide unified Fleet CLI (fleet & python -m fleet), full subcommands and test suite.
+- **Wiki**: Establish complete GitHub Wiki documentation corpus, sync CLI, and automated workflow.
+- **Mind**: Implement 4-layer Cognitive Fleet Mind (Brain, Consciousness, Subconsciousness, Soul).
+- **Observability**: Add proactive periodic log scanner and autonomous self-healing improvements.
+- **Observability**: Enable full-fledged structured logging with dedicated error isolation and deep diagnostics.
+- **Ui Scale**: Add scalable 100+ agent operations center, drawer navigator, and Ctrl+K command palette.
+- **Agent Wizard**: Add create-agent skill, header + button, and 4-step workflow wizard.
+- **Settings**: Add agent activation toggles, agent-specific settings, GitHub update engine, and agent catalog download.
+- **Linux**: Elevate Ubuntu 20.04+, Debian 11+, Fedora 38+, and Arch Linux to Tier 1 native support.
+- **Test**: Elevate microkernel test suite to 99.12% code coverage (321 tests, Tier 0 deterministic).
+- **Linux**: Comprehensive native Linux OS support and hardware parity.
+
+### Security
+- **Codeql**: Resolve final 4 CodeQL sensitive-data alerts in setup_gmail and hyperscalers.
+- **Codeql**: Resolve all 15 remaining CodeQL alerts across server, hyperscalers, dev_tools, setup_gmail, and security_scanner.
+- **Security**: Eliminate CodeQL ReDoS and path injection sinks via linear parsing and directory enumeration.
+- **Security**: Resolve CodeQL incomplete URL substring sanitization and matrix CI dependencies.
+- **Security**: Resolve all CodeQL code scanning alerts with strict path and command line barriers.
+- **Security**: Resolve all 26 CodeQL alerts and enforce proactive pre-commit checks.
+
+### Fixed
+- **Vscode**: Eliminate Pylance settingsNotOverridden warning and stale GitHub Actions diagnostics.
+- **Mind**: Replace Python 3.14-only RLock.locked() with cross-version dreaming flag.
+- **CI**: Ensure user vault initialization in fresh checkout and install pytest in type-check job.
+- **Typing**: Enforce zero VSCode/Pyright diagnostics across full workspace and CI.
+- **CI**: Ensure multi-platform pyright compatibility and headless CI test stability.
+- **Typing**: Eliminate all 133 VSCode/Pyright issues and enforce proactive pre-commit type check.
+- **Tasks**: Ensure list_tasks default exclude_tests is false for deterministic internal operations.
+- **Isolation**: Prevent unit test tasks and activity logs from polluting workstation control center.
+- **Sandbox**: Guard POSIX RLIMIT_AS in test mode and mock egress connect.
+- **CI**: Bind agent submodules for Python 3.10 and enforce headless SDL in CI matrix.
+- **CI**: Add agent packages __init__.py, import ctypes in tests, stream pytest output in ci.
+- **Cross Platform**: Guard STARTUPINFO/windll on posix, fix Path mocking, import pr_review agent, gracefully handle pages setup.
+- **CI**: Add missing Tuple typing imports for python 3.10/3.11, install pygame-ce in ci, enable pages deployment.
+
+### Documentation & Maintenance
+- **Autofix**: Run full VS Code Pyright CLI auto-remediation and parent workspace config sync in pre-commit.
+- **Readme**: Add Windows OS badge and native Win32/DPAPI architecture details.
+- **Telemetry**: Record 385/385 test execution results and auto-improvements ledger.
+- **Telemetry**: Record verified 384/384 test results (95.95% coverage) and auto-improvement ledger.
+- Comprehensively enrich documentation with Cognitive Fleet Mind, Auto-Healer, Navigator, and Agent Wizard.
+- **Test**: Record 100% test pass results and auto-improvements ledger.
+- **Observability**: Document full-fledged structured logging, error forensics isolation, and diagnostics APIs.
+- **Workstation**: Add comprehensive in-depth live socket e2e test suite.
+- **Robustness**: Add comprehensive native robustness architecture and operations guide.
+
+---
+
 ## [2.5.0] - 2026-10-26
 
 ### Added

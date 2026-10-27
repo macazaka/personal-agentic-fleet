@@ -29,6 +29,14 @@ def _sha256_file(path: Path) -> str:
 
 def generate_sbom(repo_root: Path = REPO_ROOT, save_to_disk: bool = True) -> Dict[str, Any]:
     """Generates a CycloneDX 1.5 JSON Software Bill of Materials with SHA-256 component hashes."""
+    import re
+    active_ver = VERSION
+    cfg_path = repo_root / "fleet" / "config.py"
+    if cfg_path.is_file():
+        m = re.search(r'^VERSION\s*=\s*["\']([^"\']+)["\']', cfg_path.read_text(encoding="utf-8", errors="ignore"), re.M)
+        if m:
+            active_ver = m.group(1).strip()
+
     components: List[Dict[str, Any]] = []
 
     # 1. Core Python modules
@@ -42,7 +50,7 @@ def generate_sbom(repo_root: Path = REPO_ROOT, save_to_disk: bool = True) -> Dic
             components.append({
                 "type": "library",
                 "name": rel,
-                "version": VERSION,
+                "version": active_ver,
                 "scope": "required",
                 "hashes": [{"alg": "SHA-256", "content": digest}],
             })
@@ -73,7 +81,7 @@ def generate_sbom(repo_root: Path = REPO_ROOT, save_to_disk: bool = True) -> Dic
             "component": {
                 "type": "application",
                 "name": "personal-agentic-fleet",
-                "version": VERSION,
+                "version": active_ver,
                 "licenses": [{"license": {"id": "Apache-2.0"}}],
             },
         },
@@ -83,8 +91,9 @@ def generate_sbom(repo_root: Path = REPO_ROOT, save_to_disk: bool = True) -> Dic
 
     if save_to_disk:
         try:
-            SBOM_FILE.parent.mkdir(parents=True, exist_ok=True)
-            SBOM_FILE.write_text(json.dumps(sbom, indent=2), encoding="utf-8")
+            target_sbom = (repo_root / "fleet" / "data" / "sbom.cdx.json") if repo_root != REPO_ROOT else SBOM_FILE
+            target_sbom.parent.mkdir(parents=True, exist_ok=True)
+            target_sbom.write_text(json.dumps(sbom, indent=2) + "\n", encoding="utf-8", newline="\n")
         except Exception:
             pass
 

@@ -1,9 +1,10 @@
 # CLAUDE.md — Anthropic Claude Code Guide for Personal Agentic Fleet
 
 ## Quick Verification Commands
-- Full Preflight Gate (Doctor + 12-Layer Security + 126 Unit Tests): `python -m fleet.tools.preflight_gate`
+- Full Preflight Gate (Doctor + 12-Layer Security + Unit Tests): `python -m fleet.tools.preflight_gate`
 - Fast Unit Test Suite: `python -m pytest tests/ -q --tb=short`
-- Security Audit Only: `python -m fleet.security_scanner`
+- Security Audit Only: `python -m fleet.tools.security_scanner`
+- Proactive Auto-Fixer & Release/Doc Sync: `python -m fleet.tools.proactive_lifecycle --stage`
 
 ## 1. Fleet Rule 1: Tier 0 Cost & Token Governance (0 Tokens / $0.00 Default)
 - Personal Agentic Fleet is architected to operate at Tier 0 whenever possible.

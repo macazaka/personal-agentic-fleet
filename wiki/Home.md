@@ -2,6 +2,7 @@
 
 Welcome to the official **Personal Agentic Fleet Documentation Wiki**!
 
+[![Release: v2.6.0](https://img.shields.io/badge/Release-v2.6.0-00b4d8.svg)](Release-Notes)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%5B12%20Layers%5D-brightgreen.svg)](Security-Model)
@@ -21,12 +22,15 @@ Personal Agentic Fleet is an enterprise-grade, privacy-first personal AI operati
 | :--- | :--- |
 | **[[Architecture]]** | 4-Layer Cognitive Mind, FastHTTP microkernel, synaptic event bus, SQLite WAL memory. |
 | **[[Agent-Development-Guide]]** | Masterclass in building custom agents: UI Wizard, Antigravity Skill, CLI, and strict `manifest.json` capability contracts. |
+| **[[CLI-and-Automation-Tools]]** | Unified `fleet` CLI subcommands, proactive release manager, and zero-intervention auto-fixer. |
 | **[[Customizing-Agents]]** | Dynamic runtime activation/deactivation, agent settings schema drawer, and remote catalog discovery. |
 | **[[Cognitive-Fleet-Mind]]** | In-depth exploration of Brain, Consciousness, Subconsciousness, Soul, and the Cognitive Harmony Index. |
 | **[[Robustness-and-Self-Healing]]** | 7-Pillar native robustness, proactive log scanner, circuit breakers, and autonomous remediation recipes. |
 | **[[API-Reference]]** | Complete REST & SSE API specification (`/api/mind/*`, `/api/settings/*`, `/api/diagnostics/*`). |
 | **[[Security-Model]]** | 12-layer security scanner, NIST SP 800-132 PBKDF2 vault, DPAPI/Keychain, and pre-commit CodeQL AST guards. |
 | **[[Linux-and-Cross-Platform-Support]]** | Tier 1 native support for Ubuntu 20.04+, Debian 11+, Fedora 38+, Arch Linux, macOS, and Windows. |
+
+| **[[Release-Notes]]** | Semantic version release history and changelog notes (`v2.6.0`). |
 
 ---
 

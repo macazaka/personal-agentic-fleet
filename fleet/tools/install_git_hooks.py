@@ -29,14 +29,21 @@ repo_root = Path(__file__).resolve().parent.parent.parent
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
-print("[Fleet Auto-Fixer] Running zero-intervention CodeQL & VS Code auto-remediation (pre-commit)...")
+print("[Fleet Proactive Lifecycle] Running CodeQL/VS Code Auto-Fixer, Semantic Release Sync & Doc/Wiki Enhancer (pre-commit)...")
 try:
-    from fleet.tools.auto_fixer import run_auto_fixer
-    af_res = run_auto_fixer(repo_root=repo_root, stage_changes=True, run_pyright_cli=True)
-    if af_res.get("fixes_applied_count", 0) > 0:
-        print(f"=== Fleet Auto-Fixer Applied {{af_res['fixes_applied_count']}} Fix(es) & Staged Automatically ===")
+    from fleet.tools.proactive_lifecycle import run_proactive_lifecycle
+    lc_res = run_proactive_lifecycle(repo_root=repo_root, stage_changes=True, run_pyright_cli=True)
+    touched_cnt = len(lc_res.get("touched_files", []))
+    if touched_cnt > 0:
+        print(f"=== Fleet Proactive Lifecycle Updated & Staged {{touched_cnt}} File(s) Automatically (v{{lc_res.get('active_version')}}) ===")
 except Exception:
-    pass
+    try:
+        from fleet.tools.auto_fixer import run_auto_fixer
+        af_res = run_auto_fixer(repo_root=repo_root, stage_changes=True, run_pyright_cli=True)
+        if af_res.get("fixes_applied_count", 0) > 0:
+            print(f"=== Fleet Auto-Fixer Applied {{af_res['fixes_applied_count']}} Fix(es) & Staged Automatically ===")
+    except Exception:
+        pass
 
 print("[Fleet Security Gate] Running 12-layer Security & Privacy Audit (pre-commit)...")
 from fleet.tools.security_scanner import run_security_scan

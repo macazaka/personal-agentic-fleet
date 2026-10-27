@@ -480,7 +480,7 @@ def sync_github_copilot_instructions(repo_root: Optional[Path] = None) -> Dict[s
         "You are assisting with the **Personal Agentic Fleet** codebase. Always follow these core architectural rules:\n\n"
         + _SHARED_ARCHITECTURAL_RULES
     )
-    copilot_file.write_text(content.strip() + "\n", encoding="utf-8")
+    copilot_file.write_text(content.strip() + "\n", encoding="utf-8", newline="\n")
     return {
         "status": "synced",
         "path": str(copilot_file),
@@ -500,12 +500,13 @@ def sync_claude_code_instructions(repo_root: Optional[Path] = None) -> Dict[str,
     content = (
         "# CLAUDE.md — Anthropic Claude Code Guide for Personal Agentic Fleet\n\n"
         "## Quick Verification Commands\n"
-        "- Full Preflight Gate (Doctor + 12-Layer Security + 126 Unit Tests): `python -m fleet.tools.preflight_gate`\n"
+        "- Full Preflight Gate (Doctor + 12-Layer Security + Unit Tests): `python -m fleet.tools.preflight_gate`\n"
         "- Fast Unit Test Suite: `python -m pytest tests/ -q --tb=short`\n"
-        "- Security Audit Only: `python -m fleet.security_scanner`\n\n"
+        "- Security Audit Only: `python -m fleet.tools.security_scanner`\n"
+        "- Proactive Auto-Fixer & Release/Doc Sync: `python -m fleet.tools.proactive_lifecycle --stage`\n\n"
         + _SHARED_ARCHITECTURAL_RULES
     )
-    claude_file.write_text(content.strip() + "\n", encoding="utf-8")
+    claude_file.write_text(content.strip() + "\n", encoding="utf-8", newline="\n")
     return {
         "status": "synced",
         "path": str(claude_file),
@@ -526,7 +527,7 @@ def sync_gemini_instructions(repo_root: Optional[Path] = None) -> Dict[str, Any]
         "You are operating inside the **Personal Agentic Fleet** workspace.\n\n"
         + _SHARED_ARCHITECTURAL_RULES
     )
-    gemini_file.write_text(content.strip() + "\n", encoding="utf-8")
+    gemini_file.write_text(content.strip() + "\n", encoding="utf-8", newline="\n")
     return {
         "status": "synced",
         "path": str(gemini_file),
