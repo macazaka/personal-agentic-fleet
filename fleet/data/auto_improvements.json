@@ -1,5 +1,173 @@
 [
   {
+    "scan_id": "SCAN-20261027-091010",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-10-27T09:10:11.002742"
+  },
+  {
+    "scan_id": "SCAN-20261027-091010",
+    "issue_type": "CRASH_DUMPS",
+    "severity": "LOW",
+    "description": "Found 12 crash dump files (0 older than 7 days, max age 0.0 days). Retention threshold is 10.",
+    "action_taken": "Pruned 2 aged/excess crash report dumps. Reclaimed 1.18 KB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "total_dumps": 12
+    },
+    "metrics_after": {
+      "remaining_dumps": 10,
+      "reclaimed_kb": 1.18
+    },
+    "created_at": "2026-10-27T09:10:11.002392"
+  },
+  {
+    "scan_id": "SCAN-20261027-090809",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-10-27T09:08:09.523792"
+  },
+  {
+    "scan_id": "SCAN-20261027-090806",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-10-27T09:08:06.368053"
+  },
+  {
+    "scan_id": "SCAN-20261027-090806",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-10-27T09:08:06.240541"
+  },
+  {
+    "scan_id": "SCAN-20261027-090805",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-10-27T09:08:05.501791"
+  },
+  {
+    "scan_id": "SCAN-20261027-090805",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-10-27T09:08:05.373981"
+  },
+  {
+    "scan_id": "SCAN-20261027-090801",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-10-27T09:08:01.805223"
+  },
+  {
+    "scan_id": "SCAN-20261027-085820",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-10-27T08:58:20.692878"
+  },
+  {
+    "scan_id": "SCAN-20261027-085820",
+    "issue_type": "CRASH_DUMPS",
+    "severity": "LOW",
+    "description": "Found 11 crash dump files (0 older than 7 days, max age 0.1 days). Retention threshold is 10.",
+    "action_taken": "Pruned 1 aged/excess crash report dumps. Reclaimed 0.72 KB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "total_dumps": 11
+    },
+    "metrics_after": {
+      "remaining_dumps": 10,
+      "reclaimed_kb": 0.72
+    },
+    "created_at": "2026-10-27T08:58:20.692291"
+  },
+  {
+    "scan_id": "SCAN-20261027-085612",
+    "issue_type": "CRASH_DUMPS",
+    "severity": "LOW",
+    "description": "Found 11 crash dump files (0 older than 7 days, max age 0.1 days). Retention threshold is 10.",
+    "action_taken": "Pruned 1 aged/excess crash report dumps. Reclaimed 0.71 KB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "total_dumps": 11
+    },
+    "metrics_after": {
+      "remaining_dumps": 10,
+      "reclaimed_kb": 0.71
+    },
+    "created_at": "2026-10-27T08:56:12.500791"
+  },
+  {
     "scan_id": "SCAN-20261027-080550",
     "issue_type": "CRASH_DUMPS",
     "severity": "LOW",

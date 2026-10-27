@@ -64,3 +64,4 @@ jobs:
         FLEET_TEST_MODE: "1"
       run: |
         python -m pytest tests/ -v --tb=short
+

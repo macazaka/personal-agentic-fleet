@@ -1,4 +1,3 @@
-import urllib.parse
 import re
 from datetime import datetime
 from typing import Any, Dict, List
@@ -17,30 +16,16 @@ def extract_meeting_agenda(subject: str, snippet: str = "", sender: str = "") ->
     meeting_time = time_match.group(1) if time_match else "Scheduled Today"
 
     text_combined = f"{subject} {snippet}".lower()
-    platform = "Calendar Sync"
     if "google meet" in text_combined:
         platform = "Google Meet"
-    elif "zoom meeting" in text_combined or "zoom webinar" in text_combined:
+    elif "zoom" in text_combined:
         platform = "Zoom"
     elif "microsoft teams" in text_combined or "teams meeting" in text_combined:
         platform = "Microsoft Teams"
     elif "calendly" in text_combined:
         platform = "Calendly"
     else:
-        for url_candidate in [w for w in f"{subject} {snippet}".split() if w.startswith(("http://", "https://"))]:
-            try:
-                host = urllib.parse.urlparse(url_candidate).netloc.lower()
-                if host == "meet.google.com" or host.endswith(".meet.google.com"):
-                    platform = "Google Meet"
-                    break
-                if host == "zoom.us" or host.endswith(".zoom.us"):
-                    platform = "Zoom"
-                    break
-                if host == "teams.microsoft.com" or host.endswith(".teams.microsoft.com"):
-                    platform = "Microsoft Teams"
-                    break
-            except Exception:
-                pass
+        platform = "Calendar Sync"
 
     prep_items = []
     if any(k in clean_title.lower() for k in ["roadmap", "product", "sprint", "planning", "sync"]):
@@ -187,5 +172,3 @@ class BriefingEngine:
             "upcoming_meetings": meetings_prep,
             "metabolic_profile": metabolic
         }
-
-
