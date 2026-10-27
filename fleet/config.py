@@ -33,6 +33,7 @@ check_minimum_python_version()
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True)
+(DATA_DIR / "user").mkdir(exist_ok=True)
 
 DB_PATH = DATA_DIR / "fleet_memory.db"
 TEST_DB_PATH = DATA_DIR / "fleet_test_memory.db"

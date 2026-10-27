@@ -90,9 +90,11 @@ class PhysicalBrain:
                     ]
                 counters = PROCESS_MEMORY_COUNTERS()
                 counters.cb = ctypes.sizeof(PROCESS_MEMORY_COUNTERS)
-                handle = ctypes.windll.kernel32.GetCurrentProcess()
-                if ctypes.windll.psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
-                    working_set_mb = round(counters.WorkingSetSize / (1024 * 1024), 2)
+                windll = getattr(ctypes, "windll", None)
+                if windll is not None:
+                    handle = windll.kernel32.GetCurrentProcess()
+                    if windll.psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
+                        working_set_mb = round(counters.WorkingSetSize / (1024 * 1024), 2)
             except Exception:
                 pass
 

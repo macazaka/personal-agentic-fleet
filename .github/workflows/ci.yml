@@ -22,6 +22,12 @@ jobs:
       with:
         python-version: '3.12'
 
+    - name: Install Type Check Test Dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install pytest
+
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
@@ -34,10 +40,10 @@ jobs:
         npx --yes pyright fleet tests conftest.py pong.py > pyright_log.txt 2>&1
         PY_EXIT=$?
         cat pyright_log.txt
-        echo "### Pyright Output" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        cat pyright_log.txt >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
+        if [ $PY_EXIT -ne 0 ]; then
+          ERR_MSG=$(grep -E "error:|warning:" pyright_log.txt | head -n 5 | tr '\n' ' ')
+          echo "::error title=Pyright Diagnostics::$ERR_MSG"
+        fi
         exit $PY_EXIT
 
   test:
@@ -78,9 +84,9 @@ jobs:
         python -m pytest tests/ -v --tb=short > pytest_log.txt 2>&1
         TEST_EXIT=$?
         cat pytest_log.txt
-        echo "### Pytest Output (${{ matrix.os }}, Python ${{ matrix.python-version }})" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        tail -n 60 pytest_log.txt >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
+        if [ $TEST_EXIT -ne 0 ]; then
+          FAIL_MSG=$(grep -E "FAILED |ERROR |E   " pytest_log.txt | head -n 10 | tr '\n' ' ')
+          echo "::error title=Pytest Failure::$FAIL_MSG"
+        fi
         exit $TEST_EXIT
 

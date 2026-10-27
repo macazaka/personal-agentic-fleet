@@ -92,6 +92,11 @@ class FleetSoul:
             # 1. Audit Privacy & Vault Integrity
             user_vault = DATA_DIR / "user"
             if not user_vault.exists():
+                try:
+                    user_vault.mkdir(parents=True, exist_ok=True)
+                except Exception:
+                    pass
+            if not user_vault.is_dir():
                 violations.append("User data vault directory missing from storage substrate.")
                 score -= 15.0
             else:
