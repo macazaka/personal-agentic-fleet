@@ -40,13 +40,13 @@ jobs:
         python3 - << 'EOF'
         import glob, json, sys
         sarif_files = glob.glob("sarif-results/*.sarif")
-        total_alerts = 0
+        alerts = []
         for sf in sarif_files:
             data = json.load(open(sf, encoding="utf-8"))
             for run in data.get("runs", []):
                 for res in run.get("results", []):
                     rule_id = res.get("ruleId", "unknown")
-                    msg = res.get("message", {}).get("text", "").replace("\n", " ")
+                    msg = res.get("message", {}).get("text", "").replace("\n", " ")[:120]
                     locs = res.get("locations", [])
                     loc_str = "unknown"
                     if locs:
@@ -54,9 +54,11 @@ jobs:
                         uri = ploc.get("artifactLocation", {}).get("uri", "")
                         line = ploc.get("region", {}).get("startLine", 0)
                         loc_str = f"{uri}:{line}"
-                    print(f"::error title=CodeQL Alert ({rule_id})::{loc_str} -> {msg}")
-                    total_alerts += 1
-        print(f"Total CodeQL SARIF alerts found: {total_alerts}")
-        if total_alerts > 0:
+                    alerts.append(f"[{rule_id}] {loc_str} ({msg})")
+        print(f"Total CodeQL SARIF alerts found: {len(alerts)}")
+        for i in range(0, len(alerts), 5):
+            chunk = " | ".join(alerts[i:i+5])
+            print(f"::error title=CodeQL Alerts ({i+1}-{min(i+5, len(alerts))} of {len(alerts)})::{chunk}")
+        if alerts:
             sys.exit(1)
         EOF

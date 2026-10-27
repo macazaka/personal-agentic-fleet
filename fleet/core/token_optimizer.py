@@ -323,19 +323,89 @@ def minify_python_code_snippet(code_str: str) -> str:
 
 
 def compress_stack_traces(text: str) -> str:
-    """Compresses repetitive Python traceback frames and site-packages paths to save tokens."""
+    """Compresses repetitive Python traceback frames and site-packages paths in O(N) linear time."""
     if "Traceback (most recent call last):" not in text:
         return text
-    # Shorten long site-packages paths
-    compressed = re.sub(r'[A-Za-z]:\\[^\r\n"]*?\\site-packages\\', ".../site-packages/", text)
-    compressed = re.sub(r'/[^\r\n"]*?/site-packages/', ".../site-packages/", compressed)
-    return compressed
+    out_lines: List[str] = []
+    for line in text.splitlines():
+        for marker in ("\\site-packages\\", "/site-packages/"):
+            m_idx = line.find(marker)
+            while m_idx != -1:
+                # Find start of path (quote or whitespace before marker)
+                q_idx = line.rfind('"', 0, m_idx)
+                start_idx = q_idx + 1 if q_idx != -1 else 0
+                if start_idx == 0:
+                    # Find drive letter or leading slash
+                    slash_idx = line.find("/", 0, m_idx)
+                    colon_idx = line.find(":\\", 0, m_idx)
+                    if colon_idx > 0:
+                        start_idx = colon_idx - 1
+                    elif slash_idx != -1:
+                        start_idx = slash_idx
+                prefix = line[:start_idx]
+                suffix = line[m_idx + len(marker):]
+                line = prefix + ".../site-packages/" + suffix
+                m_idx = line.find(marker, len(prefix) + len(".../site-packages/"))
+        out_lines.append(line)
+    return "\n".join(out_lines)
+
+
+def _strip_html_comments_linear(text: str) -> str:
+    """Strips <!-- ... --> HTML comments in O(N) linear time without regex backtracking."""
+    if "<!--" not in text:
+        return text
+    parts: List[str] = []
+    pos = 0
+    while True:
+        start = text.find("<!--", pos)
+        if start == -1:
+            parts.append(text[pos:])
+            break
+        end = text.find("-->", start + 4)
+        if end == -1:
+            parts.append(text[pos:])
+            break
+        parts.append(text[pos:start])
+        pos = end + 3
+    return "".join(parts)
+
+
+def _minify_fenced_python_blocks_linear(text: str) -> str:
+    """Minifies fenced ```python / ```py code blocks in O(N) linear time without regex backtracking."""
+    if "```" not in text:
+        return text
+    out: List[str] = []
+    pos = 0
+    while True:
+        fence_start = text.find("```", pos)
+        if fence_start == -1:
+            out.append(text[pos:])
+            break
+        nl_idx = text.find("\n", fence_start + 3)
+        if nl_idx == -1:
+            out.append(text[pos:])
+            break
+        lang_tag = text[fence_start + 3:nl_idx].strip()
+        fence_end = text.find("```", nl_idx + 1)
+        if fence_end == -1:
+            out.append(text[pos:])
+            break
+        out.append(text[pos:fence_start])
+        if lang_tag.lower() in ("python", "py"):
+            TOKEN_TELEMETRY["code_blocks_minified"] += 1
+            inner = text[nl_idx + 1:fence_end]
+            minified = minify_python_code_snippet(inner)
+            out.append(f"```{lang_tag}\n{minified}\n```")
+        else:
+            out.append(text[fence_start:fence_end + 3])
+        pos = fence_end + 3
+    return "".join(out)
 
 
 def compress_prompt(prompt: str, max_chars: int = 12000) -> Dict[str, Any]:
     """
     Multi-stage prompt compressor before LLM dispatch:
-      1. Strips HTML comments
+      1. Strips HTML comments in O(N) linear time
       2. Minifies fenced ```python ... ``` code blocks (strips comments & excess blank lines)
       3. Compresses repetitive site-packages stack trace paths
       4. Collapses redundant whitespace and consecutive newlines
@@ -345,17 +415,8 @@ def compress_prompt(prompt: str, max_chars: int = 12000) -> Dict[str, Any]:
         return {"text": "", "chars_saved": 0, "tokens_saved": 0}
 
     original_len = len(prompt)
-    text = re.sub(r"<!--.*?-->", "", prompt, flags=re.DOTALL)
-
-    # Minify fenced python code blocks
-    def _minify_block(match: re.Match) -> str:
-        TOKEN_TELEMETRY["code_blocks_minified"] += 1
-        lang = match.group(1) or "python"
-        inner = match.group(2)
-        minified = minify_python_code_snippet(inner)
-        return f"```{lang}\n{minified}\n```"
-
-    text = re.sub(r"```(python|py)\n(.*?)```", _minify_block, text, flags=re.DOTALL | re.IGNORECASE)
+    text = _strip_html_comments_linear(prompt)
+    text = _minify_fenced_python_blocks_linear(text)
     text = compress_stack_traces(text)
     text = re.sub(r"[ \t]{2,}", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text).strip()

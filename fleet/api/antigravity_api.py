@@ -1,4 +1,3 @@
-import re
 """
 Antigravity Live Stream, Models & Agent Control API endpoints for Personal Agentic Fleet.
 """
@@ -7,6 +6,7 @@ import base64
 import mimetypes
 import os
 from pathlib import Path
+import re
 from typing import Any, Dict
 import urllib.parse
 
@@ -66,20 +66,17 @@ def get_media(handler: Any, path: str, parsed_url: urllib.parse.ParseResult):
     if not re.fullmatch(r"^[a-zA-Z0-9_.-]+$", clean_filename) or clean_filename.startswith("."):
         handler.send_error(400, "Invalid media filename")
         return
-    media_path = None
-    candidate = (srv.UPLOADS_DIR / clean_filename).resolve()
-    if os.path.commonpath([str(srv.UPLOADS_DIR.resolve()), str(candidate)]) == str(srv.UPLOADS_DIR.resolve()) and candidate.is_file():
-        media_path = candidate
-    else:
+    media_path = srv._find_safe_file_in_dir(srv.UPLOADS_DIR, clean_filename, recursive=False)
+    if media_path is None:
         t_path = srv.get_active_transcript_path()
         if t_path:
-            brain_dir = t_path.parents[2].resolve()
-            for c in [(brain_dir / ".user_uploaded" / clean_filename).resolve(), (brain_dir / clean_filename).resolve()]:
-                if os.path.commonpath([str(brain_dir), str(c)]) == str(brain_dir) and c.is_file():
-                    media_path = c
-                    break
-    if media_path and media_path.is_file():
-        content_type = mimetypes.guess_type(str(media_path))[0] or "image/png"
+            brain_dir = t_path.parents[2]
+            media_path = (
+                srv._find_safe_file_in_dir(brain_dir / ".user_uploaded", clean_filename, recursive=False)
+                or srv._find_safe_file_in_dir(brain_dir, clean_filename, recursive=False)
+            )
+    if media_path is not None:
+        content_type = mimetypes.guess_type(media_path.name)[0] or "image/png"
         data = media_path.read_bytes()
         handler.send_response(200)
         handler.send_header("Content-Type", content_type)
@@ -111,8 +108,8 @@ def post_upload(handler: Any, body: Dict[str, Any]):
         raw_bytes = base64.b64decode(b64_data)
         res = srv.save_uploaded_image(filename or "uploaded_image.png", raw_bytes)
         handler._send_json({"status": "success", "file": res})
-    except Exception as e:
-        handler._send_json({"status": "error", "message": str(e)}, 400)
+    except Exception:
+        handler._send_json({"status": "error", "message": "Invalid upload payload"}, 400)
 
 
 @router.post("/api/antigravity/queue/cancel")
@@ -157,4 +154,3 @@ def post_simulate_tokens(handler: Any, body: Dict[str, Any]):
         if sim_status == "exhausted":
             srv.handle_token_exhaustion(reason=body.get("reason", "Simulated token exhaustion"))
         handler._send_json({"status": "simulated", "override": sim_status})
-

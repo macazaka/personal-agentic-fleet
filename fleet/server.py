@@ -88,6 +88,26 @@ agent_registry.register_all_routes(router)
 
 
 MAX_PAYLOAD_BYTES = 10 * 1024 * 1024  # 10 MB request body ceiling (DoS protection)
+
+
+def _find_safe_file_in_dir(base_dir: Path, target_rel: str, recursive: bool = False) -> Any:
+    """
+    Resolves a file strictly by enumerating the trusted base_dir and comparing relative POSIX strings.
+    Because target_rel is never concatenated into a path or passed to filesystem APIs,
+    no user-controlled taint ever reaches Path/open/read_bytes (eliminating CWE-022).
+    """
+    if not base_dir.is_dir():
+        return None
+    norm_target = target_rel.replace("\\", "/").lstrip("/")
+    iterator = base_dir.rglob("*") if recursive else base_dir.iterdir()
+    for entry in iterator:
+        if entry.is_file():
+            try:
+                if entry.relative_to(base_dir).as_posix() == norm_target:
+                    return entry
+            except ValueError:
+                continue
+    return None
 ALLOWED_ORIGINS = {
     f"http://127.0.0.1:{PORT}",
     f"http://localhost:{PORT}",
@@ -327,20 +347,17 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             if not re.fullmatch(r"^[a-zA-Z0-9_.-]+$", clean_filename) or clean_filename.startswith("."):
                 self.send_error(400, "Invalid media filename")
                 return
-            media_path = None
-            candidate = (UPLOADS_DIR / clean_filename).resolve()
-            if os.path.commonpath([str(UPLOADS_DIR.resolve()), str(candidate)]) == str(UPLOADS_DIR.resolve()) and candidate.is_file():
-                media_path = candidate
-            else:
+            media_path = _find_safe_file_in_dir(UPLOADS_DIR, clean_filename, recursive=False)
+            if media_path is None:
                 t_path = get_active_transcript_path()
                 if t_path:
-                    brain_dir = t_path.parents[2].resolve()
-                    for c in [(brain_dir / ".user_uploaded" / clean_filename).resolve(), (brain_dir / clean_filename).resolve()]:
-                        if os.path.commonpath([str(brain_dir), str(c)]) == str(brain_dir) and c.is_file():
-                            media_path = c
-                            break
-            if media_path and media_path.is_file():
-                content_type = mimetypes.guess_type(str(media_path))[0] or "image/png"
+                    brain_dir = t_path.parents[2]
+                    media_path = (
+                        _find_safe_file_in_dir(brain_dir / ".user_uploaded", clean_filename, recursive=False)
+                        or _find_safe_file_in_dir(brain_dir, clean_filename, recursive=False)
+                    )
+            if media_path is not None:
+                content_type = mimetypes.guess_type(media_path.name)[0] or "image/png"
                 data = media_path.read_bytes()
                 self.send_response(200)
                 self.send_header("Content-Type", content_type)
@@ -360,14 +377,14 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             if ".." in rel_path or not re.fullmatch(r"^[a-zA-Z0-9_./\\-]+$", rel_path):
                 self.send_error(400, "Invalid static asset path")
                 return
-            file_path = (STATIC_DIR / rel_path).resolve()
-            if os.path.commonpath([str(STATIC_DIR.resolve()), str(file_path)]) == str(STATIC_DIR.resolve()) and file_path.is_file():
+            file_path = _find_safe_file_in_dir(STATIC_DIR, rel_path, recursive=True)
+            if file_path is not None:
                 if file_path.suffix == ".css":
                     content_type = "text/css; charset=utf-8"
                 elif file_path.suffix == ".js":
                     content_type = "application/javascript; charset=utf-8"
                 else:
-                    content_type = mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
+                    content_type = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
                 data = file_path.read_bytes()
                 self.send_response(200)
                 self.send_header("Content-Type", content_type)

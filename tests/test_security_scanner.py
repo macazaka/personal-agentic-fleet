@@ -411,7 +411,7 @@ def test_autonomous_codeql_and_vscode_auto_fixer(tmp_path):
         'import hashlib, os, subprocess\n'
         'h = hashlib.md5(b"abc")\n'
         'subprocess.run(["echo", "hi"], shell=True)\n'
-        'getattr(os, "startfile")("foo.txt")\n',
+        'os.startfile("foo.txt")\n',
         encoding="utf-8",
     )
     res = run_auto_fixer(repo_root=tmp_path, stage_changes=False, run_pyright_cli=False)

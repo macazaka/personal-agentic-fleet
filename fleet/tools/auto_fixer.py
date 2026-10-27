@@ -207,7 +207,11 @@ def fix_vscode_pyright_problems(
 
     # 2. Scan tracked Python files for cross-platform attribute access patterns
     tracked = get_tracked_files(repo_root)
-    exempt_files = {"fleet/tools/auto_fixer.py", "fleet/tools/security_scanner.py"}
+    exempt_files = {
+        "fleet/tools/auto_fixer.py",
+        "fleet/tools/security_scanner.py",
+        "tests/test_security_scanner.py",
+    }
 
     for rel_path in tracked:
         if not rel_path.endswith(".py") or rel_path in exempt_files:
