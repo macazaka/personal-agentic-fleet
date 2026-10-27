@@ -295,6 +295,8 @@ class GmailManager:
         email_list = []
 
         def _fetch_single_msg(msg: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+            if not self.service:
+                return None
             try:
                 msg_data = self.service.users().messages().get(
                     userId="me", id=msg["id"], format="metadata",
@@ -332,6 +334,8 @@ class GmailManager:
 
     def _apply_labels_to_gmail(self, classified: List[Dict[str, Any]], auto_archive_ignore: bool) -> int:
         """Batch apply labels via Gmail API."""
+        if not self.service:
+            return 0
         grouped_by_cat: Dict[int, List[str]] = {cid: [] for cid in CATEGORIES}
         for item in classified:
             grouped_by_cat[item["category_id"]].append(item["id"])

@@ -257,6 +257,13 @@ def cache_prompt_response(prompt: str, response: str) -> None:
     }
 
 
+def flush_transient_cache() -> int:
+    """Flushes transient in-memory prompt and image caches."""
+    count = len(_PROMPT_CACHE)
+    _PROMPT_CACHE.clear()
+    return count
+
+
 def query_local_knowledge_base(query: str) -> Optional[Dict[str, Any]]:
     """
     Tier 0 Offline BM25-style Knowledge Base Engine (0 LLM Tokens / $0.00).

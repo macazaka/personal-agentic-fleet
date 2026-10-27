@@ -109,6 +109,47 @@ def verify_agent_package_isolation(repo_root: Path = _ROOT) -> Dict[str, Any]:
     }
 
 
+def verify_static_type_integrity(repo_root: Path = _ROOT) -> Dict[str, Any]:
+    """Proactively verifies zero Pyright/Pylance typing errors across the codebase."""
+    import shutil
+    npx_cmd = shutil.which("npx")
+    if not npx_cmd:
+        for candidate in ["npx.cmd", "npx"]:
+            c_path = shutil.which(candidate)
+            if c_path:
+                npx_cmd = c_path
+                break
+    if not npx_cmd:
+        return {"status": "SKIP", "detail": "npx not found in environment"}
+
+    if os.name == "nt":
+        npx_bin = shutil.which("npx.cmd") or shutil.which("npx") or "npx.cmd"
+        res = subprocess.run(
+            [npx_bin, "pyright", "fleet"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
+        )
+    else:
+        npx_bin = shutil.which("npx") or "npx"
+        res = subprocess.run(
+            [npx_bin, "pyright", "fleet"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    if res.returncode != 0:
+        return {
+            "status": "FAIL",
+            "detail": res.stdout or res.stderr,
+            "errors": [l for l in (res.stdout or "").splitlines() if "error:" in l]
+        }
+    return {"status": "PASS", "detail": "0 errors, 0 warnings"}
+
+
 def verify_documentation_integrity(repo_root: Path = _ROOT) -> Dict[str, Any]:
     """
     Verifies that all required documentation files exist, are comprehensive (>500 chars),
@@ -161,7 +202,7 @@ def run_preflight_gate(repo_root: Path = _ROOT) -> int:
     print("==================================================================")
 
     # 1. Run Fleet Doctor (Verifies Runtime, OpenSSL, SQLite, Git Hooks, Vault ACL)
-    print("[1/5] Running Fleet Doctor Invariants...")
+    print("[1/6] Running Fleet Doctor Invariants...")
     doc_res = run_fleet_doctor(repo_root=repo_root)
     if doc_res["status"] != "PASS":
         print(f"[-] Fleet Doctor FAILED (Score: {doc_res['security_score']}/100)")
@@ -172,7 +213,7 @@ def run_preflight_gate(repo_root: Path = _ROOT) -> int:
     print(f"[OK] Fleet Doctor Passed (Python {doc_res['python_version']}, Security 100/100)")
 
     # 2. Run 12-Layer Security & Privacy Scanner
-    print("[2/5] Running 12-Layer Security & Privacy Scanner...")
+    print("[2/6] Running 12-Layer Security & Privacy Scanner...")
     sec_res = run_security_scan(repo_root=repo_root)
     if sec_res["status"] != "PASS" or sec_res.get("total_findings", 0) > 0:
         print(f"[-] Security Scanner FAILED with {sec_res.get('total_findings', 0)} finding(s).")
@@ -182,7 +223,7 @@ def run_preflight_gate(repo_root: Path = _ROOT) -> int:
     print(f"[OK] 12-Layer Security Scanner Passed (Score: 100/100, 0 findings)")
 
     # 3. Enforce Agent Package Isolation & Strict Manifest Audit
-    print("[3/5] Verifying Agent Package Isolation & Strict Manifest Contracts...")
+    print("[3/6] Verifying Agent Package Isolation & Strict Manifest Contracts...")
     iso_res = verify_agent_package_isolation(repo_root=repo_root)
     if iso_res["status"] != "PASS":
         print(f"[-] Agent Package Isolation FAILED with {len(iso_res['findings'])} finding(s):")
@@ -192,7 +233,7 @@ def run_preflight_gate(repo_root: Path = _ROOT) -> int:
     print(f"[OK] Agent Package Isolation Passed ({iso_res['verified_agents']} agents verified with strict manifest.json contracts)")
 
     # 4. Verify Documentation Integrity & Link Validations
-    print("[4/5] Verifying Comprehensive Documentation Integrity...")
+    print("[4/6] Verifying Comprehensive Documentation Integrity...")
     doc_check = verify_documentation_integrity(repo_root=repo_root)
     if doc_check["status"] != "PASS":
         print(f"[-] Documentation Integrity Check FAILED with {len(doc_check['findings'])} finding(s):")
@@ -201,8 +242,18 @@ def run_preflight_gate(repo_root: Path = _ROOT) -> int:
         return 1
     print(f"[OK] Documentation Passed ({doc_check['verified_files']}/{doc_check['total_required']} docs valid, 0 broken links)")
 
-    # 5. Run Pytest Suite in Clean Environment with PYTHONPATH
-    print("[5/5] Running Full Unit Test Suite (pytest tests/)...")
+    # 5. Verify Static Type Integrity (0 Pyright/Pylance errors)
+    print("[5/6] Verifying Static Type Integrity (Pyright / Pylance zero diagnostics)...")
+    type_res = verify_static_type_integrity(repo_root=repo_root)
+    if type_res["status"] == "FAIL":
+        print(f"[-] Static Type Check FAILED with {len(type_res.get('errors', []))} typing error(s):")
+        for err in type_res.get("errors", [])[:10]:
+            print(f"    - {err}")
+        return 1
+    print(f"[OK] Static Type Integrity Passed ({type_res['detail']})")
+
+    # 6. Run Pytest Suite in Clean Environment with PYTHONPATH
+    print("[6/6] Running Full Unit Test Suite (pytest tests/)...")
     hidden_kw = {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)} if os.name == "nt" else {}
     env = os.environ.copy()
     env["PYTHONPATH"] = str(repo_root)

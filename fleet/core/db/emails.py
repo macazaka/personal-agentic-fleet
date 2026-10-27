@@ -5,10 +5,16 @@ Classified Emails cache & unsubscription state mixin for FleetDatabase.
 import json
 import sqlite3
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fleet.core.db.base import BaseDatabase
+    _DbBase = BaseDatabase
+else:
+    _DbBase = object
 
 
-class EmailsMixin:
+class EmailsMixin(_DbBase):
     # --- Unsubscribed Email Operations ---
     def record_unsubscribed_email(self, message_id: str, sender: str = "",
                                   subject: str = "", unsubscribe_url: str = "") -> int:
@@ -25,7 +31,7 @@ class EmailsMixin:
                     unsubscribed_at = excluded.unsubscribed_at
             """, (message_id, sender, subject, unsubscribe_url, now_str))
             conn.commit()
-            return cursor.lastrowid
+            return cursor.lastrowid or 0
 
     def is_email_unsubscribed(self, message_id: str) -> bool:
         with self._get_connection() as conn:

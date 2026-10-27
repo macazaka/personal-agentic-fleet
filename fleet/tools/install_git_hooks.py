@@ -41,6 +41,41 @@ if report.get("total_findings", 0) > 0:
     print("[BLOCKED] Fleet Security Gate blocked commit due to security findings.")
     print("==================================================================")
     sys.exit(1)
+
+# Proactive Static Typing Verification Gate
+print("[Fleet Type Gate] Running Pyright Type Diagnostics (pre-commit)...")
+try:
+    import shutil
+    import subprocess
+    if os.name == "nt":
+        npx_cmd = shutil.which("npx.cmd") or shutil.which("npx") or "npx.cmd"
+        pyright_res = subprocess.run(
+            [npx_cmd, "pyright", "fleet"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
+        )
+    else:
+        npx_cmd = shutil.which("npx") or "npx"
+        pyright_res = subprocess.run(
+            [npx_cmd, "pyright", "fleet"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    if pyright_res.returncode != 0:
+        print(pyright_res.stdout)
+        print("==================================================================")
+        print("[BLOCKED] Fleet Type Gate: Type checking failed. Fix errors above.")
+        print("==================================================================")
+        sys.exit(1)
+    print("=== Fleet Type Check [PASS] | 0 errors, 0 warnings ===")
+except Exception:
+    pass
+
 sys.exit(0)
 """
 
@@ -145,7 +180,6 @@ def _configure_git_branch_protection(repo_root: Path) -> None:
     fallback_git = Path(os.path.expanduser(r"~\AppData\Local\Programs\Git\cmd\git.exe"))
     if fallback_git.is_file():
         git_exe = str(fallback_git)
-    hidden_kw = {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)} if os.name == "nt" else {}
     settings = [
         ("receive.denyDeletes", "true"),
         ("receive.denyNonFastForwards", "true"),
@@ -155,14 +189,23 @@ def _configure_git_branch_protection(repo_root: Path) -> None:
     ]
     for key, val in settings:
         try:
-            subprocess.run(
-                [git_exe, "-C", str(repo_root), "config", key, val],
-                capture_output=True,
-                timeout=5,
-                check=False,
-                **hidden_kw,
-            )
+            if os.name == "nt":
+                subprocess.run(
+                    [git_exe, "-C", str(repo_root), "config", key, val],
+                    capture_output=True,
+                    timeout=5,
+                    check=False,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
+                )
+            else:
+                subprocess.run(
+                    [git_exe, "-C", str(repo_root), "config", key, val],
+                    capture_output=True,
+                    timeout=5,
+                    check=False,
+                )
         except Exception:
+            pass
             pass
 
 

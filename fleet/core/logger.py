@@ -232,7 +232,7 @@ def install_logging_excepthooks() -> None:
             thread_name,
             args.exc_type.__name__ if args.exc_type else "Exception",
             args.exc_value,
-            exc_info=(args.exc_type, args.exc_value, args.exc_traceback),
+            exc_info=(args.exc_type, args.exc_value, args.exc_traceback) if (args.exc_type and args.exc_value) else True,
             extra={"agent": "SystemKernel", "action": "uncaught_thread_exception"}
         )
 

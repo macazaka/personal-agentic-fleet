@@ -241,17 +241,27 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
     if (repo_root / ".git").exists() and pii_terms:
         try:
             git_exe = _get_git_executable()
-            hidden_kw = {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)} if os.name == "nt" else {}
-            hist_res = subprocess.run(
-                [git_exe, "-C", str(repo_root), "log", "--all", "-p", "--unified=0"],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="ignore",
-                timeout=15,
-                check=False,
-                **hidden_kw,
-            )
+            if os.name == "nt":
+                hist_res = subprocess.run(
+                    [git_exe, "-C", str(repo_root), "log", "--all", "-p", "--unified=0"],
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="ignore",
+                    timeout=15,
+                    check=False,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
+                )
+            else:
+                hist_res = subprocess.run(
+                    [git_exe, "-C", str(repo_root), "log", "--all", "-p", "--unified=0"],
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="ignore",
+                    timeout=15,
+                    check=False,
+                )
             if hist_res.returncode == 0 and hist_res.stdout:
                 cur_commit = "history"
                 cur_file = "git_history"

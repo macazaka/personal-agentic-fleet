@@ -65,7 +65,7 @@ class BacklogAgent(FleetAgent):
         router.include_router(backlog_api.router)
 
     def execute_task(self, task: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        stats = self.db.get_feature_backlog_stats() if hasattr(self.db, "get_feature_backlog_stats") else {}
+        stats = self.db.get_feature_backlog_stats() if self.db and hasattr(self.db, "get_feature_backlog_stats") else {}
         return {
             "status": "success",
             "title": "📋 Feature Backlog Hygiene",

@@ -47,6 +47,7 @@ class FleetAgent(ABC):
 
         self._raw_db = db
         self.db = ScopedDatabaseProxy(db, self.agent_dir.name, self.permissions) if db is not None else None
+        self._override_default: Optional[bool] = None
 
     @property
     @abstractmethod
@@ -74,7 +75,9 @@ class FleetAgent(ABC):
     @property
     def is_default(self) -> bool:
         """Whether this agent is the active default tab on dashboard load."""
-        return False
+        if self._override_default is not None:
+            return self._override_default
+        return bool(self.config.get("is_default", False))
 
     # === Universal User Customization Overrides ===
 
@@ -147,7 +150,7 @@ class FleetAgent(ABC):
             prompt=prompt,
             provider=provider or self.preferred_provider,
             model=model or self.preferred_model,
-            system_instruction=system_instruction or self.system_prompt,
+            system_instruction=system_instruction or self.system_prompt or "",
             **kwargs,
         )
 

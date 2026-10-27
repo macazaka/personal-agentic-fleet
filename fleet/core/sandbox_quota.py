@@ -121,11 +121,15 @@ class ProcessQuotaManager:
         try:
             import resource
             from unittest.mock import Mock
-            if os.environ.get("FLEET_TEST_MODE") == "1" and not isinstance(resource.setrlimit, Mock):
+            setrlimit_fn = getattr(resource, "setrlimit", None)
+            rlimit_as = getattr(resource, "RLIMIT_AS", None)
+            if not callable(setrlimit_fn) or rlimit_as is None:
+                return False
+            if os.environ.get("FLEET_TEST_MODE") == "1" and not isinstance(setrlimit_fn, Mock):
                 return True
             # RLIMIT_AS controls virtual memory
-            resource.setrlimit(
-                resource.RLIMIT_AS,
+            setrlimit_fn(
+                rlimit_as,
                 (self.memory_limit_bytes, int(self.memory_limit_bytes * 1.5))
             )
             logger.info(f"[SandboxQuota] Configured POSIX RLIMIT_AS to {self.memory_limit_mb}MB")
@@ -208,13 +212,13 @@ def enforce_agent_egress(agent_id: str, permissions: Iterable[str]):
     def guarded_connect(self, address):
         # Ignore Unix domain sockets (on POSIX)
         if getattr(self, "family", None) == getattr(socket, "AF_UNIX", -1) or isinstance(address, str):
-            return orig_connect(self, address)
+            return orig_connect(self, tuple(address) if isinstance(address, list) else address)
 
         host = address[0] if isinstance(address, (tuple, list)) else address
 
         # Always permit localhost / loopback communication
         if host in LOCAL_HOSTS:
-            return orig_connect(self, address)
+            return orig_connect(self, tuple(address) if isinstance(address, list) else address)
 
         # Check declared capabilities
         if not has_egress:
@@ -227,7 +231,7 @@ def enforce_agent_egress(agent_id: str, permissions: Iterable[str]):
                 f"required to connect to external host '{host}'."
             )
 
-        return orig_connect(self, address)
+        return orig_connect(self, tuple(address) if isinstance(address, list) else address)
 
     socket.socket.connect = guarded_connect
     try:

@@ -97,7 +97,7 @@ class HealthAgent(FleetAgent):
                 return {"status": "success", "title": title, "message": msg}
 
         if "routine" in t_low:
-            routines = self.db.list_routines() if hasattr(self.db, "list_routines") else []
+            routines = self.db.list_routines() if self.db and hasattr(self.db, "list_routines") else []
             pending = [r for r in routines if not r.get("completed_today")]
             return {
                 "status": "success",

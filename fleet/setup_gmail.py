@@ -10,8 +10,8 @@ from pathlib import Path
 # Ensure UTF-8 output on Windows console with unbuffered lines
 if sys.platform == "win32":
     try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+        getattr(sys.stdout, "reconfigure")(encoding="utf-8", errors="replace", line_buffering=True)
+        getattr(sys.stderr, "reconfigure")(encoding="utf-8", errors="replace", line_buffering=True)
     except Exception:
         pass
 
@@ -78,6 +78,9 @@ def authenticate_and_verify():
         print(f"✅ Authorization successful! Token saved to: {TOKEN_FILE.name}")
 
         service = mgr.service
+        if not service:
+            print("❌ Failed to obtain Gmail service.")
+            return
         profile = service.users().getProfile(userId="me").execute()
         email_address = profile.get("emailAddress", "Unknown")
         total_messages = profile.get("messagesTotal", 0)

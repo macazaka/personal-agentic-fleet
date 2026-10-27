@@ -139,9 +139,6 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
         except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
             pass
 
-    def log_message(self, format, *args):
-        pass  # Suppress default noisy console logs; events routed via event bus
-
     def _read_json(self) -> Dict[str, Any]:
         content_len = int(self.headers.get("Content-Length", 0))
         if content_len <= 0 or content_len > MAX_PAYLOAD_BYTES:
@@ -621,7 +618,11 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             self._send_json({"id": task_id, "status": "created"})
 
         elif path == "/api/tasks/toggle":
-            task_id = body.get("id")
+            raw_id = body.get("id")
+            if raw_id is None:
+                self._send_json({"error": "Missing task ID"}, 400)
+                return
+            task_id = int(raw_id)
             tasks = db.list_tasks()
             task = next((t for t in tasks if t["id"] == task_id), None)
             if not task:
@@ -632,12 +633,20 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             self._send_json({"status": "updated", "new_status": new_status})
 
         elif path == "/api/tasks/delete":
-            task_id = body.get("id")
+            raw_id = body.get("id")
+            if raw_id is None:
+                self._send_json({"error": "Missing task ID"}, 400)
+                return
+            task_id = int(raw_id)
             db.delete_task(task_id)
             self._send_json({"status": "deleted"})
 
         elif path == "/api/routines/toggle":
-            routine_id = body.get("id")
+            raw_id = body.get("id")
+            if raw_id is None:
+                self._send_json({"error": "Missing routine ID"}, 400)
+                return
+            routine_id = int(raw_id)
             db.toggle_routine(routine_id)
             self._send_json({"status": "toggled"})
 
@@ -827,7 +836,7 @@ class RobustThreadingHTTPServer(ThreadingHTTPServer):
             client_address,
             exc_type.__name__ if exc_type else "Error",
             exc_val,
-            exc_info=(exc_type, exc_val, exc_tb),
+            exc_info=(exc_type, exc_val, exc_tb) if exc_type is not None and exc_val is not None else True,
             extra={"action": "http_server_error", "agent": "HttpServer"}
         )
         super().handle_error(request, client_address)

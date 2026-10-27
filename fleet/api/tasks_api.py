@@ -32,7 +32,11 @@ def create_task(handler: Any, body: Dict[str, Any]):
 
 @router.post("/api/tasks/toggle")
 def toggle_task(handler: Any, body: Dict[str, Any]):
-    task_id = body.get("id")
+    raw_id = body.get("id")
+    if raw_id is None:
+        handler._send_json({"error": "Missing task ID"}, 400)
+        return
+    task_id = int(raw_id)
     tasks = srv.db.list_tasks()
     task = next((t for t in tasks if t["id"] == task_id), None)
     if not task:
@@ -45,7 +49,11 @@ def toggle_task(handler: Any, body: Dict[str, Any]):
 
 @router.post("/api/tasks/delete")
 def delete_task(handler: Any, body: Dict[str, Any]):
-    task_id = body.get("id")
+    raw_id = body.get("id")
+    if raw_id is None:
+        handler._send_json({"error": "Missing task ID"}, 400)
+        return
+    task_id = int(raw_id)
     srv.db.delete_task(task_id)
     handler._send_json({"status": "deleted"})
 
@@ -58,7 +66,11 @@ def get_routines(handler: Any, parsed_url: urllib.parse.ParseResult):
 
 @router.post("/api/routines/toggle")
 def toggle_routine(handler: Any, body: Dict[str, Any]):
-    routine_id = body.get("id")
+    raw_id = body.get("id")
+    if raw_id is None:
+        handler._send_json({"error": "Missing routine ID"}, 400)
+        return
+    routine_id = int(raw_id)
     srv.db.toggle_routine(routine_id)
     handler._send_json({"status": "toggled"})
 

@@ -92,7 +92,7 @@ def update_fleet_settings(handler: Any, body: Dict[str, Any]):
     if hasattr(srv, "bus") and srv.bus:
         try:
             from fleet.core.event_bus import FleetEvent
-            srv.bus.dispatch(FleetEvent(target="system", action="settings_updated", payload={"keys": updated_keys}))
+            srv.bus.dispatch(FleetEvent(sender="settings_api", target="system", action="settings_updated", payload={"keys": updated_keys}))
         except Exception:
             pass
 
@@ -369,9 +369,9 @@ def create_new_agent_endpoint(handler: Any, body: Dict[str, Any]):
     }
     raw_perms = body.get("permissions")
     if not isinstance(raw_perms, list) or not raw_perms:
-        permissions = ["db:read", "ui:render"]
+        permissions: list[str] = ["db:read", "ui:render"]
     else:
-        permissions = [perm_aliases.get(p, p) for p in raw_perms]
+        permissions: list[str] = [str(perm_aliases.get(p, p)) for p in raw_perms if p is not None]
         invalid = [p for p in permissions if p not in ALLOWED_AGENT_PERMISSIONS]
         if invalid:
             handler._send_json({"status": "error", "message": f"Invalid permissions: {invalid}"}, status=400)

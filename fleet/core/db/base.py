@@ -47,6 +47,10 @@ class BaseDatabase:
         self.db_path = get_effective_db_path(db_path)
         self._init_db()
 
+    def log_activity(self, agent: str, action: str, details: str = "") -> None:
+        """Stub for activity logging, implemented by SystemMixin in FleetDatabase."""
+        pass
+
     def _get_connection(self) -> sqlite3.Connection:
         from fleet.core.db.pool import get_pooled_connection
         effective = get_effective_db_path(self._custom_db_path)

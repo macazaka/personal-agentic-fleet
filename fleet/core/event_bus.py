@@ -177,12 +177,12 @@ class DeterministicEventBus:
             return {"tasks": self.db.list_tasks(status=status, limit=limit)}
 
         elif action == "COMPLETE_TASK":
-            task_id = p.get("task_id")
+            task_id = int(p.get("task_id", 0))
             updated = self.db.update_task_status(task_id, "completed")
             return {"task_id": task_id, "completed": updated}
 
         elif action == "TOGGLE_ROUTINE":
-            routine_id = p.get("routine_id")
+            routine_id = int(p.get("routine_id", 0))
             toggled = self.db.toggle_routine(routine_id)
             return {"routine_id": routine_id, "toggled": toggled}
 
@@ -238,7 +238,7 @@ class DeterministicEventBus:
 
         elif action == "UNSUBSCRIBE":
             return gmail_manager.unsubscribe_from_email(
-                message_id=p.get("message_id") or p.get("id"),
+                message_id=str(p.get("message_id") or p.get("id") or ""),
                 url=p.get("url"),
                 unsub_type=p.get("type", "http"),
                 sender=p.get("sender", ""),

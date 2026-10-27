@@ -57,8 +57,12 @@ def perform_database_backup(
     # Compute cryptographic SHA-256 digest
     sha256 = hashlib.sha256()
     with open(backup_path, "rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            sha256.update(chunk)
+        while True:
+            chunk = f.read(65536)
+            if not chunk:
+                break
+            if isinstance(chunk, bytes):
+                sha256.update(chunk)
     digest = sha256.hexdigest()
 
     # Append to checksums manifest

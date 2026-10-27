@@ -5,10 +5,16 @@ Feature Backlog domain repository mixin for FleetDatabase.
 import json
 import sqlite3
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fleet.core.db.base import BaseDatabase
+    _DbBase = BaseDatabase
+else:
+    _DbBase = object
 
 
-class BacklogMixin:
+class BacklogMixin(_DbBase):
     # --- Feature Backlog Operations ---
     def add_feature_backlog_item(self, title: str, description: str = "",
                                  category: str = "Core", priority: str = "P2",
@@ -21,7 +27,7 @@ class BacklogMixin:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (title.strip(), description.strip(), category, priority, status, target_version, now, now))
             conn.commit()
-            return cursor.lastrowid
+            return cursor.lastrowid or 0
 
     def list_feature_backlog_items(self, status: Optional[str] = None,
                                    category: Optional[str] = None,

@@ -6,10 +6,16 @@ Persists the 4-layer cognitive architecture (Brain, Consciousness, Subconsciousn
 from datetime import datetime
 import json
 import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fleet.core.db.base import BaseDatabase
+    _DbBase = BaseDatabase
+else:
+    _DbBase = object
 
 
-class MindMixin:
+class MindMixin(_DbBase):
     """Repository mixin for persisting cognitive critiques, dream insights, and soul audits."""
 
     def log_critique(
@@ -44,7 +50,7 @@ class MindMixin:
                 now,
             ))
             conn.commit()
-            item_id = cursor.lastrowid
+            item_id = cursor.lastrowid or 0
             self.log_activity(
                 "Consciousness",
                 "self_critique",
@@ -93,7 +99,7 @@ class MindMixin:
                 now,
             ))
             conn.commit()
-            item_id = cursor.lastrowid
+            item_id = cursor.lastrowid or 0
             self.log_activity(
                 "Subconsciousness",
                 "dream_insight",
@@ -142,7 +148,7 @@ class MindMixin:
                 now,
             ))
             conn.commit()
-            item_id = cursor.lastrowid
+            item_id = cursor.lastrowid or 0
             self.log_activity(
                 "Soul",
                 "soul_audit",

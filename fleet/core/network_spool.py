@@ -61,7 +61,7 @@ def spool_offline_event(target: str, action: str, payload: Optional[Dict[str, An
         spool_id = cursor.lastrowid
 
     logger.info(f"[OfflineSpool] Spooled event #{spool_id} [{target}:{action}] for offline deferral.")
-    return spool_id
+    return spool_id or 0
 
 
 def list_spooled_events(status: str = "pending") -> List[Dict[str, Any]]:

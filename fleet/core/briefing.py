@@ -52,7 +52,7 @@ def extract_meeting_agenda(subject: str, snippet: str = "", sender: str = "") ->
 
 
 class BriefingEngine:
-    def __init__(self, db: FleetDatabase | None = None):
+    def __init__(self, db: Any = None):
         self.db = db or FleetDatabase()
 
     def generate_daily_briefing(self) -> Dict[str, Any]:

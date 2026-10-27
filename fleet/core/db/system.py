@@ -6,10 +6,16 @@ import json
 import os
 import sqlite3
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fleet.core.db.base import BaseDatabase
+    _DbBase = BaseDatabase
+else:
+    _DbBase = object
 
 
-class SystemMixin:
+class SystemMixin(_DbBase):
     # --- Memory Operations ---
     def set_memory(self, category: str, key: str, value: str):
         now = datetime.now().isoformat()
@@ -52,7 +58,7 @@ class SystemMixin:
                 VALUES (?, ?, ?, ?, ?)
             """, (title, content, tags, now, now))
             conn.commit()
-            note_id = cursor.lastrowid
+            note_id = cursor.lastrowid or 0
             self.log_activity("NotesAgent", "add_note", f"Added note #{note_id}: {title}")
             return note_id
 
@@ -74,7 +80,7 @@ class SystemMixin:
             return [dict(row) for row in cursor.fetchall()]
 
     # --- Activity Log Operations ---
-    def log_activity(self, agent: str, action: str, details: str):
+    def log_activity(self, agent: str, action: str, details: str = "") -> None:
         # In production workstation mode, strictly reject unit test logging
         if os.environ.get("FLEET_PRODUCTION_SERVER") == "1":
             ag_low = (agent or "").lower()
@@ -138,7 +144,7 @@ class SystemMixin:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (now, total_tests, passed_tests, failed_tests, pass_pct, coverage_pct, duration_sec, status, details_json))
             conn.commit()
-            return cursor.lastrowid
+            return cursor.lastrowid or 0
 
     def get_latest_test_run(self) -> Optional[Dict[str, Any]]:
         with self._get_connection() as conn:
@@ -188,7 +194,7 @@ class SystemMixin:
                 VALUES (?, ?, ?, 'queued', ?, ?)
             """, (prompt, images_json, model, now, now))
             conn.commit()
-            return cursor.lastrowid
+            return cursor.lastrowid or 0
 
     def get_queued_chat_messages(self) -> List[Dict[str, Any]]:
         with self._get_connection() as conn:

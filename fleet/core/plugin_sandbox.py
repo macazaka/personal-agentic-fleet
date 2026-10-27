@@ -7,7 +7,7 @@ and enforces capability boundaries at runtime:
 """
 
 import os
-from typing import Any, Dict, Iterable, List, Set
+from typing import Any, Dict, Iterable, List, Optional, Set
 
 ALLOWED_AGENT_PERMISSIONS: Set[str] = {
     "db:read",
@@ -78,7 +78,7 @@ class ScopedDatabaseProxy:
         return attr
 
 
-def get_sanitized_plugin_env(base_env: Dict[str, str] = None) -> Dict[str, str]:
+def get_sanitized_plugin_env(base_env: Optional[Dict[str, str]] = None) -> Dict[str, str]:
     """Returns a sanitized environment mapping with all sensitive tokens and secrets stripped."""
     source = os.environ if base_env is None else base_env
     sanitized = {}

@@ -180,8 +180,9 @@ def safe_load_yaml(text: str) -> Any:
         return {}
 
     try:
-        import yaml
-        return yaml.safe_load(text)
+        import importlib
+        yaml_mod = importlib.import_module("yaml")
+        return yaml_mod.safe_load(text)
     except (ImportError, Exception):
         pass
 
@@ -207,8 +208,9 @@ def dump_yaml(data: Any, indent: int = 0) -> str:
     Uses PyYAML if available; otherwise uses deterministic pure Python serializer.
     """
     try:
-        import yaml
-        return yaml.dump(data, default_flow_style=False, sort_keys=False)
+        import importlib
+        yaml_mod = importlib.import_module("yaml")
+        return yaml_mod.dump(data, default_flow_style=False, sort_keys=False)
     except (ImportError, Exception):
         pass
 

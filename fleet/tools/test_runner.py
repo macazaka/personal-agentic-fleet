@@ -277,8 +277,20 @@ def run_test_suite_isolated(db: Optional[FleetDatabase] = None) -> Dict[str, Any
         return {"status": "ERROR", "error": str(e), "total_tests": 0, "passed_tests": 0}
 
 
-if __name__ == "__main__":
+def main() -> int:
     res = run_test_suite()
-    print(f"Tests: {res['passed_tests']}/{res['total_tests']} Passed ({res['pass_pct']}%)")
-    print(f"Coverage: {res['coverage_pct']}%")
-    print(f"Duration: {res['duration_sec']}s")
+    print(f"Tests: {res.get('passed_tests', 0)}/{res.get('total_tests', 0)} Passed ({res.get('pass_pct', 0)}%)")
+    print(f"Coverage: {res.get('coverage_pct', 0)}%")
+    print(f"Duration: {res.get('duration_sec', 0)}s")
+    if res.get("status") != "PASS":
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+
+
+
+

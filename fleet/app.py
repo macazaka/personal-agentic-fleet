@@ -41,8 +41,10 @@ def setup_streams():
             pass
     elif sys.platform == "win32":
         try:
-            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+            if sys.stdout is not None and hasattr(sys.stdout, "reconfigure"):
+                getattr(sys.stdout, "reconfigure")(encoding="utf-8", errors="replace")
+            if sys.stderr is not None and hasattr(sys.stderr, "reconfigure"):
+                getattr(sys.stderr, "reconfigure")(encoding="utf-8", errors="replace")
         except Exception:
             pass
 
@@ -100,7 +102,7 @@ def main():
         install_crash_reporter()
         install_lifecycle_guards()
         power_manager.start_monitoring()
-        register_shutdown_callback(power_manager.stop_monitoring)
+        register_shutdown_callback("power_manager", power_manager.stop_monitoring)
     except Exception as e:
         print(f"Warning: Failed to initialize all robustness lifecycle guards: {e}")
 

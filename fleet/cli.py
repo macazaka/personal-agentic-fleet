@@ -24,10 +24,10 @@ if str(_ROOT) not in sys.path:
 # Ensure robust stdout/stderr UTF-8 handling on Windows
 if sys.platform == "win32":
     try:
-        if sys.stdout is not None:
-            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        if sys.stderr is not None:
-            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        if sys.stdout is not None and hasattr(sys.stdout, "reconfigure"):
+            getattr(sys.stdout, "reconfigure")(encoding="utf-8", errors="replace")
+        if sys.stderr is not None and hasattr(sys.stderr, "reconfigure"):
+            getattr(sys.stderr, "reconfigure")(encoding="utf-8", errors="replace")
     except Exception:
         pass
 
@@ -172,11 +172,15 @@ def cmd_stop(args: argparse.Namespace) -> int:
     # Verify port release
     if is_port_in_use(PORT):
         print(f"[*] Personal Agentic Fleet still listening on port {PORT}. Terminating bound process...")
-        try:
-            from fleet.tools.auto_healer import kill_zombie_pids
-            kill_zombie_pids()
-        except Exception:
-            pass
+        if sys.platform == "win32":
+            try:
+                subprocess.run(
+                    ["powershell", "-NoProfile", "-Command", f"Get-NetTCPConnection -LocalPort {PORT} -ErrorAction SilentlyContinue | ForEach-Object {{ Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }}"],
+                    capture_output=True,
+                    check=False
+                )
+            except Exception:
+                pass
 
     if not is_port_in_use(PORT):
         print("[SUCCESS] Personal Agentic Fleet stopped cleanly.")
@@ -242,8 +246,8 @@ def cmd_status(args: argparse.Namespace) -> int:
     harmony_score = 100.0
     try:
         from fleet.core.mind import fleet_mind
-        harmony = fleet_mind.get_cognitive_harmony()
-        harmony_score = harmony.harmony_score
+        state = fleet_mind.get_holistic_state()
+        harmony_score = float(state.get("cognitive_harmony_index", 100.0))
     except Exception:
         pass
 

@@ -301,6 +301,7 @@ def test_preflight_gate_runner():
          patch.object(pfg, "run_security_scan", return_value={"status": "PASS", "total_findings": 0}), \
          patch.object(pfg, "verify_agent_package_isolation", return_value={"status": "PASS", "verified_agents": 5}), \
          patch.object(pfg, "verify_documentation_integrity", return_value={"status": "PASS", "verified_files": 13, "total_required": 13}), \
+         patch.object(pfg, "verify_static_type_integrity", return_value={"status": "PASS", "detail": "0 errors"}), \
          patch("subprocess.run", return_value=MagicMock(returncode=0)):
         assert pfg.run_preflight_gate() == 0
 
@@ -326,11 +327,20 @@ def test_preflight_gate_runner():
          patch.object(pfg, "verify_documentation_integrity", return_value={"status": "FAIL", "findings": ["Missing README.md"]}):
         assert pfg.run_preflight_gate() == 1
 
-    # 6. Stage 5 Tests fail
+    # 6. Stage 5 Type check fail
     with patch.object(pfg, "run_fleet_doctor", return_value={"status": "PASS", "python_version": "3.14.7", "security_score": 100}), \
          patch.object(pfg, "run_security_scan", return_value={"status": "PASS", "total_findings": 0}), \
          patch.object(pfg, "verify_agent_package_isolation", return_value={"status": "PASS", "verified_agents": 5}), \
          patch.object(pfg, "verify_documentation_integrity", return_value={"status": "PASS", "verified_files": 13, "total_required": 13}), \
+         patch.object(pfg, "verify_static_type_integrity", return_value={"status": "FAIL", "errors": ["Type error"]}):
+        assert pfg.run_preflight_gate() == 1
+
+    # 7. Stage 6 Tests fail
+    with patch.object(pfg, "run_fleet_doctor", return_value={"status": "PASS", "python_version": "3.14.7", "security_score": 100}), \
+         patch.object(pfg, "run_security_scan", return_value={"status": "PASS", "total_findings": 0}), \
+         patch.object(pfg, "verify_agent_package_isolation", return_value={"status": "PASS", "verified_agents": 5}), \
+         patch.object(pfg, "verify_documentation_integrity", return_value={"status": "PASS", "verified_files": 13, "total_required": 13}), \
+         patch.object(pfg, "verify_static_type_integrity", return_value={"status": "PASS", "detail": "0 errors"}), \
          patch("subprocess.run", return_value=MagicMock(returncode=2)):
         assert pfg.run_preflight_gate() == 2
 

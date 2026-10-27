@@ -1,3 +1,4 @@
+from typing import Optional
 """
 Background Routine Daemon for Personal Agentic Fleet.
 Monitors daily times to trigger proactive Windows Toast notifications for:
@@ -16,8 +17,8 @@ logger = logging.getLogger("fleet.daemon")
 # Ensure UTF-8 output on Windows console
 if sys.platform == "win32":
     try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        getattr(sys.stdout, "reconfigure")(encoding="utf-8", errors="replace")
+        getattr(sys.stderr, "reconfigure")(encoding="utf-8", errors="replace")
     except Exception:
         pass
 
@@ -227,7 +228,7 @@ class FleetDaemon:
             except Exception as e:
                 logger.debug("Soul audit daemon warning: %s", e)
 
-    def run_scheduled_log_scan_and_heal(self, now: datetime = None):
+    def run_scheduled_log_scan_and_heal(self, now: Optional[datetime] = None):
         """Proactively scans logs, ring buffer and crash dumps, executing autonomous improvements."""
         if now is None:
             now = datetime.now()
@@ -254,7 +255,7 @@ class FleetDaemon:
             return {"status": "ERROR", "message": str(e)}
 
 
-    def run_scheduled_pr_review(self, now: datetime = None):
+    def run_scheduled_pr_review(self, now: Optional[datetime] = None):
         """Audits open PRs and CI status deterministically (Admin Only, 0 tokens)."""
         if now is None:
             now = datetime.now()
@@ -271,7 +272,7 @@ class FleetDaemon:
                 print(f"[{now.strftime('%H:%M:%S')}] Admin CI Monitor: {fail_count} failing workflow run(s) on main.")
         except Exception as e:
             print(f"[{now.strftime('%H:%M:%S')}] PR review daemon error: {e}")
-    def run_scheduled_security_scan(self, now: datetime = None):
+    def run_scheduled_security_scan(self, now: Optional[datetime] = None):
         """Runs the zero-token 6-layer security & privacy audit and alerts via Windows Toast on findings."""
         if now is None:
             now = datetime.now()

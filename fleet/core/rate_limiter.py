@@ -63,6 +63,8 @@ class RateLimiter:
 
             return self._buckets[key].consume(tokens=tokens)
 
+    check_rate_limit = check
+
 
 # Global singleton limiter (60 req/s, burst 100)
 rate_limiter = RateLimiter(default_rate=60.0, default_capacity=100.0)

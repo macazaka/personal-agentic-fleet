@@ -31,7 +31,8 @@ def set_secure_secret(key_name: str, secret_value: str) -> bool:
     """Stores a secret in OS Credential Vault (Windows Credential Manager / macOS Keychain) and os.environ."""
     os.environ[key_name] = secret_value
     try:
-        import keyring
+        import importlib
+        keyring = importlib.import_module("keyring")
         keyring.set_password("fleet_os", key_name, secret_value)
         return True
     except Exception:

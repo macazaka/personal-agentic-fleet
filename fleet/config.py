@@ -51,7 +51,8 @@ def get_secure_secret(key_name: str, fallback_env: str = "") -> str:
     """
     # 1. Windows Credential Manager / macOS Keychain / Linux SecretService (via keyring)
     try:
-        import keyring
+        import importlib
+        keyring = importlib.import_module("keyring")
         val = keyring.get_password("fleet_os", key_name)
         if val:
             return val

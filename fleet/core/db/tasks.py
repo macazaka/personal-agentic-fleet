@@ -6,10 +6,16 @@ import json
 import os
 import sqlite3
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fleet.core.db.base import BaseDatabase
+    _DbBase = BaseDatabase
+else:
+    _DbBase = object
 
 
-class TasksMixin:
+class TasksMixin(_DbBase):
     # --- Task Operations ---
     def add_task(self, title: str, description: str = "", priority: str = "P2",
                  due_date: Optional[str] = None, assigned_agent: str = "AgendaAgent",
@@ -33,7 +39,7 @@ class TasksMixin:
                 VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?)
             """, (clean_title, clean_desc, task_source, priority.upper(), due_date, now, now, assigned_agent))
             conn.commit()
-            task_id = cursor.lastrowid
+            task_id = cursor.lastrowid or 0
             self.log_activity(assigned_agent, "add_task", f"Created task #{task_id}: {clean_title} [Source: {task_source}]")
             return task_id
 
@@ -138,7 +144,7 @@ class TasksMixin:
                 VALUES (?, ?, ?, '')
             """, (title, time_target, category))
             conn.commit()
-            r_id = cursor.lastrowid
+            r_id = cursor.lastrowid or 0
             self.log_activity("AgendaAgent", "add_routine", f"Added routine #{r_id}: {title} at {time_target}")
             return r_id
 

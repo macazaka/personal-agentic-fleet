@@ -6,10 +6,16 @@ Tracks autonomous log analysis findings, proactive remediations, and performance
 from datetime import datetime
 import json
 import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fleet.core.db.base import BaseDatabase
+    _DbBase = BaseDatabase
+else:
+    _DbBase = object
 
 
-class AutoImprovementsMixin:
+class AutoImprovementsMixin(_DbBase):
     """Repository mixin for persisting and querying autonomous self-healing improvements."""
 
     def log_auto_improvement(
@@ -45,7 +51,7 @@ class AutoImprovementsMixin:
                 now,
             ))
             conn.commit()
-            item_id = cursor.lastrowid
+            item_id = cursor.lastrowid or 0
             self.log_activity(
                 "AutoHealer",
                 "auto_improvement",

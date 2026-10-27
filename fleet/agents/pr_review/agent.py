@@ -172,7 +172,7 @@ class PRReviewAgent(FleetAgent):
         except Exception as e:
             return {"status": "ERROR", "error": str(e)}
 
-    def execute_task(self, task: str) -> Dict[str, Any]:
+    def execute_task(self, task: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         task_lower = task.lower()
         if "pr" in task_lower or "pull request" in task_lower:
             return self.audit_pull_requests()

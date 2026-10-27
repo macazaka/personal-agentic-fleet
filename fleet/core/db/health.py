@@ -5,10 +5,16 @@ Health & Wellness domain repository mixin for FleetDatabase.
 import json
 import sqlite3
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fleet.core.db.base import BaseDatabase
+    _DbBase = BaseDatabase
+else:
+    _DbBase = object
 
 
-class HealthMixin:
+class HealthMixin(_DbBase):
     # --- Health & Wellness Operations ---
     def get_today_hydration(self, target_date: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -159,7 +165,7 @@ class HealthMixin:
                 VALUES (?, ?, ?, ?, ?, 1, ?)
             """, (name.strip(), dosage.strip(), schedule_time.strip(), frequency.strip(), instructions.strip(), now_str))
             conn.commit()
-            med_id = cursor.lastrowid
+            med_id = cursor.lastrowid or 0
             self.log_activity("HealthManager", "add_medication", f"Added medication #{med_id}: {name.strip()} ({dosage.strip()} at {schedule_time})")
             return med_id
 
@@ -214,7 +220,7 @@ class HealthMixin:
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (date_str, metric_type.strip(), float(value), unit.strip(), notes.strip(), now_str))
             conn.commit()
-            metric_id = cursor.lastrowid
+            metric_id = cursor.lastrowid or 0
             self.log_activity("HealthManager", "log_metric", f"Logged {metric_type}: {value} {unit} for {date_str}")
             return metric_id
 

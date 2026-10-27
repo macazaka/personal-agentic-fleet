@@ -443,7 +443,7 @@ class AutonomousAutoHealer:
 
             try:
                 imp = handler(scan_id, finding, db_conn=db_conn)
-                if imp:
+                if isinstance(imp, ImprovementAction):
                     improvements.append(imp)
             except Exception as e:
                 logger.error("Self-healing handler '%s' failed: %s", action_name, e, exc_info=True)
@@ -658,8 +658,8 @@ class AutonomousAutoHealer:
 
         # Flush token optimizer cache if available
         try:
-            from fleet.core.token_optimizer import token_optimizer
-            token_optimizer.flush_transient_cache()
+            from fleet.core.token_optimizer import flush_transient_cache
+            flush_transient_cache()
         except Exception:
             pass
 

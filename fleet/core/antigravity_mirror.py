@@ -271,7 +271,7 @@ AGENT_STATE: Dict[str, Any] = {
 def get_max_parallel_agents() -> int:
     val = db.get_setting("max_parallel_agents", str(DEFAULT_MAX_PARALLEL_AGENTS))
     try:
-        return max(1, min(8, int(val)))
+        return max(1, min(8, int(val or DEFAULT_MAX_PARALLEL_AGENTS)))
     except (ValueError, TypeError):
         return DEFAULT_MAX_PARALLEL_AGENTS
 
