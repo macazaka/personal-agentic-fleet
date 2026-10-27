@@ -337,10 +337,12 @@ def install_catalog_agent(handler: Any, body: Dict[str, Any]):
         return
 
     from fleet.core.agent_catalog import install_agent_from_catalog
+    from fleet.core.database import is_test_environment
     custom_dir = getattr(srv.agent_registry, "custom_agents_dir", None)
     if not custom_dir:
         from fleet.config import DATA_DIR
-        custom_dir = DATA_DIR / "user" / "custom_agents"
+        sub_vault = "test_user" if is_test_environment() else "user"
+        custom_dir = DATA_DIR / sub_vault / "custom_agents"
 
     try:
         res = install_agent_from_catalog(agent_id, custom_dir, agent_registry=srv.agent_registry)

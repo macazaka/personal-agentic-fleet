@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.1] - 2026-10-28
+
+### Fixed
+- **Isolation**: Enforce strict test firewall so unit/E2E tests never mutate production DB, hydration, backlog, or user agents.
+
+---
+
 ## [2.8.0] - 2026-10-27
 
 ### Added

@@ -537,7 +537,7 @@ def run_proactive_release_check(
                 bump_applied = "sync_to_tag"
             elif parse_semver(current_ver) == parse_semver(latest_tag):
                 auto_level = determine_bump_level(commits, changed_files)
-                if auto_level in ("major", "minor"):
+                if auto_level in ("major", "minor", "patch"):
                     bump_applied = auto_level
                     target_ver = bump_semver(latest_tag, auto_level)
         elif not latest_tag and commits:

@@ -47,25 +47,29 @@ class AgentRegistry:
         self.disabled_agents: Dict[str, FleetAgent] = {}
         self._all_discovered_agents: Dict[str, FleetAgent] = {}
 
-        # User custom agents directory (persisted and git-ignored)
+        # User custom agents directory (persisted and git-ignored; isolated under test_user during tests)
         if custom_agents_dir is not None:
             self.custom_agents_dir = Path(custom_agents_dir)
         elif "custom_agents_dir" in self.config:
             self.custom_agents_dir = Path(self.config["custom_agents_dir"])
         else:
+            from fleet.core.database import is_test_environment
+            sub_vault = "test_user" if is_test_environment() else "user"
             try:
                 from fleet.config import DATA_DIR
-                self.custom_agents_dir = DATA_DIR / "user" / "custom_agents"
+                self.custom_agents_dir = DATA_DIR / sub_vault / "custom_agents"
             except Exception:
-                self.custom_agents_dir = self.agents_dir.parent / "data" / "user" / "custom_agents"
+                self.custom_agents_dir = self.agents_dir.parent / "data" / sub_vault / "custom_agents"
 
     def _get_overrides_file(self) -> Path:
         """Returns path to the user's persistent agent configuration overrides file."""
+        from fleet.core.database import is_test_environment
+        sub_vault = "test_user" if is_test_environment() else "user"
         try:
             from fleet.config import DATA_DIR
-            vault = DATA_DIR / "user"
+            vault = DATA_DIR / sub_vault
         except Exception:
-            vault = self.agents_dir.parent / "data" / "user"
+            vault = self.agents_dir.parent / "data" / sub_vault
         vault.mkdir(parents=True, exist_ok=True)
         return vault / "agent_overrides.json"
 

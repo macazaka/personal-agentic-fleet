@@ -501,16 +501,27 @@ def save_uploaded_image(filename: str, file_bytes: bytes) -> Dict[str, Any]:
     from fleet.core.token_optimizer import deduplicate_uploaded_image
 
     def _store_fresh() -> Dict[str, Any]:
-        UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+        from fleet.core.database import is_test_environment
+        in_test = is_test_environment()
+        eff_uploads_dir = (
+            DATA_DIR / "test_user" / "uploads"
+            if (in_test and UPLOADS_DIR == DATA_DIR / "uploads")
+            else UPLOADS_DIR
+        )
+        eff_uploads_dir.mkdir(parents=True, exist_ok=True)
         clean_name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', filename)
         if not clean_name or clean_name.startswith("."):
             clean_name = f"image_{int(datetime.now().timestamp())}.png"
 
-        target_path = UPLOADS_DIR / clean_name
+        target_path = eff_uploads_dir / clean_name
         target_path.write_bytes(file_bytes)
 
         t_path = get_active_transcript_path()
-        if t_path:
+        # In test mode, only copy to .user_uploaded if get_active_transcript_path was explicitly mocked to a temp path
+        is_mocked_transcript = hasattr(get_active_transcript_path, "assert_called") or (
+            t_path is not None and ".gemini" not in str(t_path)
+        )
+        if t_path and (not in_test or is_mocked_transcript):
             try:
                 brain_user_upload = t_path.parents[2] / ".user_uploaded"
                 brain_user_upload.mkdir(parents=True, exist_ok=True)
