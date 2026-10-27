@@ -406,6 +406,13 @@ def test_autonomous_codeql_and_vscode_auto_fixer(tmp_path):
     from fleet.tools.auto_fixer import run_auto_fixer
     sample_dir = tmp_path / "fleet"
     sample_dir.mkdir(parents=True, exist_ok=True)
+    vscode_dir = tmp_path / ".vscode"
+    vscode_dir.mkdir(parents=True, exist_ok=True)
+    vscode_settings = vscode_dir / "settings.json"
+    vscode_settings.write_text(
+        '{\n  "python.analysis.extraPaths": ["."],\n  "python.autoComplete.extraPaths": ["."]\n}\n',
+        encoding="utf-8",
+    )
     sample_py = sample_dir / "sample_vuln.py"
     sample_py.write_text(
         'import hashlib, os, subprocess\n'
@@ -416,10 +423,14 @@ def test_autonomous_codeql_and_vscode_auto_fixer(tmp_path):
     )
     res = run_auto_fixer(repo_root=tmp_path, stage_changes=False, run_pyright_cli=False)
     assert res["status"] == "PASS"
-    assert res["fixes_applied_count"] >= 3
+    assert res["fixes_applied_count"] >= 4
     fixed_text = sample_py.read_text(encoding="utf-8")
     assert "usedforsecurity=False" in fixed_text
     assert "shell=False" in fixed_text
     assert 'getattr(os, "startfile")(' in fixed_text
+    fixed_settings = vscode_settings.read_text(encoding="utf-8")
+    assert "python.analysis.extraPaths" not in fixed_settings
+    assert "python.autoComplete.extraPaths" in fixed_settings
+
 
 

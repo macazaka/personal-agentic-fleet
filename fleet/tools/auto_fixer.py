@@ -205,6 +205,28 @@ def fix_vscode_pyright_problems(
     except Exception:
         pass
 
+    # 1a. Ensure .vscode/settings.json does not set python.analysis.extraPaths when pyrightconfig.json is present
+    # (prevents Pylance 'settingsNotOverridden' warning in VS Code Problems panel)
+    vscode_dir = repo_root / ".vscode"
+    vscode_settings_path = vscode_dir / "settings.json"
+    try:
+        if vscode_settings_path.is_file():
+            vs_cfg = json.loads(vscode_settings_path.read_text(encoding="utf-8"))
+            if "python.analysis.extraPaths" in vs_cfg:
+                vs_cfg.pop("python.analysis.extraPaths", None)
+                vscode_settings_path.write_text(
+                    json.dumps(vs_cfg, indent=2) + "\n",
+                    encoding="utf-8",
+                    newline="\n",
+                )
+                fixes_applied.append({
+                    "category": "VS Code Settings Hygiene",
+                    "file": ".vscode/settings.json",
+                    "detail": "Removed 'python.analysis.extraPaths' to prevent Pylance settingsNotOverridden warning with pyrightconfig.json.",
+                })
+    except Exception:
+        pass
+
     # 1b. If repo_root is inside a parent workspace folder (e.g. '0001 - Test'), sync parent pyrightconfig.json & .vscode/settings.json
     try:
         if repo_root.name == "0001 - Test" and repo_root.parent.is_dir():
@@ -226,7 +248,6 @@ def fix_vscode_pyright_problems(
                 parent_settings.write_text(
                     json.dumps(
                         {
-                            "python.analysis.extraPaths": ["./0001 - Test", "."],
                             "python.autoComplete.extraPaths": ["./0001 - Test", "."],
                         },
                         indent=2,
@@ -235,6 +256,15 @@ def fix_vscode_pyright_problems(
                     encoding="utf-8",
                     newline="\n",
                 )
+            else:
+                p_cfg = json.loads(parent_settings.read_text(encoding="utf-8"))
+                if "python.analysis.extraPaths" in p_cfg:
+                    p_cfg.pop("python.analysis.extraPaths", None)
+                    parent_settings.write_text(
+                        json.dumps(p_cfg, indent=2) + "\n",
+                        encoding="utf-8",
+                        newline="\n",
+                    )
     except Exception:
         pass
 
