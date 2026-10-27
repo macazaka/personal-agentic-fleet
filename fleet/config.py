@@ -12,6 +12,7 @@ from pathlib import Path
 # Fleet Version & Minimum Runtime Requirement
 VERSION = "2.5.0"
 MIN_PYTHON_VERSION = (3, 10)
+PORT = 7890
 
 
 def check_minimum_python_version(version_info=None) -> bool:

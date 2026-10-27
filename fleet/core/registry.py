@@ -230,6 +230,8 @@ class AgentRegistry:
 
         return agent.get_ui_manifest()
 
+    update_agent = customize_agent
+
     def reset_agent(self, agent_id: str) -> Dict[str, Any]:
         """Resets an agent's configuration back to built-in defaults."""
         agent = self.agents.get(agent_id) or self.disabled_agents.get(agent_id) or self._all_discovered_agents.get(agent_id)
@@ -252,6 +254,8 @@ class AgentRegistry:
             self.agents.pop(agent_id, None)
         agent.on_config_updated()
         return agent.get_ui_manifest()
+
+    update_agent = customize_agent
 
     def create_custom_agent(
         self,

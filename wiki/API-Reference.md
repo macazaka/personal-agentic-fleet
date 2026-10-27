@@ -61,3 +61,23 @@ Queries the remote verified agent registry for newly available agents.
 ### `POST /api/settings/agents/catalog/install`
 Installs and activates a package from the agent catalog.
 - **Request Body:** `{"agent_id": "weather_forecaster"}`
+
+---
+
+## 4. Unified Fleet CLI Reference
+
+The fleet is fully controllable via the terminal (`fleet <cmd>` or `python -m fleet <cmd>`):
+
+| Command | Key Arguments | Description |
+| :--- | :--- | :--- |
+| `fleet start` | `--port`, `--daemon`, `--no-browser` | Launches server and daemon (interactive or silent background) |
+| `fleet stop` | None | Gracefully stops running fleet daemon and frees port 7890 |
+| `fleet status` | `--json` | Health status, memory WorkingSet, DB size, and Cognitive Harmony |
+| `fleet doctor` | `--strict`, `--json` | Strict 7-layer environment & security diagnostics |
+| `fleet mind` | `--status`, `--dream`, `--soul`, `--heal`, `--json` | Introspect or trigger 4-layer Cognitive Fleet Mind operations |
+| `fleet agents` | `list`, `enable <id>`, `disable <id>`, `info <id>`, `create` | Complete modular agent lifecycle management |
+| `fleet security`| `--strict`, `--json` | 12-layer security, secret, and PII audit (100/100 target) |
+| `fleet heal` | `--force`, `--json` | Proactive log analysis and autonomous remediation |
+| `fleet test` | `--coverage`, `--fast` | Comprehensive test runner and coverage reports |
+| `fleet wiki` | `--dry-run` | Synchronize documentation to GitHub Wiki |
+| `fleet version` | None | Print version and platform details |

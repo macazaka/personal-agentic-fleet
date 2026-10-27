@@ -41,6 +41,9 @@ dev = [
     "pygame-ce>=2.5.0",
 ]
 
+[project.scripts]
+fleet = "fleet.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/macazaka/personal-agentic-fleet"
 Repository = "https://github.com/macazaka/personal-agentic-fleet.git"

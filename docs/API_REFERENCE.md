@@ -209,3 +209,27 @@ Enter these commands into the Web Dashboard Console at the bottom of the screen:
 - `/ollama <query>`: Dispatches prompt to Local Ollama (0 cloud tokens).
 - `/security`: Runs the 12-layer security scanner and displays health score.
 - `/optimizer`: Shows current RAM, disk, and performance diagnostics.
+
+---
+
+## 4. Unified Fleet Command Line Interface (CLI)
+
+The Personal Agentic Fleet provides a comprehensive terminal interface accessible directly via `fleet <command>` or `python -m fleet <command>`:
+
+| Command | Arguments / Flags | Description |
+| :--- | :--- | :--- |
+| `fleet start` | `--port <int>`, `--host <str>`, `--no-browser`, `-d/--daemon` | Launches the web dashboard and background routine daemon. Supports foreground or silent background daemon modes. |
+| `fleet stop` | None | Gracefully signals and stops running Fleet background processes and frees listening ports. |
+| `fleet status` | `--json` | Checks daemon liveness, memory WorkingSet (MB), database size, active agents, and Cognitive Harmony Index. |
+| `fleet doctor` | `--strict`, `--json` | Executes the strict 7-point Fleet Doctor invariant checks (Python version, TLS 1.3, NTFS ACLs, SQLite integrity). |
+| `fleet mind` | `--status`, `--dream`, `--soul`, `--heal`, `--improve`, `--critique <agent> <action>`, `--json` | Introspects or commands the 4-layer Cognitive Fleet Mind (Brain, Consciousness, Subconsciousness, Soul). |
+| `fleet agents list` | None | Displays formatted terminal table of all registered modular agents, versions, enabled status, and permissions. |
+| `fleet agents enable` | `<agent_id>` | Dynamically activates an agent at runtime. |
+| `fleet agents disable` | `<agent_id>` | Dynamically deactivates an agent at runtime without server restart. |
+| `fleet agents info` | `<agent_id>` | Outputs complete UI and configuration manifest for the designated agent. |
+| `fleet agents create` | Interactive | Launches terminal wizard to scaffold a new isolated agent in the user vault. |
+| `fleet security` | `--strict`, `--json` | Runs the deterministic 12-layer security, secret, and PII scanner (target score: 100/100). |
+| `fleet heal` | `--force`, `--json` | Analyzes application and crash logs proactively, executing autonomous self-healing routines. |
+| `fleet test` | `--coverage`, `--fast` | Executes the comprehensive unit test suite and optional code coverage report. |
+| `fleet wiki` | `--dry-run` | Synchronizes documentation corpus to the GitHub Wiki git repository. |
+| `fleet version` | None | Displays version, Python interpreter details, and operating system platform. |

@@ -149,9 +149,15 @@ Copy-Item fleet.yaml.example fleet.yaml
 python -m fleet.tools.install_git_hooks
 ```
 
-### 3. Launch Fleet
+### 3. Launch Fleet via Unified CLI or Python Module
 ```powershell
-# Interactive foreground launch (Web Server + Background Routine Daemon)
+# Launch via Fleet CLI: fleet start (or python -m fleet start)
+# Run status, diagnostics, security, or daemon:
+#   fleet status       (live telemetry & Cognitive Harmony)
+#   fleet agents list  (inspect all modular agents)
+#   fleet doctor       (7-point environment audit)
+#   fleet security     (12-layer security scanner)
+#   fleet start -d     (silent background daemon)
 python -m fleet.app
 ```
 Or launch **silently in the background on Windows** (zero console windows):

@@ -1,5 +1,37 @@
 [
   {
+    "scan_id": "SCAN-20261027-065503",
+    "issue_type": "CRASH_DUMPS",
+    "severity": "LOW",
+    "description": "Found 13 crash dump files (0 older than 7 days, max age 0.0 days). Retention threshold is 10.",
+    "action_taken": "Pruned 3 aged/excess crash report dumps. Reclaimed 1.66 KB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "total_dumps": 13
+    },
+    "metrics_after": {
+      "remaining_dumps": 10,
+      "reclaimed_kb": 1.66
+    },
+    "created_at": "2026-10-27T06:55:04.187755"
+  },
+  {
+    "scan_id": "SCAN-20261027-064221",
+    "issue_type": "CRASH_DUMPS",
+    "severity": "LOW",
+    "description": "Found 13 crash dump files (0 older than 7 days, max age 0.0 days). Retention threshold is 10.",
+    "action_taken": "Pruned 3 aged/excess crash report dumps. Reclaimed 1.9 KB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "total_dumps": 13
+    },
+    "metrics_after": {
+      "remaining_dumps": 10,
+      "reclaimed_kb": 1.9
+    },
+    "created_at": "2026-10-27T06:42:21.483605"
+  },
+  {
     "scan_id": "SCAN-20261027-061600",
     "issue_type": "CRASH_DUMPS",
     "severity": "LOW",
