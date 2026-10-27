@@ -1,0 +1,50 @@
+name: Sync to GitHub Wiki
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'wiki/**'
+
+permissions:
+  contents: write
+
+jobs:
+  sync-wiki:
+    name: Publish Wiki Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Checkout Wiki Repository
+        uses: actions/checkout@v4
+        continue-on-error: true
+        id: checkout_wiki
+        with:
+          repository: ${{ github.repository }}.wiki
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: wiki_target
+
+      - name: Sync Markdown to Wiki
+        if: steps.checkout_wiki.outcome == 'success'
+        run: |
+          cp -r wiki/*.md wiki_target/
+          cd wiki_target
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "Wiki is already up to date."
+          else
+            git commit -m "docs(wiki): automated sync from main repository [skip ci]"
+            git push origin master || git push origin main
+          fi
+
+      - name: Remind Wiki Initialization If Needed
+        if: steps.checkout_wiki.outcome != 'success'
+        run: |
+          echo "::warning::GitHub Wiki repository is not yet initialized. Please navigate to https://github.com/${{ github.repository }}/wiki and click 'Create the first page' to enable automated syncing."
