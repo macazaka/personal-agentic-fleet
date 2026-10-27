@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.6.0] - 2026-10-27
 
 ### Added
+- **Release**: Add proactive semantic release manager, doc/wiki enhancer, and lifecycle orchestrator (v2.6.0).
 - **Autofix**: Add zero-intervention VSCode & CodeQL auto-fixer and SARIF CI verifier.
 - **CLI**: Provide unified Fleet CLI (fleet & python -m fleet), full subcommands and test suite.
 - **Wiki**: Establish complete GitHub Wiki documentation corpus, sync CLI, and automated workflow.

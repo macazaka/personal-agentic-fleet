@@ -497,7 +497,7 @@ def run_proactive_release_check(
 
     # Update CHANGELOG.md if we bumped or if target_ver is newer than latest_tag
     if bump_applied != "none" or (latest_tag and parse_semver(target_ver) > parse_semver(latest_tag)) or not latest_tag:
-        if commits:
+        if commits or bump_applied != "none":
             if update_changelog(repo_root, target_ver, commits):
                 updates.append({
                     "file": "CHANGELOG.md",
