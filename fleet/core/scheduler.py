@@ -296,7 +296,9 @@ class FleetScheduler:
         self.reload()
 
     def _get_overrides_file(self) -> Path:
-        p = DATA_DIR / "user" / "schedule_overrides.json"
+        from fleet.core.database import is_test_environment
+        sub_vault = "test_user" if is_test_environment() else "user"
+        p = DATA_DIR / sub_vault / "schedule_overrides.json"
         p.parent.mkdir(parents=True, exist_ok=True)
         return p
 

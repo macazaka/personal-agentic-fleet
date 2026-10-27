@@ -52,30 +52,41 @@ def register_shutdown_callback(name: str, fn: Callable[[], None], priority: int 
         _SHUTDOWN_CALLBACKS.sort(key=lambda x: x[0])
 
 
+def _get_effective_pid_file() -> Path:
+    from fleet.core.database import is_test_environment
+    if is_test_environment() and PID_FILE == DATA_DIR / "fleet.pid":
+        return DATA_DIR / "test_user" / "fleet.pid"
+    return PID_FILE
+
+
 def write_pid_file() -> None:
-    """Writes the current process PID to fleet/data/fleet.pid."""
+    """Writes the current process PID to fleet/data/fleet.pid (or test_user/fleet.pid in tests)."""
     try:
-        PID_FILE.parent.mkdir(parents=True, exist_ok=True)
-        PID_FILE.write_text(str(os.getpid()), encoding="utf-8")
+        pf = _get_effective_pid_file()
+        pf.parent.mkdir(parents=True, exist_ok=True)
+        pf.write_text(str(os.getpid()), encoding="utf-8")
     except Exception as e:
         logger.warning(f"Failed to write PID file: {e}")
 
 
 def remove_pid_file() -> None:
-    """Safely removes fleet/data/fleet.pid on shutdown."""
+    """Safely removes fleet/data/fleet.pid (or test_user/fleet.pid in tests) on shutdown."""
     try:
-        if PID_FILE.is_file():
-            PID_FILE.unlink()
+        pf = _get_effective_pid_file()
+        if pf.is_file():
+            pf.unlink()
     except Exception:
         pass
 
 
 def checkpoint_sqlite_wal(db_path: Path = DB_PATH) -> bool:
     """Executes PRAGMA wal_checkpoint(TRUNCATE) to cleanly flush WAL to disk."""
-    if not db_path.is_file():
+    from fleet.core.database import get_effective_db_path
+    eff_db = get_effective_db_path(db_path)
+    if not eff_db.is_file():
         return True
     try:
-        conn = sqlite3.connect(str(db_path), timeout=5.0)
+        conn = sqlite3.connect(str(eff_db), timeout=5.0)
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         conn.close()
         return True

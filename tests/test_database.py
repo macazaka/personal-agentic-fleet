@@ -328,6 +328,26 @@ def test_database_test_isolation():
     test_db = FleetDatabase()
     assert test_db.db_path == TEST_DB_PATH
 
+    # 6. Hard Firewall: Even explicitly passing DB_PATH during tests redirects to TEST_DB_PATH
+    assert get_effective_db_path(DB_PATH) == TEST_DB_PATH
+    explicit_prod_db = FleetDatabase(db_path=DB_PATH)
+    assert explicit_prod_db.db_path == TEST_DB_PATH
+
+    # 7. Connection pool firewall redirects DB_PATH to TEST_DB_PATH in test mode
+    from fleet.core.db.pool import pool
+    conn = pool.get_connection(DB_PATH)
+    assert conn is not None
+    assert getattr(pool._local, "db_path", None) == TEST_DB_PATH.resolve()
+
+    # 8. AgentRegistry and FleetScheduler isolate overrides and custom_agents under test_user
+    from fleet.core.registry import AgentRegistry
+    from fleet.core.scheduler import FleetScheduler
+    reg = AgentRegistry()
+    assert "test_user" in str(reg.custom_agents_dir)
+    assert "test_user" in str(reg._get_overrides_file())
+    sched = FleetScheduler()
+    assert "test_user" in str(sched._get_overrides_file())
+
 
 def test_email_caching_and_health_operations():
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:

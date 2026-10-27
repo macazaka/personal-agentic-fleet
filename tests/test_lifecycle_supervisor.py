@@ -12,7 +12,8 @@ from fleet.core.lifecycle import (
     execute_clean_shutdown,
     write_pid_file,
     remove_pid_file,
-    PID_FILE
+    PID_FILE,
+    _get_effective_pid_file,
 )
 from fleet.tools.install_service import install_service, uninstall_service
 
@@ -79,14 +80,15 @@ def test_lifecycle_pid_and_callbacks(tmp_path):
 
     register_shutdown_callback("mock_cleanup", mock_cleanup, priority=10)
 
-    # Test PID file write/remove
+    # Test PID file write/remove (isolated from production PID_FILE during tests)
     write_pid_file()
-    assert PID_FILE.is_file()
+    assert _get_effective_pid_file().is_file()
+    assert _get_effective_pid_file() != PID_FILE
 
     # Execute shutdown
     execute_clean_shutdown()
     assert "cleanup_done" in callbacks_run
-    assert not PID_FILE.is_file()
+    assert not _get_effective_pid_file().is_file()
 
 
 def test_service_installer_dispatch():

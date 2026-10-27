@@ -750,7 +750,8 @@ def persist_improvements_to_ledger(improvements: List[ImprovementAction], db_ins
                     metrics_after=imp.metrics_after,
                 )
             else:
-                conn = sqlite3.connect(str(DB_PATH), timeout=10.0)
+                from fleet.core.database import get_effective_db_path
+                conn = sqlite3.connect(str(get_effective_db_path(DB_PATH)), timeout=10.0)
                 with conn:
                     conn.execute("""
                         INSERT INTO auto_improvements (
@@ -772,13 +773,19 @@ def persist_improvements_to_ledger(improvements: List[ImprovementAction], db_ins
         except Exception as e:
             logger.debug("Failed to persist improvement to SQLite: %s", e)
 
-    # 2. Persist to JSON Ledger file (fleet/data/auto_improvements.json)
+    # 2. Persist to JSON Ledger file (fleet/data/auto_improvements.json; isolated in test_user during tests)
     try:
-        AUTO_IMPROVEMENTS_JSON.parent.mkdir(parents=True, exist_ok=True)
+        from fleet.core.database import is_test_environment
+        target_ledger = (
+            DATA_DIR / "test_user" / "auto_improvements.json"
+            if (is_test_environment() and AUTO_IMPROVEMENTS_JSON == DATA_DIR / "auto_improvements.json")
+            else AUTO_IMPROVEMENTS_JSON
+        )
+        target_ledger.parent.mkdir(parents=True, exist_ok=True)
         existing: List[Dict[str, Any]] = []
-        if AUTO_IMPROVEMENTS_JSON.exists():
+        if target_ledger.exists():
             try:
-                existing = json.loads(AUTO_IMPROVEMENTS_JSON.read_text(encoding="utf-8"))
+                existing = json.loads(target_ledger.read_text(encoding="utf-8"))
             except Exception:
                 existing = []
 
@@ -787,7 +794,7 @@ def persist_improvements_to_ledger(improvements: List[ImprovementAction], db_ins
 
         # Keep latest 200 entries in JSON ledger
         existing = existing[:200]
-        AUTO_IMPROVEMENTS_JSON.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
+        target_ledger.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
     except Exception as e:
         logger.warning("Failed to update auto_improvements.json ledger: %s", e)
 
@@ -814,9 +821,10 @@ def run_proactive_log_scan_and_heal(
     global _LATEST_SCAN_REPORT
 
     with _SCAN_LOCK:
+        from fleet.core.database import get_effective_db_path
         scan_id = f"SCAN-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
         now_iso = datetime.now().isoformat()
-        db_path = custom_db_path or (getattr(db, "db_path", None) if db else DB_PATH)
+        db_path = custom_db_path or (getattr(db, "db_path", None) if db else get_effective_db_path(DB_PATH))
 
         scanner = ProactiveLogScanner(db_path=db_path)
         healer = AutonomousAutoHealer(db_path=db_path)

@@ -23,7 +23,11 @@ class SQLiteConnectionPool:
         self._lock = threading.Lock()
 
     def get_connection(self, db_path: Path) -> sqlite3.Connection:
+        from fleet.config import DB_PATH, TEST_DB_PATH
+        from fleet.core.db.base import is_test_environment
         db_path = Path(db_path).resolve()
+        if is_test_environment() and db_path == DB_PATH.resolve():
+            db_path = TEST_DB_PATH.resolve()
         thread_id = threading.get_ident()
 
         # Check if current thread has an active open connection for this db path

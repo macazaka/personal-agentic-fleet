@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional
 
 from fleet.config import DATA_DIR, DB_PATH
 from fleet.core.auto_healer import run_proactive_log_scan_and_heal
+from fleet.core.database import get_effective_db_path
 
 
 @dataclass
@@ -70,9 +71,10 @@ class SubconsciousMind:
                     activities = self.db.get_recent_activities(limit=max_activities_to_synthesize)
                 except Exception:
                     activities = []
-            elif DB_PATH.exists():
+            elif get_effective_db_path(DB_PATH).exists():
                 try:
-                    conn = sqlite3.connect(str(DB_PATH), timeout=5.0)
+                    eff_db = get_effective_db_path(DB_PATH)
+                    conn = sqlite3.connect(str(eff_db), timeout=5.0)
                     conn.row_factory = sqlite3.Row
                     cursor = conn.cursor()
                     cursor.execute("SELECT * FROM activity_logs ORDER BY id DESC LIMIT ?", (max_activities_to_synthesize,))

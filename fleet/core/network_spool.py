@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fleet.config import DB_PATH
+from fleet.core.database import get_effective_db_path
 from fleet.core.db.pool import get_pooled_connection
 
 logger = logging.getLogger("fleet.network_spool")
@@ -50,7 +51,7 @@ def spool_offline_event(target: str, action: str, payload: Optional[Dict[str, An
     now = datetime.now().isoformat()
     payload_json = json.dumps(payload or {})
 
-    conn = get_pooled_connection(DB_PATH)
+    conn = get_pooled_connection(get_effective_db_path(DB_PATH))
     with conn:
         _ensure_spool_table(conn)
         cursor = conn.cursor()
@@ -66,7 +67,7 @@ def spool_offline_event(target: str, action: str, payload: Optional[Dict[str, An
 
 def list_spooled_events(status: str = "pending") -> List[Dict[str, Any]]:
     """Returns currently spooled offline events."""
-    conn = get_pooled_connection(DB_PATH)
+    conn = get_pooled_connection(get_effective_db_path(DB_PATH))
     _ensure_spool_table(conn)
     cursor = conn.cursor()
     cursor.execute("""
@@ -104,7 +105,7 @@ def flush_offline_spool(event_bus) -> Dict[str, Any]:
 
     flushed = 0
     failed = 0
-    conn = get_pooled_connection(DB_PATH)
+    conn = get_pooled_connection(get_effective_db_path(DB_PATH))
 
     from fleet.core.event_bus import FleetEvent
 

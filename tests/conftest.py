@@ -97,7 +97,8 @@ if not hasattr(discovery_mod, "build"):
 
 @pytest.fixture(autouse=True, scope="session")
 def isolate_test_session():
-    """Session-level isolation ensuring production database is protected."""
+    """Session-level isolation ensuring production database and user vault are protected."""
+    import shutil
     try:
         from fleet.core.db.pool import pool
         pool.close_all()
@@ -111,6 +112,10 @@ def isolate_test_session():
                 p.unlink()
             except Exception:
                 pass
+
+    test_user_dir = DATA_DIR / "test_user"
+    if test_user_dir.exists():
+        shutil.rmtree(test_user_dir, ignore_errors=True)
 
     yield
 
@@ -127,6 +132,36 @@ def isolate_test_session():
                 p.unlink()
             except Exception:
                 pass
+
+    if test_user_dir.exists():
+        shutil.rmtree(test_user_dir, ignore_errors=True)
+
+
+@pytest.fixture(autouse=True)
+def enforce_production_data_isolation():
+    """Per-test guard ensuring global server/mirror DBs and env vars never point to production DB."""
+    from fleet.config import DB_PATH
+    from fleet.core.database import FleetDatabase
+    os.environ["FLEET_TEST_MODE"] = "1"
+    os.environ.pop("FLEET_PRODUCTION_SERVER", None)
+
+    for mod_name in ("fleet.server", "fleet.core.antigravity_mirror"):
+        mod = sys.modules.get(mod_name)
+        if mod is not None and hasattr(mod, "db"):
+            cur_db = getattr(mod, "db", None)
+            if cur_db is not None and getattr(cur_db, "db_path", None) == DB_PATH:
+                setattr(mod, "db", FleetDatabase(db_path=TEST_DB_PATH))
+
+    yield
+
+    os.environ["FLEET_TEST_MODE"] = "1"
+    os.environ.pop("FLEET_PRODUCTION_SERVER", None)
+    for mod_name in ("fleet.server", "fleet.core.antigravity_mirror"):
+        mod = sys.modules.get(mod_name)
+        if mod is not None and hasattr(mod, "db"):
+            cur_db = getattr(mod, "db", None)
+            if cur_db is not None and getattr(cur_db, "db_path", None) == DB_PATH:
+                setattr(mod, "db", FleetDatabase(db_path=TEST_DB_PATH))
 
 
 @pytest.fixture(autouse=True)
