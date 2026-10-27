@@ -1,6 +1,7 @@
 {
   "include": ["fleet", "tests", "conftest.py", "pong.py"],
   "extraPaths": ["."],
+  "pythonVersion": "3.10",
   "typeCheckingMode": "basic",
   "reportMissingImports": "none",
   "reportMissingModuleSource": "none"

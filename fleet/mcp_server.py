@@ -145,7 +145,7 @@ def fleet_list_routines() -> str:
 
 
 @mcp.tool(description="Toggle completion status of a daily routine/habit by its ID.")
-def fleet_toggle_routine(routine_id: int) -> str:
+def fleet_toggle_routine(routine_id: int | str) -> str:
     """Toggle a routine's completed status for today."""
     event = FleetEvent(
         sender="Antigravity",

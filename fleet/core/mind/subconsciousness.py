@@ -43,6 +43,7 @@ class SubconsciousMind:
         self.db = db
         self._last_dream_time: Optional[float] = None
         self._dream_lock = threading.RLock()
+        self._is_dreaming: bool = False
         self._recent_insights: List[DreamInsight] = []
 
     def run_dream_cycle(self, max_activities_to_synthesize: int = 200) -> Dict[str, Any]:
@@ -55,6 +56,7 @@ class SubconsciousMind:
         5. Triggers autonomic immunological self-repair (clean up mental clutter).
         """
         with self._dream_lock:
+            self._is_dreaming = True
             start_ts = time.time()
             now_iso = datetime.now().isoformat()
             cycle_id = f"DREAM-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
@@ -162,6 +164,7 @@ class SubconsciousMind:
             self._recent_insights = insights + self._recent_insights
             self._recent_insights = self._recent_insights[:30]
             self._last_dream_time = time.time()
+            self._is_dreaming = False
             duration_sec = round(time.time() - start_ts, 2)
 
             return {
@@ -184,7 +187,7 @@ class SubconsciousMind:
             )
             return {
                 "layer": "Subconsciousness (Dream Engine & Implicit Synthesis)",
-                "status": "DREAMING" if self._dream_lock.locked() else "INTUITING",
+                "status": "DREAMING" if self._is_dreaming else "INTUITING",
                 "last_dream_cycle": last_dream_str,
                 "total_insights_cached": len(self._recent_insights),
                 "recent_insights": [asdict(i) for i in self._recent_insights[:5]],
