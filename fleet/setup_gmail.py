@@ -57,10 +57,8 @@ def print_step_by_step_guide():
 
 6. Download JSON File:
    - Click the Download button (⬇️) next to the created Client ID.
-   - Save the downloaded file exactly to this path on your laptop:
+   - Save the downloaded file to: fleet/data/credentials.json
 """)
-    oauth_target_dir = DATA_DIR.resolve()
-    print(f"      📍 {oauth_target_dir}")
     print("=" * 70)
     print("\nOnce you place 'credentials.json' in that folder, run this script again:\n  python -m fleet.setup_gmail\n")
 

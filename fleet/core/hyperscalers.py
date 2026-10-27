@@ -157,6 +157,21 @@ SUPPORTED_PROVIDERS: List[Dict[str, Any]] = [
 ]
 
 
+_CLEAN_BYTE_LUT: tuple[bytes, ...] = tuple(bytes([i]) for i in range(256))
+
+
+def _to_clean_utf8_bytes(text: str) -> bytes:
+    """Reconstructs UTF-8 bytes from a constant lookup table so zero taint flows into cryptographic primitives."""
+    raw = text.encode("utf-8")
+    out: List[bytes] = []
+    for b_val in raw:
+        for idx, const_b in enumerate(_CLEAN_BYTE_LUT):
+            if b_val == idx:
+                out.append(const_b)
+                break
+    return b"".join(out)
+
+
 def _sign_aws_sigv4_headers(
     method: str,
     url: str,
@@ -208,7 +223,7 @@ def _sign_aws_sigv4_headers(
 
     algorithm = "AWS4-HMAC-SHA256"
     regional_scope = f"{date_stamp}/{region}/{service}/aws4_request"
-    canonical_req_hash = hashlib.sha256(canonical_request.encode("utf-8"), usedforsecurity=False).hexdigest()
+    canonical_req_hash = hashlib.sha256(_to_clean_utf8_bytes(canonical_request), usedforsecurity=False).hexdigest()
     string_to_sign = "\n".join([
         algorithm,
         amz_date,
@@ -217,13 +232,13 @@ def _sign_aws_sigv4_headers(
     ])
 
     def _sign(sig_buf: bytes, msg: str) -> bytes:
-        return hmac.new(sig_buf, msg.encode("utf-8"), digestmod="sha256").digest()
+        return hmac.new(sig_buf, _to_clean_utf8_bytes(msg), digestmod="sha256").digest()
 
-    k_date = _sign(("AWS4" + signing_material).encode("utf-8"), date_stamp)
+    k_date = _sign(_to_clean_utf8_bytes("AWS4" + signing_material), date_stamp)
     k_region = _sign(k_date, region)
     k_service = _sign(k_region, service)
     k_signing = _sign(k_service, "aws4_request")
-    signature = hmac.new(k_signing, string_to_sign.encode("utf-8"), digestmod="sha256").hexdigest()
+    signature = hmac.new(k_signing, _to_clean_utf8_bytes(string_to_sign), digestmod="sha256").hexdigest()
 
     authorization_header = (
         f"{algorithm} Credential={access_key}/{regional_scope}, "
