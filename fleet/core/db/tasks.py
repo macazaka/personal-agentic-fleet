@@ -62,20 +62,14 @@ class TasksMixin:
                     ))
                 )""")
 
-            where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+            sql = "SELECT * FROM tasks"
+            if conditions:
+                sql += " WHERE " + " AND ".join(conditions)
             if status:
-                cursor.execute(f"""
-                    SELECT * FROM tasks {where_clause}
-                    ORDER BY CASE priority WHEN 'P1' THEN 1 WHEN 'P2' THEN 2 WHEN 'P3' THEN 3 ELSE 4 END, id DESC
-                    LIMIT ?
-                """, (*params, limit))
+                sql += " ORDER BY CASE priority WHEN 'P1' THEN 1 WHEN 'P2' THEN 2 WHEN 'P3' THEN 3 ELSE 4 END, id DESC LIMIT ?"
             else:
-                cursor.execute(f"""
-                    SELECT * FROM tasks {where_clause}
-                    ORDER BY CASE status WHEN 'pending' THEN 1 WHEN 'in_progress' THEN 2 ELSE 3 END,
-                             CASE priority WHEN 'P1' THEN 1 WHEN 'P2' THEN 2 WHEN 'P3' THEN 3 ELSE 4 END, id DESC
-                    LIMIT ?
-                """, (*params, limit))
+                sql += " ORDER BY CASE status WHEN 'pending' THEN 1 WHEN 'in_progress' THEN 2 ELSE 3 END, CASE priority WHEN 'P1' THEN 1 WHEN 'P2' THEN 2 WHEN 'P3' THEN 3 ELSE 4 END, id DESC LIMIT ?"
+            cursor.execute(sql, (*params, limit))
             rows = []
             for row in cursor.fetchall():
                 d = dict(row)

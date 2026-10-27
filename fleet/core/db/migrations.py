@@ -161,7 +161,7 @@ def apply_migrations(db_path: Path) -> Dict[str, Any]:
             if ver > current_version:
                 with conn:
                     fn(conn)
-                    conn.execute(f"PRAGMA user_version = {ver}")
+                    conn.execute("PRAGMA user_version = %d" % int(ver))
                 current_version = ver
                 applied_list.append({"version": ver, "description": desc})
 

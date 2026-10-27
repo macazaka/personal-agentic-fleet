@@ -61,25 +61,20 @@ class AutoImprovementsMixin:
     ) -> List[Dict[str, Any]]:
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            conditions = []
-            params: List[Any] = []
+            if issue_type and status:
+                query = "SELECT * FROM auto_improvements WHERE issue_type = ? AND status = ? ORDER BY id DESC LIMIT ?"
+                params = [issue_type.upper(), status.upper(), limit]
+            elif issue_type:
+                query = "SELECT * FROM auto_improvements WHERE issue_type = ? ORDER BY id DESC LIMIT ?"
+                params = [issue_type.upper(), limit]
+            elif status:
+                query = "SELECT * FROM auto_improvements WHERE status = ? ORDER BY id DESC LIMIT ?"
+                params = [status.upper(), limit]
+            else:
+                query = "SELECT * FROM auto_improvements ORDER BY id DESC LIMIT ?"
+                params = [limit]
 
-            if issue_type:
-                conditions.append("issue_type = ?")
-                params.append(issue_type.upper())
-            if status:
-                conditions.append("status = ?")
-                params.append(status.upper())
-
-            where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-            params.append(limit)
-
-            cursor.execute(f"""
-                SELECT * FROM auto_improvements
-                {where_clause}
-                ORDER BY id DESC
-                LIMIT ?
-            """, params)
+            cursor.execute(query, params)
 
             rows = cursor.fetchall()
             results = []

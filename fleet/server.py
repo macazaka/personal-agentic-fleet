@@ -322,18 +322,18 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
 
         elif path.startswith("/api/antigravity/media/"):
             raw_fname = path[len("/api/antigravity/media/"):]
-            filename = os.path.basename(urllib.parse.unquote(raw_fname))
+            clean_filename = Path(urllib.parse.unquote(raw_fname)).name
             media_path = None
-            if filename:
-                candidate = UPLOADS_DIR / filename
-                if candidate.is_file():
+            if clean_filename and not clean_filename.startswith("."):
+                candidate = (UPLOADS_DIR / clean_filename).resolve()
+                if candidate.is_file() and candidate.is_relative_to(UPLOADS_DIR.resolve()):
                     media_path = candidate
                 else:
                     t_path = get_active_transcript_path()
                     if t_path:
-                        brain_dir = t_path.parents[2]
-                        for c in [brain_dir / ".user_uploaded" / filename, brain_dir / filename]:
-                            if c.is_file():
+                        brain_dir = t_path.parents[2].resolve()
+                        for c in [(brain_dir / ".user_uploaded" / clean_filename).resolve(), (brain_dir / clean_filename).resolve()]:
+                            if c.is_file() and c.is_relative_to(brain_dir):
                                 media_path = c
                                 break
             if media_path and media_path.is_file():
@@ -354,9 +354,10 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
         # 2. Static Assets (/static/css/*, /static/js/*)
         elif path.startswith("/static/"):
             rel_path = path[len("/static/"):]
-            file_path = (STATIC_DIR / rel_path).resolve()
-            # Security guard against directory traversal
-            if file_path.is_file() and str(file_path).startswith(str(STATIC_DIR)):
+            clean_rel = Path(urllib.parse.unquote(rel_path)).name if "/" not in rel_path else Path(urllib.parse.unquote(rel_path))
+            file_path = (STATIC_DIR / clean_rel).resolve()
+            # Security guard against directory traversal using standard library is_relative_to
+            if file_path.is_file() and file_path.is_relative_to(STATIC_DIR.resolve()):
                 if file_path.suffix == ".css":
                     content_type = "text/css; charset=utf-8"
                 elif file_path.suffix == ".js":
@@ -481,41 +482,6 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             from fleet.tools.crash_reporter import list_crash_reports
             reports = list_crash_reports()
             self._send_json({"status": "success", "reports": reports, "count": len(reports)})
-
-        elif path == "/api/diagnostics/log-analysis":
-            from fleet.core.auto_healer import get_latest_scan_report, run_proactive_log_scan_and_heal
-            report = get_latest_scan_report()
-            if not report:
-                report = run_proactive_log_scan_and_heal(db=db)
-            self._send_json({"status": "success", "report": report})
-
-        elif path == "/api/diagnostics/auto-improvements":
-            from fleet.core.auto_healer import get_auto_improvements_history
-            query = urllib.parse.parse_qs(parsed.query)
-            limit = int(query.get("limit", [50])[0])
-            history = get_auto_improvements_history(limit=limit, db=db)
-            stats = db.get_auto_improvements_stats() if hasattr(db, "get_auto_improvements_stats") else {}
-            self._send_json({"status": "success", "improvements": history, "stats": stats, "count": len(history)})
-
-        elif path == "/api/mind/status":
-            from fleet.core.mind import fleet_mind
-            fleet_mind.set_db(db)
-            self._send_json(fleet_mind.get_holistic_state())
-
-        elif path == "/api/mind/insights":
-            limit = int(urllib.parse.parse_qs(parsed.query).get("limit", [30])[0])
-            insights = db.list_dream_insights(limit=limit) if hasattr(db, "list_dream_insights") else []
-            self._send_json({"status": "success", "insights": insights, "count": len(insights)})
-
-        elif path == "/api/mind/critiques":
-            limit = int(urllib.parse.parse_qs(parsed.query).get("limit", [30])[0])
-            critiques = db.list_critiques(limit=limit) if hasattr(db, "list_critiques") else []
-            self._send_json({"status": "success", "critiques": critiques, "count": len(critiques)})
-
-        elif path == "/api/mind/soul/audits":
-            limit = int(urllib.parse.parse_qs(parsed.query).get("limit", [10])[0])
-            audits = db.list_soul_audits(limit=limit) if hasattr(db, "list_soul_audits") else []
-            self._send_json({"status": "success", "audits": audits, "count": len(audits)})
 
         else:
             # 3. Dispatch to Domain API Routers
@@ -793,11 +759,6 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             results = run_test_suite_isolated(db)
             self._send_json({"status": "success", "results": results})
 
-        elif path == "/api/diagnostics/log-analysis/run":
-            from fleet.core.auto_healer import run_proactive_log_scan_and_heal
-            report = run_proactive_log_scan_and_heal(db=db)
-            self._send_json({"status": "success", "report": report})
-
         elif path == "/api/optimizer/clean_temp":
             res = clean_temp_files()
             db.log_activity("PCOptimizer", "clean_temp", res.get("message", "Cleaned temporary files"))
@@ -840,41 +801,6 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
                 "caches": p_res,
                 "ram": r_res
             })
-
-        elif path == "/api/mind/critique":
-            from fleet.core.mind import fleet_mind
-            fleet_mind.set_db(db)
-            agent = body.get("agent", "FleetAgent")
-            action = body.get("action", "custom_action")
-            input_payload = body.get("input", {})
-            output_result = body.get("result", {})
-            critique = fleet_mind.critique(agent=agent, action=action, input_payload=input_payload, output_result=output_result)
-            self._send_json({"status": "success", "critique": critique.to_dict()})
-
-        elif path == "/api/mind/dream":
-            from fleet.core.mind import fleet_mind
-            fleet_mind.set_db(db)
-            max_activities = int(body.get("max_activities", 200))
-            insight = fleet_mind.dream(max_activities=max_activities)
-            self._send_json({"status": "success", "insight": insight})
-
-        elif path == "/api/mind/soul/audit":
-            from fleet.core.mind import fleet_mind
-            fleet_mind.set_db(db)
-            audit = fleet_mind.audit_soul()
-            self._send_json({"status": "success", "audit": audit.to_dict()})
-
-        elif path == "/api/mind/self_improve":
-            from fleet.core.mind import fleet_mind
-            fleet_mind.set_db(db)
-            res = fleet_mind.self_improve()
-            self._send_json(res)
-
-        elif path == "/api/mind/heal":
-            from fleet.core.mind import fleet_mind
-            fleet_mind.set_db(db)
-            res = fleet_mind.heal()
-            self._send_json(res)
 
         else:
             # Dispatch to Domain API Routers

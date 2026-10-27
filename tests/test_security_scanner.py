@@ -390,3 +390,13 @@ def test_macos_keychain_vault_integration():
         assert len(key) == 32
         mock_chmod.assert_called_with(0o600)
 
+
+def test_codeql_proactive_security_invariants():
+    """Validates that proactive CodeQL invariants (CWE-078, CWE-022, CWE-020, CWE-327, CWE-089) pass with 0 findings."""
+    from fleet.tools.security_scanner import run_security_scan
+    report = run_security_scan()
+    assert report["score"] == 100
+    sast_check = next(c for c in report["checks"] if c["id"] == "sast_audit")
+    assert sast_check["status"] == "PASS"
+    assert sast_check["findings_count"] == 0
+

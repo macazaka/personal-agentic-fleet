@@ -78,12 +78,23 @@ def post_hyperscaler_generate(handler: Any, body: Dict[str, Any]):
     handler._send_json(result)
 
 
+def _validate_api_prompt(body: Dict[str, Any]) -> str:
+    """Validates and sanitizes prompt from incoming HTTP request body (CWE-078)."""
+    raw = body.get("prompt")
+    if not isinstance(raw, str):
+        return ""
+    clean = raw.strip()
+    while clean.startswith("-"):
+        clean = clean.lstrip("-").strip()
+    return clean[:8192]
+
+
 @router.post("/api/hyperscalers/dev_tools/claude_code")
 def post_execute_claude_code(handler: Any, body: Dict[str, Any]):
     """Executes a command via Claude Code CLI with Anthropic Direct fallback."""
-    prompt = body.get("prompt", "")
+    prompt = _validate_api_prompt(body)
     if not prompt:
-        handler._send_json({"status": "error", "message": "Missing prompt"}, 400)
+        handler._send_json({"status": "error", "message": "Missing or invalid prompt"}, 400)
         return
 
     cwd = body.get("cwd")
@@ -94,9 +105,9 @@ def post_execute_claude_code(handler: Any, body: Dict[str, Any]):
 @router.post("/api/hyperscalers/dev_tools/copilot")
 def post_execute_copilot(handler: Any, body: Dict[str, Any]):
     """Executes a command via GitHub Copilot CLI with Azure OpenAI / GitHub Models fallback."""
-    prompt = body.get("prompt", "")
+    prompt = _validate_api_prompt(body)
     if not prompt:
-        handler._send_json({"status": "error", "message": "Missing prompt"}, 400)
+        handler._send_json({"status": "error", "message": "Missing or invalid prompt"}, 400)
         return
 
     cmd_type = body.get("type", "suggest")
@@ -107,9 +118,9 @@ def post_execute_copilot(handler: Any, body: Dict[str, Any]):
 @router.post("/api/hyperscalers/dev_tools/gemini_cli")
 def post_execute_gemini_cli(handler: Any, body: Dict[str, Any]):
     """Executes a command via Google Gemini CLI with Gemini REST / Vertex AI fallback."""
-    prompt = body.get("prompt", "")
+    prompt = _validate_api_prompt(body)
     if not prompt:
-        handler._send_json({"status": "error", "message": "Missing prompt"}, 400)
+        handler._send_json({"status": "error", "message": "Missing or invalid prompt"}, 400)
         return
 
     model = body.get("model", "gemini-2.5-pro")
@@ -120,9 +131,9 @@ def post_execute_gemini_cli(handler: Any, body: Dict[str, Any]):
 @router.post("/api/hyperscalers/dev_tools/aws_q")
 def post_execute_aws_q(handler: Any, body: Dict[str, Any]):
     """Executes a command via Amazon Q Developer CLI with AWS Bedrock fallback."""
-    prompt = body.get("prompt", "")
+    prompt = _validate_api_prompt(body)
     if not prompt:
-        handler._send_json({"status": "error", "message": "Missing prompt"}, 400)
+        handler._send_json({"status": "error", "message": "Missing or invalid prompt"}, 400)
         return
 
     res = execute_aws_q_developer(prompt=prompt)

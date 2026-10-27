@@ -2,6 +2,7 @@
 Health & Wellness API endpoints for Personal Agentic Fleet.
 """
 
+from pathlib import Path
 from typing import Any, Dict
 import urllib.parse
 from fleet.api.router import router
@@ -134,12 +135,12 @@ def get_exercise_videos(handler: Any, parsed_url: urllib.parse.ParseResult):
 def get_health_image(handler: Any, parsed_url: urllib.parse.ParseResult):
     query = urllib.parse.parse_qs(parsed_url.query)
     filename = query.get("file", [""])[0]
-    safe_name = os.path.basename(filename)
-    if not safe_name:
+    safe_name = Path(filename).name
+    if not safe_name or safe_name.startswith("."):
         handler.send_error(400, "Missing filename")
         return
     file_path = (FFD_VIDEOS_DIR / safe_name).resolve()
-    if not file_path.is_file() or not str(file_path).startswith(str(FFD_VIDEOS_DIR)):
+    if not file_path.is_file() or not file_path.is_relative_to(FFD_VIDEOS_DIR.resolve()):
         handler.send_error(404, "Image not found")
         return
     ext = file_path.suffix.lower()
@@ -158,12 +159,12 @@ def get_health_image(handler: Any, parsed_url: urllib.parse.ParseResult):
 def stream_video(handler: Any, parsed_url: urllib.parse.ParseResult):
     query = urllib.parse.parse_qs(parsed_url.query)
     filename = query.get("file", [""])[0]
-    safe_name = os.path.basename(filename)
-    if not safe_name:
+    safe_name = Path(filename).name
+    if not safe_name or safe_name.startswith("."):
         handler.send_error(400, "Missing filename")
         return
     file_path = (FFD_VIDEOS_DIR / safe_name).resolve()
-    if not file_path.is_file() or not str(file_path).startswith(str(FFD_VIDEOS_DIR)):
+    if not file_path.is_file() or not file_path.is_relative_to(FFD_VIDEOS_DIR.resolve()):
         handler.send_error(404, "Video not found")
         return
 

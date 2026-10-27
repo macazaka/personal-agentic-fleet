@@ -45,21 +45,29 @@ class BacklogMixin:
             return [dict(row) for row in cursor.fetchall()]
 
     def update_feature_backlog_item(self, item_id: int, **kwargs) -> bool:
-        allowed = {"title", "description", "category", "priority", "status", "target_version"}
-        fields = []
+        ALLOWED_FIELDS = {
+            "title": "title = ?",
+            "description": "description = ?",
+            "category": "category = ?",
+            "priority": "priority = ?",
+            "status": "status = ?",
+            "target_version": "target_version = ?",
+        }
+        set_clauses = []
         params = []
-        for k, v in kwargs.items():
-            if k in allowed and v is not None:
-                fields.append(f"{k} = ?")
-                params.append(v)
-        if not fields:
+        for k, clause in ALLOWED_FIELDS.items():
+            if k in kwargs and kwargs[k] is not None:
+                set_clauses.append(clause)
+                params.append(kwargs[k])
+        if not set_clauses:
             return False
-        fields.append("updated_at = ?")
+        set_clauses.append("updated_at = ?")
         params.append(datetime.now().isoformat())
         params.append(item_id)
+        sql = "UPDATE feature_backlog SET " + ", ".join(set_clauses) + " WHERE id = ?"
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(f"UPDATE feature_backlog SET {', '.join(fields)} WHERE id = ?", params)
+            cursor.execute(sql, params)
             conn.commit()
             return cursor.rowcount > 0
 

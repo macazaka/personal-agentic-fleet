@@ -8,6 +8,7 @@ Can be executed:
 """
 
 import argparse
+import ast
 from datetime import datetime
 import json
 import os
@@ -337,9 +338,11 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
     })
 
     # -------------------------------------------------------------------------
-    # Check 4: Static Application Security Testing (SAST)
+    # Check 4: Static Application Security Testing (SAST & GitHub CodeQL Guard)
     # -------------------------------------------------------------------------
     sast_hits = []
+    domain_in_re = re.compile(r'["\'](?:https?://)?([a-zA-Z0-9.-]+\.(?:com|org|net|us|io|ai|co|gov|edu))["\']\s+in\s+([a-zA-Z0-9_]+)', re.I)
+
     for rel_path in tracked_files:
         if not rel_path.startswith("fleet/") or not rel_path.endswith(".py"):
             continue
@@ -350,12 +353,15 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
             continue
         try:
             content = fp.read_text(encoding="utf-8", errors="ignore")
-            for line_no, line in enumerate(content.splitlines(), 1):
-                stripped = line.split("#")[0]
+            lines = content.splitlines()
+
+            # 1. Line-by-line regex checks
+            for line_no, line in enumerate(lines, 1):
+                stripped = line.split("#")[0].strip()
                 if "shell=True" in stripped:
                     hit = {
                         "severity": "HIGH",
-                        "category": "SAST Command Injection",
+                        "category": "SAST Command Injection (CWE-078)",
                         "file": rel_path,
                         "line": line_no,
                         "detail": "Subprocess call with shell=True detected.",
@@ -365,19 +371,63 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
                 if "Access-Control-Allow-Origin" in stripped and '"*"' in stripped:
                     hit = {
                         "severity": "MEDIUM",
-                        "category": "SAST Wildcard CORS",
+                        "category": "SAST Wildcard CORS (CWE-346)",
                         "file": rel_path,
                         "line": line_no,
                         "detail": "Wildcard CORS Access-Control-Allow-Origin: * exposes localhost API to external sites.",
                     }
                     sast_hits.append(hit)
                     findings.append(hit)
+
+                # Check for Incomplete URL Substring Sanitization (CWE-020)
+                m_url = domain_in_re.search(stripped)
+                if m_url and "test" not in rel_path.lower():
+                    hit = {
+                        "severity": "HIGH",
+                        "category": "SAST Incomplete URL Sanitization (CWE-020)",
+                        "file": rel_path,
+                        "line": line_no,
+                        "detail": f"Checking '{m_url.group(1)}' in '{m_url.group(2)}' without full URL boundary parsing.",
+                    }
+                    sast_hits.append(hit)
+                    findings.append(hit)
+
+                # Check for Weak Hash Algorithms without usedforsecurity=False (CWE-327)
+                if re.search(r'\bhashlib\.(?:md5|sha1)\s*\(', stripped) and "usedforsecurity=False" not in stripped:
+                    hit = {
+                        "severity": "HIGH",
+                        "category": "SAST Weak Hash Algorithm (CWE-327)",
+                        "file": rel_path,
+                        "line": line_no,
+                        "detail": "Use of weak hash algorithm without usedforsecurity=False.",
+                    }
+                    sast_hits.append(hit)
+                    findings.append(hit)
+
+            # 2. AST parsing for SQL Injection f-strings (CWE-089)
+            try:
+                tree = ast.parse(content, filename=str(fp))
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Call):
+                        if isinstance(node.func, ast.Attribute) and node.func.attr in ("execute", "executemany"):
+                            if node.args and isinstance(node.args[0], ast.JoinedStr):
+                                hit = {
+                                    "severity": "HIGH",
+                                    "category": "SAST SQL Injection (CWE-089)",
+                                    "file": rel_path,
+                                    "line": node.lineno,
+                                    "detail": "f-string in cursor.execute(). Must use parameterized SQL bindings (?).",
+                                }
+                                sast_hits.append(hit)
+                                findings.append(hit)
+            except Exception:
+                pass
         except Exception:
             continue
 
     checks.append({
         "id": "sast_audit",
-        "name": "Static Application Security Analysis (SAST)",
+        "name": "Static Application Security Analysis (SAST & CodeQL Invariants)",
         "status": "PASS" if not sast_hits else "FAIL",
         "findings_count": len(sast_hits),
     })

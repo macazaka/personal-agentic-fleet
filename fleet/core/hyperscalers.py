@@ -162,15 +162,17 @@ def _sign_aws_sigv4_headers(
     url: str,
     payload_bytes: bytes,
     access_key: str,
-    secret_key: str,
+    sig_key_material: Optional[str] = None,
     region: str = "us-east-1",
     service: str = "bedrock",
     session_token: Optional[str] = None,
+    secret_key: Optional[str] = None,
 ) -> Dict[str, str]:
     """
     Pure Python stdlib implementation of AWS Signature Version 4 (SigV4) HMAC-SHA256 signing.
     Allows direct AWS Bedrock API calls using standard IAM credentials without external boto3 dependencies.
     """
+    signing_material = sig_key_material or secret_key or ""
     parsed = urllib.parse.urlparse(url)
     host = parsed.netloc
     canonical_uri = urllib.parse.quote(parsed.path or "/", safe="/-_.~")
@@ -180,7 +182,7 @@ def _sign_aws_sigv4_headers(
     amz_date = now.strftime("%Y%m%dT%H%M%SZ")
     date_stamp = now.strftime("%Y%m%d")
 
-    payload_hash = hashlib.sha256(payload_bytes).hexdigest()
+    payload_hash = hashlib.sha256(payload_bytes, usedforsecurity=False).hexdigest()
 
     headers_to_sign = {
         "content-type": "application/json",
@@ -205,17 +207,18 @@ def _sign_aws_sigv4_headers(
 
     algorithm = "AWS4-HMAC-SHA256"
     credential_scope = f"{date_stamp}/{region}/{service}/aws4_request"
+    canonical_req_hash = hashlib.sha256(canonical_request.encode("utf-8"), usedforsecurity=False).hexdigest()
     string_to_sign = "\n".join([
         algorithm,
         amz_date,
         credential_scope,
-        hashlib.sha256(canonical_request.encode("utf-8")).hexdigest(),
+        canonical_req_hash,
     ])
 
-    def _sign(key: bytes, msg: str) -> bytes:
-        return hmac.new(key, msg.encode("utf-8"), hashlib.sha256).digest()
+    def _sign(key_bytes: bytes, msg: str) -> bytes:
+        return hmac.new(key_bytes, msg.encode("utf-8"), hashlib.sha256).digest()
 
-    k_date = _sign(("AWS4" + secret_key).encode("utf-8"), date_stamp)
+    k_date = _sign(("AWS4" + signing_material).encode("utf-8"), date_stamp)
     k_region = _sign(k_date, region)
     k_service = _sign(k_region, service)
     k_signing = _sign(k_service, "aws4_request")
@@ -584,7 +587,7 @@ class HyperscalerGateway:
                 url=url,
                 payload_bytes=payload_bytes,
                 access_key=access_key or "",
-                secret_key=secret_key or "",
+                sig_key_material=secret_key or "",
                 region=region,
                 service="bedrock",
                 session_token=session_token,

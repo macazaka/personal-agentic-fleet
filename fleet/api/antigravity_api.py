@@ -5,6 +5,7 @@ Antigravity Live Stream, Models & Agent Control API endpoints for Personal Agent
 import base64
 import mimetypes
 import os
+from pathlib import Path
 from typing import Any, Dict
 import urllib.parse
 
@@ -60,18 +61,18 @@ def get_queue(handler: Any, parsed_url: urllib.parse.ParseResult):
 @router.get_prefix("/api/antigravity/media/")
 def get_media(handler: Any, path: str, parsed_url: urllib.parse.ParseResult):
     raw_fname = path[len("/api/antigravity/media/"):]
-    filename = os.path.basename(urllib.parse.unquote(raw_fname))
+    clean_filename = Path(urllib.parse.unquote(raw_fname)).name
     media_path = None
-    if filename:
-        candidate = srv.UPLOADS_DIR / filename
-        if candidate.is_file():
+    if clean_filename and not clean_filename.startswith("."):
+        candidate = (srv.UPLOADS_DIR / clean_filename).resolve()
+        if candidate.is_file() and candidate.is_relative_to(srv.UPLOADS_DIR.resolve()):
             media_path = candidate
         else:
             t_path = srv.get_active_transcript_path()
             if t_path:
-                brain_dir = t_path.parents[2]
-                for c in [brain_dir / ".user_uploaded" / filename, brain_dir / filename]:
-                    if c.is_file():
+                brain_dir = t_path.parents[2].resolve()
+                for c in [(brain_dir / ".user_uploaded" / clean_filename).resolve(), (brain_dir / clean_filename).resolve()]:
+                    if c.is_file() and c.is_relative_to(brain_dir):
                         media_path = c
                         break
     if media_path and media_path.is_file():

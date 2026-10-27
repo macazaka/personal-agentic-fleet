@@ -16,11 +16,11 @@ def extract_meeting_agenda(subject: str, snippet: str = "", sender: str = "") ->
     meeting_time = time_match.group(1) if time_match else "Scheduled Today"
 
     text_combined = f"{subject} {snippet}".lower()
-    if "google meet" in text_combined or "meet.google.com" in text_combined:
+    if "google meet" in text_combined or re.search(r"https?://(?:[a-zA-Z0-9-]+\.)?meet\.google\.com\b", text_combined):
         platform = "Google Meet"
-    elif "zoom" in text_combined or "zoom.us" in text_combined:
+    elif "zoom meeting" in text_combined or "zoom" in text_combined or re.search(r"https?://(?:[a-zA-Z0-9-]+\.)?zoom\.us\b", text_combined):
         platform = "Zoom"
-    elif "teams" in text_combined or "teams.microsoft.com" in text_combined:
+    elif "microsoft teams" in text_combined or "teams meeting" in text_combined or re.search(r"https?://(?:[a-zA-Z0-9-]+\.)?teams\.microsoft\.com\b", text_combined):
         platform = "Microsoft Teams"
     elif "calendly" in text_combined:
         platform = "Calendly"

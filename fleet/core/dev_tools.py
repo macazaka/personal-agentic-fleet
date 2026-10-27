@@ -210,6 +210,16 @@ def detect_developer_tools() -> Dict[str, Dict[str, Any]]:
     }
 
 
+def _sanitize_cli_prompt(prompt: str) -> str:
+    """Sanitizes prompt to prevent command line argument and flag injection (CWE-078)."""
+    if not isinstance(prompt, str):
+        return ""
+    clean = prompt.strip()
+    while clean.startswith("-"):
+        clean = clean.lstrip("-").strip()
+    return clean[:8192]
+
+
 def execute_claude_code(
     prompt: str,
     cwd: Optional[str] = None,
@@ -219,11 +229,16 @@ def execute_claude_code(
     Executes a task via Anthropic's Claude Code CLI tool (`claude -p`).
     Falls back gracefully to Anthropic Direct API via HyperscalerGateway if the CLI is not installed.
     """
+    safe_prompt = _sanitize_cli_prompt(prompt)
+    if not safe_prompt:
+        return {"status": "error", "tool": "claude_code", "message": "Invalid or empty prompt"}
+
     tools = detect_developer_tools()
     claude_info = tools.get("claude_code", {})
 
     if claude_info.get("installed") and claude_info.get("path"):
-        cmd = [claude_info["path"], "-p", prompt]
+        exec_path = str(claude_info["path"])
+        cmd = [exec_path, "-p", safe_prompt]
         if dangerously_skip_permissions:
             cmd.append("--dangerously-skip-permissions")
 
@@ -232,6 +247,7 @@ def execute_claude_code(
                 cmd,
                 capture_output=True,
                 text=True,
+                shell=False,
                 cwd=cwd or str(BASE_DIR.parent),
                 timeout=120,
             )
@@ -251,7 +267,7 @@ def execute_claude_code(
     # Fallback to Anthropic Claude Direct API via HyperscalerGateway
     from fleet.core.hyperscalers import HyperscalerGateway
     gateway = HyperscalerGateway()
-    llm_res = gateway.complete(prompt=prompt, provider="anthropic", model="claude-3-5-sonnet-20241022")
+    llm_res = gateway.complete(prompt=safe_prompt, provider="anthropic", model="claude-3-5-sonnet-20241022")
     return {
         "status": "success" if (llm_res.get("response") or llm_res.get("text")) else "error",
         "tool": "claude_code_api_fallback",
@@ -270,14 +286,19 @@ def execute_github_copilot_command(
     Executes a shell suggestion or explanation query using GitHub Copilot CLI (`gh copilot`).
     Falls back to Microsoft Azure OpenAI / GitHub Models via HyperscalerGateway if GitHub CLI is unavailable.
     """
+    safe_prompt = _sanitize_cli_prompt(prompt)
+    if not safe_prompt:
+        return {"status": "error", "tool": "github_copilot_cli", "message": "Invalid or empty prompt"}
+
     tools = detect_developer_tools()
     gh_info = tools.get("github_copilot", {})
 
     if gh_info.get("installed") and gh_info.get("has_copilot_cli") and gh_info.get("path"):
+        exec_path = str(gh_info["path"])
         subcmd = "suggest" if command_type == "suggest" else "explain"
-        cmd = [gh_info["path"], "copilot", subcmd, prompt]
+        cmd = [exec_path, "copilot", subcmd, safe_prompt]
         try:
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            res = subprocess.run(cmd, capture_output=True, text=True, shell=False, timeout=30)
             return {
                 "status": "success" if res.returncode == 0 else "error",
                 "tool": "github_copilot_cli",
@@ -293,7 +314,7 @@ def execute_github_copilot_command(
     from fleet.core.hyperscalers import HyperscalerGateway
     gateway = HyperscalerGateway()
     sys_inst = "You are GitHub Copilot assisting with CLI shell commands and code solutions."
-    llm_res = gateway.complete(prompt=prompt, provider="microsoft", model="gpt-4o-mini", system_instruction=sys_inst)
+    llm_res = gateway.complete(prompt=safe_prompt, provider="microsoft", model="gpt-4o-mini", system_instruction=sys_inst)
     return {
         "status": "success" if (llm_res.get("response") or llm_res.get("text")) else "error",
         "tool": "github_copilot_azure_fallback",
@@ -313,17 +334,23 @@ def execute_google_gemini_cli(
     Executes a task via Google Gemini CLI (`gemini -p`) or falls back to
     Google Gemini REST API / Google Cloud Vertex AI via HyperscalerGateway.
     """
+    safe_prompt = _sanitize_cli_prompt(prompt)
+    if not safe_prompt:
+        return {"status": "error", "tool": "google_gemini_cli", "message": "Invalid or empty prompt"}
+
     tools = detect_developer_tools()
     gem_info = tools.get("gemini_cli", {})
     gem_path = gem_info.get("path") or ""
 
     if gem_info.get("installed") and gem_path and "gemini" in Path(gem_path).name.lower():
-        cmd = [gem_path, "-p", prompt]
+        exec_path = str(gem_path)
+        cmd = [exec_path, "-p", safe_prompt]
         try:
             res = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
+                shell=False,
                 cwd=cwd or str(BASE_DIR.parent),
                 timeout=90,
             )
@@ -340,7 +367,7 @@ def execute_google_gemini_cli(
 
     from fleet.core.hyperscalers import HyperscalerGateway
     gateway = HyperscalerGateway()
-    llm_res = gateway.complete(prompt=prompt, provider="google", model=model)
+    llm_res = gateway.complete(prompt=safe_prompt, provider="google", model=model)
     return {
         "status": "success" if (llm_res.get("response") or llm_res.get("text")) else "error",
         "tool": "google_gemini_api_fallback",
@@ -359,17 +386,23 @@ def execute_aws_q_developer(
     Executes a task via Amazon Q Developer CLI (`q chat`) or falls back to
     Amazon Bedrock (Claude / Nova / Titan) via HyperscalerGateway.
     """
+    safe_prompt = _sanitize_cli_prompt(prompt)
+    if not safe_prompt:
+        return {"status": "error", "tool": "aws_q_developer_cli", "message": "Invalid or empty prompt"}
+
     tools = detect_developer_tools()
     q_info = tools.get("aws_q", {})
     q_path = q_info.get("path") or ""
 
     if q_info.get("installed") and q_path and Path(q_path).stem.lower() == "q":
-        cmd = [q_path, "chat", "--no-interactive", prompt]
+        exec_path = str(q_path)
+        cmd = [exec_path, "chat", "--no-interactive", safe_prompt]
         try:
             res = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
+                shell=False,
                 cwd=cwd or str(BASE_DIR.parent),
                 timeout=90,
             )
