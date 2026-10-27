@@ -2,6 +2,9 @@
 Health & Wellness API endpoints for Personal Agentic Fleet.
 """
 
+import os
+import sys
+import subprocess
 from pathlib import Path
 from typing import Any, Dict
 import urllib.parse
@@ -114,8 +117,6 @@ def update_health_profile(handler: Any, body: Dict[str, Any]):
     )
     handler._send_json({"status": "updated", "profile": res})
 
-import os
-from pathlib import Path
 from fleet.core.exercise_manager import (
     FFD_VIDEOS_DIR,
     list_exercise_videos,
@@ -216,7 +217,13 @@ def open_video_in_system(handler: Any, body: Dict[str, Any]):
         handler._send_json({"error": "Video not found"}, 404)
         return
     try:
-        os.startfile(str(file_path))
+        startfile_fn = getattr(os, "startfile", None)
+        if startfile_fn:
+            startfile_fn(str(file_path))
+        elif sys.platform == "darwin":
+            subprocess.run(["open", str(file_path)], check=False)
+        else:
+            subprocess.run(["xdg-open", str(file_path)], check=False)
         handler._send_json({"status": "opened", "filename": safe_name})
     except Exception as e:
         handler._send_json({"error": str(e)}, 500)
