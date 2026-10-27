@@ -1,4 +1,4 @@
-# Release Notes & Version History (Current: `v2.6.0`)
+# Release Notes & Version History (Current: `v2.7.0`)
 
 This page is **automatically synchronized** from [`CHANGELOG.md`](https://github.com/macazaka/personal-agentic-fleet/blob/main/CHANGELOG.md) by `fleet.tools.doc_wiki_enhancer` whenever release versions or release notes are updated.
 
@@ -8,6 +8,19 @@ All notable changes to the **Personal Agentic Fleet** project will be documented
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [2.7.0] - 2026-10-27
+
+### Added
+- **UI**: Redesign WCC header and add 3 scalable layouts for 100+ agents in settings.
+
+### Fixed
+- **Version**: Enforce live version parity between GitHub Release and Workstation Control Center.
+
+### Documentation & Maintenance
+- **Release**: Bump release to v2.7.0 and sync docs/wiki.
 
 ---
 

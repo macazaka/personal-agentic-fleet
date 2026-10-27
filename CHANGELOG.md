@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.7.0] - 2026-10-27
+
+### Added
+- **UI**: Redesign WCC header and add 3 scalable layouts for 100+ agents in settings.
+
+### Fixed
+- **Version**: Enforce live version parity between GitHub Release and Workstation Control Center.
+
+### Documentation & Maintenance
+- **Release**: Bump release to v2.7.0 and sync docs/wiki.
+
+---
+
 ## [2.6.0] - 2026-10-27
 
 ### Added
