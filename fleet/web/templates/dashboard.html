@@ -8,24 +8,80 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
-<body>
+<body data-layout="sidebar_dock" data-theme="dark">
   <div class="container">
-    <!-- Header -->
-    <header>
-      <div class="brand">
-        <div class="brand-icon">⚡</div>
-        <div class="brand-title">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <h1 style="margin: 0;">Personal Agentic Fleet</h1>
-            <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.35); font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;" onclick="openReleaseNotesModal()" title="View Release Notes & Versions">
-              <span id="fleetHeaderVerBadge">v2.6.0</span>
-              <span style="font-size: 9px; opacity: 0.8;">📜</span>
-            </span>
+    <!-- Scalable Workstation Control Center Header (Never Overflows for 100+ Agents) -->
+    <header class="wcc-top-header">
+      <div class="wcc-header-primary">
+        <div class="brand">
+          <button class="btn btn-icon wcc-sidebar-toggle-btn" id="btnToggleSidebarDock" onclick="FleetNavigator.toggleLeftSidebarCollapse()" title="Collapse / Expand Left Agent Sidebar Dock">
+            ☰
+          </button>
+          <div class="brand-icon">⚡</div>
+          <div class="brand-title">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
+              <h1 style="margin: 0; white-space: nowrap;">Personal Agentic Fleet</h1>
+              <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.35); font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;" onclick="openReleaseNotesModal()" title="View Release Notes & Versions">
+                <span id="fleetHeaderVerBadge">v2.6.0</span>
+                <span style="font-size: 9px; opacity: 0.8;">📜</span>
+              </span>
+            </div>
+            <p class="brand-subtitle">Workstation Control Center • Universal OS • IST (UTC+05:30) • Powered by Antigravity</p>
           </div>
-          <p>Workstation Control Center • Universal OS (Windows • Linux • macOS) • Indian Standard Time (IST, UTC+05:30) • Powered by Antigravity</p>
+        </div>
+
+        <!-- Central Spotlight Omni-Command Bar (Instant Jump Across 100+ Agents) -->
+        <div class="wcc-omni-bar-wrap">
+          <div class="wcc-omni-search-pill" id="btnQuickSearchTrigger" onclick="openCommandPalette()" title="Spotlight Command Palette — Search & Jump to 100+ Agents (Ctrl+K or /)">
+            <span style="font-size: 14px; color: var(--accent-cyan);">🔍</span>
+            <span class="wcc-omni-placeholder">Jump to any of <strong id="omniBarAgentCountText" style="color: var(--text);">100+</strong> agents, domains, or tools...</span>
+            <span class="wcc-omni-kbd">Ctrl+K</span>
+          </div>
+          <button class="btn wcc-hub-pill-btn" onclick="toggleFleetNavigator(true)" title="Open All Agents Off-Canvas Drawer">
+            <span>🧭</span>
+            <span>All Agents</span>
+            <span id="wccHeaderTotalAgentsBadge" class="badge" style="background: rgba(0, 242, 254, 0.2); color: var(--accent-cyan); font-size: 10px; padding: 1px 6px;">6</span>
+          </button>
+        </div>
+
+        <!-- Fixed Right Telemetry & Actions -->
+        <div class="header-actions">
+          <!-- 1-Click Layout Mode Switcher Pill -->
+          <div class="wcc-layout-switcher-group" title="Switch 100+ Agent Workspace Layout Mode (Also configurable in Settings → General)">
+            <span style="font-size: 12px;">📐</span>
+            <select id="headerQuickLayoutSelect" class="wcc-layout-select" onchange="FleetNavigator.setWorkspaceLayout(this.value, true)" aria-label="Workspace Layout Mode">
+              <option value="sidebar_dock">Layout: Left Sidebar Dock</option>
+              <option value="command_deck">Layout: Compact Command Deck</option>
+              <option value="launchpad_grid">Layout: Launchpad Matrix</option>
+            </select>
+          </div>
+
+          <div class="status-badge" id="securityHeaderBadge" onclick="runSecurityScanFromHeader()" style="cursor: pointer; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1);" title="12-Layer Automated Security & Privacy Scanner (Click to run live audit)">
+            <span>🛡️</span>
+            <span id="securityHeaderBadgeText">Security: 100/100</span>
+          </div>
+          <div class="status-badge">
+            <div class="pulse-dot"></div>
+            <span>Fleet Active</span>
+          </div>
+          <div id="headerUpdateBadge" class="status-badge" style="display: none; cursor: pointer; border-color: rgba(0, 242, 254, 0.4); background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan);" onclick="openSettingsModalToUpdates()" title="New version available on GitHub">
+            <span>🚀</span>
+            <span id="headerUpdateBadgeText">Update Available</span>
+          </div>
+          <button class="btn btn-primary" onclick="triggerNotification()" style="padding: 7px 12px; font-size: 12px;">
+            🔔 Alert
+          </button>
+          <button class="btn btn-icon settings-trigger-btn" id="btnFleetSettings" onclick="openSettingsModal()" title="Fleet Settings, Themes & 3 Scalable Layouts" aria-label="Settings" style="background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 7px 11px; cursor: pointer; font-size: 15px; color: var(--text-primary); transition: all 0.2s ease;">
+            ⚙️
+          </button>
+          <button class="btn btn-icon create-agent-trigger-btn" id="btnCreateAgent" onclick="openCreateAgentModal()" title="Create New Agent (Workflow Wizard & Skill)" aria-label="Create New Agent" style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: var(--radius-sm); padding: 7px 11px; cursor: pointer; font-size: 15px; color: var(--accent-cyan); font-weight: 700; transition: all 0.2s ease;">
+            ➕
+          </button>
         </div>
       </div>
-      <div class="header-actions">
+
+      <!-- Tier 2: Bounded Pinned Command Deck Bar (Capped width, zero duplicate tabs, +N overflow pill) -->
+      <div class="wcc-command-deck-bar" id="wccCommandDeckBar">
         <div class="nav-tabs" id="dynamicNavTabs">
           <button class="nav-tab active" id="tabBtnHealth" onclick="switchTab('health')">🌿 Health & Wellness</button>
           <button class="nav-tab" id="tabBtnOverview" onclick="switchTab('overview')">⚡ Overview</button>
@@ -33,35 +89,78 @@
           <button class="nav-tab" id="tabBtnBacklog" onclick="switchTab('backlog')">📋 Feature Backlog</button>
           <button class="nav-tab" id="tabBtnOptimizer" onclick="switchTab('optimizer')">🚀 PC Optimizer</button>
           <div id="pinnedAgentsNavTray" class="pinned-agents-tray" style="display: inline-flex; align-items: center; gap: 4px;"></div>
-          <button class="nav-tab fleet-hub-trigger-btn" id="btnFleetNavigator" onclick="toggleFleetNavigator(true)" title="Fleet Hub: Access 100+ Agents, Domain Categories & Search (Ctrl+B)">🤖 Fleet Hub <span id="fleetAgentCountNavBadge" class="badge" style="background: rgba(0, 242, 254, 0.18); color: var(--accent-cyan); font-size: 10px; padding: 1px 6px; margin-left: 4px;">104</span></button>
+          <button class="nav-tab fleet-hub-trigger-btn" id="btnFleetNavigator" onclick="toggleFleetNavigator(true)" title="Fleet Hub: Browse & Filter 100+ Agents by Domain">
+            🤖 Fleet Hub <span id="fleetAgentCountNavBadge" class="badge" style="background: rgba(0, 242, 254, 0.18); color: var(--accent-cyan); font-size: 10px; padding: 1px 6px; margin-left: 4px;">6</span>
+          </button>
         </div>
-        <div class="status-badge" id="securityHeaderBadge" onclick="runSecurityScanFromHeader()" style="cursor: pointer; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1);" title="10-Layer Automated Security & Privacy Scanner (Click to run live audit)">
-          <span>🛡️</span>
-          <span id="securityHeaderBadgeText">Security: 100/100</span>
+        <div class="wcc-deck-right-meta">
+          <span id="wccDeckOverflowNotice" class="wcc-overflow-pill" onclick="toggleFleetNavigator(true)" title="View all installed & catalog agents">
+            📂 Browse All Domains ▸
+          </span>
         </div>
-        <div class="status-badge">
-          <div class="pulse-dot"></div>
-          Fleet Active
-        </div>
-        <button class="btn btn-primary" onclick="triggerNotification()">
-          🔔 Send Alert
-        </button>
-        <div id="headerUpdateBadge" class="status-badge" style="display: none; cursor: pointer; border-color: rgba(0, 242, 254, 0.4); background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan);" onclick="openSettingsModalToUpdates()" title="New version available on GitHub">
-          <span>🚀</span>
-          <span id="headerUpdateBadgeText">Update Available</span>
-        </div>
-        <button class="btn btn-icon quick-search-trigger" id="btnQuickSearchTrigger" onclick="openCommandPalette()" title="Command Palette / Jump to Agent (Ctrl+K)" aria-label="Search Agents" style="background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; cursor: pointer; font-size: 14px; color: var(--text-primary); transition: all 0.2s ease;">
-          🔍 <span style="font-size: 10px; opacity: 0.7; border: 1px solid var(--border-color); padding: 1px 4px; border-radius: 4px; margin-left: 2px;">Ctrl+K</span>
-        </button>
-        <button class="btn btn-icon settings-trigger-btn" id="btnFleetSettings" onclick="openSettingsModal()" title="Fleet Settings & Agent Customizations" aria-label="Settings" style="background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; cursor: pointer; font-size: 16px; color: var(--text-primary); transition: all 0.2s ease;">
-          ⚙️
-        </button>
-        <button class="btn btn-icon create-agent-trigger-btn" id="btnCreateAgent" onclick="openCreateAgentModal()" title="Create New Agent (Workflow Wizard & Skill)" aria-label="Create New Agent" style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: var(--radius-sm); padding: 8px 12px; cursor: pointer; font-size: 16px; color: var(--accent-cyan); font-weight: 700; transition: all 0.2s ease; margin-left: 4px;">
-          ➕
-        </button>
       </div>
     </header>
 
+    <!-- Layout 3 Component: Mission Control Bento Matrix / Launchpad Dock (#fleetLaunchpadMatrix) -->
+    <section id="fleetLaunchpadMatrix" class="fleet-launchpad-matrix" aria-label="Mission Control Agent Launchpad Matrix">
+      <div class="launchpad-toolbar">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <span style="font-size: 16px;">🚀</span>
+          <strong style="font-size: 13.5px; color: #fff;">Mission Control Agent Matrix</strong>
+          <span id="launchpadCountBadge" class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); font-size: 11px;">100+ Ready</span>
+          <div id="launchpadCategoryTabs" class="launchpad-cat-tabs">
+            <!-- Rendered dynamically by FleetNavigator -->
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <input type="text" id="launchpadSearchInput" class="launchpad-search-input" placeholder="🔍 Filter matrix agents..." oninput="FleetNavigator.onLaunchpadSearch(this.value)">
+          <button class="btn" id="btnToggleLaunchpadBody" style="font-size: 11px; padding: 4px 10px;" onclick="FleetNavigator.toggleLaunchpadMatrixBody()">▲ Collapse Matrix</button>
+        </div>
+      </div>
+      <div id="launchpadMatrixGrid" class="launchpad-matrix-grid">
+        <!-- High-density multi-column agent chips rendered by FleetNavigator -->
+      </div>
+    </section>
+
+    <!-- Main Scalable Workspace Shell (Sidebar Dock + Active Agent Stage) -->
+    <div class="fleet-workspace-shell" id="fleetWorkspaceShell">
+      <!-- Layout 1 Component: IDE Left Activity Dock & Vertical Sidebar (#fleetLeftSidebarDock) -->
+      <aside id="fleetLeftSidebarDock" class="fleet-left-sidebar" aria-label="Agent Activity Sidebar Dock">
+        <div class="sidebar-dock-header">
+          <div class="sidebar-search-box">
+            <span style="font-size: 12px; color: var(--accent-cyan);">🔍</span>
+            <input type="text" id="sidebarAgentSearchInput" placeholder="Filter 100+ agents..." oninput="FleetNavigator.onSidebarSearch(this.value)">
+          </div>
+          <div class="sidebar-filter-pills">
+            <button class="sidebar-pill active" data-sfilter="all" onclick="FleetNavigator.setSidebarFilter('all')">All</button>
+            <button class="sidebar-pill" data-sfilter="working" onclick="FleetNavigator.setSidebarFilter('working')">● Active</button>
+            <button class="sidebar-pill" data-sfilter="pinned" onclick="FleetNavigator.setSidebarFilter('pinned')">★ Pinned</button>
+          </div>
+        </div>
+
+        <div class="sidebar-dock-scroll" id="sidebarDockScroll">
+          <div class="sidebar-section-label">★ CORE & PINNED AGENTS</div>
+          <div id="sidebarPinnedList" class="sidebar-agent-list">
+            <!-- Populated by FleetNavigator -->
+          </div>
+
+          <div class="sidebar-section-label" style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <span>📂 DOMAINS (100+ SCALE)</span>
+            <span id="sidebarTotalCountBadge" style="color: var(--accent-cyan); font-size: 10px;">6</span>
+          </div>
+          <div id="sidebarCategoriesList" class="sidebar-categories-tree">
+            <!-- Collapsible domain groups populated by FleetNavigator -->
+          </div>
+        </div>
+
+        <div class="sidebar-dock-footer">
+          <button class="btn btn-primary" style="flex: 1; font-size: 11.5px; padding: 6px 8px;" onclick="openCreateAgentModal()">➕ New Agent</button>
+          <button class="btn" style="font-size: 11.5px; padding: 6px 8px;" onclick="openSettingsModal(); switchSettingsModalTab('catalog');" title="Discover & Download Community Agents">🛒 Catalog</button>
+        </div>
+      </aside>
+
+      <!-- Main Stage Container for Active Views -->
+      <main class="fleet-main-stage" id="fleetMainStage">
     <!-- View 1: Overview -->
     <div id="viewOverview" style="display: none;">
       <!-- Morning Briefing Card -->
@@ -521,7 +620,6 @@
         <div class="cmd-toast" id="cmdToast"></div>
       </div>
     </div>
-  </div>
 
   <!-- View 3: Health & Wellness Tracking Panel -->
   <div id="viewHealth" style="display: flex; flex-direction: column; gap: 20px;">
@@ -1431,6 +1529,9 @@
       </div>
     </div>
   </div>
+      </main>
+    </div>
+  </div>
 
   <!-- LLM Usage Details Modal -->
   <div id="usageModal" class="ag-modal-overlay" style="display: none;" onclick="if(event.target===this) closeUsageModal()">
@@ -1898,11 +1999,62 @@
               </div>
             </div>
 
+            <div class="form-group" style="padding: 14px; background: rgba(0, 242, 254, 0.04); border: 1px solid rgba(0, 242, 254, 0.22); border-radius: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
+                <label style="font-size: 13.5px; font-weight: 700; color: var(--accent-cyan);">📐 Workspace Layout Mode (Engineered for 100+ Agents)</label>
+                <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); font-size: 10.5px;">3 Scalable Architectures</span>
+              </div>
+              <p style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 10px 0;">
+                Choose how the Workstation Control Center organizes navigation across 100+ concurrent agents without ever overflowing the top header bar.
+              </p>
+              <select id="genSettingLayout" class="form-control" onchange="onSelectLayoutInSettings(this.value)" style="margin-bottom: 12px;">
+                <option value="sidebar_dock">1. IDE Left Activity Dock &amp; Sidebar (Default — Best for 100+ Agents)</option>
+                <option value="command_deck">2. Compact Pinned Bar + Spotlight Command Deck (Max Canvas Width)</option>
+                <option value="launchpad_grid">3. Mission Control Bento Matrix / Launchpad (Multi-Domain Grid)</option>
+              </select>
+
+              <!-- Interactive 3-Layout Visual Selector Cards -->
+              <div id="layoutPreviewCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px;">
+                <div class="layout-option-card active" id="layoutCard_sidebar_dock" onclick="onSelectLayoutInSettings('sidebar_dock')">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <strong style="font-size: 12.5px; color: var(--text);">🗂️ 1. Left Sidebar Dock</strong>
+                    <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 9.5px;">Recommended</span>
+                  </div>
+                  <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+                    Collapsible left vertical dock with live filter, pinned favorites, and domain accordion tree for 100+ agents.
+                  </div>
+                </div>
+
+                <div class="layout-option-card" id="layoutCard_command_deck" onclick="onSelectLayoutInSettings('command_deck')">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <strong style="font-size: 12.5px; color: var(--text);">🧭 2. Command Deck</strong>
+                    <span class="badge" style="background: rgba(56, 189, 248, 0.15); color: var(--accent-cyan); font-size: 9.5px;">Full Width</span>
+                  </div>
+                  <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+                    Capped top bar (max 5 pinned agents + overflow counter), central Ctrl+K Spotlight bar, and off-canvas Fleet Hub drawer.
+                  </div>
+                </div>
+
+                <div class="layout-option-card" id="layoutCard_launchpad_grid" onclick="onSelectLayoutInSettings('launchpad_grid')">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <strong style="font-size: 12.5px; color: var(--text);">🚀 3. Launchpad Matrix</strong>
+                    <span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; font-size: 9.5px;">Bento Grid</span>
+                  </div>
+                  <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+                    Persistent collapsible multi-column agent matrix at the top of the workspace with domain tabs &amp; live status chips.
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="form-group">
-              <label style="font-size: 13px; font-weight: 600; color: var(--text);">Dashboard Color Theme</label>
-              <select id="genSettingTheme" class="form-control">
+              <label style="font-size: 13px; font-weight: 600; color: var(--text);">🎨 Dashboard Color Theme</label>
+              <p style="font-size: 11.5px; color: var(--text-muted); margin: 2px 0 6px 0;">Applies immediately across all panels, charts, and agent views.</p>
+              <select id="genSettingTheme" class="form-control" onchange="onSelectThemeInSettings(this.value)">
                 <option value="dark">Cyber Neon Dark (Default)</option>
                 <option value="midnight">Deep Midnight Slate</option>
+                <option value="aurora">Emerald Aurora Matrix</option>
+                <option value="solar">High-Contrast Obsidian Gold</option>
               </select>
             </div>
 
@@ -2176,7 +2328,7 @@
   <div id="fleetDrawerBackdrop" class="fleet-drawer-backdrop" onclick="toggleFleetNavigator(false)" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 1040; transition: opacity 0.2s ease;"></div>
 
   <!-- Fleet Navigator Off-Canvas Drawer (100+ Agent Management) -->
-  <div id="fleetNavigatorDrawer" class="fleet-navigator-drawer">
+  <div id="fleetNavigatorDrawer" class="fleet-navigator-drawer fleet-drawer">
     <div class="drawer-header" style="padding: 18px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
       <div style="display: flex; align-items: center; gap: 10px;">
         <span style="font-size: 20px;">🤖</span>

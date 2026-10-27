@@ -105,6 +105,9 @@
         if (viewOptimizer) viewOptimizer.style.display = 'flex';
         fetchOptimizerDiagnostics();
       }
+      if (typeof FleetNavigator !== 'undefined' && typeof FleetNavigator.syncActiveTabUI === 'function') {
+        FleetNavigator.syncActiveTabUI(tab);
+      }
     }
 
     function formatMarkdown(text) {

@@ -4,9 +4,21 @@
  * Powered by Antigravity
  */
 
+const STATIC_CORE_TAB_IDS = new Set(['health', 'overview', 'antigravity', 'backlog', 'optimizer']);
+const VALID_WORKSPACE_LAYOUTS = ['sidebar_dock', 'command_deck', 'launchpad_grid'];
+const VALID_WORKSPACE_THEMES = ['dark', 'midnight', 'aurora', 'solar'];
+
 const FleetNavigator = {
   agents: [],
-  pinnedIds: new Set(['health', 'overview', 'antigravity', 'optimizer']),
+  pinnedIds: new Set(['health', 'overview', 'antigravity', 'backlog', 'optimizer']),
+  layoutMode: 'sidebar_dock', // 'sidebar_dock' | 'command_deck' | 'launchpad_grid'
+  themeMode: 'dark',
+  sidebarCollapsed: false,
+  sidebarFilter: 'all', // 'all' | 'working' | 'pinned'
+  sidebarSearchQuery: '',
+  launchpadCategory: 'all',
+  launchpadSearchQuery: '',
+  launchpadCollapsed: false,
   filterStatus: 'all',
   filterCategory: 'all',
   searchQuery: '',
@@ -15,19 +27,32 @@ const FleetNavigator = {
   pageSize: 24,
   paletteResults: [],
   paletteSelectedIndex: 0,
-  activeAgentId: null,
+  activeAgentId: 'health',
 
   init() {
     this.loadPersistedState();
+    this.applyLayoutAndThemeToDOM();
     this.bindKeyboardShortcuts();
     this.fetchFleetData();
+    this.syncLayoutFromBackendSettings();
   },
 
   loadPersistedState() {
     try {
       const savedPinned = localStorage.getItem('fleet_pinned_agents');
       if (savedPinned) {
-        this.pinnedIds = new Set(JSON.parse(savedPinned));
+        const parsed = JSON.parse(savedPinned);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          this.pinnedIds = new Set(parsed);
+        }
+      }
+      const savedLayout = localStorage.getItem('fleet_workspace_layout');
+      if (savedLayout && VALID_WORKSPACE_LAYOUTS.includes(savedLayout)) {
+        this.layoutMode = savedLayout;
+      }
+      const savedTheme = localStorage.getItem('fleet_workspace_theme');
+      if (savedTheme && VALID_WORKSPACE_THEMES.includes(savedTheme)) {
+        this.themeMode = savedTheme;
       }
       const savedViewMode = localStorage.getItem('fleet_view_mode');
       if (savedViewMode) {
@@ -45,9 +70,98 @@ const FleetNavigator = {
   savePersistedState() {
     try {
       localStorage.setItem('fleet_pinned_agents', JSON.stringify([...this.pinnedIds]));
+      localStorage.setItem('fleet_workspace_layout', this.layoutMode);
+      localStorage.setItem('fleet_workspace_theme', this.themeMode);
       localStorage.setItem('fleet_view_mode', this.viewMode);
       localStorage.setItem('fleet_page_size', String(this.pageSize));
     } catch (e) {}
+  },
+
+  async syncLayoutFromBackendSettings() {
+    try {
+      const res = await fetch('/api/settings');
+      if (!res.ok) return;
+      const data = await res.json();
+      const s = data.settings || {};
+      if (s.layout && VALID_WORKSPACE_LAYOUTS.includes(s.layout)) {
+        this.layoutMode = s.layout;
+      }
+      if (s.theme && VALID_WORKSPACE_THEMES.includes(s.theme)) {
+        this.themeMode = s.theme;
+      }
+      this.savePersistedState();
+      this.applyLayoutAndThemeToDOM();
+    } catch (e) {}
+  },
+
+  applyLayoutAndThemeToDOM() {
+    if (document.body) {
+      document.body.dataset.layout = this.layoutMode;
+      document.body.dataset.theme = this.themeMode;
+    }
+    const headerSelect = document.getElementById('headerQuickLayoutSelect');
+    if (headerSelect) headerSelect.value = this.layoutMode;
+
+    const settingsLayoutSelect = document.getElementById('genSettingLayout');
+    if (settingsLayoutSelect) settingsLayoutSelect.value = this.layoutMode;
+
+    const settingsThemeSelect = document.getElementById('genSettingTheme');
+    if (settingsThemeSelect) settingsThemeSelect.value = this.themeMode;
+
+    VALID_WORKSPACE_LAYOUTS.forEach(l => {
+      const card = document.getElementById(`layoutCard_${l}`);
+      if (card) card.classList.toggle('active', l === this.layoutMode);
+    });
+  },
+
+  async setWorkspaceLayout(layout, persistToBackend = false) {
+    if (!VALID_WORKSPACE_LAYOUTS.includes(layout)) return;
+    this.layoutMode = layout;
+    this.savePersistedState();
+    this.applyLayoutAndThemeToDOM();
+    this.renderLeftSidebarDock();
+    this.renderPinnedTray();
+    this.renderLaunchpadMatrix();
+
+    if (persistToBackend) {
+      const labels = {
+        sidebar_dock: 'IDE Left Activity Dock & Sidebar',
+        command_deck: 'Compact Pinned Bar + Spotlight Command Deck',
+        launchpad_grid: 'Mission Control Bento Matrix / Launchpad'
+      };
+      try {
+        await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ layout })
+        });
+        if (typeof showSettingsToast === 'function') {
+          showSettingsToast(`Workspace layout switched to: ${labels[layout] || layout}`);
+        }
+      } catch (e) {}
+    }
+  },
+
+  async setWorkspaceTheme(theme, persistToBackend = false) {
+    if (!VALID_WORKSPACE_THEMES.includes(theme)) return;
+    this.themeMode = theme;
+    this.savePersistedState();
+    this.applyLayoutAndThemeToDOM();
+    if (persistToBackend) {
+      try {
+        await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ theme })
+        });
+      } catch (e) {}
+    }
+  },
+
+  toggleLeftSidebarCollapse() {
+    this.sidebarCollapsed = !this.sidebarCollapsed;
+    const sb = document.getElementById('fleetLeftSidebarDock');
+    if (sb) sb.classList.toggle('collapsed', this.sidebarCollapsed);
   },
 
   bindKeyboardShortcuts() {
@@ -95,6 +209,8 @@ const FleetNavigator = {
         this.agents = data.agents.map(a => this.enrichAgent(a));
         this.updateHeaderSummary();
         this.renderPinnedTray();
+        this.renderLeftSidebarDock();
+        this.renderLaunchpadMatrix();
         this.renderDrawerList();
         this.renderOperationsCenter();
       }
@@ -144,26 +260,47 @@ const FleetNavigator = {
   },
 
   updateHeaderSummary() {
+    const total = this.agents.length;
+    const active = this.agents.filter(a => a.enabled).length;
+
     const countBadge = document.getElementById('fleetAgentCountNavBadge');
     if (countBadge) {
-      const total = this.agents.length;
-      const active = this.agents.filter(a => a.enabled).length;
       countBadge.textContent = `${total} (${active} Active)`;
+    }
+    const headerTotalBadge = document.getElementById('wccHeaderTotalAgentsBadge');
+    if (headerTotalBadge) {
+      headerTotalBadge.textContent = `${active}/${total}`;
+    }
+    const omniCount = document.getElementById('omniBarAgentCountText');
+    if (omniCount) {
+      omniCount.textContent = `${total} (${active} Active)`;
+    }
+    const sbCount = document.getElementById('sidebarTotalCountBadge');
+    if (sbCount) {
+      sbCount.textContent = `${active}/${total}`;
+    }
+    const lpCount = document.getElementById('launchpadCountBadge');
+    if (lpCount) {
+      lpCount.textContent = `${active} Active / ${total} Total`;
     }
   },
 
+  // --- Layout 2: Bounded Pinned Tray (Zero Duplicates + Overflow Cap) ---
   renderPinnedTray() {
     const tray = document.getElementById('pinnedAgentsNavTray');
     if (!tray) return;
 
     tray.innerHTML = '';
-    const pinned = this.agents.filter(a => this.pinnedIds.has(a.id));
+    // Deduplicate: Never re-render the 5 static core buttons that already exist in #dynamicNavTabs!
+    const extraPinned = this.agents.filter(a => this.pinnedIds.has(a.id) && !STATIC_CORE_TAB_IDS.has(a.id));
+    const maxExtraInBar = 3;
+    const visibleExtra = extraPinned.slice(0, maxExtraInBar);
 
-    pinned.forEach(agent => {
+    visibleExtra.forEach(agent => {
       const btn = document.createElement('button');
       btn.className = `nav-tab ${this.activeAgentId === agent.id ? 'active' : ''}`;
       btn.id = `pinnedNavBtn_${agent.id}`;
-      btn.title = `${agent.name} (Pinned)`;
+      btn.title = `${agent.name} (Pinned Custom/Catalog Agent)`;
       btn.innerHTML = `
         <span>${agent.icon || '⚡'}</span>
         <span class="pinned-tab-title">${agent.name}</span>
@@ -171,6 +308,185 @@ const FleetNavigator = {
       btn.onclick = () => this.switchAgent(agent.id);
       tray.appendChild(btn);
     });
+
+    const overflowNotice = document.getElementById('wccDeckOverflowNotice');
+    if (overflowNotice) {
+      const remainingCount = Math.max(0, this.agents.length - (STATIC_CORE_TAB_IDS.size + visibleExtra.length));
+      if (remainingCount > 0) {
+        overflowNotice.innerHTML = `📂 +${remainingCount} More Agent${remainingCount === 1 ? '' : 's'} in Fleet Hub ▸`;
+      } else {
+        overflowNotice.innerHTML = `📂 Browse All Domains (${this.agents.length}) ▸`;
+      }
+    }
+  },
+
+  // --- Layout 1: IDE Left Activity Dock & Sidebar (#fleetLeftSidebarDock) ---
+  onSidebarSearch(query) {
+    this.sidebarSearchQuery = (query || '').toLowerCase().trim();
+    this.renderLeftSidebarDock();
+  },
+
+  setSidebarFilter(filter) {
+    this.sidebarFilter = filter;
+    document.querySelectorAll('.sidebar-pill').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.sfilter === filter);
+    });
+    this.renderLeftSidebarDock();
+  },
+
+  renderLeftSidebarDock() {
+    const pinnedContainer = document.getElementById('sidebarPinnedList');
+    const categoriesContainer = document.getElementById('sidebarCategoriesList');
+    if (!pinnedContainer || !categoriesContainer) return;
+
+    const q = this.sidebarSearchQuery;
+    const matchesSearch = (a) => {
+      if (!q) return true;
+      return (a.name || '').toLowerCase().includes(q) ||
+             (a.id || '').toLowerCase().includes(q) ||
+             (a.category || '').toLowerCase().includes(q) ||
+             (a.description || '').toLowerCase().includes(q);
+    };
+
+    const matchesFilter = (a) => {
+      if (this.sidebarFilter === 'working') return a.enabled && (a.status === 'working' || a.status === 'idle');
+      if (this.sidebarFilter === 'pinned') return this.pinnedIds.has(a.id) || STATIC_CORE_TAB_IDS.has(a.id);
+      return true;
+    };
+
+    // 1. Pinned & Core Favorites
+    const coreAndPinned = this.agents.filter(a => (STATIC_CORE_TAB_IDS.has(a.id) || this.pinnedIds.has(a.id)) && matchesSearch(a));
+    if (coreAndPinned.length === 0) {
+      pinnedContainer.innerHTML = `<div style="font-size: 11px; color: var(--text-muted); padding: 4px 8px;">No matching pinned agents</div>`;
+    } else {
+      pinnedContainer.innerHTML = coreAndPinned.map(a => this.renderSidebarAgentItemHtml(a)).join('');
+    }
+
+    // 2. Collapsible Domain Categories Tree for 100+ Agents
+    const filteredAll = this.agents.filter(a => matchesSearch(a) && matchesFilter(a));
+    if (filteredAll.length === 0) {
+      categoriesContainer.innerHTML = `<div style="font-size: 11.5px; color: var(--text-muted); padding: 12px 8px; text-align: center;">No agents match "${q}"</div>`;
+      return;
+    }
+
+    const groups = {};
+    filteredAll.forEach(a => {
+      const cat = a.category || 'Productivity';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(a);
+    });
+
+    categoriesContainer.innerHTML = Object.entries(groups).map(([catName, catAgents]) => `
+      <div class="drawer-category-group" style="margin-bottom: 6px;">
+        <div class="drawer-category-header" style="padding: 7px 10px; font-size: 11.5px;" onclick="this.parentElement.classList.toggle('collapsed')">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="drawer-cat-arrow">▾</span>
+            <strong>${catName}</strong>
+          </div>
+          <span class="badge" style="background: rgba(255,255,255,0.06); font-size: 10px; padding: 1px 6px;">${catAgents.length}</span>
+        </div>
+        <div class="drawer-category-items" style="padding: 3px 4px;">
+          ${catAgents.map(a => this.renderSidebarAgentItemHtml(a)).join('')}
+        </div>
+      </div>
+    `).join('');
+  },
+
+  renderSidebarAgentItemHtml(a) {
+    const isActive = (this.activeAgentId === a.id);
+    const isWorking = a.status === 'working';
+    const isDisabled = a.status === 'disabled';
+    const dotClass = isWorking ? 'status-dot-working' : (isDisabled ? 'status-dot-disabled' : 'status-dot-idle');
+
+    return `
+      <div class="sidebar-agent-item ${isActive ? 'active' : ''}" onclick="FleetNavigator.switchAgent('${a.id}')" title="${a.name} (${a.category})">
+        <div style="display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden;">
+          <span class="agent-status-dot ${dotClass}"></span>
+          <span style="font-size: 14px; flex-shrink: 0;">${a.icon || '⚡'}</span>
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${a.name}</span>
+        </div>
+        <button class="btn-pin-star ${a.is_pinned ? 'pinned' : ''}" style="font-size: 12px; padding: 0 3px;" onclick="FleetNavigator.togglePin('${a.id}', event)" title="${a.is_pinned ? 'Unpin' : 'Pin'}">
+          ${a.is_pinned ? '★' : '☆'}
+        </button>
+      </div>
+    `;
+  },
+
+  // --- Layout 3: Mission Control Bento Matrix / Launchpad (#fleetLaunchpadMatrix) ---
+  onLaunchpadSearch(query) {
+    this.launchpadSearchQuery = (query || '').toLowerCase().trim();
+    this.renderLaunchpadMatrix();
+  },
+
+  setLaunchpadCategory(cat) {
+    this.launchpadCategory = cat;
+    this.renderLaunchpadMatrix();
+  },
+
+  toggleLaunchpadMatrixBody() {
+    this.launchpadCollapsed = !this.launchpadCollapsed;
+    const grid = document.getElementById('launchpadMatrixGrid');
+    const btn = document.getElementById('btnToggleLaunchpadBody');
+    if (grid) grid.classList.toggle('collapsed', this.launchpadCollapsed);
+    if (btn) btn.textContent = this.launchpadCollapsed ? '▼ Expand Matrix' : '▲ Collapse Matrix';
+  },
+
+  renderLaunchpadMatrix() {
+    const tabsEl = document.getElementById('launchpadCategoryTabs');
+    const gridEl = document.getElementById('launchpadMatrixGrid');
+    if (!tabsEl || !gridEl) return;
+
+    const categories = ['all', ...Array.from(new Set(this.agents.map(a => a.category || 'Productivity')))];
+    tabsEl.innerHTML = categories.map(cat => {
+      const count = cat === 'all' ? this.agents.length : this.agents.filter(a => a.category === cat).length;
+      const isActive = (this.launchpadCategory === cat);
+      const label = cat === 'all' ? `All (${count})` : `${cat} (${count})`;
+      return `<button class="launchpad-cat-btn ${isActive ? 'active' : ''}" onclick="FleetNavigator.setLaunchpadCategory('${cat}')">${label}</button>`;
+    }).join('');
+
+    const q = this.launchpadSearchQuery;
+    const filtered = this.agents.filter(a => {
+      if (this.launchpadCategory !== 'all' && a.category !== this.launchpadCategory) return false;
+      if (!q) return true;
+      return (a.name || '').toLowerCase().includes(q) ||
+             (a.id || '').toLowerCase().includes(q) ||
+             (a.category || '').toLowerCase().includes(q);
+    });
+
+    if (filtered.length === 0) {
+      gridEl.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 16px; color: var(--text-muted); font-size: 12px;">No agents match current matrix filter.</div>`;
+      return;
+    }
+
+    gridEl.innerHTML = filtered.map(a => {
+      const isActive = (this.activeAgentId === a.id);
+      const isWorking = a.status === 'working';
+      const isDisabled = a.status === 'disabled';
+      const dotClass = isWorking ? 'status-dot-working' : (isDisabled ? 'status-dot-disabled' : 'status-dot-idle');
+
+      return `
+        <div class="launchpad-chip ${isActive ? 'active' : ''}" onclick="FleetNavigator.switchAgent('${a.id}')" title="${a.description || a.name}">
+          <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+            <span class="agent-status-dot ${dotClass}"></span>
+            <span style="font-size: 16px; flex-shrink: 0;">${a.icon || '⚡'}</span>
+            <div style="min-width: 0; overflow: hidden;">
+              <div style="font-size: 12px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${a.name}</div>
+              <div style="font-size: 10px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${a.category}</div>
+            </div>
+          </div>
+          <button class="btn-pin-star ${a.is_pinned ? 'pinned' : ''}" style="font-size: 12px;" onclick="FleetNavigator.togglePin('${a.id}', event)">
+            ${a.is_pinned ? '★' : '☆'}
+          </button>
+        </div>
+      `;
+    }).join('');
+  },
+
+  syncActiveTabUI(agentId) {
+    this.activeAgentId = agentId;
+    this.renderPinnedTray();
+    this.renderLeftSidebarDock();
+    this.renderLaunchpadMatrix();
   },
 
   togglePin(agentId, e) {
@@ -185,6 +501,8 @@ const FleetNavigator = {
       a.is_pinned = this.pinnedIds.has(a.id);
     });
     this.renderPinnedTray();
+    this.renderLeftSidebarDock();
+    this.renderLaunchpadMatrix();
     this.renderDrawerList();
     this.renderOperationsCenter();
   },
@@ -584,13 +902,13 @@ const FleetNavigator = {
     const standardTabs = ['overview', 'health', 'antigravity', 'backlog', 'optimizer'];
     if (standardTabs.includes(agentId)) {
       if (typeof switchTab === 'function') switchTab(agentId);
-      this.renderPinnedTray();
+      this.syncActiveTabUI(agentId);
       return;
     }
 
     // Custom or dynamic agent stage
     this.mountDynamicAgentPane(agentId);
-    this.renderPinnedTray();
+    this.syncActiveTabUI(agentId);
   },
 
   mountDynamicAgentPane(agentId) {

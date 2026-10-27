@@ -29,7 +29,36 @@ DEFAULT_SETTINGS = {
     "cost_policy": "PREFER_ZERO_TOKEN_CODE",
     "auto_backup_enabled": "true",
     "theme": "dark",
+    "layout": "sidebar_dock",
 }
+
+AVAILABLE_LAYOUTS = [
+    {
+        "id": "sidebar_dock",
+        "name": "IDE Left Activity Dock & Sidebar (Default)",
+        "badge": "Best for 100+ Agents",
+        "description": "VS Code / Linear style collapsible vertical sidebar with live search, pinned favorites, and collapsible domain category tree. Keeps the top header ultra-clean.",
+    },
+    {
+        "id": "command_deck",
+        "name": "Compact Pinned Bar + Spotlight Command Deck",
+        "badge": "Max Screen Width",
+        "description": "Raycast / Terminal style two-tier top command deck displaying up to 5 pinned agents, an automatic +N overflow counter, a prominent Ctrl+K omni-search bar, and the off-canvas Fleet Hub drawer.",
+    },
+    {
+        "id": "launchpad_grid",
+        "name": "Mission Control Bento Matrix / Launchpad",
+        "badge": "Multi-Domain Matrix",
+        "description": "Datadog / Launchpad style collapsible multi-column agent matrix dock at the top of the workspace with instant domain category tabs, live search, and high-density status chips.",
+    },
+]
+
+AVAILABLE_THEMES = [
+    {"id": "dark", "name": "Cyber Neon Dark (Default)"},
+    {"id": "midnight", "name": "Deep Midnight Slate"},
+    {"id": "aurora", "name": "Emerald Aurora Matrix"},
+    {"id": "solar", "name": "High-Contrast Obsidian Gold"},
+]
 
 
 def _get_merged_settings() -> Dict[str, str]:
@@ -58,6 +87,8 @@ def get_fleet_settings(handler: Any, parsed_url: urllib.parse.ParseResult):
     handler._send_json({
         "status": "ok",
         "settings": settings,
+        "available_layouts": AVAILABLE_LAYOUTS,
+        "available_themes": AVAILABLE_THEMES,
         "agents": all_manifests,
         "active_agents_count": len(active_manifests),
         "total_agents_count": len(all_manifests),

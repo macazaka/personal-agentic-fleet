@@ -2,6 +2,7 @@
       --bg: #0b0f19;
       --card-bg: rgba(22, 30, 49, 0.75);
       --card-border: rgba(255, 255, 255, 0.08);
+      --border-color: rgba(255, 255, 255, 0.1);
       --accent-cyan: #00f2fe;
       --accent-blue: #4facfe;
       --accent-pink: #f43f5e;
@@ -9,8 +10,37 @@
       --accent-amber: #f59e0b;
       --accent-purple: #c084fc;
       --text: #f1f5f9;
+      --text-primary: #f1f5f9;
       --text-muted: #94a3b8;
       --radius: 14px;
+      --radius-sm: 8px;
+    }
+
+    body[data-theme="midnight"] {
+      --bg: #050811;
+      --card-bg: rgba(13, 19, 34, 0.85);
+      --card-border: rgba(99, 102, 241, 0.18);
+      --accent-cyan: #818cf8;
+      --accent-blue: #6366f1;
+      background: radial-gradient(circle at top right, #0f172a, #050811 80%);
+    }
+
+    body[data-theme="aurora"] {
+      --bg: #061214;
+      --card-bg: rgba(11, 31, 36, 0.8);
+      --card-border: rgba(16, 185, 129, 0.22);
+      --accent-cyan: #34d399;
+      --accent-blue: #06b6d4;
+      background: radial-gradient(circle at top right, #0c2b2e, #061214 80%);
+    }
+
+    body[data-theme="solar"] {
+      --bg: #0e0d0a;
+      --card-bg: rgba(28, 25, 23, 0.85);
+      --card-border: rgba(245, 158, 11, 0.22);
+      --accent-cyan: #fbbf24;
+      --accent-blue: #f59e0b;
+      background: radial-gradient(circle at top right, #272014, #0e0d0a 80%);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -19,52 +49,68 @@
       background: radial-gradient(circle at top right, #131b2e, #0b0f19 80%);
       color: var(--text);
       min-height: 100vh;
-      padding: 24px;
+      padding: 18px 24px;
+      overflow-x: hidden;
     }
 
     .container {
-      max-width: 1200px;
+      max-width: 1540px;
+      width: 100%;
       margin: 0 auto;
     }
 
-    /* Header */
-    header {
+    /* Header (Bounded & Non-Overflowing for 100+ Agents) */
+    header, .wcc-top-header {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .wcc-header-primary {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 28px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid var(--card-border);
+      gap: 16px;
+      flex-wrap: wrap;
+      width: 100%;
     }
     .brand {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
+      flex-shrink: 0;
     }
     .brand-icon {
-      font-size: 28px;
+      font-size: 24px;
       background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
       border-radius: 12px;
-      width: 48px;
-      height: 48px;
+      width: 44px;
+      height: 44px;
       display: flex;
       align-items: center;
       justify-content: center;
       box-shadow: 0 4px 18px rgba(0, 242, 254, 0.3);
+      flex-shrink: 0;
     }
     .brand-title h1 {
-      font-size: 22px;
+      font-size: 20px;
       font-weight: 700;
       letter-spacing: -0.5px;
+      white-space: nowrap;
     }
-    .brand-title p {
-      font-size: 13px;
+    .brand-title p, .brand-subtitle {
+      font-size: 12px;
       color: var(--text-muted);
+      white-space: nowrap;
     }
     .header-actions {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
     }
     .status-badge {
       display: inline-flex;
@@ -1460,4 +1506,420 @@
       align-items: center;
       backdrop-filter: blur(10px);
     }
+
+    /* =========================================================================
+       3 SCALABLE WORKSPACE LAYOUTS FOR 100+ AGENTS
+       1. sidebar_dock   — IDE Left Activity Dock & Sidebar (Default)
+       2. command_deck   — Compact Pinned Bar + Spotlight Command Deck
+       3. launchpad_grid — Mission Control Bento Matrix / Launchpad
+       ========================================================================= */
+
+    /* Central Omni-Search Bar in Top Header */
+    .wcc-omni-bar-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      max-width: 480px;
+      min-width: 240px;
+    }
+    .wcc-omni-search-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(0, 242, 254, 0.28);
+      border-radius: 10px;
+      padding: 8px 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 12.5px;
+      color: var(--text-muted);
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+    .wcc-omni-search-pill:hover {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 242, 254, 0.08);
+      color: var(--text);
+      box-shadow: 0 0 14px rgba(0, 242, 254, 0.2);
+    }
+    .wcc-omni-placeholder {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .wcc-omni-kbd {
+      font-size: 10px;
+      font-family: monospace;
+      color: var(--accent-cyan);
+      background: rgba(0, 242, 254, 0.12);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      padding: 2px 6px;
+      border-radius: 5px;
+      flex-shrink: 0;
+    }
+    .wcc-hub-pill-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .wcc-hub-pill-btn:hover {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 242, 254, 0.1);
+    }
+
+    /* Quick Layout Switcher in Header */
+    .wcc-layout-switcher-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0, 242, 254, 0.08);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+    .wcc-layout-select {
+      background: transparent;
+      border: none;
+      color: var(--accent-cyan);
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+    }
+    .wcc-layout-select option {
+      background: #0f172a;
+      color: var(--text);
+    }
+
+    /* Tier 2 Command Deck Bar */
+    .wcc-command-deck-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding-top: 6px;
+      overflow-x: auto;
+    }
+    .wcc-command-deck-bar .nav-tabs {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      max-width: 100%;
+    }
+    .wcc-command-deck-bar .nav-tab {
+      white-space: nowrap;
+      flex-shrink: 0;
+      padding: 7px 13px;
+      font-size: 12.5px;
+    }
+    .wcc-overflow-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      background: rgba(0, 242, 254, 0.08);
+      border: 1px solid rgba(0, 242, 254, 0.25);
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+    .wcc-overflow-pill:hover {
+      background: rgba(0, 242, 254, 0.18);
+      border-color: var(--accent-cyan);
+    }
+
+    /* Workspace Shell: Flex Container for Sidebar Dock + Main Stage */
+    .fleet-workspace-shell {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      width: 100%;
+    }
+    .fleet-main-stage {
+      flex: 1;
+      min-width: 0;
+      width: 100%;
+    }
+
+    /* Layout 1: IDE Left Activity Dock & Sidebar (#fleetLeftSidebarDock) */
+    .wcc-sidebar-toggle-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    .wcc-sidebar-toggle-btn:hover {
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+    .fleet-left-sidebar {
+      width: 265px;
+      flex-shrink: 0;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      max-height: calc(100vh - 115px);
+      position: sticky;
+      top: 16px;
+      backdrop-filter: blur(14px);
+      transition: width 0.2s ease, opacity 0.2s ease;
+      overflow: hidden;
+    }
+    .fleet-left-sidebar.collapsed {
+      display: none !important;
+    }
+    .sidebar-dock-header {
+      padding: 12px;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .sidebar-search-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 6px 10px;
+    }
+    .sidebar-search-box input {
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 12px;
+      width: 100%;
+      outline: none;
+    }
+    .sidebar-filter-pills {
+      display: flex;
+      gap: 4px;
+    }
+    .sidebar-pill {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 6px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .sidebar-pill.active, .sidebar-pill:hover {
+      background: rgba(0, 242, 254, 0.15);
+      color: var(--accent-cyan);
+      border-color: rgba(0, 242, 254, 0.35);
+    }
+    .sidebar-dock-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+    }
+    .sidebar-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      padding: 4px 6px;
+      margin-bottom: 4px;
+    }
+    .sidebar-agent-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12.5px;
+      color: var(--text);
+      transition: all 0.15s ease;
+      margin-bottom: 2px;
+    }
+    .sidebar-agent-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .sidebar-agent-item.active {
+      background: linear-gradient(135deg, rgba(0, 242, 254, 0.18), rgba(79, 172, 254, 0.12));
+      color: var(--accent-cyan);
+      border: 1px solid rgba(0, 242, 254, 0.35);
+      font-weight: 600;
+    }
+    .sidebar-dock-footer {
+      padding: 10px 12px;
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    /* Layout 3: Mission Control Bento Matrix / Launchpad (#fleetLaunchpadMatrix) */
+    .fleet-launchpad-matrix {
+      background: var(--card-bg);
+      border: 1px solid rgba(0, 242, 254, 0.25);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(12px);
+    }
+    .launchpad-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .launchpad-cat-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .launchpad-cat-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 16px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .launchpad-cat-btn.active, .launchpad-cat-btn:hover {
+      background: rgba(0, 242, 254, 0.16);
+      color: var(--accent-cyan);
+      border-color: rgba(0, 242, 254, 0.4);
+    }
+    .launchpad-search-input {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 6px 12px;
+      font-size: 12px;
+      width: 200px;
+      outline: none;
+    }
+    .launchpad-search-input:focus {
+      border-color: var(--accent-cyan);
+    }
+    .launchpad-matrix-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+      max-height: 215px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .launchpad-matrix-grid.collapsed {
+      display: none !important;
+    }
+    .launchpad-chip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 11px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 9px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .launchpad-chip:hover {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 242, 254, 0.08);
+      transform: translateY(-1px);
+    }
+    .launchpad-chip.active {
+      background: linear-gradient(135deg, rgba(0, 242, 254, 0.2), rgba(79, 172, 254, 0.15));
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 12px rgba(0, 242, 254, 0.2);
+    }
+
+    /* Visibility Rules per Active Layout Mode on <body> */
+    body[data-layout="sidebar_dock"] .wcc-sidebar-toggle-btn {
+      display: inline-flex;
+    }
+    body[data-layout="sidebar_dock"] #fleetLeftSidebarDock {
+      display: flex;
+    }
+    body[data-layout="sidebar_dock"] #wccCommandDeckBar {
+      display: none;
+    }
+    body[data-layout="sidebar_dock"] #fleetLaunchpadMatrix {
+      display: none;
+    }
+
+    body[data-layout="command_deck"] #fleetLeftSidebarDock {
+      display: none;
+    }
+    body[data-layout="command_deck"] #wccCommandDeckBar {
+      display: flex;
+    }
+    body[data-layout="command_deck"] #fleetLaunchpadMatrix {
+      display: none;
+    }
+
+    body[data-layout="launchpad_grid"] #fleetLeftSidebarDock {
+      display: none;
+    }
+    body[data-layout="launchpad_grid"] #wccCommandDeckBar {
+      display: none;
+    }
+    body[data-layout="launchpad_grid"] #fleetLaunchpadMatrix {
+      display: block;
+    }
+
+    /* Interactive Layout Option Cards in Settings Modal */
+    .layout-option-card {
+      padding: 12px;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .layout-option-card:hover {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 242, 254, 0.08);
+    }
+    .layout-option-card.active {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 242, 254, 0.14);
+      box-shadow: 0 0 12px rgba(0, 242, 254, 0.2);
+    }
+
 

@@ -614,3 +614,49 @@ def test_create_new_agent_endpoint(mock_fleet_env):
     with patch.object(srv_mod.agent_registry, "create_custom_agent", side_effect=ValueError("Invalid config")):
         create_new_agent_endpoint(handler, {"name": "Bad Agent", "id": "bad_agent"})
         assert handler._send_json.call_args[1].get("status") == 400
+
+
+def test_scalable_layouts_and_themes_for_100_agents(mock_fleet_env):
+    """Verifies the 3 scalable layouts for 100+ agents and 4 color themes in settings API and UI."""
+    from fleet.api.settings_api import get_fleet_settings, update_fleet_settings
+    from fleet.web.builder import get_dashboard_html
+
+    handler = MagicMock()
+    parsed_url = urllib.parse.urlparse("/api/settings")
+    get_fleet_settings(handler, parsed_url)
+
+    res = handler._send_json.call_args[0][0]
+    assert res["status"] == "ok"
+    assert res["settings"]["layout"] == "sidebar_dock"
+    assert res["settings"]["theme"] == "dark"
+    assert len(res["available_layouts"]) == 3
+    layout_ids = [item["id"] for item in res["available_layouts"]]
+    assert layout_ids == ["sidebar_dock", "command_deck", "launchpad_grid"]
+    assert len(res["available_themes"]) == 4
+
+    # Persist each of the 3 layouts
+    for layout_mode in ("sidebar_dock", "command_deck", "launchpad_grid"):
+        handler.reset_mock()
+        update_fleet_settings(handler, {"layout": layout_mode, "theme": "aurora"})
+        upd_res = handler._send_json.call_args[0][0]
+        assert upd_res["status"] == "success"
+        assert upd_res["settings"]["layout"] == layout_mode
+        assert upd_res["settings"]["theme"] == "aurora"
+
+    # Verify HTML & bundled JS include all 3 layout containers and non-duplicating nav logic
+    standalone_html = get_dashboard_html(standalone=True)
+    for required_token in (
+        'data-layout="sidebar_dock"',
+        "fleetLeftSidebarDock",
+        "wccCommandDeckBar",
+        "fleetLaunchpadMatrix",
+        "genSettingLayout",
+        "headerQuickLayoutSelect",
+        "layoutCard_sidebar_dock",
+        "layoutCard_command_deck",
+        "layoutCard_launchpad_grid",
+        "STATIC_CORE_TAB_IDS",
+        "setWorkspaceLayout",
+    ):
+        assert required_token in standalone_html, f"Missing {required_token} in bundled dashboard HTML"
+

@@ -484,6 +484,7 @@ function populateGeneralSettingsForm() {
   const qEnd = document.getElementById('genSettingQuietEnd');
   const cost = document.getElementById('genSettingCostPolicy');
   const theme = document.getElementById('genSettingTheme');
+  const layout = document.getElementById('genSettingLayout');
 
   if (tz) tz.value = s.timezone || 'Asia/Kolkata (IST, UTC+05:30)';
   if (notify) notify.checked = s.notifications_enabled !== 'false';
@@ -492,9 +493,38 @@ function populateGeneralSettingsForm() {
   if (qEnd) qEnd.value = s.quiet_hours_end || '07:00';
   if (cost) cost.value = s.cost_policy || 'PREFER_ZERO_TOKEN_CODE';
   if (theme) theme.value = s.theme || 'dark';
+  if (layout) layout.value = s.layout || 'sidebar_dock';
+
+  // Highlight active layout option card
+  ['sidebar_dock', 'command_deck', 'launchpad_grid'].forEach(l => {
+    const card = document.getElementById(`layoutCard_${l}`);
+    if (card) card.classList.toggle('active', l === (s.layout || 'sidebar_dock'));
+  });
+}
+
+function onSelectLayoutInSettings(layoutId) {
+  const layoutSelect = document.getElementById('genSettingLayout');
+  if (layoutSelect) layoutSelect.value = layoutId;
+
+  ['sidebar_dock', 'command_deck', 'launchpad_grid'].forEach(l => {
+    const card = document.getElementById(`layoutCard_${l}`);
+    if (card) card.classList.toggle('active', l === layoutId);
+  });
+
+  if (typeof FleetNavigator !== 'undefined' && typeof FleetNavigator.setWorkspaceLayout === 'function') {
+    FleetNavigator.setWorkspaceLayout(layoutId, true);
+  }
+}
+
+function onSelectThemeInSettings(themeId) {
+  if (typeof FleetNavigator !== 'undefined' && typeof FleetNavigator.setWorkspaceTheme === 'function') {
+    FleetNavigator.setWorkspaceTheme(themeId, true);
+  }
 }
 
 async function saveGeneralSettings() {
+  const selectedLayout = document.getElementById('genSettingLayout')?.value || 'sidebar_dock';
+  const selectedTheme = document.getElementById('genSettingTheme')?.value || 'dark';
   const payload = {
     timezone: document.getElementById('genSettingTimezone')?.value,
     notifications_enabled: Boolean(document.getElementById('genSettingNotifications')?.checked),
@@ -502,7 +532,8 @@ async function saveGeneralSettings() {
     quiet_hours_start: document.getElementById('genSettingQuietStart')?.value || '22:00',
     quiet_hours_end: document.getElementById('genSettingQuietEnd')?.value || '07:00',
     cost_policy: document.getElementById('genSettingCostPolicy')?.value || 'PREFER_ZERO_TOKEN_CODE',
-    theme: document.getElementById('genSettingTheme')?.value || 'dark',
+    theme: selectedTheme,
+    layout: selectedLayout,
   };
 
   try {
@@ -516,7 +547,11 @@ async function saveGeneralSettings() {
       throw new Error(data.message || 'Save failed');
     }
     fleetSettingsState.settings = data.settings || {};
-    showSettingsToast('General fleet settings saved successfully.');
+    if (typeof FleetNavigator !== 'undefined') {
+      FleetNavigator.setWorkspaceLayout(selectedLayout, false);
+      FleetNavigator.setWorkspaceTheme(selectedTheme, false);
+    }
+    showSettingsToast('General fleet settings, layout & theme saved successfully.');
   } catch (err) {
     console.error('Failed to save general settings:', err);
     showSettingsToast('Failed to save settings: ' + err.message, 'error');
@@ -926,6 +961,8 @@ window.resetAgentToDefaults = resetAgentToDefaults;
 window.toggleCreateAgentForm = toggleCreateAgentForm;
 window.submitCreateCustomAgent = submitCreateCustomAgent;
 window.saveGeneralSettings = saveGeneralSettings;
+window.onSelectLayoutInSettings = onSelectLayoutInSettings;
+window.onSelectThemeInSettings = onSelectThemeInSettings;
 window.saveAISettings = saveAISettings;
 window.testOllamaConnection = testOllamaConnection;
 window.triggerBackupSnapshotNow = triggerBackupSnapshotNow;
