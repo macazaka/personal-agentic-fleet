@@ -75,9 +75,7 @@ class FleetAgent(ABC):
     @property
     def is_default(self) -> bool:
         """Whether this agent is the active default tab on dashboard load."""
-        if self._override_default is not None:
-            return self._override_default
-        return bool(self.config.get("is_default", False))
+        return False
 
     # === Universal User Customization Overrides ===
 

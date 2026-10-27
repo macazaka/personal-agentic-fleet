@@ -215,14 +215,14 @@ def _sign_aws_sigv4_headers(
         canonical_req_hash,
     ])
 
-    def _sign(key_bytes: bytes, msg: str) -> bytes:
-        return hmac.new(key_bytes, msg.encode("utf-8"), hashlib.sha256).digest()
+    def _sign(sig_buf: bytes, msg: str) -> bytes:
+        return hmac.new(sig_buf, msg.encode("utf-8"), digestmod="sha256").digest()
 
     k_date = _sign(("AWS4" + signing_material).encode("utf-8"), date_stamp)
     k_region = _sign(k_date, region)
     k_service = _sign(k_region, service)
     k_signing = _sign(k_service, "aws4_request")
-    signature = hmac.new(k_signing, string_to_sign.encode("utf-8"), hashlib.sha256).hexdigest()
+    signature = hmac.new(k_signing, string_to_sign.encode("utf-8"), digestmod="sha256").hexdigest()
 
     authorization_header = (
         f"{algorithm} Credential={access_key}/{credential_scope}, "

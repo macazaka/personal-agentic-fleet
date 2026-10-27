@@ -1,3 +1,4 @@
+import re
 """
 Antigravity Live Stream, Models & Agent Control API endpoints for Personal Agentic Fleet.
 """
@@ -61,20 +62,22 @@ def get_queue(handler: Any, parsed_url: urllib.parse.ParseResult):
 @router.get_prefix("/api/antigravity/media/")
 def get_media(handler: Any, path: str, parsed_url: urllib.parse.ParseResult):
     raw_fname = path[len("/api/antigravity/media/"):]
-    clean_filename = Path(urllib.parse.unquote(raw_fname)).name
+    clean_filename = os.path.basename(urllib.parse.unquote(raw_fname))
+    if not re.fullmatch(r"^[a-zA-Z0-9_.-]+$", clean_filename) or clean_filename.startswith("."):
+        handler.send_error(400, "Invalid media filename")
+        return
     media_path = None
-    if clean_filename and not clean_filename.startswith("."):
-        candidate = (srv.UPLOADS_DIR / clean_filename).resolve()
-        if candidate.is_file() and candidate.is_relative_to(srv.UPLOADS_DIR.resolve()):
-            media_path = candidate
-        else:
-            t_path = srv.get_active_transcript_path()
-            if t_path:
-                brain_dir = t_path.parents[2].resolve()
-                for c in [(brain_dir / ".user_uploaded" / clean_filename).resolve(), (brain_dir / clean_filename).resolve()]:
-                    if c.is_file() and c.is_relative_to(brain_dir):
-                        media_path = c
-                        break
+    candidate = (srv.UPLOADS_DIR / clean_filename).resolve()
+    if os.path.commonpath([str(srv.UPLOADS_DIR.resolve()), str(candidate)]) == str(srv.UPLOADS_DIR.resolve()) and candidate.is_file():
+        media_path = candidate
+    else:
+        t_path = srv.get_active_transcript_path()
+        if t_path:
+            brain_dir = t_path.parents[2].resolve()
+            for c in [(brain_dir / ".user_uploaded" / clean_filename).resolve(), (brain_dir / clean_filename).resolve()]:
+                if os.path.commonpath([str(brain_dir), str(c)]) == str(brain_dir) and c.is_file():
+                    media_path = c
+                    break
     if media_path and media_path.is_file():
         content_type = mimetypes.guess_type(str(media_path))[0] or "image/png"
         data = media_path.read_bytes()

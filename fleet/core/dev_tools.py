@@ -1,3 +1,4 @@
+import re
 """
 Developer Tools Integration Bridge for Personal Agentic Fleet.
 Enables seamless interoperability with state-of-the-art AI developer tools across all hyperscalers:
@@ -214,10 +215,11 @@ def _sanitize_cli_prompt(prompt: str) -> str:
     """Sanitizes prompt to prevent command line argument and flag injection (CWE-078)."""
     if not isinstance(prompt, str):
         return ""
-    clean = prompt.strip()
+    # Strip non-printable/control characters and shell metacharacters
+    clean = re.sub(r"[\x00-\x1f\x7f-\x9f;&|><`$\\]", " ", prompt).strip()
     while clean.startswith("-"):
         clean = clean.lstrip("-").strip()
-    return clean[:8192]
+    return clean[:4096]
 
 
 def execute_claude_code(
@@ -238,9 +240,9 @@ def execute_claude_code(
 
     if claude_info.get("installed") and claude_info.get("path"):
         exec_path = str(claude_info["path"])
-        cmd = [exec_path, "-p", safe_prompt]
+        cmd = [exec_path, "-p", "--", safe_prompt]
         if dangerously_skip_permissions:
-            cmd.append("--dangerously-skip-permissions")
+            cmd.insert(1, "--dangerously-skip-permissions")
 
         try:
             res = subprocess.run(
@@ -296,7 +298,7 @@ def execute_github_copilot_command(
     if gh_info.get("installed") and gh_info.get("has_copilot_cli") and gh_info.get("path"):
         exec_path = str(gh_info["path"])
         subcmd = "suggest" if command_type == "suggest" else "explain"
-        cmd = [exec_path, "copilot", subcmd, safe_prompt]
+        cmd = [exec_path, "copilot", subcmd, "--", safe_prompt]
         try:
             res = subprocess.run(cmd, capture_output=True, text=True, shell=False, timeout=30)
             return {
@@ -344,7 +346,7 @@ def execute_google_gemini_cli(
 
     if gem_info.get("installed") and gem_path and "gemini" in Path(gem_path).name.lower():
         exec_path = str(gem_path)
-        cmd = [exec_path, "-p", safe_prompt]
+        cmd = [exec_path, "-p", "--", safe_prompt]
         try:
             res = subprocess.run(
                 cmd,

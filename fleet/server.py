@@ -14,6 +14,7 @@ Modular Architecture:
 """
 
 from __future__ import annotations
+import re
 import base64
 import json
 import logging
@@ -319,20 +320,22 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
 
         elif path.startswith("/api/antigravity/media/"):
             raw_fname = path[len("/api/antigravity/media/"):]
-            clean_filename = Path(urllib.parse.unquote(raw_fname)).name
+            clean_filename = os.path.basename(urllib.parse.unquote(raw_fname))
+            if not re.fullmatch(r"^[a-zA-Z0-9_.-]+$", clean_filename) or clean_filename.startswith("."):
+                self.send_error(400, "Invalid media filename")
+                return
             media_path = None
-            if clean_filename and not clean_filename.startswith("."):
-                candidate = (UPLOADS_DIR / clean_filename).resolve()
-                if candidate.is_file() and candidate.is_relative_to(UPLOADS_DIR.resolve()):
-                    media_path = candidate
-                else:
-                    t_path = get_active_transcript_path()
-                    if t_path:
-                        brain_dir = t_path.parents[2].resolve()
-                        for c in [(brain_dir / ".user_uploaded" / clean_filename).resolve(), (brain_dir / clean_filename).resolve()]:
-                            if c.is_file() and c.is_relative_to(brain_dir):
-                                media_path = c
-                                break
+            candidate = (UPLOADS_DIR / clean_filename).resolve()
+            if os.path.commonpath([str(UPLOADS_DIR.resolve()), str(candidate)]) == str(UPLOADS_DIR.resolve()) and candidate.is_file():
+                media_path = candidate
+            else:
+                t_path = get_active_transcript_path()
+                if t_path:
+                    brain_dir = t_path.parents[2].resolve()
+                    for c in [(brain_dir / ".user_uploaded" / clean_filename).resolve(), (brain_dir / clean_filename).resolve()]:
+                        if os.path.commonpath([str(brain_dir), str(c)]) == str(brain_dir) and c.is_file():
+                            media_path = c
+                            break
             if media_path and media_path.is_file():
                 content_type = mimetypes.guess_type(str(media_path))[0] or "image/png"
                 data = media_path.read_bytes()
@@ -350,11 +353,12 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
 
         # 2. Static Assets (/static/css/*, /static/js/*)
         elif path.startswith("/static/"):
-            rel_path = path[len("/static/"):]
-            clean_rel = Path(urllib.parse.unquote(rel_path)).name if "/" not in rel_path else Path(urllib.parse.unquote(rel_path))
-            file_path = (STATIC_DIR / clean_rel).resolve()
-            # Security guard against directory traversal using standard library is_relative_to
-            if file_path.is_file() and file_path.is_relative_to(STATIC_DIR.resolve()):
+            rel_path = os.path.normpath(urllib.parse.unquote(path[len("/static/"):]).lstrip("/\\"))
+            if ".." in rel_path or not re.fullmatch(r"^[a-zA-Z0-9_./\\-]+$", rel_path):
+                self.send_error(400, "Invalid static asset path")
+                return
+            file_path = (STATIC_DIR / rel_path).resolve()
+            if os.path.commonpath([str(STATIC_DIR.resolve()), str(file_path)]) == str(STATIC_DIR.resolve()) and file_path.is_file():
                 if file_path.suffix == ".css":
                     content_type = "text/css; charset=utf-8"
                 elif file_path.suffix == ".js":
