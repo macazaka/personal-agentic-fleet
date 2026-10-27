@@ -32,7 +32,7 @@ if str(repo_root) not in sys.path:
 print("[Fleet Auto-Fixer] Running zero-intervention CodeQL & VS Code auto-remediation (pre-commit)...")
 try:
     from fleet.tools.auto_fixer import run_auto_fixer
-    af_res = run_auto_fixer(repo_root=repo_root, stage_changes=True, run_pyright_cli=False)
+    af_res = run_auto_fixer(repo_root=repo_root, stage_changes=True, run_pyright_cli=True)
     if af_res.get("fixes_applied_count", 0) > 0:
         print(f"=== Fleet Auto-Fixer Applied {{af_res['fixes_applied_count']}} Fix(es) & Staged Automatically ===")
 except Exception:

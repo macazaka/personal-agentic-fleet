@@ -177,7 +177,7 @@ def fix_vscode_pyright_problems(
     """
     fixes_applied: List[Dict[str, Any]] = []
 
-    # 1. Ensure pyrightconfig.json is present and properly configured
+    # 1. Ensure pyrightconfig.json and .vscode/settings.json are present and properly configured
     pyright_cfg_path = repo_root / "pyrightconfig.json"
     desired_cfg = {
         "include": ["fleet", "tests", "conftest.py", "pong.py"],
@@ -202,6 +202,39 @@ def fix_vscode_pyright_problems(
                 "file": "pyrightconfig.json",
                 "detail": "Synchronized pyrightconfig.json for full workspace coverage (Python 3.10+).",
             })
+    except Exception:
+        pass
+
+    # 1b. If repo_root is inside a parent workspace folder (e.g. '0001 - Test'), sync parent pyrightconfig.json & .vscode/settings.json
+    try:
+        if repo_root.name == "0001 - Test" and repo_root.parent.is_dir():
+            parent_pyright = repo_root.parent / "pyrightconfig.json"
+            parent_desired = {
+                "include": ["0001 - Test/fleet", "0001 - Test/tests", "0001 - Test/conftest.py", "0001 - Test/pong.py"],
+                "extraPaths": ["0001 - Test"],
+                "pythonVersion": "3.10",
+                "typeCheckingMode": "basic",
+                "reportMissingImports": "none",
+                "reportMissingModuleSource": "none",
+            }
+            if not parent_pyright.is_file() or json.loads(parent_pyright.read_text(encoding="utf-8")).get("extraPaths") != ["0001 - Test"]:
+                parent_pyright.write_text(json.dumps(parent_desired, indent=2) + "\n", encoding="utf-8", newline="\n")
+            parent_vscode_dir = repo_root.parent / ".vscode"
+            parent_vscode_dir.mkdir(exist_ok=True)
+            parent_settings = parent_vscode_dir / "settings.json"
+            if not parent_settings.is_file():
+                parent_settings.write_text(
+                    json.dumps(
+                        {
+                            "python.analysis.extraPaths": ["./0001 - Test", "."],
+                            "python.autoComplete.extraPaths": ["./0001 - Test", "."],
+                        },
+                        indent=2,
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                    newline="\n",
+                )
     except Exception:
         pass
 
