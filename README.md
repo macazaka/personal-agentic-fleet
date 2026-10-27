@@ -6,6 +6,7 @@
 [![Zero-Token Engine](https://img.shields.io/badge/Architecture-Zero--Token%20Microkernel-orange.svg)](docs/ARCHITECTURE.md)
 [![Privacy: Local-First](https://img.shields.io/badge/Privacy-100%25%20Local--First%20DPAPI-teal.svg)](docs/SECURITY.md)
 [![Hyperscalers](https://img.shields.io/badge/Hyperscalers-Google%20%7C%20Azure%20%7C%20AWS%20%7C%20Claude%20%7C%20Ollama-purple.svg)](docs/HYPERSCALERS_AND_DEV_TOOLS.md)
+[![Windows: 10 / 11](https://img.shields.io/badge/Windows-10%20%7C%2011%20(64--bit)-0078D6.svg?logo=windows)](docs/PREREQUISITES_AND_OS.md)
 [![macOS: Universal](https://img.shields.io/badge/macOS-Apple%20Silicon%20%7C%20Intel-black.svg?logo=apple)](docs/PREREQUISITES_AND_OS.md)
 [![Linux: Native](https://img.shields.io/badge/Linux-Ubuntu%20%7C%20Debian%20%7C%20Fedora%20%7C%20Arch-orange.svg?logo=linux)](docs/PREREQUISITES_AND_OS.md)
 [![Dev Tools](https://img.shields.io/badge/Dev%20Tools-Copilot%20%7C%20Claude%20Code%20%7C%20Gemini%20%7C%20Amazon%20Q-blueviolet.svg)](docs/HYPERSCALERS_AND_DEV_TOOLS.md)
@@ -49,6 +50,33 @@
 | **Mobile / Android / iOS** | 🔴 **Not Supported** | Designed as a local workstation control center, not a mobile app. Access remotely via desktop browser over local LAN/VPN. |
 
 For deep technical details on OS capability matrices and runtime requirements, refer to **[docs/PREREQUISITES_AND_OS.md](docs/PREREQUISITES_AND_OS.md)**.
+
+### 🪟 Windows OS Native Architecture & Capabilities (Windows 10 / 11)
+
+Personal Agentic Fleet is engineered with first-class native Windows architecture and zero-friction enterprise integration:
+
+1. **Zero-Flicker In-Process Win32 Subsystems**:
+   - System telemetry and PC optimization query RAM and process metrics via direct Win32 `Kernel32.dll` and `PSAPI.dll` ctypes bindings (`GetProcessMemoryInfo`, `GlobalMemoryStatusEx`).
+   - **Zero black console popups**: Background tasks, scheduled maintenance, and DNS sweeps never flash windows or steal focus during gaming, editing, or video calls. Background services execute silently via `pythonw.exe` and `CREATE_NO_WINDOW (0x08000000)`.
+
+2. **Hardware-Tied Windows DPAPI Security (`crypt32.dll`)**:
+   - Master keys, tokens, and private health records are encrypted at rest using the Windows Data Protection API bound to the active user's Windows security descriptor and TPM (`CRYPTPROTECT_UI_FORBIDDEN`).
+   - Unauthenticated accounts or separate users on the same machine cannot decrypt vault secrets.
+
+3. **NTFS User ACL Security Envelope (`icacls`)**:
+   - Vault directories (`fleet/data/user/`) are automatically locked down to the current Windows user SID (`(OI)(CI)(F)`) with inheritance stripped from unprivileged accounts, preventing lateral privilege escalation.
+
+4. **Native Windows Action Center Toast Notifications**:
+   - Dispatches rich, interactive notifications to the Windows 10/11 Action Center for daily morning briefings, strength split workout prompts, and security alerts via non-blocking PowerShell background jobs.
+
+5. **Windows Job Objects Quota Sandboxing**:
+   - Worker agents run within Windows Job Objects (`CreateJobObjectW`, `SetInformationJobObject`) enforcing hard limits on peak memory footprint and thread priority, guaranteeing background agents never cause system lag.
+
+6. **Dual PowerShell Engine Compatibility**:
+   - Full out-of-the-box support for modern cross-platform **PowerShell 7+ (`pwsh`)** as well as legacy **Windows PowerShell 5.1** (`powershell.exe`) with seamless execution policy handling (`-ExecutionPolicy Bypass -Scope Process`).
+
+7. **Windows Service & Task Scheduler Automation**:
+   - Complete automated background persistence via `fleet.tools.install_service` and `bootstrap.ps1 -InstallService`, allowing Fleet to run seamlessly at user logon.
 
 ### Minimum Hardware & Runtime Prerequisites
 - **Python**: **Python 3.10+** (64-bit required; Python 3.11–3.14 recommended).

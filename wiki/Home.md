@@ -1,6 +1,15 @@
 # Personal Agentic Fleet Wiki
 
-Welcome to the official **Personal Agentic Fleet Documentation Wiki**! 
+Welcome to the official **Personal Agentic Fleet Documentation Wiki**!
+
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%5B12%20Layers%5D-brightgreen.svg)](Security-Model)
+[![Zero-Token Engine](https://img.shields.io/badge/Architecture-Zero--Token%20Microkernel-orange.svg)](Architecture)
+[![Privacy: Local-First](https://img.shields.io/badge/Privacy-100%25%20Local--First%20DPAPI-teal.svg)](Security-Model)
+[![Windows: 10 / 11](https://img.shields.io/badge/Windows-10%20%7C%2011%20(64--bit)-0078D6.svg?logo=windows)](Linux-and-Cross-Platform-Support)
+[![macOS: Universal](https://img.shields.io/badge/macOS-Apple%20Silicon%20%7C%20Intel-black.svg?logo=apple)](Linux-and-Cross-Platform-Support)
+[![Linux: Native](https://img.shields.io/badge/Linux-Ubuntu%20%7C%20Debian%20%7C%20Fedora%20%7C%20Arch-orange.svg?logo=linux)](Linux-and-Cross-Platform-Support)
 
 Personal Agentic Fleet is an enterprise-grade, privacy-first personal AI operations center running 100% locally with zero-token deterministic compute ($0.00 cost) and an organic **4-Layer Cognitive Fleet Mind** (Brain, Consciousness, Subconsciousness, Soul).
 
