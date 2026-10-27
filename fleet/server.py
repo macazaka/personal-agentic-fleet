@@ -95,6 +95,9 @@ ALLOWED_ORIGINS = {
 
 
 class FleetDashboardHandler(BaseHTTPRequestHandler):
+    headers: Any
+    _sse_test_mode: bool = False
+
     def handle_one_request(self):
         try:
             super().handle_one_request()
@@ -831,7 +834,7 @@ class RobustThreadingHTTPServer(ThreadingHTTPServer):
     allow_reuse_address = True
     daemon_threads = True
 
-    def handle_error(self, request, client_address):
+    def handle_error(self, request: Any, client_address: Any) -> None:
         exc_type, exc_val, exc_tb = sys.exc_info()
         if exc_type in (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
             return

@@ -401,7 +401,7 @@ def test_github_branch_protection_and_crash_reporter(tmp_path):
     fake_ruleset.write_text("{}", encoding="utf-8")
     
     mock_err = urllib.error.HTTPError(
-        url="http://test", code=403, msg="Forbidden", hdrs={}, fp=io.BytesIO(b"Requires admin")
+        url="http://test", code=403, msg="Forbidden", hdrs=MagicMock(), fp=io.BytesIO(b"Requires admin")
     )
     with patch("fleet.tools.github_branch_protection.EXPECTED_RULESET_FILES", ["main-branch.json"]):
         with patch("urllib.request.urlopen", side_effect=mock_err):
@@ -455,7 +455,7 @@ def test_doctor_power_sandbox(tmp_path):
     pm = PowerLifecycleManager(gap_threshold_sec=5.0)
     stop_called = False
 
-    def fake_resume(sleep_duration):
+    def fake_resume(estimated_sleep_sec: float = 0.0) -> None:
         nonlocal stop_called
         stop_called = True
 

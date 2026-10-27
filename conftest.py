@@ -9,6 +9,7 @@ import os
 import socket
 import sys
 import types
+from typing import Any
 import pytest
 
 # Initialize mimetypes before any cross-platform winreg shims are registered
@@ -31,7 +32,7 @@ if sys.platform != "win32":
                     return 0
                 return lambda *args, **kwargs: None
 
-        dummy_winreg = DummyWinreg("winreg")
+        dummy_winreg: Any = DummyWinreg("winreg")
         dummy_winreg.HKEY_CLASSES_ROOT = 0
         dummy_winreg.HKEY_CURRENT_USER = 1
         dummy_winreg.HKEY_LOCAL_MACHINE = 2
@@ -103,7 +104,7 @@ def guard_zero_tokens_and_network(monkeypatch):
             return orig_connect(self, address)
         host = address[0] if isinstance(address, (tuple, list)) else address
         if host in ("127.0.0.1", "localhost", "::1"):
-            return orig_connect(self, address)
+            return orig_connect(self, tuple(address) if isinstance(address, list) else address)
         raise RuntimeError(
             f"Blocked external network connection to {address} during tests. "
             "Fleet Rule 1 strictly mandates Tier 0 deterministic testing (0 Tokens / $0.00)."

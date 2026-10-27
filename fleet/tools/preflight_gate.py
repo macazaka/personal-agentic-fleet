@@ -125,7 +125,7 @@ def verify_static_type_integrity(repo_root: Path = _ROOT) -> Dict[str, Any]:
     if os.name == "nt":
         npx_bin = shutil.which("npx.cmd") or shutil.which("npx") or "npx.cmd"
         res = subprocess.run(
-            [npx_bin, "pyright", "fleet"],
+            [npx_bin, "pyright", "fleet", "tests", "conftest.py", "pong.py"],
             cwd=str(repo_root),
             capture_output=True,
             text=True,
@@ -135,7 +135,7 @@ def verify_static_type_integrity(repo_root: Path = _ROOT) -> Dict[str, Any]:
     else:
         npx_bin = shutil.which("npx") or "npx"
         res = subprocess.run(
-            [npx_bin, "pyright", "fleet"],
+            [npx_bin, "pyright", "fleet", "tests", "conftest.py", "pong.py"],
             cwd=str(repo_root),
             capture_output=True,
             text=True,

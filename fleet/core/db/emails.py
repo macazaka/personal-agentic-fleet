@@ -150,7 +150,7 @@ class EmailsMixin(_DbBase):
             conn.commit()
             return cursor.rowcount > 0
 
-    def get_cached_email_body(self, message_id: str) -> Optional[Dict[str, Any]]:
+    def get_cached_email_body(self, message_id: str) -> Any:
         """Retrieves cached body and metadata for a given message_id."""
         with self._get_connection() as conn:
             cursor = conn.cursor()

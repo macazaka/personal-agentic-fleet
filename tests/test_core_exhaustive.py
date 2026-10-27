@@ -89,14 +89,14 @@ def test_resilient_http_client():
         assert data_j == {"msg": "ok"}
 
     # 2. Client error 404 (does not retry)
-    mock_http_err = urllib.error.HTTPError("https://api.test.com/404", 404, "Not Found", {}, io.BytesIO(b"Not found"))
+    mock_http_err = urllib.error.HTTPError("https://api.test.com/404", 404, "Not Found", MagicMock(), io.BytesIO(b"Not found"))
     with patch("urllib.request.urlopen", side_effect=mock_http_err):
         code, body, _ = client.request("https://api.test.com/404")
         assert code == 404
         assert body == b"Not found"
 
     # 3. Server error 500 (retries and fails)
-    mock_500_err = urllib.error.HTTPError("https://api.test.com/500", 500, "Server Error", {}, io.BytesIO(b"Server Error"))
+    mock_500_err = urllib.error.HTTPError("https://api.test.com/500", 500, "Server Error", MagicMock(), io.BytesIO(b"Server Error"))
     with patch("urllib.request.urlopen", side_effect=mock_500_err), \
          patch("time.sleep"):
         with pytest.raises(urllib.error.HTTPError):

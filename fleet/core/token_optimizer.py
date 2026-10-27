@@ -475,7 +475,7 @@ def check_mcp_delta_response(tool_key: str, full_payload: str) -> str:
     return full_payload
 
 
-def try_deterministic_intent_route(text: str, db: Any = None) -> Optional[Dict[str, Any]]:
+def try_deterministic_intent_route(text: str, db: Any = None) -> Any:
     """
     Tier 0 Natural-Language Intent Router + Offline FFD/Fleet Knowledge RAG ($0.00 / 0 LLM Tokens).
     """

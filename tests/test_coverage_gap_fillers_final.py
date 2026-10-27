@@ -387,7 +387,7 @@ def test_crash_reporter_uncovered_branches(tmp_path):
             exc_value = ValueError("test thread crash")
             exc_traceback = None
             thread = threading.Thread(name="TestCrashThread")
-        threading.excepthook(FakeThreadArgs())
+        getattr(threading, "excepthook")(FakeThreadArgs())
 
 
 def test_preflight_gate_uncovered_gate_checks(tmp_path):

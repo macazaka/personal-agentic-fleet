@@ -658,7 +658,7 @@ def fast_track_queue() -> Dict[str, Any]:
     }
 
 
-def _execute_agy_or_fallback(prompt_text: str, images: Optional[List[str]] = None, model: Optional[str] = None):
+def _execute_agy_or_fallback(prompt_text: str, images: Optional[List[str]] = None, model: Optional[str] = None) -> Any:
     from fleet.core.token_optimizer import compress_prompt, select_optimal_model_tier
     agy_home = os.environ.get("USERPROFILE") or os.environ.get("HOME") or ""
     agy_exe = Path(agy_home) / ".gemini" / "bin" / ("agy.exe" if os.name == "nt" else "agy")

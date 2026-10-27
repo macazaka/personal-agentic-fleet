@@ -259,8 +259,9 @@ def test_python_warnings_interception():
 
         try:
             # Under pytest runners, invoke logging's warning redirector directly
-            if hasattr(logging, "_showwarning"):
-                logging._showwarning("Deprecated API version v1 used", DeprecationWarning, "api.py", 42)
+            showwarning_fn = getattr(logging, "_showwarning", None)
+            if showwarning_fn:
+                showwarning_fn("Deprecated API version v1 used", DeprecationWarning, "api.py", 42)
             else:
                 py_warnings.warning("Deprecated API version v1 used: DeprecationWarning")
             handler.flush()
@@ -287,7 +288,7 @@ def test_uncaught_exception_hooks():
     with patch("sys.__excepthook__"):
         with patch.object(logging.getLogger("fleet.uncaught"), "critical") as mock_u_crit, \
              patch.object(logging.getLogger("fleet.crash_reporter"), "critical") as mock_c_crit:
-            sys.excepthook(exc_type, exc_val, exc_tb)
+            getattr(sys, "excepthook")(exc_type, exc_val, exc_tb)
             assert mock_u_crit.called or mock_c_crit.called
 
     # Verify threading.excepthook if available

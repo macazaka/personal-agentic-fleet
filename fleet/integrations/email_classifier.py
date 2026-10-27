@@ -79,7 +79,7 @@ FYI_SUBJECTS = [
 ]
 
 
-def classify_deterministic(email_meta: Dict[str, Any]) -> Optional[Tuple[int, str]]:
+def classify_deterministic(email_meta: Dict[str, Any]) -> Any:
     """
     Tier 0: Pure regex & header evaluation (0 tokens).
     Returns (category_id, reason) if confident, or None if ambiguous.

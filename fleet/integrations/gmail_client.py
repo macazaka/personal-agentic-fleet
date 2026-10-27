@@ -105,8 +105,8 @@ def extract_unsubscribe_info(headers: Dict[str, str], snippet: str = "") -> Dict
 
 
 class GmailManager:
-    def __init__(self, db: Optional[FleetDatabase] = None):
-        self.db = db or FleetDatabase()
+    def __init__(self, db: Any = None):
+        self.db: Any = db or FleetDatabase()
         self.classifier = EmailClassifier()
         self.service = None
         self.label_ids: Dict[int, str] = {}

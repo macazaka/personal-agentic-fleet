@@ -1,5 +1,5 @@
 {
-  "include": ["fleet"],
+  "include": ["fleet", "tests", "conftest.py", "pong.py"],
   "extraPaths": ["."],
   "typeCheckingMode": "basic",
   "reportMissingImports": "none",

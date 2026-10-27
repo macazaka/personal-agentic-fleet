@@ -50,7 +50,7 @@ try:
     if os.name == "nt":
         npx_cmd = shutil.which("npx.cmd") or shutil.which("npx") or "npx.cmd"
         pyright_res = subprocess.run(
-            [npx_cmd, "pyright", "fleet"],
+            [npx_cmd, "pyright", "fleet", "tests", "conftest.py", "pong.py"],
             cwd=str(repo_root),
             capture_output=True,
             text=True,
@@ -60,7 +60,7 @@ try:
     else:
         npx_cmd = shutil.which("npx") or "npx"
         pyright_res = subprocess.run(
-            [npx_cmd, "pyright", "fleet"],
+            [npx_cmd, "pyright", "fleet", "tests", "conftest.py", "pong.py"],
             cwd=str(repo_root),
             capture_output=True,
             text=True,

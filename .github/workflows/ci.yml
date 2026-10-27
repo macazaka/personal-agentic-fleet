@@ -28,8 +28,17 @@ jobs:
         node-version: '22'
 
     - name: Run Pyright Type Checking
+      shell: bash
       run: |
-        npx --yes pyright fleet
+        set +e
+        npx --yes pyright fleet tests conftest.py pong.py > pyright_log.txt 2>&1
+        PY_EXIT=$?
+        cat pyright_log.txt
+        echo "### Pyright Output" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        cat pyright_log.txt >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        exit $PY_EXIT
 
   test:
     name: Test Suite (${{ matrix.os }}, Python ${{ matrix.python-version }})
@@ -51,17 +60,27 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install Package & Test Dependencies
+      shell: bash
       run: |
         python -m pip install --upgrade pip
         python -m pip install pytest anyio coverage requests starlette pydantic uvicorn
 
     - name: Run Test Suite
       timeout-minutes: 8
+      shell: bash
       env:
         PYTHONPATH: .
         SDL_VIDEODRIVER: dummy
         SDL_AUDIODRIVER: dummy
         FLEET_TEST_MODE: "1"
       run: |
-        python -m pytest tests/ -v --tb=short
+        set +e
+        python -m pytest tests/ -v --tb=short > pytest_log.txt 2>&1
+        TEST_EXIT=$?
+        cat pytest_log.txt
+        echo "### Pytest Output (${{ matrix.os }}, Python ${{ matrix.python-version }})" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        tail -n 60 pytest_log.txt >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        exit $TEST_EXIT
 

@@ -419,6 +419,7 @@ def test_agent_catalog_endpoints_and_install(mock_fleet_env):
 
 def test_updater_and_settings_edge_cases(mock_fleet_env):
     import urllib.error
+    import urllib.parse
     from fleet.api.settings_api import get_fleet_version_status, check_fleet_version_update, get_agent_catalog_list, install_catalog_agent
     from fleet.core.updater import check_github_for_updates, download_and_apply_update
 
@@ -429,7 +430,7 @@ def test_updater_and_settings_edge_cases(mock_fleet_env):
     def fake_urlopen(req, *args, **kwargs):
         url = req.full_url if hasattr(req, "full_url") else str(req)
         if "releases/latest" in url:
-            raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
+            raise urllib.error.HTTPError(url, 404, "Not Found", MagicMock(), None)
         cm = MagicMock()
         cm.__enter__.return_value = MagicMock(status=200, read=lambda: raw_payload)
         return cm
