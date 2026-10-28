@@ -2,7 +2,7 @@
 
 Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operations Wiki**!
 
-[![Release: v2.9.5](https://img.shields.io/badge/Release-v2.9.5-00b4d8.svg)](Release-Notes)
+[![Release: v2.9.6](https://img.shields.io/badge/Release-v2.9.6-00b4d8.svg)](Release-Notes)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%5B12%20Layers%5D-brightgreen.svg)](Security-Model)
@@ -51,3 +51,17 @@ Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operat
 | **[[Troubleshooting-and-FAQ]]** | Diagnostic runbooks for port conflicts, database locks, DPAPI vault migration, GitHub Actions immutable releases, and `fleet doctor`. |
 | **[[Release-Notes]]** | Complete semantic version history and categorized changelog notes (synchronized with `CHANGELOG.md` at `v2.8.6`). |
 
+<!-- AUTO-LATEST-RELEASE:START -->
+## 🆕 Latest Release Highlights (`v2.9.6`)
+
+> **Live Codebase Inventory**: `7` Built-In Agents • `109` REST API Endpoints • `31` Core Microkernel Modules • `19` Automation Tools • `428` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
+
+### Added
+- **Automated Release Documentation & Wiki Synchronization Engine (`fleet/tools/doc_wiki_enhancer.py`, `fleet/tools/preflight_gate.py`, `.github/workflows/release.yml`)**:
+  - **Live AST REST API Route Introspection**: Automatically scans `@router.get` / `@router.post` decorators across `fleet/api/*.py` (`109` endpoints) and synchronizes the live API table into `wiki/API-Reference.md` and `docs/API_REFERENCE.md` (`<!-- AUTO-API-ROUTES:START -->`).
+  - **Live Core Microkernel Module Inventory**: Automatically introspects `fleet/core/*.py` (`31` modules) into `wiki/Architecture.md` (`<!-- AUTO-CORE-MODULES:START -->`).
+  - **Auto-Synchronized "What's New in Release" Callout**: Extracts the latest `CHANGELOG.md` section and injects it into `README.md` and `wiki/Home.md` (`<!-- AUTO-LATEST-RELEASE:START -->`).
+  - **Automated UX Backlog Status Synchronization**: Synchronizes `UX-01`..`UX-10` status from `UX_ROADMAP_BACKLOG_ITEMS` (`fleet/core/db/backlog.py`) into `docs/backlog/UX-*.md`.
+  - **Strict Release Version Parity Gate**: `verify_documentation_integrity()` in `preflight_gate.py` enforces exact version parity (`vX.Y.Z`) across `README.md`, `CHANGELOG.md`, `wiki/Home.md`, `wiki/Release-Notes.md`, `wiki/_Sidebar.md`, and `wiki/_Footer.md`.
+  - **Automatic GitHub Wiki Push on Release & Pre-Push**: `.git/hooks/pre-push` and `.github/workflows/release.yml` automatically push updated `wiki/*.md` pages to `personal-agentic-fleet.wiki.git`.
+<!-- AUTO-LATEST-RELEASE:END -->

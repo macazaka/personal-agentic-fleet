@@ -220,6 +220,28 @@ def verify_documentation_integrity(repo_root: Path = _ROOT) -> Dict[str, Any]:
 
         verified_files += 1
 
+    # Verify Release Version Parity across README.md, CHANGELOG.md, and Wiki pages on live repository
+    if (repo_root / "fleet" / "__init__.py").is_file() and (repo_root / "wiki" / "Home.md").is_file():
+        try:
+            from fleet.tools.release_manager import get_current_configured_version
+            ver = get_current_configured_version(repo_root)
+            parity_targets = [
+                ("README.md", f"v{ver}"),
+                ("CHANGELOG.md", f"[{ver}]"),
+                ("wiki/Home.md", f"v{ver}"),
+                ("wiki/Release-Notes.md", f"v{ver}"),
+                ("wiki/_Sidebar.md", f"v{ver}"),
+                ("wiki/_Footer.md", f"v{ver}"),
+            ]
+            for rel_p, expected_token in parity_targets:
+                p_file = repo_root / rel_p
+                if p_file.is_file():
+                    txt = p_file.read_text(encoding="utf-8", errors="ignore")
+                    if expected_token not in txt:
+                        findings.append(f"{rel_p}: Release version parity mismatch (missing '{expected_token}')")
+        except Exception:
+            pass
+
     return {
         "status": "PASS" if not findings else "FAIL",
         "verified_files": verified_files,

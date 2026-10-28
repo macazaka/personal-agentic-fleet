@@ -305,3 +305,19 @@ def test_ux_p1_api_handlers(mock_fleet_env):
     h5_exec = MagicMock()
     execute_omnibar_query_endpoint(h5_exec, {"query": "@discover"})
     assert h5_exec._send_json.call_args[0][0]["mode"] == "discovery"
+
+
+def test_automated_release_doc_wiki_introspection():
+    from fleet.tools.doc_wiki_enhancer import introspect_repository_state
+    from fleet.tools.preflight_gate import verify_documentation_integrity
+
+    state = introspect_repository_state()
+    assert state["agents_count"] >= 7
+    assert state["api_routes_count"] >= 100
+    assert state["core_modules_count"] >= 25
+    assert state["tools_count"] >= 15
+    assert len(state["latest_release_notes"]) > 20
+
+    doc_res = verify_documentation_integrity()
+    assert doc_res["status"] == "PASS"
+    assert doc_res["findings"] == []

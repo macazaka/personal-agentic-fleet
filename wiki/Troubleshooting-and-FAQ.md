@@ -1,6 +1,6 @@
 # 🔧 Troubleshooting, Diagnostics & Operational Runbooks
 
-> **Release Version**: `v2.9.5` | **Diagnostic Tools**: `python -m fleet.tools.fleet_doctor`, `python -m fleet.tools.auto_fixer`, `python -m fleet.tools.preflight_gate`
+> **Release Version**: `v2.9.6` | **Diagnostic Tools**: `python -m fleet.tools.fleet_doctor`, `python -m fleet.tools.auto_fixer`, `python -m fleet.tools.preflight_gate`
 
 This guide provides step-by-step diagnostic and recovery runbooks for common workstation, database, UI, and CI/CD scenarios.
 

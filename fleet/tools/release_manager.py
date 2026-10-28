@@ -319,7 +319,15 @@ def update_changelog(
         rf"^## \[{re.escape(version)}\][^\n]*\n(?:.*?\n)*?(?=^---\n\n## \[|^## \[|\Z)",
         re.M,
     )
-    if existing_pattern.search(content):
+    existing_match = existing_pattern.search(content)
+    if existing_match:
+        existing_body = existing_match.group(0)
+        # Preserve rich existing release notes if commits is empty or existing notes are more detailed
+        if not commits or (
+            "Proactive release synchronization, static type verification" not in existing_body
+            and len(existing_body) > len(new_section)
+        ):
+            return False
         updated = existing_pattern.sub(new_section + "\n", content, count=1)
     else:
         # Insert before the first `## [` heading

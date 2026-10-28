@@ -69,6 +69,26 @@ jobs:
         run: |
           python3 -m fleet.tools.sbom_generator
 
+      - name: Verify Release Documentation Parity & Sync GitHub Wiki
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 -m fleet.tools.doc_wiki_enhancer
+          python3 -c "from fleet.tools.preflight_gate import verify_documentation_integrity; r = verify_documentation_integrity(); assert r['status'] == 'PASS', r['findings']; print('[OK] Documentation & Release Parity Verified:', r['verified_files'], 'files')"
+          WIKI_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
+          if git clone "${WIKI_URL}" /tmp/fleet_wiki_sync 2>/dev/null; then
+            cp -f wiki/*.md /tmp/fleet_wiki_sync/
+            cd /tmp/fleet_wiki_sync
+            git config user.name "Personal Agentic Fleet Release Bot"
+            git config user.email "102894891+macazaka@users.noreply.github.com"
+            git add .
+            if [ -n "$(git status --porcelain)" ]; then
+              git commit -m "docs(wiki): auto-sync wiki pages for release ${RELEASE_TAG:-v2.9.0}"
+              git push origin master || git push origin main || true
+            fi
+          fi
+
       - name: Build Python Distribution (Wheel & Sdist)
         shell: bash
         run: |

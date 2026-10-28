@@ -7,17 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.9.5] - 2026-10-28
+## [2.9.6] - 2026-10-28
 
-### Fixed
-- Proactive release synchronization, static type verification, and documentation maintenance.
+### Added
+- **Automated Release Documentation & Wiki Synchronization Engine (`fleet/tools/doc_wiki_enhancer.py`, `fleet/tools/preflight_gate.py`, `.github/workflows/release.yml`)**:
+  - **Live AST REST API Route Introspection**: Automatically scans `@router.get` / `@router.post` decorators across `fleet/api/*.py` (`109` endpoints) and synchronizes the live API table into `wiki/API-Reference.md` and `docs/API_REFERENCE.md` (`<!-- AUTO-API-ROUTES:START -->`).
+  - **Live Core Microkernel Module Inventory**: Automatically introspects `fleet/core/*.py` (`31` modules) into `wiki/Architecture.md` (`<!-- AUTO-CORE-MODULES:START -->`).
+  - **Auto-Synchronized "What's New in Release" Callout**: Extracts the latest `CHANGELOG.md` section and injects it into `README.md` and `wiki/Home.md` (`<!-- AUTO-LATEST-RELEASE:START -->`).
+  - **Automated UX Backlog Status Synchronization**: Synchronizes `UX-01`..`UX-10` status from `UX_ROADMAP_BACKLOG_ITEMS` (`fleet/core/db/backlog.py`) into `docs/backlog/UX-*.md`.
+  - **Strict Release Version Parity Gate**: `verify_documentation_integrity()` in `preflight_gate.py` enforces exact version parity (`vX.Y.Z`) across `README.md`, `CHANGELOG.md`, `wiki/Home.md`, `wiki/Release-Notes.md`, `wiki/_Sidebar.md`, and `wiki/_Footer.md`.
+  - **Automatic GitHub Wiki Push on Release & Pre-Push**: `.git/hooks/pre-push` and `.github/workflows/release.yml` automatically push updated `wiki/*.md` pages to `personal-agentic-fleet.wiki.git`.
 
 ---
 
 ## [2.9.0] - 2026-10-28
 
-### Fixed
-- Proactive release synchronization, static type verification, and documentation maintenance.
+### Added
+- **UX-01 (Natural-Language Zero-Code Agent Studio)**: Added `fleet.core.agent_studio` (`synthesize_agent_from_prompt`, `render_declarative_ui_blocks`), 6 declarative UI widget blocks (`alert_banner`, `kpi_row`, `quick_capture_bar`, `habit_checklist`, `history_table`, `status_timeline`), `POST /api/studio/synthesize`, and plain-English wizard synthesis in the AFCC `+` Create Agent workflow.
+- **UX-02 (Autonomous Process Discovery & Agent Recommendation Engine)**: Added `fleet.core.process_miner` (`compute_opportunity_score`, `mine_workstation_recommendations`, `spawn_recommended_agent`), `GET /api/discovery/recommendations`, and `POST /api/discovery/spawn` for 1-click agent creation from local workstation telemetry at `$0.00` token spend.
+- **UX-03 (Visual Multi-Agent Playbook & Event-Chain Composer)**: Added `fleet.core.playbook_engine` with 8 built-in cross-agent playbooks (`morning_vitality_launchpad`, `high_ram_autonomic_relief`, `invoice_to_priority_task`, `evening_shutdown_and_dream`, `post_workout_hydration_boost`, `pre_commit_security_sentinel`, `afternoon_glucose_walk_nudge`, `weekly_roadmap_grooming`) and `GET/POST /api/playbooks` + `POST /api/playbooks/run`.
+- **UX-04 (Portable `.fleetagent` Share Packs)**: Added `export_agent_pack()` and `import_agent_pack()` in `fleet.core.agent_catalog` (`GET /api/agents/export`, `POST /api/agents/import`) with SHA-256 cryptographic digest verification, sandbox permission allowlist enforcement, and Python AST static security scanning.
+- **UX-05 (Unified "Ask Fleet Anything" Omnibar & Cross-Agent Dispatcher)**: Added `fleet.core.omnibar_dispatcher`, `FleetAgent.get_omnibar_commands()`, `GET /api/omnibar/commands`, `POST /api/omnibar/execute`, and upgraded the `Ctrl+K` Spotlight modal with `@discover`, `@studio`, `@playbook`, and `@health water` quick actions and inline execution result cards.
 
 ---
 

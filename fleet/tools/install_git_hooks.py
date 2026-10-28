@@ -210,6 +210,16 @@ if exit_code != 0:
     print("==================================================================")
     sys.exit(exit_code)
 
+# ---------------------------------------------------------------------------
+# 3. Automatic GitHub Wiki Synchronization on Push
+# ---------------------------------------------------------------------------
+try:
+    from fleet.tools.sync_wiki import sync_github_wiki
+    print("[Fleet Wiki Sync] Synchronizing local wiki/ pages to GitHub Wiki...")
+    sync_github_wiki()
+except Exception as wiki_exc:
+    print(f"[Fleet Wiki Sync] Note: Wiki sync skipped ({{wiki_exc}})")
+
 sys.exit(0)
 """
 
