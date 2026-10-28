@@ -1,6 +1,6 @@
 # ⚡ Personal Agentic Fleet
 
-[![Release: v2.8.2](https://img.shields.io/badge/Release-v2.8.2-00b4d8.svg)](CHANGELOG.md)
+[![Release: v2.8.3](https://img.shields.io/badge/Release-v2.8.3-00b4d8.svg)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%5B12%20Layers%5D-brightgreen.svg)](docs/SECURITY.md)

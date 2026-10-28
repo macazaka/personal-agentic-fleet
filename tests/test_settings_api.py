@@ -761,6 +761,15 @@ def test_proactive_vscode_html_css_auditor_and_auto_fixer():
     valid_style = "background: var(--bg-card); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8;"
     assert _repair_style_attribute_value(valid_style) == valid_style
 
+    # 3. Verify GitHub Actions workflow & Immutable Release protections in .github/workflows/
+    release_yml = (root_dir / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    assert "gh release view" in release_yml
+    assert "gh release create" in release_yml
+    assert "softprops/action-gh-release" not in release_yml
+    assert "ubuntu-24.04" in release_yml
+    assert "FORCE_JAVASCRIPT_ACTIONS_TO_NODE24" in release_yml
+
+
 
 
 

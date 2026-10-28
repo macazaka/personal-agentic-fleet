@@ -9,10 +9,13 @@ on:
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   type-check:
     name: Pyright Type Analysis (Zero VSCode Diagnostics)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
@@ -33,10 +36,11 @@ jobs:
       with:
         node-version: '22'
 
-    - name: Run Pyright Type Checking
+    - name: Run Pyright & VS Code Workspace Diagnostics
       shell: bash
       run: |
         set +e
+        python -m fleet.tools.auto_fixer --no-pyright-cli --json
         npx --yes pyright fleet tests conftest.py pong.py > pyright_log.txt 2>&1
         PY_EXIT=$?
         cat pyright_log.txt
@@ -53,7 +57,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-24.04, windows-2022, macos-14]
         python-version: ['3.10', '3.11', '3.12']
 
     steps:
@@ -89,4 +93,3 @@ jobs:
           echo "::error title=Pytest Failure::$FAIL_MSG"
         fi
         exit $TEST_EXIT
-

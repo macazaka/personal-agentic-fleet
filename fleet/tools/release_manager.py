@@ -89,9 +89,33 @@ def get_current_configured_version(repo_root: Path = REPO_ROOT) -> str:
     return "2.5.0"
 
 
+def get_head_committed_version(repo_root: Path = REPO_ROOT) -> str:
+    """Returns the semantic version committed in Git HEAD (e.g. '2.8.2'), or '' if unavailable."""
+    if not (repo_root / ".git").exists():
+        return ""
+    try:
+        res = subprocess.run(
+            [_git_exe(), "-C", str(repo_root), "show", "HEAD:fleet/__init__.py"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+            **_hidden_subprocess_kwargs(),
+        )
+        if res.returncode == 0 and res.stdout:
+            m = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', res.stdout)
+            if m:
+                return format_semver(parse_semver(m.group(1).strip()))
+    except Exception:
+        pass
+    return ""
+
+
 def get_latest_git_tag(repo_root: Path = REPO_ROOT) -> str:
     """Returns the highest semantic version tag (e.g. 'v2.5.0') in the repository."""
     try:
+        # Ensure any version already committed in HEAD is tagged locally so tags never lag behind HEAD releases
+        head_ver = get_head_committed_version(repo_root)
         res = subprocess.run(
             [_git_exe(), "-C", str(repo_root), "tag", "-l", "v*.*.*"],
             capture_output=True,
@@ -100,11 +124,17 @@ def get_latest_git_tag(repo_root: Path = REPO_ROOT) -> str:
             check=False,
             **_hidden_subprocess_kwargs(),
         )
+        tags: List[str] = []
         if res.returncode == 0 and res.stdout.strip():
             tags = [t.strip() for t in res.stdout.splitlines() if re.match(r"^v\d+\.\d+\.\d+$", t.strip())]
-            if tags:
-                tags.sort(key=parse_semver)
-                return tags[-1]
+        if head_ver:
+            head_tag = f"v{head_ver}"
+            if head_tag not in tags and (not tags or parse_semver(head_tag) > max(parse_semver(t) for t in tags)):
+                if ensure_git_tag(repo_root, head_ver):
+                    tags.append(head_tag)
+        if tags:
+            tags.sort(key=parse_semver)
+            return tags[-1]
     except Exception:
         pass
     return ""
@@ -185,7 +215,7 @@ def determine_bump_level(commits: List[Dict[str, str]], changed_files: Optional[
     for f in changed:
         if f.startswith("fleet/agents/") and f.endswith("manifest.json"):
             has_minor = True
-        elif f.startswith("fleet/") and f.endswith(".py"):
+        elif f.startswith(("fleet/", ".github/workflows/")) and f.endswith((".py", ".html", ".js", ".css", ".yml")):
             has_patch = True
 
     if has_minor:

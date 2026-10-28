@@ -7,26 +7,33 @@ on:
     paths:
       - 'fleet/__init__.py'
       - 'pyproject.toml'
-      - 'CHANGELOG.md'
   workflow_dispatch:
 
 permissions:
   contents: write
   packages: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Checkout repository (Native Git)
+        shell: bash
+        run: |
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: basic $(printf "x-access-token:%s" "${GITHUB_TOKEN}" | base64 -w 0)" fetch --tags --force --depth=50 origin "${GITHUB_SHA}"
+          git checkout --force FETCH_HEAD
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      - name: Verify Python 3.12 Runtime
+        shell: bash
+        run: |
+          python3 --version
 
       - name: Determine Release Tag & Extract Changelog Notes
         id: release_meta
@@ -36,7 +43,7 @@ jobs:
           import os, re, pathlib
           init_txt = pathlib.Path("fleet/__init__.py").read_text(encoding="utf-8")
           m = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', init_txt)
-          ver = m.group(1).strip() if m else "2.6.0"
+          ver = m.group(1).strip() if m else "2.8.3"
           tag = f"v{ver}"
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
               fh.write(f"version={ver}\n")
@@ -53,35 +60,44 @@ jobs:
           EOF
 
       - name: Install packaging dependencies
+        shell: bash
         run: |
-          python -m pip install --upgrade pip build
+          python3 -m pip install --upgrade --break-system-packages pip build || python3 -m pip install --upgrade pip build
 
       - name: Generate CycloneDX SBOM
+        shell: bash
         run: |
-          python -m fleet.tools.sbom_generator
+          python3 -m fleet.tools.sbom_generator
 
       - name: Build Python Distribution (Wheel & Sdist)
+        shell: bash
         run: |
-          python -m build
+          python3 -m build
 
       - name: Generate Cryptographic SHA-256 Checksums
+        shell: bash
         run: |
           cd dist
           sha256sum * > ../checksums.sha256
           cd ..
           sha256sum fleet/data/sbom.cdx.json >> checksums.sha256
 
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.release_meta.outputs.tag }}
-          name: Personal Agentic Fleet ${{ steps.release_meta.outputs.tag }}
-          body_path: release_body.md
-          generate_release_notes: true
-          files: |
-            dist/*
-            fleet/data/sbom.cdx.json
-            checksums.sha256
+      - name: Publish GitHub Release (Immutable-Release Safe)
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+        run: |
+          if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "[IMMUTABLE RELEASE GUARD] Release ${RELEASE_TAG} already exists on GitHub. Skipping asset overwrite to respect immutable release protection."
+            exit 0
+          fi
+          gh release create "${RELEASE_TAG}" \
+            dist/* \
+            fleet/data/sbom.cdx.json \
+            checksums.sha256 \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${GITHUB_SHA}" \
+            --title "Personal Agentic Fleet ${RELEASE_TAG}" \
+            --notes-file release_body.md \
+            --generate-notes

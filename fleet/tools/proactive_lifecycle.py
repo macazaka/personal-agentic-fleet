@@ -33,7 +33,7 @@ def run_proactive_lifecycle(
     stage_changes: bool = False,
     run_pyright_cli: bool = True,
     force_bump: Optional[str] = None,
-    create_tag: bool = False,
+    create_tag: bool = True,
     sync_remote_wiki: bool = False,
 ) -> Dict[str, Any]:
     """
