@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.6] - 2026-10-28
+
+### Fixed
+- **Auto_Healer**: Ensure auto_improvements table schema exists during fallback direct sqlite persistence.
+
+---
+
 ## [2.8.5] - 2026-10-28
 
 ### Documentation & Maintenance
