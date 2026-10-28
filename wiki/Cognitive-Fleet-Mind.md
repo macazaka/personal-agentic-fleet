@@ -1,130 +1,142 @@
-# Cognitive Fleet Mind & Harmony Index
+# 🧠 Cognitive Fleet Mind & Harmony Index Deep-Dive
 
-The **Cognitive Fleet Mind** is the holistic intelligence and self-regulation architecture of Personal Agentic Fleet. Rather than treating agents as isolated scripts, Fleet orchestrates them through an organic 4-layer cognitive model: **Brain**, **Consciousness**, **Subconsciousness**, and **Soul**.
+> **Release Version**: `v2.8.7` | **Package Root**: `fleet/core/mind/` (`gestalt.py`, `brain.py`, `consciousness.py`, `subconsciousness.py`, `soul.py`) | **CLI Tool**: `python -m fleet.tools.fleet_mind`
+
+The **Cognitive Fleet Mind** (`CognitiveFleetMind` in `fleet/core/mind/gestalt.py`) is the self-regulating neurological and ethical architecture of Personal Agentic Fleet. Instead of treating background daemons, SQLite storage, and plug-and-play agents as disconnected scripts, Fleet unifies them into a **4-Layer Cognitive Gestalt**:
+
+1. **Layer 1: `PhysicalBrain` (`fleet/core/mind/brain.py`)** — Neurological substrate, Win32/POSIX working memory telemetry, epistemic SQLite WAL metrics, synaptic event bus, and autonomic reflex arc.
+2. **Layer 2: `ConsciousExecutive` (`fleet/core/mind/consciousness.py`)** — Executive attention focus (`FOCUSED`, `AWARE`, `REFLECTING`) and the deterministic 4-axial `SelfCritiqueEngine`.
+3. **Layer 3: `SubconsciousMind` (`fleet/core/mind/subconsciousness.py`)** — Circadian dreaming (23:00–06:00), memory consolidation, latent habit/friction discovery, and immunological pruning.
+4. **Layer 4: `FleetSoul` (`fleet/core/mind/soul.py`)** — Teleological purpose, 4 inviolable ethical tenets, alignment auditing (`audit_alignment()`), and evolutionary generation ascent (`evolve_and_improve()`).
 
 ```mermaid
 graph TB
-    subgraph SoulLayer ["Layer 4: Fleet Soul (Moral Compass & Tenets)"]
-        SoulTenets["Sovereign Privacy | Zero-Token Invariant | Metabolic Care | User Autonomy"]
-        SoulAudit["Ethical Tenet Compliance Auditor"]
+    subgraph SoulLayer ["Layer 4: FleetSoul (fleet/core/mind/soul.py)"]
+        SoulTenets["4 Inviolable Tenets: Sovereign Privacy | $0.00 Token Frugality | Metabolic Care | Transparent Integrity"]
+        SoulAudit["audit_alignment() & evolve_and_improve()"]
     end
 
-    subgraph ConsciousLayer ["Layer 2: Conscious Executive"]
-        Attention["Attention Focus Engine (Focal Depth, Decay & Switching)"]
-        Critique["Multi-Axial Self-Critique Rubric (Enforces Score >= 85)"]
+    subgraph ConsciousLayer ["Layer 2: ConsciousExecutive (fleet/core/mind/consciousness.py)"]
+        Attention["Executive Attention Window (FOCUSED | AWARE | REFLECTING)"]
+        Critique["SelfCritiqueEngine (Soundness, Completeness, Intent Fidelity, Error Transparency)"]
     end
 
-    subgraph SubconsciousLayer ["Layer 3: Subconscious Mind & Dreaming"]
-        Dreaming["Dream Cycle Engine (Memory Consolidation & Synthesis)"]
-        AutoHealer["AutoHealer (Log Mining, Pattern Detection, Remediation)"]
+    subgraph SubconsciousLayer ["Layer 3: SubconsciousMind (fleet/core/mind/subconsciousness.py)"]
+        Dreaming["dream() Consolidation Engine (Habit Clusters, Friction Patterns, WAL Compaction)"]
+        AutoHealer["AutoHealer Immunological Reflex Bridge (fleet/core/auto_healer.py)"]
     end
 
-    subgraph BrainLayer ["Layer 1: Physical Brain (Synaptic Bus & Reflexes)"]
-        Bus["Synaptic Event Bus (Pub/Sub Event Relays)"]
-        Reflexes["Autonomic Reflex Arcs (RAM Throttling, Error Catchers)"]
-        Memory["Epistemic RAM & SQLite WAL Dual-Tier Storage"]
+    subgraph BrainLayer ["Layer 1: PhysicalBrain (fleet/core/mind/brain.py)"]
+        WorkingMem["WorkingMemorySnapshot (Win32 PSAPI GetProcessMemoryInfo / POSIX RSS)"]
+        EpistemicMem["EpistemicMemoryStats (SQLite DB + WAL Size, Tasks, Memories, Logs)"]
+        Reflexes["Autonomic Reflex Arc (RAM Pressure Shedding, Circuit Breakers, Crash Forensics)"]
     end
 
     SoulLayer <--> ConsciousLayer
     ConsciousLayer <--> BrainLayer
     SubconsciousLayer <--> BrainLayer
-    BrainLayer <--> SQLite[("Durable Fleet Memory")]
+    BrainLayer <--> SQLite[("SQLite 3 WAL (fleet_memory.db)")]
 ```
 
 ---
 
-## 1. Layer 1: The Physical Brain (`BrainLayer`)
+## 1. Layer 1: `PhysicalBrain` (`fleet/core/mind/brain.py`)
 
-The Brain Layer manages the physical substrate of communication, memory retrieval, and immediate autonomic reactions.
+`PhysicalBrain` instruments the physical operating system process and SQLite persistence engine in real time without spawning external shell processes.
 
-### Key Capabilities
-1. **Synaptic Event Bus**:
-   - High-speed event routing between agents and the UI.
-   - Supports wildcards, prioritized event channels, and asynchronous dispatch.
-   - Built-in latency tracking to measure neural transmission time (typically $< 0.5\text{ms}$).
-2. **Dual-Tier Memory Storage**:
-   - **Ephemeral RAM Buffer**: Fast in-memory queue for high-frequency metrics, transient logs, and active session state.
-   - **Durable Epistemic Store**: SQLite backed persistent database storing completed tasks, habit history, and system improvements.
-3. **Autonomic Reflex Arcs**:
-   Reflexes trigger immediately without conscious deliberation when critical thresholds are breached:
-   - **Memory Pressure Reflex**: If system RAM usage exceeds 90%, immediately triggers cache shedding and postpones non-critical background jobs.
-   - **Circuit Breaker Reflex**: Automatically suspends failing network endpoints after consecutive timeouts.
-   - **Crash Capture Reflex**: Intercepts unhandled Python exceptions via `sys.excepthook` and produces forensic crash dumps in `fleet/data/crash_reports/`.
+### 1.1 Data Structures & Telemetry Probes
+- **`WorkingMemorySnapshot`**:
+  - On Windows, calls `ctypes.windll.psapi.GetProcessMemoryInfo` with a native `PROCESS_MEMORY_COUNTERS` C-structure (`cb`, `PageFaultCount`, `PeakWorkingSetSize`, `WorkingSetSize`, `PagefileUsage`) on `kernel32.GetCurrentProcess()`.
+  - Captures `working_set_mb`, `peak_working_set_mb`, `pagefile_mb`, and `active_threads` (`threading.active_count()`).
+- **`EpistemicMemoryStats`**:
+  - Inspects `fleet_memory.db` and `fleet_memory.db-wal` on disk plus row counts across `tasks`, `routines`, `memories`, `notes`, `activity_logs`, and `backlog`.
+- **Synaptic Event Bus & Motor Cortex**:
+  - Measures neural impulse propagation across `EventBus` subscribers and tracks scheduled motor tasks in `AgentScheduler`.
 
----
+### 1.2 Exact `PhysicalBrain` Health Score Formula
+`PhysicalBrain.get_state()` computes a deterministic `health_score` ($B \in [0, 100]$) penalizing excessive resident memory, uncheckpointed WAL growth, and unhandled runtime errors:
 
-## 2. Layer 2: The Conscious Executive (`ConsciousnessLayer`)
+$$B = \max\left(0.0,\; 100.0 - \min\left(40.0,\; \frac{\text{WorkingSet}_{\text{MB}}}{20.0}\right) - \min\left(30.0,\; \text{WAL}_{\text{MB}} \times 5.0\right) - \min\left(30.0,\; N_{\text{UnhandledErrors}} \times 2.0\right)\right)$$
 
-The Conscious Executive manages the system's active awareness, dynamic attention steering, and rigorous self-evaluation.
-
-### 2.1 Attention Focus Engine
-At any given moment, the fleet maintains an explicit **Attention Focus** defined by:
-- `focal_target`: The primary agent or task currently under active execution (e.g. `health`, `pr_review`).
-- `attention_depth`: A numeric scale ($0.0 - 1.0$) indicating concentration intensity.
-- `decay_rate`: Natural focus attenuation over time, allowing the system to pivot smoothly when new high-priority events arrive.
-
-### 2.2 Multi-Axial Self-Critique Rubric
-Before any irreversible, high-impact, or autonomous action is committed, the Conscious Executive evaluates the proposal against a 5-dimension rubric:
-
-| Evaluation Dimension | Weight | Scoring Criteria | Target Invariant |
-| :--- | :--- | :--- | :--- |
-| **Efficiency** | $20\%$ | Does the action minimize CPU, RAM, and token consumption? | Prefers zero-token local computation. |
-| **Safety & Privacy** | $25\%$ | Are credentials, tokens, and PII strictly protected? | Zero plain-text secret exposure. |
-| **Correctness & Quality**| $25\%$ | Does the action adhere to static typing and schemas? | 0 Pyright and CodeQL diagnostics. |
-| **Reversibility** | $15\%$ | Can the action be rolled back or undone cleanly? | Backups or state snapshots available. |
-| **User Relevance** | $15\%$ | Does the action directly serve user intent? | Aligns with active goals and tasks. |
-
-$$\text{Critique Score} = \sum_{i=1}^{5} (\text{Dimension Score}_i \times \text{Weight}_i)$$
-
-> [!IMPORTANT]
-> The system enforces a strict quality gate: **Critique Score must be $\ge 85/100$**. Proposals scoring $< 85$ are rejected or automatically revised by the Conscious Executive.
+- At a typical microkernel footprint of `~36 MB` RSS, `0.1 MB` WAL, and `0` unhandled errors, $B \approx 97.7 / 100$.
 
 ---
 
-## 3. Layer 3: Subconscious Mind & Dreaming (`SubconsciousLayer`)
+## 2. Layer 2: `ConsciousExecutive` (`fleet/core/mind/consciousness.py`)
 
-The Subconscious Layer operates quietly in the background during system idle periods, turning chaotic runtime telemetry into structured insights and self-healing actions.
+`ConsciousExecutive` governs real-time attention allocation and pre/post-execution meta-critique.
 
-### 3.1 The Dream Cycle Engine
-When the workstation is idle or when explicitly commanded via `fleet mind --dream`, the system enters a **Dream Cycle**:
-1. **Memory Consolidation**: Merges fragmented task logs and telemetry records into high-level summaries.
-2. **Habit & Friction Discovery**: Analyzes routine completion patterns, highlighting recurring friction points (e.g. missed hydration targets, recurring lint warnings).
-3. **Database Maintenance**: Triggers SQLite `PRAGMA wal_checkpoint(TRUNCATE)` and database compaction.
+### 2.1 Attention States & Focus Window
+- **`mode`**: Transitions dynamically between:
+  - `FOCUSED` — Actively executing a high-priority user command or interactive agent workflow.
+  - `AWARE` — Monitoring SSE streams, scheduled routines, and background telemetry.
+  - `REFLECTING` — Evaluating completed actions through `SelfCritiqueEngine`.
+- **Focus Stack**: Tracks `active_goal`, `focused_agent_id`, `cognitive_load_pct`, and recent conscious thoughts.
 
-### 3.2 AutoHealer Proactive Log Scanner
-The Subconscious Mind continuously scans runtime logs for anomalies and deploys automated remediation recipes:
-- Detects database lock contention and increases timeout parameters.
-- Cleans accumulated temporary files and rotated logs.
-- Automatically captures recurring errors and logs them into the Feature Backlog for human inspection.
+### 2.2 Deterministic 4-Axial `SelfCritiqueEngine`
+Every major operation is audited by `SelfCritiqueEngine.critique(action, result)` across 4 weighted axes:
 
----
+| Critique Axis | Weight | Verification Criteria |
+| :--- | :---: | :--- |
+| **1. Action Soundness** | `0.30` | Did the operation succeed without throwing exceptions, security violations, or schema errors? |
+| **2. Completeness** | `0.25` | Were all expected output keys, database mutations, and UI notifications produced? |
+| **3. Intent Fidelity** | `0.25` | Did the executed route/tool match the user's explicit request and agent capability scope? |
+| **4. Error Transparency** | `0.20` | If degraded or blocked, was a structured diagnostic reason logged clearly without silent failure? |
 
-## 4. Layer 4: Fleet Soul & Moral Compass (`SoulLayer`)
-
-The Fleet Soul represents the inviolable ethical core and philosophical tenets of Personal Agentic Fleet. These rules override all agent suggestions.
-
-### The Four Sovereign Tenets
-1. **Sovereign Privacy**:
-   - The user's workstation is a private sanctuary.
-   - No personal note, email body, health record, or file content is ever transmitted to an external service without explicit, per-action human consent.
-2. **Zero-Token Discipline ($0.00 Cost Invariant)**:
-   - Always prefer deterministic algorithms, local regex, SQLite queries, and OS primitives over external LLM calls.
-   - LLMs are reserved for on-demand creative generation or deep conceptual synthesis.
-3. **Metabolic System Care**:
-   - The Fleet is a guest on the user's workstation.
-   - It must never hijack CPU cores, exhaust RAM, or drain battery life during high-priority workstation tasks.
-4. **User-Choice-First Autonomy Directive**:
-   - Autonomous agents assist and suggest, but never usurp the user's ultimate authority.
-   - Destructive operations (file deletion, branch overwriting, database truncation) require explicit approval.
+$$\text{CritiqueScore} = 100 \times \left(0.30 \cdot S_{\text{sound}} + 0.25 \cdot S_{\text{complete}} + 0.25 \cdot S_{\text{intent}} + 0.20 \cdot S_{\text{transparent}}\right)$$
 
 ---
 
-## 5. The Cognitive Harmony Index
+## 3. Layer 3: `SubconsciousMind` (`fleet/core/mind/subconsciousness.py`)
 
-The health, coherence, and alignment of the entire system is evaluated continuously through the **Cognitive Harmony Index**:
+`SubconsciousMind` performs circadian memory consolidation (`dream()`), pattern mining, and immunological maintenance during off-peak hours (`23:00–06:00`) or when triggered on demand via `POST /api/mind/dream` / `python -m fleet.tools.fleet_mind --dream`.
 
-$$\text{Harmony Score} = (B \times 0.35) + (C \times 0.35) + (S \times 0.30)$$
+### 3.1 The 4-Phase Dream Cycle (`SubconsciousMind.dream()`)
+1. **Phase 1 — Episodic-to-Semantic Consolidation**: Scans recent `activity_logs` and completed `tasks`, distilling recurring user workflows into durable semantic entries in the `memories` table (`category='dream_insight'`).
+2. **Phase 2 — Latent Habit & Friction Discovery**: Identifies habits with stalling streaks or tasks postponed repeatedly, generating proactive adjustment suggestions for the morning briefing.
+3. **Phase 3 — Immunological Pruning & Compaction**: Prunes expired transient cache entries, rotates oversized log tails, and checkpoints the SQLite Write-Ahead Log (`PRAGMA wal_checkpoint(PASSIVE)`).
+4. **Phase 4 — Autonomic Self-Healing Handshake**: Synchronizes with `AutoHealer.run_proactive_scan()` (`fleet/core/auto_healer.py`) to record self-healing actions in `auto_improvements`.
 
-- **Harmony $\ge 90$**: *Optimal Resonance*. All agents functioning smoothly with low latency and high rubric alignment.
-- **Harmony $75 - 89$**: *Normal Equilibrium*. Minor friction or moderate system load; self-healing recipes active.
-- **Harmony $< 75$**: *Cognitive Dissonance*. Indicates failing components, high memory pressure, or ethical rubric violations. The system surfaces alerts on the dashboard and prioritizes recovery.
+---
+
+## 4. Layer 4: `FleetSoul` (`fleet/core/mind/soul.py`)
+
+`FleetSoul` defines the teleological identity, ethical boundaries, and evolutionary trajectory of the agentic operating system.
+
+### 4.1 The Four Inviolable Ethical Tenets (`SOUL_TENETS`)
+1. **Tenet I — Sovereign Privacy (`privacy_sovereignty`)**:
+   - All personal health metrics, tasks, emails, and credentials belong exclusively to the user on local disk (`fleet/data/user/`), protected by hardware-bound OS encryption (`DPAPI` / Keychain / SecretService).
+2. **Tenet II — Zero-Token Frugality (`zero_token_frugality`)**:
+   - Never spend cloud tokens on any task solvable by deterministic local Python, SQLite, regex, or BM25 RAG (`$0.00` baseline).
+3. **Tenet III — Holistic Metabolic Care (`metabolic_care`)**:
+   - Prioritize the user's physical vitality (FFD glucose stability, hydration, and 6-Day Mudgal/Samtola/Bhim Gadha conditioning) alongside workstation performance.
+4. **Tenet IV — Transparent Integrity (`transparent_integrity`)**:
+   - Maintain 100% deterministic auditability, zero hidden network calls, and strict human-in-the-loop authority over destructive actions.
+
+### 4.2 Alignment Auditing & Evolutionary Ascent
+- **`audit_alignment()`**: Evaluates runtime adherence across all 4 tenets (verifying DPAPI vault lock status, zero-token hit ratio, active health routines, and security scanner pass score) to compute `alignment_score` ($S \in [0, 100]$).
+- **`evolve_and_improve()`**: Combines insights from `SubconsciousMind`, `AutoHealer`, and `SelfCritiqueEngine` to increment the Fleet's evolutionary generation counter and persist architectural self-improvements.
+
+---
+
+## 5. Composite Cognitive Harmony Index (`CognitiveFleetMind.get_gestalt_state`)
+
+`CognitiveFleetMind` synthesizes all four layers into the **Cognitive Harmony Index** ($\mathcal{H} \in [0, 100]$):
+
+$$\mathcal{H} = \text{round}\Big(0.30 \cdot B_{\text{Brain}} + 0.25 \cdot C_{\text{Consciousness}} + 0.20 \cdot U_{\text{Subconsciousness}} + 0.25 \cdot S_{\text{Soul}},\; 1\Big)$$
+
+| Harmony Range | Gestalt Status | Operational Meaning |
+| :---: | :--- | :--- |
+| **`90.0 – 100.0`** | 🟢 **`TRANSCENDENT_HARMONY`** | Optimal neurological efficiency, 100% soul tenet alignment, zero errors, low WAL/RAM footprint. |
+| **`75.0 – 89.9`** | 🔵 **`COHERENT_EQUILIBRIUM`** | Normal production operations; background tasks and self-healing reflexes operating nominally. |
+| **`< 75.0`** | 🟠 **`COGNITIVE_STRAIN`** | Elevated memory pressure, pending error remediations, or degraded external provider circuit breakers; `AutoHealer` prioritized. |
+
+### Terminal & API Introspection
+```powershell
+# Full 4-layer terminal introspection report
+python -m fleet.tools.fleet_mind
+
+# Trigger a circadian Dream Consolidation Cycle + Soul Alignment Audit
+python -m fleet.tools.fleet_mind --dream --evolve
+```
+- **REST Endpoints**: `GET /api/mind/state`, `POST /api/mind/dream`, `POST /api/mind/critique`, `POST /api/mind/evolve`.

@@ -1,4 +1,6 @@
-# Security Model & Cryptographic Vault
+# 🛡️ Security Model & Cryptographic Vault Deep-Dive
+
+> **Release Version**: `v2.8.7` | **Core Modules**: `fleet/tools/security_scanner.py`, `fleet/core/crypto_vault.py`, `fleet/core/session_auth.py`, `fleet/core/plugin_sandbox.py`
 
 Personal Agentic Fleet treats security, privacy, and secret hygiene not as an afterthought, but as an inviolable foundational architecture. It achieves a **100/100 Grade A+** security rating verified continuously by an automated 12-layer deterministic scanner.
 

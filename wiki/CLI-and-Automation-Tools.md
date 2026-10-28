@@ -1,4 +1,4 @@
-# Unified Fleet CLI & Proactive Automation Tools (`v2.8.6`)
+# Unified Fleet CLI & Proactive Automation Tools (`v2.8.7`)
 
 Personal Agentic Fleet provides a complete zero-token (`$0.00`) command-line interface and proactive automation suite that keeps code quality, release versions, security invariants, documentation, and the GitHub Wiki continuously synchronized.
 
@@ -10,11 +10,11 @@ Run via `fleet <command>`, `python -m fleet <command>`, or `.\fleet.bat <command
 
 | Subcommand | Description |
 | :--- | :--- |
-| `fleet start [--port 7890]` | Launch the Web Control Center and background daemon. |
+| `fleet start [--port 7890]` | Launch the Agentic Fleet Control Center (AFCC) and background daemon. |
 | `fleet status` | Display live runtime, version, task, routine, and security status. |
-| `fleet doctor` | Run the 6-point Fleet Doctor diagnostic and vault ACL hardening check. |
+| `fleet doctor` | Run the 7-point Fleet Doctor diagnostic and vault ACL hardening check. |
 | `fleet scan` | Execute the 12-Layer Deterministic Security & Privacy Scanner. |
-| `fleet fix [--stage]` | Run the zero-intervention VS Code (Pylance/Pyright) & GitHub CodeQL auto-fixer. |
+| `fleet fix [--stage]` | Run the zero-intervention VS Code (Pylance/Pyright/HTML/CSS) & GitHub CodeQL auto-fixer. |
 | `fleet release [--bump auto\|patch\|minor\|major]` | Proactively bump/sync release versions and update `CHANGELOG.md`. |
 | `fleet docs [--sync-wiki]` | Proactively enhance documentation and synchronize `wiki/` pages. |
 | `fleet mind [--dream] [--evolve]` | Inspect the 4-Layer Cognitive Fleet Mind & Harmony Index. |
@@ -23,12 +23,31 @@ Run via `fleet <command>`, `python -m fleet <command>`, or `.\fleet.bat <command
 | `fleet tasks` / `add-task` / `complete-task` | List, create, and complete priority tasks from the terminal. |
 | `fleet routines` / `toggle-routine` | Inspect and toggle daily habit routines. |
 | `fleet create-agent` | Scaffold a new isolated agent package with `manifest.json` contract. |
-| `fleet sync-wiki` | Push local `wiki/` pages to the GitHub Wiki repository. |
+| `fleet sync-wiki` | Push local `wiki/` pages to the live GitHub Wiki repository (`personal-agentic-fleet.wiki.git`). |
 | `fleet sbom` | Generate the CycloneDX 1.5 Software Bill of Materials (`sbom.cdx.json`). |
 
 ---
 
-## 2. Proactive Automation Modules (`19` Tools)
+## 2. Two-Tier Documentation & Release Synchronization Architecture
+
+Personal Agentic Fleet enforces a strict **Two-Tier Progressive Disclosure Model** across `README.md`, `docs/*.md`, and `wiki/*.md`:
+- **Tier 1 (`README.md`)**: Executive summary, OS compatibility table, 60-second installation, and direct deep-dive links into the live GitHub Wiki.
+- **Tier 2 (`wiki/*.md` — 17 Deep-Dive Guides)**: Exhaustive subsystem specifications, mathematical formulas, SQL schemas, and operational runbooks.
+- **Automated Version Parity (`release_manager.py` & `doc_wiki_enhancer.py`)**: On every commit and release tag, `run_proactive_release_pipeline()` and `run_proactive_doc_wiki_enhancement()` synchronize the exact semantic version (`v2.8.7`) across `fleet/__init__.py`, `fleet/config.py`, `pyproject.toml`, `dashboard.html`, `README.md`, `CHANGELOG.md`, `wiki/Home.md`, `wiki/_Sidebar.md`, `wiki/_Footer.md`, `wiki/Release-Notes.md`, and all deep-dive Wiki headers.
+
+---
+
+## 3. Proactive Pre-Commit Diagnostic & Auto-Fixer Engine (`fleet/tools/auto_fixer.py`)
+
+Executed automatically on every `git commit` before code is staged:
+1. **AST CodeQL & Static Analysis Remediation**: Scans Python ASTs for unused imports, bare `except:` blocks, unquoted subprocess paths, and `newline='\n'` file-write consistency.
+2. **HTML/CSS VS Code Diagnostic Gate (`audit_html_css_diagnostics`)**: Validates balanced parentheses `()`, braces `{}`, and string quotes inside every `<style>` block and inline `style="..."` attribute across `dashboard.html` and `fleet/agents/*/ui/panel.html`, preventing `css-rparentexpected` diagnostics.
+3. **GitHub Actions Workflow Validator (`audit_github_workflows`)**: Audits `.github/workflows/*.yml` for Node.js 24 readiness (`FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'`), pinned `ubuntu-24.04` runners, and immutable release tag safety.
+4. **Pyright Static Type Verification**: Runs `pyright` across `fleet/` and `tests/` enforcing `0 errors, 0 warnings`.
+
+---
+
+## 4. Proactive Automation Modules (`19` Tools)
 
 | Python Module | Source File | Purpose |
 | :--- | :--- | :--- |
@@ -54,7 +73,7 @@ Run via `fleet <command>`, `python -m fleet <command>`, or `.\fleet.bat <command
 
 ---
 
-## 3. Isolated Agent Packages (`7` Built-In Agents)
+## 5. Isolated Agent Packages (`7` Built-In Agents)
 
 | Agent ID | Display Name & Version | Capability Permissions | Description |
 | :--- | :--- | :--- | :--- |

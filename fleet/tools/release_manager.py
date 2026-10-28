@@ -457,14 +457,24 @@ def sync_version_everywhere(repo_root: Path = REPO_ROOT, target_version: str = "
             wiki_rel_notes.write_text(new_txt, encoding="utf-8", newline="\n")
             updates.append({"file": "wiki/Release-Notes.md", "detail": f"Synchronized Wiki Release Notes header to v{clean_ver}"})
 
-    # 6d. wiki/CLI-and-Automation-Tools.md
-    wiki_cli = repo_root / "wiki" / "CLI-and-Automation-Tools.md"
-    if wiki_cli.is_file():
-        txt = wiki_cli.read_text(encoding="utf-8", errors="ignore")
-        new_txt = re.sub(r'(# Unified Fleet CLI & Proactive Automation Tools \(`v)\d+\.\d+\.\d+(`\))', rf"\g<1>{clean_ver}\2", txt)
-        if new_txt != txt:
-            wiki_cli.write_text(new_txt, encoding="utf-8", newline="\n")
-            updates.append({"file": "wiki/CLI-and-Automation-Tools.md", "detail": f"Synchronized Wiki CLI header to v{clean_ver}"})
+    # 6d. wiki/CLI-and-Automation-Tools.md & all wiki/*.md Release Version headers
+    wiki_dir = repo_root / "wiki"
+    if wiki_dir.is_dir():
+        for wfile in sorted(wiki_dir.glob("*.md")):
+            txt = wfile.read_text(encoding="utf-8", errors="ignore")
+            new_txt = re.sub(
+                r'(# Unified Fleet CLI & Proactive Automation Tools \(`v)\d+\.\d+\.\d+(`\))',
+                rf"\g<1>{clean_ver}\2",
+                txt,
+            )
+            new_txt = re.sub(
+                r'(\*\*Release Version\*\*:\s*`v)\d+\.\d+\.\d+(`)',
+                rf"\g<1>{clean_ver}\2",
+                new_txt,
+            )
+            if new_txt != txt:
+                wfile.write_text(new_txt, encoding="utf-8", newline="\n")
+                updates.append({"file": f"wiki/{wfile.name}", "detail": f"Synchronized Wiki page release version to v{clean_ver}"})
 
     # 7. Update CycloneDX SBOM version
     sbom_path = repo_root / "fleet" / "data" / "sbom.cdx.json"

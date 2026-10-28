@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.7] - 2026-10-28
+
+### Fixed
+- **Release_Manager**: Synchronize release version across all wiki pages and sidebar.
+
+---
+
 ## [2.8.6] - 2026-10-28
 
 ### Fixed

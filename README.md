@@ -1,41 +1,51 @@
 # ⚡ Personal Agentic Fleet
 
-[![Release: v2.8.6](https://img.shields.io/badge/Release-v2.8.6-00b4d8.svg)](CHANGELOG.md)
+[![Release: v2.8.7](https://img.shields.io/badge/Release-v2.8.7-00b4d8.svg)](CHANGELOG.md)
+[![GitHub Wiki: 17 Deep-Dive Guides](https://img.shields.io/badge/GitHub%20Wiki-17%20Deep--Dive%20Guides-0284c7.svg?logo=github)](https://github.com/macazaka/personal-agentic-fleet/wiki)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%5B12%20Layers%5D-brightgreen.svg)](docs/SECURITY.md)
-[![Zero-Token Engine](https://img.shields.io/badge/Architecture-Zero--Token%20Microkernel-orange.svg)](docs/ARCHITECTURE.md)
-[![Privacy: Local-First](https://img.shields.io/badge/Privacy-100%25%20Local--First%20DPAPI-teal.svg)](docs/SECURITY.md)
-[![Hyperscalers](https://img.shields.io/badge/Hyperscalers-Google%20%7C%20Azure%20%7C%20AWS%20%7C%20Claude%20%7C%20Ollama-purple.svg)](docs/HYPERSCALERS_AND_DEV_TOOLS.md)
-[![Windows: 10 / 11](https://img.shields.io/badge/Windows-10%20%7C%2011%20(64--bit)-0078D6.svg?logo=windows)](docs/PREREQUISITES_AND_OS.md)
-[![macOS: Universal](https://img.shields.io/badge/macOS-Apple%20Silicon%20%7C%20Intel-black.svg?logo=apple)](docs/PREREQUISITES_AND_OS.md)
-[![Linux: Native](https://img.shields.io/badge/Linux-Ubuntu%20%7C%20Debian%20%7C%20Fedora%20%7C%20Arch-orange.svg?logo=linux)](docs/PREREQUISITES_AND_OS.md)
-[![Dev Tools](https://img.shields.io/badge/Dev%20Tools-Copilot%20%7C%20Claude%20Code%20%7C%20Gemini%20%7C%20Amazon%20Q-blueviolet.svg)](docs/HYPERSCALERS_AND_DEV_TOOLS.md)
+[![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%5B12%20Layers%5D-brightgreen.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Security-Model)
+[![Zero-Token Engine](https://img.shields.io/badge/Architecture-Zero--Token%20Microkernel-orange.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Architecture)
+[![Privacy: Local-First](https://img.shields.io/badge/Privacy-100%25%20Local--First%20DPAPI-teal.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Security-Model)
+[![Hyperscalers](https://img.shields.io/badge/Hyperscalers-Google%20%7C%20Azure%20%7C%20AWS%20%7C%20Claude%20%7C%20Ollama-purple.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Hyperscalers-Token-Optimizer-and-Scheduler)
+[![Windows: 10 / 11](https://img.shields.io/badge/Windows-10%20%7C%2011%20(64--bit)-0078D6.svg?logo=windows)](https://github.com/macazaka/personal-agentic-fleet/wiki/Installation-and-Quick-Start)
+[![macOS: Universal](https://img.shields.io/badge/macOS-Apple%20Silicon%20%7C%20Intel-black.svg?logo=apple)](https://github.com/macazaka/personal-agentic-fleet/wiki/Installation-and-Quick-Start)
+[![Linux: Native](https://img.shields.io/badge/Linux-Ubuntu%20%7C%20Debian%20%7C%20Fedora%20%7C%20Arch-orange.svg?logo=linux)](https://github.com/macazaka/personal-agentic-fleet/wiki/Installation-and-Quick-Start)
+[![Dev Tools](https://img.shields.io/badge/Dev%20Tools-Copilot%20%7C%20Claude%20Code%20%7C%20Gemini%20%7C%20Amazon%20Q-blueviolet.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Hyperscalers-Token-Optimizer-and-Scheduler)
 
 > **An open-source, local-first agentic operating system with a plug-and-play microkernel architecture.**
 > Run personal intelligence, metabolic & strength tracking, PC optimizations, and autonomous routines with **0 cloud token spend (`$0.00`)** and 100% deterministic local Python & SQLite execution.
 > Plug in any frontier LLM across **Google Gemini, Microsoft Azure, AWS Bedrock (with native SigV4), Anthropic Claude, OpenAI, or local Ollama**, and bridge seamlessly with **GitHub Copilot, Claude Code, Gemini CLI, and Amazon Q Developer**.
+>
+> 🌐 **Explore the Official Technical Encyclopedia:** **[Personal Agentic Fleet GitHub Wiki (`github.com/macazaka/personal-agentic-fleet/wiki`)](https://github.com/macazaka/personal-agentic-fleet/wiki)** — 17 comprehensive architectural and operational deep-dive guides synchronized automatically with every release.
 
 ---
 
-## 📚 Comprehensive Documentation Library
+## 📚 Comprehensive Documentation Library & Live GitHub Wiki
 
-| Documentation Guide | Scope & Key Technical Topics |
-| :--- | :--- |
-| 📖 **[Installation Guide (`INSTALL.md`)](INSTALL.md)** | Step-by-step setup, Python discovery, DPAPI secrets configuration, and background daemon startup. |
-| 🏛️ **[System Architecture (`docs/ARCHITECTURE.md`)](docs/ARCHITECTURE.md)** | Microkernel subsystems, deterministic event bus, Tier 0 engine, SQLite WAL persistence, and data flow. |
-| 🛡️ **[Security Architecture (`docs/SECURITY.md`)](docs/SECURITY.md)** | 12-layer defense-in-depth model, Windows DPAPI at-rest encryption, threat model, SAST, and automated audits. |
-| 🌐 **[Hyperscalers & Dev Tools (`docs/HYPERSCALERS_AND_DEV_TOOLS.md`)](docs/HYPERSCALERS_AND_DEV_TOOLS.md)** | Multi-provider LLM gateway, stdlib AWS SigV4, GitHub Copilot, Claude Code, Gemini CLI, and Amazon Q. |
-| 💻 **[OS Prerequisites & Platform Matrix (`docs/PREREQUISITES_AND_OS.md`)](docs/PREREQUISITES_AND_OS.md)** | Detailed OS matrix: Windows 10/11 & macOS primary, Linux CI, unsupported OSes & hardware requirements. |
-| 🌐 **[Multi-OS Deployment & Scenarios (`docs/DEPLOYMENT_AND_SCENARIOS.md`)](docs/DEPLOYMENT_AND_SCENARIOS.md)** | Step-by-step setup across Windows, macOS, Linux, Docker containers, homelab, and real-world operational scenarios. |
-| 🔌 **[API & FastMCP Reference (`docs/API_REFERENCE.md`)](docs/API_REFERENCE.md)** | REST endpoints, FastMCP tool schemas, CLI commands, and Dashboard slash commands. |
-| 🛠️ **[Developer & Contribution Guide (`docs/DEVELOPER_GUIDE.md`)](docs/DEVELOPER_GUIDE.md)** | Architecture rules, agent creation, adding hyperscalers, testing practices, and preflight gate. |
-| 🤖 **[Agent Development & Creation Guide (`docs/AGENT_DEVELOPMENT_GUIDE.md`)](docs/AGENT_DEVELOPMENT_GUIDE.md)** | Step-by-step agent creation via Wizard, `create-agent` Skill, CLI generator, manifest contracts, and self-critique loop. |
-| 🛡️ **[Robustness Architecture & Operations Guide (`docs/ROBUSTNESS_GUIDE.md`)](docs/ROBUSTNESS_GUIDE.md)** | 7-pillar native robustness, Cognitive Mind layers, supervisors, connection pool, job objects, circuit breakers, and APIs. |
-| 🎨 **[Agent Customization & Package Isolation (`docs/CUSTOMIZING_AGENTS.md`)](docs/CUSTOMIZING_AGENTS.md)** | Customizing any agent (name, icon, order, default tab, provider, model, prompt, panel) and building isolated private agents. |
-| 🔄 **[Documentation Maintenance Guide (`docs/MAINTAINING_DOCUMENTATION.md`)](docs/MAINTAINING_DOCUMENTATION.md)** | Continuous documentation verification invariants, commit checklist, and update cadence. |
-| 🛡️ **[Native Robustness Architecture Backlog (`docs/ROBUSTNESS_BACKLOG.md`)](docs/ROBUSTNESS_BACKLOG.md)** | 6-pillar framework robustness roadmap: thread supervisors, connection pool, OS job objects, circuit breakers, and crash forensics. |
-| 🤝 **[Community Contributing Guide (`CONTRIBUTING.md`)](CONTRIBUTING.md)** | Branching workflow, pull request guidelines, security disclosure policy, and code style. |
+The documentation follows a **Two-Tier Progressive Disclosure Model**: this `README.md` provides an executive overview and quick-start guide, `docs/*.md` provides local repository references, and the **[Live GitHub Wiki](https://github.com/macazaka/personal-agentic-fleet/wiki)** provides deep-dive subsystem internals, SQL schemas, mathematical formulas, and operational runbooks.
+
+| Documentation Guide | Live GitHub Wiki Deep-Dive | Scope & Key Technical Topics |
+| :--- | :--- | :--- |
+| 📖 **[Installation Guide (`INSTALL.md`)](INSTALL.md)** | 🌐 **[Wiki: Installation & Quick Start](https://github.com/macazaka/personal-agentic-fleet/wiki/Installation-and-Quick-Start)** | Step-by-step setup, Python discovery, DPAPI secrets configuration, and background daemon startup. |
+| 🖥️ **[AFCC UI & Dashboard Guide (`wiki/AFCC-and-UI-Features.md`)](wiki/AFCC-and-UI-Features.md)** | 🌐 **[Wiki: AFCC & UI Features](https://github.com/macazaka/personal-agentic-fleet/wiki/AFCC-and-UI-Features)** | Agentic Fleet Control Center (AFCC), 6 layouts, 6 themes, scoped agent workspace panes, Spotlight (`Ctrl+K`), and zero-scrollbar layout engine. |
+| 🏛️ **[System Architecture (`docs/ARCHITECTURE.md`)](docs/ARCHITECTURE.md)** | 🌐 **[Wiki: System Architecture](https://github.com/macazaka/personal-agentic-fleet/wiki/Architecture)** | Microkernel subsystems, deterministic event bus, Tier 0 engine, SQLite WAL persistence, and data flow. |
+| 🧠 **[Cognitive Fleet Mind (`wiki/Cognitive-Fleet-Mind.md`)](wiki/Cognitive-Fleet-Mind.md)** | 🌐 **[Wiki: Cognitive Fleet Mind](https://github.com/macazaka/personal-agentic-fleet/wiki/Cognitive-Fleet-Mind)** | 4-Layer Gestalt (`PhysicalBrain`, `ConsciousExecutive`, `SubconsciousMind`, `FleetSoul`) and Cognitive Harmony Index formulas. |
+| 🤖 **[Built-in Agents Reference (`wiki/Built-in-Agents.md`)](wiki/Built-in-Agents.md)** | 🌐 **[Wiki: 7 Built-in Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents)** | Health & Wellness (FFD + 6-Day Mudgal/Samtola/Bhim Gadha Split), Overview, PC Optimizer, Antigravity Mirror, Gmail Classifier, Backlog, and Mind. |
+| 🌐 **[Hyperscalers & Dev Tools (`docs/HYPERSCALERS_AND_DEV_TOOLS.md`)](docs/HYPERSCALERS_AND_DEV_TOOLS.md)** | 🌐 **[Wiki: Hyperscalers, Token Optimizer & Scheduler](https://github.com/macazaka/personal-agentic-fleet/wiki/Hyperscalers-Token-Optimizer-and-Scheduler)** | 8-Layer Zero-Token BM25 RAG & Fuzzy Cache, multi-provider LLM gateway, stdlib AWS SigV4, AI CLI bridges, and `schedules.yaml` cron engine. |
+| 🛡️ **[Security Architecture (`docs/SECURITY.md`)](docs/SECURITY.md)** | 🌐 **[Wiki: 12-Layer Security Model](https://github.com/macazaka/personal-agentic-fleet/wiki/Security-Model)** | 12-layer defense-in-depth model, Windows DPAPI at-rest encryption, threat model, SAST, and automated audits. |
+| 🛡️ **[Robustness Architecture & Operations Guide (`docs/ROBUSTNESS_GUIDE.md`)](docs/ROBUSTNESS_GUIDE.md)** | 🌐 **[Wiki: Robustness & Self-Healing](https://github.com/macazaka/personal-agentic-fleet/wiki/Robustness-and-Self-Healing)** | 7-pillar native robustness, Erlang-style thread supervisors, connection pool, job objects, circuit breakers, and `AutoHealer`. |
+| 💻 **[OS Prerequisites & Platform Matrix (`docs/PREREQUISITES_AND_OS.md`)](docs/PREREQUISITES_AND_OS.md)** | 🌐 **[Wiki: Multi-OS Prerequisites](https://github.com/macazaka/personal-agentic-fleet/wiki/Installation-and-Quick-Start#operating-system-matrix)** | Detailed OS matrix: Windows 10/11 & macOS primary, Linux CI, unsupported OSes & hardware requirements. |
+| 🌐 **[Multi-OS Deployment & Scenarios (`docs/DEPLOYMENT_AND_SCENARIOS.md`)](docs/DEPLOYMENT_AND_SCENARIOS.md)** | 🌐 **[Wiki: Deployment & Homelab](https://github.com/macazaka/personal-agentic-fleet/wiki/Installation-and-Quick-Start)** | Step-by-step setup across Windows, macOS, Linux, Docker containers, homelab, and real-world operational scenarios. |
+| 🔌 **[API & FastMCP Reference (`docs/API_REFERENCE.md`)](docs/API_REFERENCE.md)** | 🌐 **[Wiki: REST API & FastMCP Reference](https://github.com/macazaka/personal-agentic-fleet/wiki/API-Reference)** | REST endpoints, FastMCP tool schemas, CLI commands, and Dashboard slash commands. |
+| 🛠️ **[Developer & Contribution Guide (`docs/DEVELOPER_GUIDE.md`)](docs/DEVELOPER_GUIDE.md)** | 🌐 **[Wiki: Agent Development Guide](https://github.com/macazaka/personal-agentic-fleet/wiki/Agent-Development-Guide)** | Architecture rules, agent creation, adding hyperscalers, testing practices, and preflight gate. |
+| 🤖 **[Agent Development & Creation Guide (`docs/AGENT_DEVELOPMENT_GUIDE.md`)](docs/AGENT_DEVELOPMENT_GUIDE.md)** | 🌐 **[Wiki: Agent Development Guide](https://github.com/macazaka/personal-agentic-fleet/wiki/Agent-Development-Guide)** | Step-by-step agent creation via Wizard, `create-agent` Skill, CLI generator, manifest contracts, and self-critique loop. |
+| 🎨 **[Agent Customization & Package Isolation (`docs/CUSTOMIZING_AGENTS.md`)](docs/CUSTOMIZING_AGENTS.md)** | 🌐 **[Wiki: Customizing Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Customizing-Agents)** | Customizing any agent (name, icon, order, default tab, provider, model, prompt, panel) and building isolated private agents. |
+| ⚙️ **[CLI & Automation Tools (`wiki/CLI-and-Automation-Tools.md`)](wiki/CLI-and-Automation-Tools.md)** | 🌐 **[Wiki: CLI & Automation Tools](https://github.com/macazaka/personal-agentic-fleet/wiki/CLI-and-Automation-Tools)** | Complete reference for all 24+ `fleet.tools.*` modules, VS Code diagnostic gates, preflight validators, and Wiki sync engines. |
+| 🚀 **[CI/CD & Immutable Releases (`wiki/CI-CD-and-Immutable-Releases.md`)](wiki/CI-CD-and-Immutable-Releases.md)** | 🌐 **[Wiki: CI/CD & Immutable Releases](https://github.com/macazaka/personal-agentic-fleet/wiki/CI-CD-and-Immutable-Releases)** | GitHub Actions Node 24 / `ubuntu-24.04` pipelines, immutable release tag validation, CycloneDX SBOMs, and SHA-256 checksums. |
+| 🔄 **[Documentation Maintenance Guide (`docs/MAINTAINING_DOCUMENTATION.md`)](docs/MAINTAINING_DOCUMENTATION.md)** | 🌐 **[Wiki: Documentation Sync Architecture](https://github.com/macazaka/personal-agentic-fleet/wiki/CLI-and-Automation-Tools)** | Continuous documentation verification invariants, commit checklist, and update cadence. |
+| 🛡️ **[Native Robustness Architecture Backlog (`docs/ROBUSTNESS_BACKLOG.md`)](docs/ROBUSTNESS_BACKLOG.md)** | 🌐 **[Wiki: Robustness & Self-Healing](https://github.com/macazaka/personal-agentic-fleet/wiki/Robustness-and-Self-Healing)** | 6-pillar framework robustness roadmap: thread supervisors, connection pool, OS job objects, circuit breakers, and crash forensics. |
+| 🤝 **[Community Contributing Guide (`CONTRIBUTING.md`)](CONTRIBUTING.md)** | 🌐 **[Wiki: Troubleshooting & FAQ](https://github.com/macazaka/personal-agentic-fleet/wiki/Troubleshooting-and-FAQ)** | Branching workflow, pull request guidelines, security disclosure policy, and troubleshooting runbooks. |
 
 ---
 
@@ -50,7 +60,7 @@
 | **Windows 7 / 8 / 8.1 / 32-bit (x86)** | 🔴 **Not Supported** | Missing modern WinRT notification subsystems, TLS 1.3 cryptographic cipher suites, and modern Python 3.10+ runtimes. Do not deploy on legacy Windows. |
 | **Mobile / Android / iOS** | 🔴 **Not Supported** | Designed as a local Agentic Fleet Control Center (AFCC), not a mobile app. Access remotely via desktop browser over local LAN/VPN. |
 
-For deep technical details on OS capability matrices and runtime requirements, refer to **[docs/PREREQUISITES_AND_OS.md](docs/PREREQUISITES_AND_OS.md)**.
+For deep technical details on OS capability matrices and runtime requirements, refer to **[docs/PREREQUISITES_AND_OS.md](docs/PREREQUISITES_AND_OS.md)** and the **[GitHub Wiki: Installation & Multi-OS Quick Start](https://github.com/macazaka/personal-agentic-fleet/wiki/Installation-and-Quick-Start)**.
 
 ### 🪟 Windows OS Native Architecture & Capabilities (Windows 10 / 11)
 
@@ -90,47 +100,47 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
 
 ## 🌟 Key Highlights
 
-- **🔌 Modular Plug-and-Play Agents**: Every dashboard view is a standalone, self-contained agent package inside `fleet/agents/` with least-privilege capability manifests (`manifest.json`) enforced by `ScopedDatabaseProxy`.
+- **🔌 Modular Plug-and-Play Agents**: Every dashboard view is a standalone, self-contained agent package inside `fleet/agents/` with least-privilege capability manifests (`manifest.json`) enforced by `ScopedDatabaseProxy`. See **[Wiki: 7 Built-in Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents)** and **[Wiki: Customizing Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Customizing-Agents)**.
 - **💰 8-Layer Zero-Token & Cost Optimization Engine (`fleet/core/token_optimizer.py`)**:
   - **Tier 0 Natural-Language Intent Router & Offline BM25 Knowledge RAG**: Answers FFD diabetes reversal, nutrition, and 6-day workout questions locally in Python for **0 LLM tokens (`$0.00`)**.
   - **Fuzzy Jaccard + Trigram Semantic Cache**: Catches paraphrased repeat questions at 0 tokens.
-  - **AST/Tokenize Code Minifier, Prompt Batch Coalescer, SHA-256 Image Deduplicator & Delta-Only MCP Cache**: Cuts LLM context window spend by 40%–70%.
+  - **AST/Tokenize Code Minifier, Prompt Batch Coalescer, SHA-256 Image Deduplicator & Delta-Only MCP Cache**: Cuts LLM context window spend by 40%–70%. See **[Wiki: Hyperscalers, Token Optimizer & Scheduler](https://github.com/macazaka/personal-agentic-fleet/wiki/Hyperscalers-Token-Optimizer-and-Scheduler)**.
 - **🌐 Universal Hyperscaler Gateway & AI Developer Tools Bridge (`fleet/core/hyperscaler_gateway.py`)**:
   - Out-of-the-box support for **Google Gemini**, **Microsoft Azure OpenAI**, **AWS Bedrock** (via pure stdlib SigV4 signing — no boto3 bloat), **Anthropic Claude**, **OpenAI**, and **Local Ollama**.
-  - CLI bridges and instruction synchronizers for **GitHub Copilot**, **Claude Code**, **Gemini CLI**, and **Amazon Q Developer**. See **[docs/HYPERSCALERS_AND_DEV_TOOLS.md](docs/HYPERSCALERS_AND_DEV_TOOLS.md)**.
+  - CLI bridges and instruction synchronizers for **GitHub Copilot**, **Claude Code**, **Gemini CLI**, and **Amazon Q Developer**. See **[docs/HYPERSCALERS_AND_DEV_TOOLS.md](docs/HYPERSCALERS_AND_DEV_TOOLS.md)** and **[Wiki: Hyperscalers, Token Optimizer & Scheduler](https://github.com/macazaka/personal-agentic-fleet/wiki/Hyperscalers-Token-Optimizer-and-Scheduler)**.
 - **⏰ Automated & Customizable Agent Scheduling Engine (`fleet/core/scheduler.py`, `schedules.yaml`)**:
   - Run agent tasks automatically at exact times of day (`time: "08:30"`, `times: ["08:30", "20:00"]`), recurring intervals (`interval_hours: 6`, `every: "2h"`), or standard 5-field cron syntax (`cron: "0 9 * * 1-5"`).
   - Ships with complete pre-configured default schedules for all 7 agents out of the box with zero third-party dependencies (pure-Python YAML parser & serializer in `fleet/core/yaml_helper.py`).
-  - Real-time management via REST API (`/api/schedules`), MCP tools (`fleet_list_schedules`, `fleet_toggle_schedule`, `fleet_run_scheduled_task`), and the background routine daemon. See **[docs/CUSTOMIZING_AGENTS.md](docs/CUSTOMIZING_AGENTS.md)**.
-- **🌿 Health & Wellness Command Center (Default Tab)**: Track metabolic reversal goals, hydration, daily prescriptions, a **6-Day Traditional Strength Split** (**Monday: Mudgal**, **Wednesday: Samtola**, **Friday: Bhim Gadha**, **Tue/Thu/Sat: Mandatory World's Best Warm-up & FFD Protocols**, **Sunday: Rest**), and stream local Exercise & Diet videos via HTTP 206 byte-range streaming with live HTML5 video thumbnails.
-- **🚀 Silent PC Optimizer**: In-process Win32 PSAPI memory monitoring (`0` external `tasklist.exe` windows), dev-cache purging, temp cleanup, and DNS flushing.
-- **🛡️ 12-Layer Automated Security & Privacy Scanner**: Runs automatically every **60 minutes** in the background daemon, on every **Git `pre-commit` & `pre-push`**, and daily via **GitHub Actions CI**, backed by native **Windows DPAPI (`crypt32.dll`) + HMAC-SHA256** at-rest encryption.
-- **🏗️ 7-Pillar Native Robustness Architecture**: Erlang-style thread supervisor, Win32/POSIX signal traps, SQLite connection pooling with WAL checkpointing, automated point-in-time snapshots, OS resource quotas (Windows Job Objects & POSIX rlimits), socket egress gating, circuit breakers, rate limiting, and sleep/wake power state awareness. See **[docs/ROBUSTNESS_GUIDE.md](docs/ROBUSTNESS_GUIDE.md)** and **[docs/ROBUSTNESS_BACKLOG.md](docs/ROBUSTNESS_BACKLOG.md)**.
+  - Real-time management via REST API (`/api/schedules`), MCP tools (`fleet_list_schedules`, `fleet_toggle_schedule`, `fleet_run_scheduled_task`), and the background routine daemon. See **[docs/CUSTOMIZING_AGENTS.md](docs/CUSTOMIZING_AGENTS.md)** and **[Wiki: Hyperscalers, Token Optimizer & Scheduler](https://github.com/macazaka/personal-agentic-fleet/wiki/Hyperscalers-Token-Optimizer-and-Scheduler#4-deterministic-cron--interval-scheduler-engine)**.
+- **🌿 Health & Wellness Command Center (Default Tab)**: Track metabolic reversal goals, hydration, daily prescriptions, a **6-Day Traditional Strength Split** (**Monday: Mudgal**, **Wednesday: Samtola**, **Friday: Bhim Gadha**, **Tue/Thu/Sat: Mandatory World's Best Warm-up & FFD Protocols**, **Sunday: Rest**), and stream local Exercise & Diet videos via HTTP 206 byte-range streaming with live HTML5 video thumbnails. See **[Wiki: Health & Wellness Command Center Deep-Dive](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents#1-health--wellness-command-center-health)**.
+- **🚀 Silent PC Optimizer**: In-process Win32 PSAPI memory monitoring (`0` external `tasklist.exe` windows), dev-cache purging, temp cleanup, and DNS flushing. See **[Wiki: Silent PC Optimizer Deep-Dive](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents#3-silent-pc-optimizer-optimizer)**.
+- **🛡️ 12-Layer Automated Security & Privacy Scanner**: Runs automatically every **60 minutes** in the background daemon, on every **Git `pre-commit` & `pre-push`**, and daily via **GitHub Actions CI**, backed by native **Windows DPAPI (`crypt32.dll`) + HMAC-SHA256** at-rest encryption. See **[Wiki: 12-Layer Security Model](https://github.com/macazaka/personal-agentic-fleet/wiki/Security-Model)**.
+- **🏗️ 7-Pillar Native Robustness Architecture**: Erlang-style thread supervisor, Win32/POSIX signal traps, SQLite connection pooling with WAL checkpointing, automated point-in-time snapshots, OS resource quotas (Windows Job Objects & POSIX rlimits), socket egress gating, circuit breakers, rate limiting, and sleep/wake power state awareness. See **[docs/ROBUSTNESS_GUIDE.md](docs/ROBUSTNESS_GUIDE.md)** and **[Wiki: Robustness & Self-Healing](https://github.com/macazaka/personal-agentic-fleet/wiki/Robustness-and-Self-Healing)**.
 - **🧠 4-Layer Cognitive Fleet Mind (Brain, Consciousness, Subconsciousness, Soul)**:
   - **Layer 1: Brain (Physical & Neurological Substrate)**: Synaptic event bus impulse routing, dual working set RAM & epistemic SQLite memory, motor task schedules, and autonomic self-healing reflex arc.
   - **Layer 2: Consciousness (Executive Attention & Meta-Critique)**: Real-time focus window (`FOCUSED`, `AWARE`, `REFLECTING`) and deterministic multi-axial self-critique loop (`SelfCritiqueEngine`) validating action soundness, completeness, intent fidelity, and error transparency.
   - **Layer 3: Subconsciousness (Circadian Dreaming & Memory Consolidation)**: Background memory consolidation engine executing during sleep windows (23:00–06:00) to discover latent habit clusters, operational friction patterns, and immunological pruning.
   - **Layer 4: Soul (Teleological Purpose & Moral Compass)**: Inviolable ethical tenets (**Sovereign Privacy**, **$0.00 Token Frugality**, **Metabolic Care**, **Transparent Integrity**), soul alignment audits (`audit_alignment()`), and evolutionary generation ascent (`evolve_and_improve()`).
-  - **Cognitive Harmony Index**: Quantitative 0–100 equilibrium metric with terminal introspection via `python -m fleet.tools.fleet_mind`.
+  - **Cognitive Harmony Index**: Quantitative 0–100 equilibrium metric with terminal introspection via `python -m fleet.tools.fleet_mind`. See **[Wiki: Cognitive Fleet Mind](https://github.com/macazaka/personal-agentic-fleet/wiki/Cognitive-Fleet-Mind)**.
 - **🧭 100+ Agent Fleet Navigator & Spotlight Command Palette (`Ctrl+K` / `/`)**:
   - Designed for enterprise scale: manage dozens or hundreds of concurrent agents without UI clutter.
   - Off-canvas drawer with real-time fuzzy search, domain categories, state filtering (`Working`, `Idle`, `Disabled`), and 1-click pin-to-bar.
-  - Spotlight Command Palette with keyboard shortcuts (`↑` / `↓` / `Enter`) for instant jumping between agents.
+  - Spotlight Command Palette with keyboard shortcuts (`↑` / `↓` / `Enter`) for instant jumping between agents. See **[Wiki: AFCC & UI Features](https://github.com/macazaka/personal-agentic-fleet/wiki/AFCC-and-UI-Features)**.
 - **🪄 Visual Agent Creation Wizard & `create-agent` Skill Workflow**:
   - Click the **`+` icon** in the workstation header to launch an interactive 4-step wizard: Identity & Persona, Security Capabilities, Settings Schema, and One-Click Launch with live code preview.
-  - Backed by the official `create-agent` skill in `.gemini/antigravity/builtin/skills/create-agent/` and CLI tool `fleet/tools/create_agent.py`.
+  - Backed by the official `create-agent` skill in `.gemini/antigravity/builtin/skills/create-agent/` and CLI tool `fleet/tools/create_agent.py`. See **[Wiki: Agent Development Guide](https://github.com/macazaka/personal-agentic-fleet/wiki/Agent-Development-Guide)**.
 - **🛠️ Proactive Log Scanner & Autonomous Self-Healing Engine (`fleet/core/auto_healer.py`)**:
   - Continuous proactive background analysis across application logs, ring buffers, error tails, and crash dumps.
-  - Detects database contention, disk bloat, crash accumulations, rate limit backoffs, and task failure loops, executing automated zero-token self-healing actions.
+  - Detects database contention, disk bloat, crash accumulations, rate limit backoffs, and task failure loops, executing automated zero-token self-healing actions. See **[Wiki: Robustness & Self-Healing](https://github.com/macazaka/personal-agentic-fleet/wiki/Robustness-and-Self-Healing)**.
 - **🚀 Continuous GitHub Update Checks & Remote Agent Catalog**:
   - Checks GitHub releases on workstation startup and surfaces an update badge with desktop notifications when new versions appear.
-  - Discover and download new community and official agents dynamically from the Discover & Download catalog.
+  - Discover and download new community and official agents dynamically from the Discover & Download catalog. See **[Wiki: CI/CD & Immutable Releases](https://github.com/macazaka/personal-agentic-fleet/wiki/CI-CD-and-Immutable-Releases)**.
 
 ---
 
 ## 🚀 60-Second Installation & Quick Start
 
-> For full setup instructions (Virtual Environments, Windows Credential Manager DPAPI secrets, silent background startup, and Antigravity MCP configuration), see **[INSTALL.md](INSTALL.md)**.
+> For full setup instructions (Virtual Environments, Windows Credential Manager DPAPI secrets, silent background startup, and Antigravity MCP configuration), see **[INSTALL.md](INSTALL.md)** and the **[GitHub Wiki: Installation & Quick Start](https://github.com/macazaka/personal-agentic-fleet/wiki/Installation-and-Quick-Start)**.
 
 ### 1. Verify Python >= 3.10 & Clone the Repository
 ```powershell
@@ -218,7 +228,7 @@ personal-agentic-fleet/
 └── LICENSE                     # Apache 2.0 Commercial-Friendly Open-Source License
 ```
 
-For full system diagrams and component breakdowns, see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+For full system diagrams and component breakdowns, see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** and the **[GitHub Wiki: System Architecture Deep-Dive](https://github.com/macazaka/personal-agentic-fleet/wiki/Architecture)**.
 
 ---
 
@@ -239,13 +249,13 @@ Contributing a new capability requires **zero edits** to core files:
 2. **Implement `fleet/agents/my_agent/agent.py`** subclassing `FleetAgent`.
 3. **Add `fleet/agents/my_agent/ui/panel.html`** (`style.css` and `script.js` optional).
 
-On startup, `AgentRegistry` validates your agent's permissions, registers its routes, and renders its tab automatically. See **[docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md)** and **[docs/AGENT_DEVELOPMENT_GUIDE.md](docs/AGENT_DEVELOPMENT_GUIDE.md)** for step-by-step guides.
+On startup, `AgentRegistry` validates your agent's permissions, registers its routes, and renders its tab automatically. See **[docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md)**, **[docs/AGENT_DEVELOPMENT_GUIDE.md](docs/AGENT_DEVELOPMENT_GUIDE.md)**, and the **[GitHub Wiki: Agent Development Guide](https://github.com/macazaka/personal-agentic-fleet/wiki/Agent-Development-Guide)** for step-by-step guides.
 
 ---
 
 ## 🧪 Testing, Security & Documentation Verification
 
-Run the complete local CI quality gate (`$0.00 / 0 tokens`), verifying Fleet Doctor, the 12-layer security scanner, documentation integrity, and the full unit test suite:
+Run the complete local CI quality gate (`$0.00 / 0 tokens`), verifying Fleet Doctor, the 12-layer security scanner, documentation integrity, and the full unit test suite (see **[GitHub Wiki: CLI & Automation Tools](https://github.com/macazaka/personal-agentic-fleet/wiki/CLI-and-Automation-Tools)** and **[GitHub Wiki: CI/CD & Immutable Releases](https://github.com/macazaka/personal-agentic-fleet/wiki/CI-CD-and-Immutable-Releases)**):
 ```powershell
 python -m fleet.tools.preflight_gate
 ```

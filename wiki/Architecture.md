@@ -1,147 +1,116 @@
-# System Architecture
+# 🏛️ System Architecture & Microkernel Internals
 
-The **Personal Agentic Fleet** is engineered as a resilient, privacy-first operations microkernel operating with 100% local determinism ($0.00 compute cost). It bridges a low-overhead FastHTTP web server, real-time Server-Sent Events (SSE) broadcasting, concurrent SQLite Write-Ahead Logging (WAL) memory, and an organic **4-Layer Cognitive Fleet Mind** (Brain, Consciousness, Subconsciousness, Soul).
+> **Release Version**: `v2.8.7` | **Core Modules**: `fleet/server.py`, `fleet/api/router.py`, `fleet/core/database.py`, `fleet/core/registry.py`, `fleet/core/plugin_sandbox.py`, `fleet/core/event_bus.py`
+
+The **Personal Agentic Fleet** is engineered as a local-first, zero-dependency Python microkernel operating system. It combines a multi-threaded HTTP/1.1 + RFC 7233 byte-range server (`fleet/server.py`), a modular REST & SSE router (`fleet/api/router.py`), a capability-enforced plugin sandbox (`fleet/core/plugin_sandbox.py`), a thread-pooled SQLite 3 WAL storage engine (`fleet/core/database.py`), and the **4-Layer Cognitive Fleet Mind** (`fleet/core/mind/`).
 
 ---
 
-## 1. High-Level Architectural Topology
+## 1. End-to-End Microkernel Topology
 
 ```mermaid
 graph TD
-    subgraph UI ["User Desktop Experience (AFCC)"]
-        Browser["Workstation Browser (http://127.0.0.1:7890)"]
-        Nav["100+ Agent Fleet Navigator"]
-        Palette["Spotlight Command Palette (Ctrl+K)"]
-        LayoutEngine["Dynamic Layout Engine (Sidebar / Command / Launchpad)"]
+    subgraph UI ["Agentic Fleet Control Center (AFCC — Port 7890)"]
+        Browser["Desktop Browser UI (dashboard.html)"]
+        Nav["100+ Agent Fleet Navigator & Spotlight (Ctrl+K)"]
+        LayoutEngine["6-Layout & 6-Theme Workspace Engine"]
+        SSEClient["EventSource (/api/events) Real-Time Stream"]
         Browser --> Nav
-        Browser --> Palette
         Browser --> LayoutEngine
+        Browser --> SSEClient
     end
 
-    subgraph Server ["Microkernel Server Layer (fleet/server.py)"]
-        FastHTTP["FastHTTP BaseHTTPRequestHandler"]
-        SSE["SSE Synaptic Stream (/api/events)"]
-        AuthGuards["CSP & CSRF / DNS-Rebinding Protection"]
-        Sandbox["Plugin Capability Sandbox Proxy"]
-        FastHTTP --> SSE
-        FastHTTP --> AuthGuards
-        FastHTTP --> Sandbox
+    subgraph Server ["HTTP & Security Boundary (fleet/server.py & fleet/api/router.py)"]
+        FastHTTP["ThreadingHTTPServer + FleetRequestHandler"]
+        HostGuard["DNS-Rebinding, Origin/CSRF & 5MB Payload Guard"]
+        ApiRouter["ApiRouter (GET / POST / DELETE + Prefix Dispatch)"]
+        VideoStreamer["HTTP 206 Partial Content Byte-Range Streamer"]
+        FastHTTP --> HostGuard --> ApiRouter
+        ApiRouter --> VideoStreamer
     end
 
-    subgraph Mind ["The 4-Layer Cognitive Fleet Mind (fleet/core/mind.py)"]
-        Brain["Layer 1: Physical Brain (Synaptic Event Bus & RAM)"]
-        Consciousness["Layer 2: Conscious Executive (Attention & Rubric >=85)"]
-        Subconscious["Layer 3: Subconscious (Dreaming & Auto-Healer)"]
-        Soul["Layer 4: Fleet Soul (Moral Compass & Invariants)"]
-        Brain <--> Consciousness
-        Consciousness <--> Subconscious
-        Brain <--> Soul
+    subgraph Kernel ["Core Microkernel Subsystems (fleet/core/)"]
+        Registry["AgentRegistry (Dynamic Discovery & Manifest Loader)"]
+        Sandbox["PluginSandbox & ScopedDatabaseProxy (Least-Privilege ACLs)"]
+        TokenOpt["8-Layer TokenOptimizer (Tier 0, BM25 RAG, Fuzzy Cache)"]
+        Hyperscalers["HyperscalerGateway (Gemini, Azure, Bedrock SigV4, Claude, Ollama)"]
+        Scheduler["AgentScheduler (schedules.yaml Cron/Interval Engine)"]
+        Mind["4-Layer CognitiveFleetMind (Brain, Consciousness, Subconscious, Soul)"]
     end
 
-    subgraph Agents ["Isolated Agent Package Matrix (fleet/agents/)"]
-        Overview["overview"]
-        Health["health"]
-        Optimizer["optimizer"]
-        Antigravity["antigravity"]
-        Backlog["backlog"]
-        Gmail["gmail"]
-        PRReview["pr_review"]
-        CustomAgents["Custom User Agents"]
+    subgraph Storage ["Persistence & Hardware Crypto Layer"]
+        ConnPool["SQLiteConnectionPool (WAL Mode, busy_timeout=15000ms)"]
+        SQLite[("fleet_memory.db (8 Core Tables)")]
+        CryptoVault["CryptoVault (Win32 DPAPI / macOS Keychain / Linux SecretService)"]
     end
 
-    subgraph Storage ["Storage & Cryptographic Layer"]
-        SQLite["SQLite 3 (WAL Mode, PRAGMA busy_timeout=15000)"]
-        Vault["At-Rest Vault (DPAPI / Keychain / PBKDF2-HMAC-SHA256)"]
-        UserDir["Restricted User Vault (fleet/data/user/)"]
-    end
-
-    Browser <==>|"HTTP REST & SSE (Port 7890)"| FastHTTP
-    Sandbox <--> Agents
-    Agents <--> Brain
-    Brain <--> SQLite
-    Sandbox <--> Vault
-    Vault <--> UserDir
+    Browser <==>|"REST JSON & SSE"| FastHTTP
+    ApiRouter --> Registry
+    Registry --> Sandbox
+    ApiRouter --> TokenOpt --> Hyperscalers
+    ApiRouter --> Scheduler
+    ApiRouter --> Mind
+    Sandbox --> ConnPool --> SQLite
+    Sandbox --> CryptoVault
 ```
 
 ---
 
-## 2. Microkernel Server & Security Boundary
+## 2. HTTP Server & Modular API Router (`fleet/server.py` & `fleet/api/router.py`)
 
-The server microkernel is implemented in Python's native standard library (`http.server`) without bloated third-party ASGI frameworks:
-1. **FastHTTP Request Handling**: Threaded HTTP server handling request routing, payload size limits (`MAX_PAYLOAD_BYTES = 5MB` to prevent DoS attacks), and JSON serialization.
-2. **Security Headers**:
-   - `Content-Security-Policy`: Strictly restricts inline execution to trusted nonces and self origins.
-   - `X-Content-Type-Options: nosniff`: Prevents MIME-confusion attacks.
-   - `X-Frame-Options: DENY`: Blocks clickjacking.
-   - `Permissions-Policy`: Restricts camera, microphone, and geolocation.
-3. **DNS Rebinding & Host Validation**: Restricts accepted `Host` headers strictly to `localhost`, `127.0.0.1`, `[::1]`, and approved private workstation addresses.
-4. **Path-Traversal Guard**: All static asset file paths are resolved and validated using `Path.resolve().is_relative_to(BASE_DIR)` to strictly prevent directory traversal attacks (`../`).
+### 2.1 Zero-Dependency Multi-Threaded Server (`ThreadingHTTPServer`)
+Instead of requiring external ASGI/WSGI servers (`uvicorn`, `gunicorn`, `fastapi`) that introduce transitive supply-chain vulnerabilities, Personal Agentic Fleet runs on Python's native `http.server.ThreadingHTTPServer` enhanced with:
+1. **DNS-Rebinding & Host Allowlisting**: Rejects any HTTP request whose `Host` header is not in `{"127.0.0.1", "localhost", "[::1]"}` (or explicitly configured LAN bindings) with `HTTP 403 Forbidden`.
+2. **CSRF Origin & Custom Header Verification**: Mutating requests (`POST`, `PUT`, `DELETE`) verify `Origin`/`Referer` loopback fidelity and session tokens via `fleet/core/session_auth.py`.
+3. **Strict Payload & Path Traversal Guards**:
+   - Caps request bodies at `MAX_PAYLOAD_BYTES = 5_242_880` (`5 MB`) to prevent memory exhaustion DoS.
+   - Verifies all static asset paths via `Path.resolve().is_relative_to(STATIC_ROOT)` before opening files.
+4. **Hardened Response Headers**:
+   - `Content-Security-Policy: default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'`
+   - `X-Content-Type-Options: nosniff`
+   - `X-Frame-Options: DENY`
+   - `Referrer-Policy: no-referrer`
 
----
-
-## 3. Storage Architecture & Concurrency Control
-
-Fleet storage is architected for zero-lock, high-concurrency read/write operations:
-
-```mermaid
-sequenceDiagram
-    participant Agent as Agent / API Thread
-    participant Pool as Thread-Local DB Pool
-    participant WAL as SQLite WAL File (-wal)
-    participant DB as Main Database (.db)
-
-    Agent->>Pool: Acquire Thread-Local Connection
-    Pool->>WAL: Read Transaction (Zero-Lock, Non-blocking)
-    WAL-->>Agent: Query Results Returned (< 1ms)
-    Agent->>Pool: Write Transaction (BEGIN IMMEDIATE)
-    Pool->>WAL: Append Write to Write-Ahead Log
-    WAL-->>Agent: Transaction Committed
-    Note over WAL,DB: Background Checkpoint flushes WAL to DB periodically
-```
-
-### Key SQLite Pragma Configurations
-- `PRAGMA journal_mode = WAL;`: Allows simultaneous concurrent readers while a single background writer commits transactions without locking readers.
-- `PRAGMA busy_timeout = 15000;`: Waits up to 15 seconds for locks to clear before raising errors, eliminating database collision crashes.
-- `PRAGMA synchronous = NORMAL;`: Delivers high write throughput while maintaining full crash resilience under WAL mode.
-- `PRAGMA foreign_keys = ON;`: Enforces referential integrity across tasks, routines, and telemetry tables.
-- `PRAGMA secure_delete = ON;`: Overwrites deleted database records with zeros to prevent forensic data recovery.
+### 2.2 Declarative `ApiRouter` Dispatch Pipeline (`fleet/api/router.py`)
+`ApiRouter` decouples endpoint logic from `FleetRequestHandler` using three dispatch tiers:
+1. **Exact Route Hash Table (`O(1)` lookup)**: Maps `(method, path)` tuples directly to bound handler methods (`_get_routes`, `_post_routes`, `_delete_routes`).
+2. **Prefix Route Table**: Handles parameterized paths such as `/api/agents/<agent_id>/settings`, `/api/tasks/<task_id>`, and `/api/exercises/video`.
+3. **Dynamic Agent Route Forwarding**: Automatically routes `/api/agents/<agent_id>/<subroute>` to the target agent's sandboxed `handle_api(method, subroute, payload)` method after verifying `manifest.json` permissions.
 
 ---
 
-## 4. The 4-Layer Cognitive Fleet Mind
+## 3. Plugin Capability Sandbox & `ScopedDatabaseProxy` (`fleet/core/plugin_sandbox.py`)
 
-The Fleet operations model is grounded in cognitive science, organizing system behaviors into four distinct functional layers:
+Every agent in `fleet/agents/<agent_id>/` declares its required permissions in `manifest.json`. At load time, `AgentRegistry` wraps the agent in a `PluginSandbox` and injects a `ScopedDatabaseProxy` rather than the raw `FleetDatabase` instance.
 
-### Layer 1: Physical Brain (`fleet.core.mind.BrainLayer`)
-- **Synaptic Event Bus**: High-throughput publish-subscribe bus for intra-agent communication.
-- **Dual-Tier Memory**: Ephemeral RAM working memory combined with long-term SQLite epistemic storage.
-- **Autonomic Reflex Arcs**: Immediate, zero-token autonomic reflexes (e.g. throttling processes when RAM > 90%, triggering crash reports on unhandled exceptions).
+### 3.1 Capability Permission Matrix (`VALID_PERMISSIONS`)
 
-### Layer 2: Conscious Executive (`fleet.core.mind.ConsciousnessLayer`)
-- **Real-Time Attention Focus**: Prioritizes urgent agent demands based on user context and workload severity.
-- **Self-Critique Rubric**: Evaluates proposed actions against a 5-dimension rubric (Efficiency, Safety, Quality, Reversibility, Relevance), enforcing a minimum score of $\ge 85$ before high-impact changes are applied.
-
-### Layer 3: Subconscious Mind & Dreaming (`fleet.core.mind.SubconsciousLayer`)
-- **Background Log Mining**: Periodically scans `fleet_app.log` for recurring warnings, deprecations, or friction points.
-- **Dream Cycles**: Runs during idle periods to consolidate memories, clean temporary tables, and update habit routines.
-- **Immunological Self-Healing**: Triggers targeted remediation recipes to repair anomalies before they impact the user.
-
-### Layer 4: Fleet Soul & Moral Compass (`fleet.core.mind.SoulLayer`)
-- **Ethical Invariants**:
-  1. *Sovereign Privacy*: Zero unencrypted personal data leaves the local workstation.
-  2. *Zero-Token Discipline*: Deterministic rules must always be attempted before paid LLM APIs are invoked.
-  3. *Metabolic System Care*: Background tasks must yield CPU and memory when user workstation workload spikes.
-  4. *User-Choice Autonomy*: Destructive actions require explicit human confirmation.
+| Permission Token | Capability Granted | Enforcement Mechanism |
+| :--- | :--- | :--- |
+| `db:read` | Read access to allowed SQLite tables | Enforced by `ScopedDatabaseProxy._check_read()` |
+| `db:write` | Write/mutate access to allowed SQLite tables | Enforced by `ScopedDatabaseProxy._check_write()` |
+| `ui:render` | Render isolated HTML/CSS/JS panel in AFCC | Verified by `AgentRegistry` during dashboard assembly |
+| `notifications:send` | Dispatch OS desktop toast notifications | Gated by `ScopedNotificationProxy` |
+| `network:http` | Outbound HTTPS requests via `EgressGate` | Checked against domain allowlist & circuit breaker |
+| `secrets:read` | Decrypt agent-scoped keys from `CryptoVault` | Restricted to keys prefixed with `agent.<agent_id>.*` |
+| `system:read` | Read OS memory/CPU/process telemetry | Audited by `security_scanner.py` AST inspection |
+| `system:execute` | Execute approved maintenance commands | Restricted to built-in signed system agents (`optimizer`) |
 
 ---
 
-## 5. Cognitive Harmony Index Formula
+## 4. SQLite 3 WAL Storage Engine & Complete Schema Reference (`fleet/core/database.py`)
 
-The health and alignment of the entire system is expressed as a single mathematical metric:
+`FleetDatabase` uses a thread-safe connection pool (`fleet/core/connection_pool.py`) with Write-Ahead Logging (`PRAGMA journal_mode=WAL`), `PRAGMA synchronous=NORMAL`, `PRAGMA busy_timeout=15000`, `PRAGMA foreign_keys=ON`, and `PRAGMA secure_delete=ON`.
 
-$$\text{Harmony Score} = (B \times 0.35) + (C \times 0.35) + (S \times 0.30)$$
+### Complete 8-Table Relational Schema (`fleet_memory.db`)
 
-Where:
-- $B$ (**Brain Index**): Computed from event dispatch latency, database response times, and memory pressure.
-- $C$ (**Consciousness Index**): Computed from attention stability and average self-critique rubric scores.
-- $S$ (**Soul Index**): Computed from privacy boundary compliance, token frugality, and user intent alignment.
+| Table Name | Primary Key | Columns & Types | Purpose |
+| :--- | :--- | :--- | :--- |
+| **`tasks`** | `id INTEGER PRIMARY KEY AUTOINCREMENT` | `title TEXT`, `description TEXT`, `priority TEXT DEFAULT 'medium'`, `category TEXT DEFAULT 'general'`, `due_date TEXT`, `completed INTEGER DEFAULT 0`, `created_at TEXT`, `completed_at TEXT` | Personal & engineering task management board. |
+| **`routines`** | `id INTEGER PRIMARY KEY AUTOINCREMENT` | `name TEXT UNIQUE`, `category TEXT`, `target_time TEXT`, `completed_today INTEGER DEFAULT 0`, `last_completed_date TEXT`, `streak_count INTEGER DEFAULT 0` | Daily habits with automatic midnight reset and streak tracking. |
+| **`health_metrics`** | `id INTEGER PRIMARY KEY AUTOINCREMENT` | `date TEXT UNIQUE`, `water_glasses INTEGER DEFAULT 0`, `calories INTEGER DEFAULT 0`, `workout_completed INTEGER DEFAULT 0`, `workout_type TEXT`, `weight_kg REAL`, `fasting_bsl INTEGER`, `post_meal_bsl INTEGER`, `notes TEXT` | Daily hydration, FFD blood sugar levels (BSL), and 6-Day Strength Split logs. |
+| **`memories`** | `id INTEGER PRIMARY KEY AUTOINCREMENT` | `key TEXT UNIQUE`, `value TEXT`, `category TEXT DEFAULT 'general'`, `importance INTEGER DEFAULT 5`, `created_at TEXT`, `updated_at TEXT` | Long-term epistemic key-value store & circadian dream insights. |
+| **`notes`** | `id INTEGER PRIMARY KEY AUTOINCREMENT` | `title TEXT`, `content TEXT`, `tags TEXT`, `pinned INTEGER DEFAULT 0`, `created_at TEXT`, `updated_at TEXT` | Encrypted-capable markdown scratchpad and quick notes. |
+| **`activity_logs`** | `id INTEGER PRIMARY KEY AUTOINCREMENT` | `timestamp TEXT`, `agent_id TEXT`, `action TEXT`, `details TEXT`, `status TEXT DEFAULT 'info'` | Immutable audit trail of agent operations, schedules, and reflex events. |
+| **`backlog`** | `id INTEGER PRIMARY KEY AUTOINCREMENT` | `title TEXT`, `description TEXT`, `priority TEXT DEFAULT 'P2'`, `category TEXT DEFAULT 'Feature'`, `status TEXT DEFAULT 'pending'`, `created_at TEXT`, `completed_at TEXT` | Kanban feature roadmap and bug tracking tickets. |
+| **`auto_improvements`** | `id INTEGER PRIMARY KEY AUTOINCREMENT` | `timestamp TEXT`, `category TEXT`, `issue_detected TEXT`, `action_taken TEXT`, `status TEXT`, `impact_score INTEGER DEFAULT 5` | Autonomous self-healing actions recorded by `AutoHealer` and `FleetSoul`. |
