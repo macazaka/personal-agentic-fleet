@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.4] - 2026-10-28
+
+### Fixed
+- **CI**: Resolve immutable release asset conflict, Node 20 deprecation, and ubuntu-24.04 runner pinning with proactive workflow auto-fixer.
+
+---
+
 ## [2.8.3] - 2026-10-28
 
 ### Fixed

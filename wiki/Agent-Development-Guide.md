@@ -1,125 +1,188 @@
 # Agent Development Guide
 
-This guide details the complete process for designing, implementing, packaging, and testing agents in the Personal Agentic Fleet.
+Building agents for Personal Agentic Fleet is simple, structured, and secure. Every agent is an isolated package located in `fleet/agents/<agent_id>/` that communicates through standardized lifecycle hooks and capability contracts.
 
 ---
 
-## The 4 Creation Pathways
+## 1. Anatomy of an Agent Package
 
-Agents can be created through four distinct workflows:
-
-1. **Visual UI Wizard**: Click the **`+`** icon in the dashboard header to launch the interactive 4-step wizard.
-2. **Antigravity Skill**: Invoke the `/create-agent` skill in your Antigravity conversational session.
-3. **Developer CLI Tool**: Run `python -m fleet.tools.create_agent --name "My Agent" --id my_agent`.
-4. **Manual Package Development**: Create a self-contained package folder under `fleet/agents/<agent_id>/`.
-
----
-
-## Agent Package Layout
-
-Every agent lives in `fleet/agents/<agent_id>/` with strict package isolation:
+An agent package requires three core files:
 
 ```
-fleet/agents/<agent_id>/
-+-- __init__.py           # Package export exposing the Agent class
-+-- agent.py              # Subclass of BaseAgent implementing execute()
-+-- manifest.json         # Capability contract, metadata, and settings schema
-+-- ui/
-    +-- panel.html        # Glassmorphic dashboard widget markup
-    +-- style.css         # Agent-specific CSS styling
-    +-- script.js         # Frontend controller and DOM rendering logic
+fleet/agents/my_agent/
+├── manifest.json       # Mandatory permission declarations & metadata
+├── agent.py            # Main agent class subclassing FleetAgent
+└── ui/
+    └── panel.html      # Isolated UI template injected into AFCC
+```
+
+```mermaid
+flowchart LR
+    Manifest["manifest.json<br/>(Capability Contract)"] --> Sandbox["PluginSandboxProxy<br/>(Least-Privilege Guard)"]
+    Code["agent.py<br/>(FleetAgent Subclass)"] --> Sandbox
+    Sandbox --> Microkernel["Microkernel & Database"]
+    UI["ui/panel.html"] --> AFCC["AFCC Dashboard View"]
 ```
 
 ---
 
-## Strict Manifest Contract (`manifest.json`)
+## 2. Four Ways to Create an Agent
 
-The `manifest.json` defines identity, security permissions, and runtime settings:
+Fleet supports **4 distinct creation workflows** depending on developer preference:
+
+| Method | Target Persona | Interface | Generation Speed |
+| :--- | :--- | :--- | :--- |
+| **1. UI 4-Step Wizard** | Visual developers | AFCC Dashboard (**Settings -> Agents & Activation -> Create New Agent**) | 30 seconds |
+| **2. Unified CLI** | Terminal power users | `fleet create-agent --name "..." --id "..."` | Instant |
+| **3. Antigravity Skill** | AI-assisted developers | Chat prompt: *"Create a new Fleet agent for monitoring Docker containers"* | Autonomous |
+| **4. Manual Coding** | Senior engineers | Create directory in `fleet/agents/<id>/` with code & tests | Full control |
+
+---
+
+## 3. Step 1: The Capability Contract (`manifest.json`)
+
+Every agent must declare its permissions in `manifest.json`. The security sandbox strictly enforces these permissions at runtime.
 
 ```json
 {
-  "id": "weather_forecaster",
-  "name": "Weather Forecaster",
+  "id": "docker_watcher",
+  "name": "Docker Container Watcher",
   "version": "1.0.0",
-  "description": "Local meteorological forecasts and outdoor fitness recommendations.",
-  "category": "lifestyle",
-  "icon": "cloud-sun",
+  "icon": "🐳",
+  "description": "Monitors local Docker container health and restart loops.",
   "permissions": [
-    "network",
-    "notifications",
-    "diagnostics"
+    "db:read",
+    "db:write",
+    "ui:render",
+    "system:read",
+    "notifications:send"
   ],
-  "entrypoint": "agent.py:WeatherAgent",
-  "custom_settings_schema": {
-    "default_city": {
-      "type": "string",
-      "label": "Default City",
-      "default": "San Francisco",
-      "description": "Default city for automated morning briefings."
-    },
-    "units": {
-      "type": "select",
-      "label": "Temperature Units",
-      "options": ["metric", "imperial"],
-      "default": "metric"
-    }
-  }
+  "author": "Fleet Engineer",
+  "license": "Apache-2.0"
 }
 ```
 
+### Allowed Capability Permissions (`ALLOWED_AGENT_PERMISSIONS`)
+
+| Permission String | Capability Granted |
+| :--- | :--- |
+| `db:read` | Query SQLite tables via the sandbox proxy (`get_task`, `list_tasks`, etc.). |
+| `db:write` | Insert or modify records via the sandbox proxy (`add_task`, `complete_task`). |
+| `ui:render` | Render an interactive HTML panel in the AFCC dashboard. |
+| `network:http` | Make outbound HTTP/HTTPS requests (restricted to designated APIs). |
+| `system:read` | Read OS metrics, system telemetry, and directory contents. |
+| `system:execute` | Execute system maintenance commands through sanitized wrappers. |
+| `notifications:send` | Dispatch desktop toast notifications or system alerts. |
+| `secrets:read` | Access encrypted secrets from the DPAPI / Keychain vault. |
+
 ---
 
-## Implementing the Agent Class (`agent.py`)
+## 4. Step 2: The Agent Logic (`agent.py`)
 
-Agents inherit from `BaseAgent` and implement `execute()`:
+Subclass `fleet.core.agent.FleetAgent` and implement lifecycle hooks:
 
 ```python
-from typing import Any, Dict
-from fleet.core.base_agent import BaseAgent
+"""
+Docker Container Watcher Agent for Personal Agentic Fleet.
+"""
 
-class WeatherAgent(BaseAgent):
-    def __init__(self, agent_id: str, manifest: Dict[str, Any]):
-        super().__init__(agent_id=agent_id, manifest=manifest)
+from typing import Any, Dict, List
+from fleet.core.agent import FleetAgent
 
-    def execute(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        city = self.get_config("default_city", "San Francisco")
-        units = self.get_config("units", "metric")
-        
-        # Pure deterministic Tier 0 processing ($0.00 compute)
-        forecast = self._fetch_local_forecast(city, units)
-        
-        # Self-critique compliance check
-        critique = self.evaluate_output(forecast)
-        
+
+class DockerWatcherAgent(FleetAgent):
+    """Monitors container health and logs anomalies."""
+
+    def initialize(self) -> None:
+        """Invoked when the agent is loaded into the registry."""
+        self.logger.info("Docker Watcher initialized successfully.")
+
+    def get_agent_settings_schema(self) -> List[Dict[str, Any]]:
+        """Defines user-configurable settings rendered in the AFCC drawer."""
+        return [
+            {
+                "id": "poll_interval_seconds",
+                "label": "Poll Interval (Seconds)",
+                "type": "number",
+                "default": 30,
+                "description": "Frequency of container status checks.",
+            },
+            {
+                "id": "alert_on_restart",
+                "label": "Alert on Container Restarts",
+                "type": "boolean",
+                "default": True,
+                "description": "Send a desktop notification when a container restarts.",
+            },
+        ]
+
+    def run_check(self) -> Dict[str, Any]:
+        """Custom agent task execution."""
+        poll_interval = self.get_setting("poll_interval_seconds", 30)
+        # Business logic here...
         return {
-            "status": "success",
-            "data": forecast,
-            "critique": critique
-        }
-
-    def evaluate_output(self, output: Dict[str, Any]) -> Dict[str, Any]:
-        """Conscious self-critique rubric compliance."""
-        score = 95 if output.get("city") else 60
-        return {
-            "conscious_score": score,
-            "soundness": "PASS",
-            "token_waste": 0.0
+            "status": "healthy",
+            "containers_monitored": 4,
+            "interval": poll_interval,
         }
 ```
 
 ---
 
-## Testing New Agents
+## 5. Step 3: The Isolated UI Panel (`ui/panel.html`)
 
-All agent tests must execute without polluting production databases or activity feeds. Use `suppress_test_logs()`:
+Every agent provides an HTML snippet embedded inside the AFCC dashboard. It must be scoped and responsive:
 
-```python
-from fleet.common.logging import suppress_test_logs
+```html
+<div class="agent-panel" id="panelDockerWatcher">
+  <div class="panel-header">
+    <div class="flex items-center gap-3">
+      <span class="text-2xl">🐳</span>
+      <div>
+        <h2 class="text-lg font-bold text-slate-100">Docker Container Watcher</h2>
+        <p class="text-xs text-slate-400">Local Container Health & Metrics</p>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="refreshDockerContainers()">Refresh</button>
+  </div>
 
-def test_weather_agent_execution():
-    with suppress_test_logs():
-        agent = WeatherAgent("weather_forecaster", manifest)
-        res = agent.execute({"city": "Seattle"})
-        assert res["status"] == "success"
-        assert res["critique"]["conscious_score"] >= 85
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+    <div class="metric-card">
+      <span class="metric-label">Running Containers</span>
+      <span class="metric-value text-emerald-400" id="dockerRunningCount">--</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">Restart Anomalies</span>
+      <span class="metric-value text-amber-400" id="dockerRestartCount">0</span>
+    </div>
+  </div>
+</div>
+
+<script>
+function refreshDockerContainers() {
+  fetch('/api/agents/docker_watcher/check')
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById('dockerRunningCount').textContent = data.containers_monitored || '0';
+    })
+    .catch(err => console.error('Docker check failed:', err));
+}
+</script>
 ```
+
+---
+
+## 6. Testing & Package Verification
+
+Every new agent is automatically verified against the **Agent Package Isolation Quality Gate**:
+
+```bash
+# Run the strict agent isolation verifier
+python -c "from fleet.tools.preflight_gate import verify_agent_package_isolation; print(verify_agent_package_isolation())"
+```
+
+The verifier confirms that:
+1. `manifest.json` exists, is valid JSON, and matches the directory name.
+2. All declared permissions belong to `ALLOWED_AGENT_PERMISSIONS`.
+3. `agent.py` exists and subclasses `FleetAgent`.
+4. `ui/panel.html` exists and contains no syntax errors.

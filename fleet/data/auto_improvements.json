@@ -1,5 +1,35 @@
 [
   {
+    "scan_id": "SCAN-20261028-112159",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-10-28T11:21:59.243794"
+  },
+  {
+    "scan_id": "SCAN-20261028-110657",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-10-28T11:06:57.589444"
+  },
+  {
     "scan_id": "SCAN-20261028-110114",
     "issue_type": "TASK_FAILURES",
     "severity": "MEDIUM",
