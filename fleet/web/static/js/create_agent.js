@@ -1,6 +1,6 @@
 /**
  * Fleet Create Agent Workflow Wizard & Client Engine
- * Powered by the create-agent Skill.
+ * Powered by the create-agent Skill & UX-01 Zero-Code Agent Studio.
  */
 
 let currentWizardStep = 1;
@@ -27,8 +27,10 @@ function openCreateAgentModal() {
   modal.style.display = 'flex';
 
   setTimeout(() => {
+    const nlInput = document.getElementById('wizardNaturalLanguageInput');
     const nameInput = document.getElementById('newAgentName');
-    if (nameInput) nameInput.focus();
+    if (nlInput) nlInput.focus();
+    else if (nameInput) nameInput.focus();
   }, 100);
 }
 
@@ -83,7 +85,6 @@ function applyWizardPreset(preset) {
     el.checked = selected.includes(permKey);
   });
 
-  // Highlight active preset card
   document.querySelectorAll('.wizard-preset-card').forEach(card => card.classList.remove('active-preset'));
   if (window.event && window.event.currentTarget) {
     window.event.currentTarget.classList.add('active-preset');
@@ -109,15 +110,92 @@ function getSelectedPermissions() {
   return checked.length > 0 ? checked : ['ui:render', 'db:read'];
 }
 
+function getSelectedUiBlocks() {
+  const blockIds = ['alert_banner', 'kpi_row', 'quick_capture_bar', 'history_table', 'habit_checklist', 'status_timeline'];
+  const selected = [];
+  blockIds.forEach(b => {
+    const el = document.getElementById(`uiBlock_${b}`);
+    if (el && el.checked) selected.push(b);
+  });
+  return selected.length > 0 ? selected : ['kpi_row', 'quick_capture_bar', 'history_table'];
+}
+
+async function synthesizeWizardFromPrompt() {
+  const input = document.getElementById('wizardNaturalLanguageInput');
+  const prompt = (input?.value || '').trim();
+  if (!prompt) {
+    alert('Please enter a plain-English description of the agent you want to build.');
+    input?.focus();
+    return;
+  }
+  const btn = document.getElementById('btnSynthesizeAgentPrompt');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Synthesizing...';
+  }
+  try {
+    const res = await fetch('/api/studio/synthesize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+    const spec = await res.json();
+    if (!res.ok || spec.status === 'error') {
+      throw new Error(spec.message || 'Failed to synthesize agent spec.');
+    }
+    const nameEl = document.getElementById('newAgentName');
+    const idEl = document.getElementById('newAgentId');
+    const iconEl = document.getElementById('newAgentIcon');
+    const descEl = document.getElementById('newAgentDesc');
+    const taskEl = document.getElementById('newAgentTaskName');
+    if (nameEl) nameEl.value = spec.name || '';
+    if (idEl) idEl.value = spec.agent_id || '';
+    if (iconEl) iconEl.value = spec.icon || '✨';
+    if (descEl) descEl.value = spec.description || prompt;
+    if (taskEl) taskEl.value = spec.routine_task || 'run_check';
+
+    const perms = spec.permissions || ['db:read', 'ui:render'];
+    const permCheckMap = {
+      'perm_ui_render': perms.includes('ui:render'),
+      'perm_db_read': perms.includes('db:read'),
+      'perm_db_write': perms.includes('db:write'),
+      'perm_notifications_send': perms.includes('event_bus:publish') || perms.includes('notifications:send'),
+      'perm_network_http': perms.includes('network:outbound') || perms.includes('network:http'),
+      'perm_system_exec': perms.includes('system:diagnostics') || perms.includes('system:exec'),
+    };
+    Object.entries(permCheckMap).forEach(([cid, isChecked]) => {
+      const el = document.getElementById(cid);
+      if (el) el.checked = isChecked;
+    });
+
+    const blocks = spec.ui_blocks || ['kpi_row', 'quick_capture_bar', 'history_table'];
+    ['alert_banner', 'kpi_row', 'quick_capture_bar', 'history_table', 'habit_checklist', 'status_timeline'].forEach(b => {
+      const el = document.getElementById(`uiBlock_${b}`);
+      if (el) el.checked = blocks.includes(b);
+    });
+
+    updateLiveWizardPreview();
+    if (typeof showFleetToast === 'function') {
+      showFleetToast(`✨ Synthesized '${spec.name}' (${spec.schedule?.display || 'Scheduled'}) at $0.00!`, false);
+    }
+  } catch (err) {
+    alert('Synthesis error: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '✨ Auto-Fill Wizard';
+    }
+  }
+}
+
 function goToWizardStep(step) {
   if (step < 1 || step > 4) return;
 
-  // Validation before leaving Step 1
   if (currentWizardStep === 1 && step > 1) {
     const name = (document.getElementById('newAgentName')?.value || '').trim();
     const id = (document.getElementById('newAgentId')?.value || '').trim();
     if (!name) {
-      alert('Please enter a display name for your new agent.');
+      alert('Please enter a display name for your new agent (or use ✨ Auto-Fill Wizard above).');
       document.getElementById('newAgentName')?.focus();
       return;
     }
@@ -130,7 +208,6 @@ function goToWizardStep(step) {
 
   currentWizardStep = step;
 
-  // Show only active step pane
   for (let s = 1; s <= 4; s++) {
     const pane = document.getElementById(`wizardStep_${s}`);
     const pill = document.getElementById(`wizardPill_${s}`);
@@ -145,7 +222,6 @@ function goToWizardStep(step) {
     }
   }
 
-  // Update footer buttons
   const backBtn = document.getElementById('btnWizardBack');
   const nextBtn = document.getElementById('btnWizardNext');
   const submitBtn = document.getElementById('btnWizardSubmit');
@@ -203,11 +279,11 @@ function updateLiveWizardPreview() {
   const icon = (document.getElementById('newAgentIcon')?.value || '⚡').trim();
   const desc = (document.getElementById('newAgentDesc')?.value || 'Custom user agent package.').trim();
   const perms = getSelectedPermissions();
+  const uiBlocks = getSelectedUiBlocks();
   const syncInterval = parseInt(document.getElementById('settingSyncInterval')?.value || '60', 10);
   const enableAlerts = document.getElementById('settingEnableAlerts')?.value === 'true';
   const taskName = (document.getElementById('newAgentTaskName')?.value || 'check_routine').trim();
 
-  // Summary box updates
   const sumIcon = document.getElementById('previewSummaryIcon');
   const sumName = document.getElementById('previewSummaryName');
   const sumId = document.getElementById('previewSummaryId');
@@ -215,12 +291,11 @@ function updateLiveWizardPreview() {
 
   if (sumIcon) sumIcon.textContent = icon;
   if (sumName) sumName.textContent = name;
-  if (sumId) sumId.textContent = `id: ${id}`;
+  if (sumId) sumId.textContent = `id: ${id} | blocks: ${uiBlocks.length}`;
   if (sumPerms) {
     sumPerms.innerHTML = perms.map(p => `<span class="badge" style="background: rgba(56,189,248,0.12); color: var(--accent-cyan); font-size: 11px; padding: 2px 7px;">${p}</span>`).join('');
   }
 
-  // Generate code according to active tab
   const pre = document.getElementById('wizardCodePreview');
   if (!pre) return;
 
@@ -229,7 +304,7 @@ function updateLiveWizardPreview() {
   if (currentPreviewCodeTab === 'py') {
     pre.textContent = `"""
 ${name} Package for Personal Agentic Fleet.
-Generated via create-agent Skill.
+Generated via create-agent Skill & Zero-Code Studio (UX-01).
 """
 
 from typing import Any, Dict, List, Optional
@@ -272,7 +347,7 @@ class ${pascalName}(FleetAgent):
         ]
 
     def execute_task(self, task: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Runs scheduled or ad-hoc tasks."""
+        """Runs scheduled or ad-hoc tasks (${taskName})."""
         interval = self.get_setting("refresh_interval_sec", ${syncInterval})
         return {
             "status": "success",
@@ -290,29 +365,19 @@ class ${pascalName}(FleetAgent):
       icon: icon,
       order: 75,
       permissions: perms,
+      ui_blocks: uiBlocks,
+      routine_task: taskName,
       entrypoint: "agent.py",
       author: "Fleet Operator"
     };
     pre.textContent = JSON.stringify(manifestObj, null, 2);
   } else if (currentPreviewCodeTab === 'html') {
-    pre.textContent = `<div class="agent-panel" id="panel_${id}" style="padding: 16px;">
-  <div class="card" style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 20px;">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="font-size: 24px;">${icon}</span>
-        <div>
-          <strong style="font-size: 16px; color: var(--text);">${name}</strong>
-          <div style="font-size: 12px; color: var(--text-muted);">${desc}</div>
-        </div>
-      </div>
-      <button class="btn btn-primary" onclick="alert('Running task for ${name}!')">▶ Run Task</button>
-    </div>
-    <div style="margin-top: 16px; padding: 12px; background: rgba(15,23,42,0.5); border-radius: 8px;">
-      <div style="font-size: 11px; font-weight: 600; color: var(--accent-cyan); text-transform: uppercase;">Active Permissions</div>
-      <div style="margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap;">
-        ${perms.map(p => `<span class="badge" style="background: rgba(56,189,248,0.12); color: var(--accent-cyan); font-size: 11px; padding: 2px 7px;">${p}</span>`).join('\n        ')}
-      </div>
-    </div>
+    pre.textContent = `<div class="panel-section" id="studio_panel_${id}">
+  <!-- Declarative UI Blocks: ${uiBlocks.join(', ')} -->
+  <div class="card" style="padding: 20px;">
+    <strong>${icon} ${name}</strong>
+    <p>${desc}</p>
+    <button class="btn btn-primary" onclick="triggerScheduledTaskNow('${id}', '${taskName}')">▶ Run ${taskName}</button>
   </div>
 </div>`;
   }
@@ -347,6 +412,8 @@ async function submitCreateAgentWizard() {
   const desc = (document.getElementById('newAgentDesc')?.value || '').trim();
   const category = document.getElementById('newAgentCategory')?.value || 'Productivity';
   const perms = getSelectedPermissions();
+  const uiBlocks = getSelectedUiBlocks();
+  const routineTask = (document.getElementById('newAgentTaskName')?.value || 'run_check').trim();
   const syncInterval = parseInt(document.getElementById('settingSyncInterval')?.value || '60', 10);
   const enableAlerts = document.getElementById('settingEnableAlerts')?.value === 'true';
   const systemPrompt = (document.getElementById('newAgentSystemPrompt')?.value || '').trim();
@@ -365,7 +432,6 @@ async function submitCreateAgentWizard() {
     return;
   }
 
-  // Loading state
   if (submitBtn) {
     submitBtn.disabled = true;
     submitBtn.textContent = '⏳ Scaffolding Agent...';
@@ -383,6 +449,8 @@ async function submitCreateAgentWizard() {
         description: desc,
         category: category,
         permissions: perms,
+        ui_blocks: uiBlocks,
+        routine_task: routineTask,
         settings: {
           refresh_interval_sec: syncInterval,
           enable_alerts: enableAlerts
@@ -396,25 +464,20 @@ async function submitCreateAgentWizard() {
       throw new Error(data.message || 'Server error creating agent.');
     }
 
-    // Success!
     newlyCreatedAgentId = data.agent_id || id;
 
-    // Hide steps and footer
-    const container = document.getElementById('wizardStepsContainer');
     const footer = document.getElementById('wizardFooterBar');
     if (footer) footer.style.display = 'none';
 
-    // Show celebration box
     const successBox = document.getElementById('wizardSuccessBox');
     const successMsg = document.getElementById('wizardSuccessMsg');
     if (successMsg) {
-      successMsg.innerHTML = `Agent <strong>${icon} ${name}</strong> (<code>${newlyCreatedAgentId}</code>) was scaffolded and loaded into your fleet!`;
+      successMsg.innerHTML = `Agent <strong>${icon} ${name}</strong> (<code>${newlyCreatedAgentId}</code>) was scaffolded with ${uiBlocks.length} UI blocks and loaded into your fleet!`;
     }
     if (successBox) successBox.style.display = 'block';
 
     showFleetToast(`🎉 Agent '${name}' created and activated!`, false);
 
-    // Refresh agent lists in dashboard without page reload
     if (typeof fetchAgents === 'function') {
       fetchAgents();
     }

@@ -6,8 +6,8 @@
 | **Priority** | 🔴 **P1 (Critical UX Enhancement — Rank #1)** |
 | **UX Impact Score** | **99 / 100** *(Impact: 40/40, Friction Reduction: 25/25, Zero-Token Leverage: 19/20, Speed: 15/15)* |
 | **Category** | `UI/UX` & `Automation` |
-| **Target Release** | `v2.9.0` |
-| **Status** | `Planned` |
+| **Target Release** | `v2.8.9` |
+| **Status** | `🟢 Completed` |
 | **Affected Subsystems** | `.agents/skills/create-agent/SKILL.md`, `fleet/tools/create_agent.py`, `fleet/api/settings_api.py`, `fleet/web/templates/dashboard.html` |
 
 ---

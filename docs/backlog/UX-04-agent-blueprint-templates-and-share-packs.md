@@ -6,8 +6,8 @@
 | **Priority** | 🔴 **P1 (High UX Enhancement — Rank #4)** |
 | **UX Impact Score** | **93 / 100** *(Impact: 37/40, Friction Reduction: 24/25, Zero-Token Leverage: 19/20, Speed: 13/15)* |
 | **Category** | `Core` & `UI/UX` |
-| **Target Release** | `v2.9.0` |
-| **Status** | `Planned` |
+| **Target Release** | `v2.8.9` |
+| **Status** | `🟢 Completed` |
 | **Affected Subsystems** | `fleet/core/agent_catalog.py`, `fleet/tools/create_agent.py`, `fleet/api/settings_api.py` |
 
 ---

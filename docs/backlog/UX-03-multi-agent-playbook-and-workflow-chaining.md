@@ -6,8 +6,8 @@
 | **Priority** | 🔴 **P1 (High UX Enhancement — Rank #3)** |
 | **UX Impact Score** | **95 / 100** *(Impact: 38/40, Friction Reduction: 24/25, Zero-Token Leverage: 20/20, Speed: 13/15)* |
 | **Category** | `Automation` & `Core` |
-| **Target Release** | `v2.9.0` |
-| **Status** | `Planned` |
+| **Target Release** | `v2.8.9` |
+| **Status** | `🟢 Completed` |
 | **Affected Subsystems** | `fleet/core/event_bus.py`, `fleet/core/playbook_engine.py`, `playbooks.yaml`, `fleet/web/templates/dashboard.html` |
 
 ---

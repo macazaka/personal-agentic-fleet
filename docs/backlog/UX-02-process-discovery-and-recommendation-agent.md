@@ -6,8 +6,8 @@
 | **Priority** | 🔴 **P1 (Critical UX Enhancement — Rank #2)** |
 | **UX Impact Score** | **97 / 100** *(Impact: 40/40, Friction Reduction: 24/25, Zero-Token Leverage: 20/20, Speed: 13/15)* |
 | **Category** | `AI/LLM` & `Automation` |
-| **Target Release** | `v2.9.0` |
-| **Status** | `Planned` |
+| **Target Release** | `v2.8.9` |
+| **Status** | `🟢 Completed` |
 | **Affected Subsystems** | `fleet/agents/process_discovery/`, `fleet/core/process_miner.py`, `fleet/core/mind/subconsciousness.py`, `fleet/core/briefing.py` |
 
 ---

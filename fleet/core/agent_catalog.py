@@ -686,3 +686,139 @@ def install_agent_from_catalog(
         "message": f"Agent '{catalog_item['name']}' downloaded and installed successfully."
     }
 
+
+def export_agent_pack(agent_id: str, agent_registry: Any) -> Dict[str, Any]:
+    """
+    UX-04: Exports an installed or custom agent into a portable .fleetagent bundle
+    with a cryptographic SHA-256 integrity digest.
+    """
+    import hashlib
+
+    clean_id = re.sub(r"[^a-zA-Z0-9_]", "_", agent_id.lower()).strip("_")
+    agent = None
+    if agent_registry:
+        agent = (
+            getattr(agent_registry, "agents", {}).get(clean_id)
+            or getattr(agent_registry, "disabled_agents", {}).get(clean_id)
+            or getattr(agent_registry, "_all_discovered_agents", {}).get(clean_id)
+        )
+
+    if agent and getattr(agent, "agent_dir", None):
+        agent_dir = Path(agent.agent_dir)
+        manifest_path = agent_dir / "manifest.json"
+        code_path = agent_dir / "agent.py"
+        panel_path = agent_dir / "ui" / "panel.html"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else agent.get_ui_manifest()
+        agent_code = code_path.read_text(encoding="utf-8") if code_path.is_file() else ""
+        panel_html = panel_path.read_text(encoding="utf-8") if panel_path.is_file() else ""
+    else:
+        cat_item = next((c for c in BUILTIN_AGENT_CATALOG if c["id"] == clean_id), None)
+        if not cat_item:
+            raise ValueError(f"Agent '{agent_id}' not found for export.")
+        manifest = {
+            "id": cat_item["id"],
+            "name": cat_item["name"],
+            "version": cat_item["version"],
+            "icon": cat_item["icon"],
+            "description": cat_item["description"],
+            "permissions": cat_item["permissions"],
+        }
+        agent_code = cat_item["agent_code"]
+        panel_html = cat_item["panel_html"]
+
+    payload_str = json.dumps({"manifest": manifest, "agent_code": agent_code, "panel_html": panel_html}, sort_keys=True)
+    digest = hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
+    return {
+        "format": "fleetagent-v1",
+        "agent_id": clean_id,
+        "sha256_digest": digest,
+        "manifest": manifest,
+        "agent_code": agent_code,
+        "panel_html": panel_html,
+    }
+
+
+def import_agent_pack(
+    pack_data: Dict[str, Any],
+    custom_agents_dir: Path,
+    agent_registry: Any = None,
+) -> Dict[str, Any]:
+    """
+    UX-04: Validates a .fleetagent bundle through AST security inspection and
+    manifest permission checks before installing and hot-loading into custom_agents_dir.
+    """
+    import ast
+    import hashlib
+
+    if not isinstance(pack_data, dict):
+        raise ValueError("Invalid .fleetagent pack: expected JSON object.")
+
+    manifest = pack_data.get("manifest")
+    agent_code = str(pack_data.get("agent_code", "")).strip()
+    panel_html = str(pack_data.get("panel_html", "")).strip()
+    if not isinstance(manifest, dict) or not manifest.get("id") or not manifest.get("name"):
+        raise ValueError("Invalid .fleetagent pack: missing manifest 'id' or 'name'.")
+    if not agent_code:
+        raise ValueError("Invalid .fleetagent pack: missing 'agent_code'.")
+
+    # 1. Verify optional SHA-256 integrity digest
+    expected_sha = pack_data.get("sha256_digest")
+    if expected_sha:
+        payload_str = json.dumps(
+            {"manifest": manifest, "agent_code": pack_data.get("agent_code", ""), "panel_html": pack_data.get("panel_html", "")},
+            sort_keys=True,
+        )
+        actual_sha = hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
+        if actual_sha != expected_sha:
+            raise ValueError("Cryptographic SHA-256 digest mismatch on .fleetagent bundle.")
+
+    # 2. Validate permissions against sandbox allowlist
+    raw_perms = manifest.get("permissions") or ["db:read", "ui:render"]
+    perm_aliases = {
+        "network:egress": "network:outbound",
+        "network:http": "network:outbound",
+        "notifications:send": "event_bus:publish",
+        "system:exec": "system:diagnostics",
+    }
+    normalized_perms = [perm_aliases.get(str(p), str(p)) for p in raw_perms]
+    invalid_perms = [p for p in normalized_perms if p not in ALLOWED_AGENT_PERMISSIONS]
+    if invalid_perms:
+        raise ValueError(f"Forbidden permissions in .fleetagent manifest: {invalid_perms}")
+
+    # 3. AST Security Gate on agent_code
+    try:
+        tree = ast.parse(agent_code)
+    except SyntaxError as se:
+        raise ValueError(f"Syntax error in .fleetagent agent_code: {se}")
+
+    forbidden_calls = {"eval", "exec", "compile", "__import__"}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name) and node.func.id in forbidden_calls:
+                raise ValueError(f"Security violation: forbidden call '{node.func.id}()' in agent_code.")
+            if isinstance(node.func, ast.Attribute) and node.func.attr == "system":
+                raise ValueError("Security violation: forbidden 'os.system()' call in agent_code.")
+
+    clean_id = re.sub(r"[^a-zA-Z0-9_]", "_", str(manifest["id"]).lower()).strip("_")
+    agent_folder = custom_agents_dir / clean_id
+    ui_folder = agent_folder / "ui"
+    ui_folder.mkdir(parents=True, exist_ok=True)
+
+    manifest["id"] = clean_id
+    manifest["permissions"] = normalized_perms
+    (agent_folder / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8", newline="\n")
+    (agent_folder / "agent.py").write_text(agent_code + "\n", encoding="utf-8", newline="\n")
+    (ui_folder / "panel.html").write_text((panel_html or f"<div>{manifest['name']}</div>") + "\n", encoding="utf-8", newline="\n")
+
+    if agent_registry and hasattr(agent_registry, "discover_and_load"):
+        agent_registry.discover_and_load()
+
+    return {
+        "status": "success",
+        "agent_id": clean_id,
+        "name": manifest["name"],
+        "permissions": normalized_perms,
+        "path": str(agent_folder),
+    }
+
+

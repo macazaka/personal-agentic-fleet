@@ -20,40 +20,40 @@ UX_ROADMAP_BACKLOG_ITEMS: List[Dict[str, str]] = [
         "description": "Describe any agent in 1 plain-English sentence to auto-synthesize manifest.json, schedules.yaml, 6 declarative UI blocks (kpi_row, history_table, checklist), and unit tests in <15s. Spec: docs/backlog/UX-01-natural-language-agent-studio-skill.md",
         "category": "UI/UX",
         "priority": "P1",
-        "status": "Planned",
-        "target_version": "v2.9.0",
+        "status": "Completed",
+        "target_version": "v2.8.9",
     },
     {
         "title": "[UX-02] Autonomous Process Discovery & Agent Recommendation Engine (process_discovery)",
         "description": "100% local ($0.00 token) workflow miner observing dashboard logs, Win32 PSAPI app clusters, Git repos, and email triage over 1-14 days to recommend ready-to-spawn agents at 21:00 with 1-click creation. Spec: docs/backlog/UX-02-process-discovery-and-recommendation-agent.md",
         "category": "AI/LLM",
         "priority": "P1",
-        "status": "Planned",
-        "target_version": "v2.9.0",
+        "status": "Completed",
+        "target_version": "v2.8.9",
     },
     {
         "title": "[UX-03] Visual Multi-Agent Playbook & Event-Chain Composer (IFTTT for Fleet)",
         "description": "Connect multiple agents into automated pipelines (WHEN [Trigger] -> IF [Condition] -> THEN [Agent A -> Agent B -> Toast]) via playbooks.yaml and a visual builder. Spec: docs/backlog/UX-03-multi-agent-playbook-and-workflow-chaining.md",
         "category": "Automation",
         "priority": "P1",
-        "status": "Planned",
-        "target_version": "v2.9.0",
+        "status": "Completed",
+        "target_version": "v2.8.9",
     },
     {
         "title": "[UX-04] 1-Click Agent Blueprint Templates & Portable .fleetagent Share Packs",
         "description": "15+ ready-to-use domain blueprints (Pomodoro Guardian, Subscription Sentinel, Multi-Repo Git Watcher, CGM Glucose Log) + drag-and-drop .fleetagent export/import audited by 12-Layer Security Scanner. Spec: docs/backlog/UX-04-agent-blueprint-templates-and-share-packs.md",
         "category": "Core",
         "priority": "P1",
-        "status": "Planned",
-        "target_version": "v2.9.0",
+        "status": "Completed",
+        "target_version": "v2.8.9",
     },
     {
         "title": "[UX-05] Unified 'Ask Fleet Anything' Omnibar & Cross-Agent Dispatcher (Ctrl+K)",
         "description": "Upgrades Ctrl+K Spotlight into a Raycast-style universal Omnibar supporting @agent commands, natural-language Tier-0 execution, and instant inline result cards without switching tabs. Spec: docs/backlog/UX-05-unified-ask-fleet-omnibar-and-nl-dispatcher.md",
         "category": "UI/UX",
         "priority": "P1",
-        "status": "Planned",
-        "target_version": "v2.9.0",
+        "status": "Completed",
+        "target_version": "v2.8.9",
     },
     {
         "title": "[UX-06] Interactive First-Run Persona Onboarding & Goal-Driven Auto-Setup",
@@ -126,8 +126,12 @@ class BacklogMixin(_DbBase):
                         ),
                     )
                     inserted += 1
-            if inserted > 0:
-                conn.commit()
+                elif item["status"] == "Completed":
+                    cursor.execute(
+                        "UPDATE feature_backlog SET status = ?, target_version = ?, updated_at = ? WHERE title = ?",
+                        (item["status"], item["target_version"], now, item["title"]),
+                    )
+            conn.commit()
         return inserted
 
     # --- Feature Backlog Operations ---

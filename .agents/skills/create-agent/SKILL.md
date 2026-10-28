@@ -2,11 +2,11 @@
 name: create-agent
 description: >-
   Interactive skill to design, scaffold, test, and register new plug-and-play agents
-  for Personal Agentic Fleet. Guides through permissions, base class inheritance, UI panel rendering,
-  settings schema, and automated verification.
+  for Personal Agentic Fleet. Supports Zero-Code Natural-Language Synthesis (UX-01),
+  6 declarative UI widget blocks, permissions, base class inheritance, and automated verification.
 ---
 
-# Create Agent Skill & Workflow
+# Create Agent Skill & Zero-Code Studio Workflow (`UX-01`)
 
 This skill guides you through creating, sandboxing, implementing, and registering a new plug-and-play agent in **Personal Agentic Fleet**.
 
@@ -14,13 +14,42 @@ Agents are self-contained packages housed either in `fleet/agents/<agent_id>/` (
 
 ---
 
+## Method 0: Zero-Code Natural-Language Agent Studio (`UX-01` — Fastest)
+
+You can synthesize a complete, sandbox-verified agent from a single plain-English sentence in `< 5ms` at `$0.00` token cost:
+
+```bash
+# Synthesize full specification (manifest.json, agent.py, declarative panel.html, schedule)
+python -m fleet.core.agent_studio "Check my local git repos every evening at 6 PM and alert me if uncommitted changes exist"
+```
+
+Or via REST API (`POST /api/studio/synthesize` or `POST /api/settings/agents/create` with `nl_prompt`):
+```json
+{
+  "nl_prompt": "Track my daily reading list and summarize notes at 9 PM",
+  "ui_blocks": ["alert_banner", "kpi_row", "quick_capture_bar", "habit_checklist", "history_table"]
+}
+```
+
+### The 6 Declarative UI Widget Blocks (`fleet/core/agent_studio.py`)
+| Block ID | Component Name | Purpose |
+| :--- | :--- | :--- |
+| `alert_banner` | **Threshold & Health Alert Banner** | Status callout showing active schedule and `$0.00` mode |
+| `kpi_row` | **KPI Stat Pills Row** | 3–4 responsive metric cards (Status, Cadence, Capabilities) |
+| `quick_capture_bar` | **Quick Capture & Action Bar** | Input box + `▶ Run` trigger button wired to the scheduler |
+| `habit_checklist` | **Interactive Daily Checklist** | Daily interactive checkboxes for routine verification |
+| `history_table` | **History & Records Table** | Structured execution and activity log panel |
+| `status_timeline` | **Live Execution Timeline** | Monospace autonomic event feed |
+
+---
+
 ## 4-Step Creation Workflow
 
 ```mermaid
 flowchart LR
-    A["1. Identity<br/>(ID, Name, Icon)"] --> B["2. Permissions<br/>(Least Privilege)"]
-    B --> C["3. Implementation<br/>(FleetAgent & Settings)"]
-    C --> D["4. UI & Control Panel<br/>(HTML & CSS)"]
+    A["1. Identity & NL Studio<br/>(Prompt, ID, Name, Icon)"] --> B["2. Permissions<br/>(Least Privilege)"]
+    B --> C["3. Settings & UI Blocks<br/>(6 Declarative Widgets)"]
+    C --> D["4. Preview & Hot-Load<br/>(Instant Activation)"]
 ```
 
 ### Step 1: Define Identity & Metadata
@@ -28,7 +57,6 @@ flowchart LR
 - **`name`**: Human-readable display title (e.g. `Crypto Trader`, `Home Assistant`).
 - **`icon`**: Single emoji or SVG icon (e.g. `📈`, `🏠`, `🌤️`, `⚡`).
 - **`description`**: 1-2 sentence summary of what the agent does.
-- **`author`**: Contributor or operator name.
 
 ### Step 2: Sandboxed Capabilities & Permissions
 Declare only the capabilities strictly required by your agent:
@@ -38,123 +66,15 @@ Declare only the capabilities strictly required by your agent:
 | `ui:render` | Render HTML/CSS control panel in dashboard | Agent provides visual controls or status panels |
 | `db:read` | Read task memory, logs, and settings from SQLite | Agent needs access to saved records or schedules |
 | `db:write` | Insert/update tasks, activity logs, and habits | Agent records automated actions or findings |
-| `notifications:send` | Dispatch native desktop toast alerts | Agent triggers alerts on conditions/events |
-| `network:http` | Make external HTTP requests to APIs / web | Agent fetches external market or weather feeds |
-| `system:exec` | Execute sandboxed local system utilities | Agent runs diagnostic scripts or system tools |
+| `event_bus:publish` | Dispatch events & native desktop toast alerts | Agent triggers alerts on conditions/events |
+| `network:outbound` | Make external HTTP requests to APIs / web | Agent fetches external market or weather feeds |
+| `system:diagnostics` | Execute sandboxed local system telemetry | Agent runs diagnostic scripts or system tools |
 
 ### Step 3: Implement Python Agent (`agent.py`)
-Subclass `fleet.core.base_agent.FleetAgent` and override properties and lifecycle hooks:
+Subclass `fleet.core.base_agent.FleetAgent` and override properties and lifecycle hooks.
 
-```python
-"""
-Example Agent Implementation.
-"""
-from typing import Any, Dict, List, Optional
-from fleet.core.base_agent import FleetAgent
-
-
-class MyCustomAgent(FleetAgent):
-    @property
-    def id(self) -> str:
-        return "my_custom"
-
-    @property
-    def name(self) -> str:
-        return "My Custom Agent"
-
-    @property
-    def icon(self) -> str:
-        return "⚡"
-
-    @property
-    def order(self) -> int:
-        return 75
-
-    def get_agent_settings_schema(self) -> List[Dict[str, Any]]:
-        """Declare agent-specific settings editable in the browser Settings modal."""
-        return [
-            {
-                "id": "refresh_interval_sec",
-                "label": "Sync Interval (Seconds)",
-                "type": "number",
-                "default": 60,
-                "description": "How often to poll external services."
-            },
-            {
-                "id": "enable_desktop_notifications",
-                "label": "Enable Desktop Notifications",
-                "type": "boolean",
-                "default": True,
-                "description": "Send alerts when tasks complete."
-            }
-        ]
-
-    def execute_task(self, task: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Execute scheduled recurring tasks or ad-hoc tasks."""
-        interval = self.get_setting("refresh_interval_sec", 60)
-        return {
-            "status": "success",
-            "message": f"Ran task '{task}' with interval {interval}s.",
-            "agent": self.id,
-            "task": task
-        }
-```
-
-### Step 4: Craft the UI Panel (`ui/panel.html`)
-The agent's control panel is rendered inside the main dashboard view:
-
-```html
-<div class="agent-panel" id="panel_my_custom" style="padding: 16px;">
-  <div class="card" style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 20px;">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 20px;">⚡</span>
-        <strong style="font-size: 16px; color: var(--text);">My Custom Agent Control</strong>
-      </div>
-      <button class="btn btn-primary" onclick="runAgentTask('my_custom', 'poll')">▶ Run Task</button>
-    </div>
-    <div id="myCustomOutput" style="margin-top: 14px; font-size: 13px; color: var(--text-muted);">
-      Ready.
-    </div>
-  </div>
-</div>
-```
-
----
-
-## How to Create an Agent
-
-### Method 1: In the Browser (Workstation Dashboard `➕` Button)
-1. Launch the Workstation Control Center (`python -m fleet.app` or `http://localhost:8000`).
-2. Click the **`➕`** icon button directly beside the Settings **`⚙️`** icon in the header.
-3. Follow the 4-step guided wizard:
-   - **Step 1**: Enter Name, Icon, Description.
-   - **Step 2**: Select Capabilities preset or customize permissions.
-   - **Step 3**: Configure settings schema and routine task.
-   - **Step 4**: Preview code and click **"🚀 Scaffold & Activate Agent"**.
-4. The agent is immediately scaffolded into `fleet/data/user/custom_agents/` and hot-loaded into the running fleet without restarting the server!
-
-### Method 2: Via Command Line (Scaffolder CLI)
-```bash
-python -m fleet.tools.create_agent --id crypto_tracker --name "Crypto Tracker" --icon "📈" --permissions "db:read,ui:render,network:http"
-```
-
-### Method 3: Via REST API
-```http
-POST /api/settings/agents/create
-Content-Type: application/json
-
-{
-  "name": "Server Monitor",
-  "id": "server_monitor",
-  "icon": "🖥️",
-  "description": "Monitors CPU and memory metrics.",
-  "permissions": ["db:read", "db:write", "ui:render", "system:exec"],
-  "settings": {
-    "poll_interval_sec": 30
-  }
-}
-```
+### Step 4: Craft or Generate the UI Panel (`ui/panel.html`)
+Use `render_declarative_ui_blocks()` in `fleet.core.agent_studio` or custom scoped HTML inside `ui/panel.html`.
 
 ---
 

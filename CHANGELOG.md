@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.9] - 2026-10-28
+
+### Documentation & Maintenance
+- **Backlog**: Add prioritized 10-feature UX & Agent-Simplicity roadmap specifications and seed live backlog.
+
+---
+
 ## [2.8.8] - 2026-10-28
 
 ### Documentation & Maintenance

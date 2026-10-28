@@ -6,8 +6,8 @@
 | **Priority** | 🔴 **P1 (High UX Enhancement — Rank #5)** |
 | **UX Impact Score** | **91 / 100** *(Impact: 36/40, Friction Reduction: 23/25, Zero-Token Leverage: 19/20, Speed: 13/15)* |
 | **Category** | `UI/UX` & `AI/LLM` |
-| **Target Release** | `v2.9.0` |
-| **Status** | `Planned` |
+| **Target Release** | `v2.8.9` |
+| **Status** | `🟢 Completed` |
 | **Affected Subsystems** | `fleet/core/token_optimizer.py`, `fleet/web/templates/dashboard.html`, `fleet/api/chat_api.py` |
 
 ---

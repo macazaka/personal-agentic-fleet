@@ -359,12 +359,41 @@ def install_catalog_agent(handler: Any, body: Dict[str, Any]):
         handler._send_json({"status": "error", "message": str(e)}, status=500)
 
 
+@router.post("/api/studio/synthesize")
+def synthesize_agent_studio_endpoint(handler: Any, body: Dict[str, Any]):
+    """UX-01: Zero-Code Natural-Language Agent Studio synthesizer endpoint."""
+    if not isinstance(body, dict):
+        handler._send_json({"status": "error", "message": "Expected JSON object"}, status=400)
+        return
+    prompt = str(body.get("prompt", "")).strip()
+    if not prompt:
+        handler._send_json({"status": "error", "message": "Field 'prompt' is required"}, status=400)
+        return
+    custom_id = body.get("id")
+    requested_blocks = body.get("ui_blocks") if isinstance(body.get("ui_blocks"), list) else None
+    try:
+        from fleet.core.agent_studio import synthesize_agent_from_prompt
+        spec = synthesize_agent_from_prompt(prompt=prompt, custom_id=custom_id, requested_blocks=requested_blocks)
+        handler._send_json(spec)
+    except ValueError as ve:
+        handler._send_json({"status": "error", "message": str(ve)}, status=400)
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+
 @router.post("/api/settings/agents/create")
 def create_new_agent_endpoint(handler: Any, body: Dict[str, Any]):
     """Scaffolds, registers, and activates a brand-new agent package in the user custom agents vault."""
     if not isinstance(body, dict):
         handler._send_json({"status": "error", "message": "Expected a JSON object"}, status=400)
         return
+
+    # Support 1-step creation directly from natural-language prompt if name is omitted
+    nl_prompt = str(body.get("nl_prompt", "")).strip()
+    if nl_prompt and not body.get("name"):
+        from fleet.core.agent_studio import synthesize_agent_from_prompt
+        synth = synthesize_agent_from_prompt(nl_prompt, custom_id=body.get("id"))
+        body = {**synth, **body, "name": synth["name"], "id": body.get("id") or synth["agent_id"]}
 
     name = str(body.get("name", "")).strip()
     if not name:
@@ -404,13 +433,17 @@ def create_new_agent_endpoint(handler: Any, body: Dict[str, Any]):
     if not isinstance(raw_perms, list) or not raw_perms:
         permissions: list[str] = ["db:read", "ui:render"]
     else:
-        permissions: list[str] = [str(perm_aliases.get(p, p)) for p in raw_perms if p is not None]
+        permissions = [str(perm_aliases.get(p, p)) for p in raw_perms if p is not None]
         invalid = [p for p in permissions if p not in ALLOWED_AGENT_PERMISSIONS]
         if invalid:
             handler._send_json({"status": "error", "message": f"Invalid permissions: {invalid}"}, status=400)
             return
 
     initial_order = int(body.get("order", 70))
+    ui_blocks = body.get("ui_blocks") if isinstance(body.get("ui_blocks"), list) else None
+    routine_task = str(body.get("routine_task", "run_check")).strip() or "run_check"
+    schedule_info = body.get("schedule") if isinstance(body.get("schedule"), dict) else {}
+    schedule_display = str(schedule_info.get("display", "Daily at 09:00"))  # type: ignore[reportOptionalMemberAccess]
 
     try:
         manifest = srv.agent_registry.create_custom_agent(
@@ -420,6 +453,9 @@ def create_new_agent_endpoint(handler: Any, body: Dict[str, Any]):
             permissions=permissions,
             description=description,
             initial_order=initial_order,
+            ui_blocks=ui_blocks,
+            routine_task=routine_task,
+            schedule_display=schedule_display,
         )
 
         custom_settings = body.get("settings")
@@ -451,3 +487,191 @@ def create_new_agent_endpoint(handler: Any, body: Dict[str, Any]):
         handler._send_json({"status": "error", "message": str(ve)}, status=400)
     except Exception as e:
         handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+
+# =========================================================================
+# UX-02: Autonomous Process Discovery & Agent Recommendation Endpoints
+# =========================================================================
+
+@router.get("/api/discovery/recommendations")
+def get_discovery_recommendations_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """UX-02: Returns ranked agent recommendations mined from local workstation telemetry ($0.00)."""
+    try:
+        from fleet.core.process_miner import mine_workstation_recommendations
+        installed = set()
+        if hasattr(srv, "agent_registry") and srv.agent_registry:
+            installed = set(getattr(srv.agent_registry, "agents", {}).keys())
+        report = mine_workstation_recommendations(
+            db=getattr(srv, "db", None),
+            installed_agent_ids=installed,
+        )
+        handler._send_json(report)
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+
+@router.post("/api/discovery/spawn")
+def spawn_discovery_recommendation_endpoint(handler: Any, body: Dict[str, Any]):
+    """UX-02 -> UX-01: Scaffolds and activates a recommended agent in 1 click."""
+    if not isinstance(body, dict):
+        handler._send_json({"status": "error", "message": "Expected JSON object"}, status=400)
+        return
+    rec_id = str(body.get("recommendation_id", "")).strip()
+    if not rec_id:
+        handler._send_json({"status": "error", "message": "Field 'recommendation_id' is required"}, status=400)
+        return
+    if not hasattr(srv, "agent_registry") or not srv.agent_registry:
+        handler._send_json({"status": "error", "message": "Agent registry unavailable"}, status=503)
+        return
+    try:
+        from fleet.core.process_miner import spawn_recommended_agent
+        res = spawn_recommended_agent(
+            recommendation_id=rec_id,
+            agent_registry=srv.agent_registry,
+            db=getattr(srv, "db", None),
+        )
+        handler._send_json(res)
+    except ValueError as ve:
+        handler._send_json({"status": "error", "message": str(ve)}, status=400)
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+
+# =========================================================================
+# UX-03: Visual Multi-Agent Playbook & Event-Chain Endpoints
+# =========================================================================
+
+@router.get("/api/playbooks")
+def get_playbooks_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """UX-03: Lists all configured multi-agent playbooks."""
+    try:
+        from fleet.core.playbook_engine import list_playbooks
+        pbs = list_playbooks()
+        handler._send_json({"status": "ok", "playbooks": pbs, "total": len(pbs)})
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+
+@router.post("/api/playbooks")
+def save_playbook_endpoint(handler: Any, body: Dict[str, Any]):
+    """UX-03: Creates or updates a multi-agent playbook."""
+    if not isinstance(body, dict):
+        handler._send_json({"status": "error", "message": "Expected JSON object"}, status=400)
+        return
+    try:
+        from fleet.core.playbook_engine import add_or_update_playbook
+        saved = add_or_update_playbook(body)
+        handler._send_json({"status": "success", "playbook": saved})
+    except ValueError as ve:
+        handler._send_json({"status": "error", "message": str(ve)}, status=400)
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+
+@router.post("/api/playbooks/run")
+def run_playbook_endpoint(handler: Any, body: Dict[str, Any]):
+    """UX-03: Executes a multi-agent playbook immediately."""
+    if not isinstance(body, dict):
+        handler._send_json({"status": "error", "message": "Expected JSON object"}, status=400)
+        return
+    pb_id = str(body.get("id") or body.get("playbook_id") or "").strip()
+    if not pb_id:
+        handler._send_json({"status": "error", "message": "Field 'playbook_id' is required"}, status=400)
+        return
+    try:
+        from fleet.core.playbook_engine import execute_playbook
+        res = execute_playbook(
+            playbook_id=pb_id,
+            agent_registry=getattr(srv, "agent_registry", None),
+            db=getattr(srv, "db", None),
+        )
+        handler._send_json(res)
+    except ValueError as ve:
+        handler._send_json({"status": "error", "message": str(ve)}, status=404)
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+
+# =========================================================================
+# UX-04: Portable .fleetagent Share Pack Export & Import Endpoints
+# =========================================================================
+
+@router.get("/api/agents/export")
+def export_agent_pack_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """UX-04: Exports an agent as a SHA-256 verified .fleetagent JSON bundle."""
+    query = urllib.parse.parse_qs(parsed_url.query)
+    agent_id = (query.get("id", [""])[0] or "").strip()
+    if not agent_id:
+        handler._send_json({"status": "error", "message": "Query parameter 'id' is required"}, status=400)
+        return
+    try:
+        from fleet.core.agent_catalog import export_agent_pack
+        pack = export_agent_pack(agent_id, getattr(srv, "agent_registry", None))
+        handler._send_json({"status": "ok", "pack": pack})
+    except ValueError as ve:
+        handler._send_json({"status": "error", "message": str(ve)}, status=404)
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+
+@router.post("/api/agents/import")
+def import_agent_pack_endpoint(handler: Any, body: Dict[str, Any]):
+    """UX-04: Audits and imports a .fleetagent JSON bundle into custom_agents."""
+    if not isinstance(body, dict):
+        handler._send_json({"status": "error", "message": "Expected JSON object"}, status=400)
+        return
+    pack_data = body.get("pack") if isinstance(body.get("pack"), dict) else body
+    from fleet.core.database import is_test_environment
+    from fleet.config import DATA_DIR
+    custom_dir = getattr(getattr(srv, "agent_registry", None), "custom_agents_dir", None)
+    if not custom_dir:
+        sub_vault = "test_user" if is_test_environment() else "user"
+        custom_dir = DATA_DIR / sub_vault / "custom_agents"
+    try:
+        from fleet.core.agent_catalog import import_agent_pack
+        res = import_agent_pack(pack_data, custom_dir, agent_registry=getattr(srv, "agent_registry", None))  # type: ignore[reportArgumentType]
+        handler._send_json(res)
+    except ValueError as ve:
+        handler._send_json({"status": "error", "message": str(ve)}, status=400)
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+
+# =========================================================================
+# UX-05: Unified Ask-Fleet Omnibar Commands & Dispatcher Endpoints
+# =========================================================================
+
+@router.get("/api/omnibar/commands")
+def get_omnibar_commands_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """UX-05: Lists all @agent slash commands and omnibar shortcuts across active agents."""
+    try:
+        from fleet.core.omnibar_dispatcher import get_all_omnibar_commands
+        cmds = get_all_omnibar_commands(getattr(srv, "agent_registry", None))
+        handler._send_json({"status": "ok", "commands": cmds, "total": len(cmds)})
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+
+@router.post("/api/omnibar/execute")
+def execute_omnibar_query_endpoint(handler: Any, body: Dict[str, Any]):
+    """UX-05: Executes an Omnibar @agent command or Tier-0 query and returns an inline card."""
+    if not isinstance(body, dict):
+        handler._send_json({"status": "error", "message": "Expected JSON object"}, status=400)
+        return
+    query = str(body.get("query", "")).strip()
+    if not query:
+        handler._send_json({"status": "error", "message": "Field 'query' is required"}, status=400)
+        return
+    try:
+        from fleet.core.omnibar_dispatcher import dispatch_omnibar_query
+        res = dispatch_omnibar_query(
+            query=query,
+            agent_registry=getattr(srv, "agent_registry", None),
+            db=getattr(srv, "db", None),
+        )
+        handler._send_json(res)
+    except ValueError as ve:
+        handler._send_json({"status": "error", "message": str(ve)}, status=400)
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+

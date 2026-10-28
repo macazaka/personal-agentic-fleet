@@ -219,6 +219,33 @@ class FleetAgent(ABC):
         """
         return []
 
+    def get_omnibar_commands(self) -> List[Dict[str, Any]]:
+        """
+        UX-05: Returns a list of @agent slash/omnibar commands supported by this agent.
+        Automatically indexed by the Unified Ask-Fleet Omnibar (Ctrl+K).
+        """
+        return [
+            {
+                "agent_id": self.id,
+                "agent_name": self.display_name,
+                "icon": self.display_icon,
+                "trigger": f"@{self.id}",
+                "syntax": f"@{self.id} run",
+                "description": f"Execute default task on {self.display_name}",
+                "task": "default",
+            },
+            {
+                "agent_id": self.id,
+                "agent_name": self.display_name,
+                "icon": self.display_icon,
+                "trigger": f"@{self.id} open",
+                "syntax": f"@{self.id} open",
+                "description": f"Switch workspace view to {self.display_name}",
+                "task": "open_tab",
+            },
+        ]
+
+
     # === UI Manifest & Template Customization ===
 
     def get_ui_manifest(self) -> Dict[str, Any]:

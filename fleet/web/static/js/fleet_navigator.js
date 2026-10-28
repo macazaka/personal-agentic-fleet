@@ -986,12 +986,14 @@ const FleetNavigator = {
     }
   },
 
-  // --- Command Palette (Ctrl+K Spotlight) ---
+  // --- Command Palette & Unified Omnibar (Ctrl+K Spotlight / UX-05) ---
   openCommandPalette() {
     const modal = document.getElementById('commandPaletteModal');
     if (!modal) return;
     modal.style.display = 'flex';
     this.paletteSelectedIndex = 0;
+    const outBox = document.getElementById('cmdPaletteOmnibarResult');
+    if (outBox) outBox.style.display = 'none';
     const input = document.getElementById('cmdPaletteInput');
     if (input) {
       input.value = '';
@@ -1009,16 +1011,99 @@ const FleetNavigator = {
     this.filterCommandPalette(query);
   },
 
+  runOmnibarPreset(presetQuery) {
+    const input = document.getElementById('cmdPaletteInput');
+    if (input) {
+      input.value = presetQuery;
+      this.filterCommandPalette(presetQuery);
+    }
+    this.executeOmnibarInput(presetQuery);
+  },
+
+  async executeOmnibarInput(overrideQuery) {
+    const input = document.getElementById('cmdPaletteInput');
+    const rawQuery = (overrideQuery !== undefined ? overrideQuery : (input ? input.value : '')).trim();
+    if (!rawQuery) return;
+
+    const outBox = document.getElementById('cmdPaletteOmnibarResult');
+    if (outBox) {
+      outBox.style.display = 'block';
+      outBox.innerHTML = '<span style="color: var(--accent-cyan);">⚡ Dispatching via Unified Fleet Omnibar...</span>';
+    }
+
+    try {
+      const res = await fetch('/api/omnibar/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: rawQuery })
+      });
+      const data = await res.json();
+      if (!outBox) return;
+
+      if ((data.mode === 'discovery' || data.mode === 'process_discovery') && Array.isArray(data.recommendations)) {
+        const recsHtml = data.recommendations.map(r => `
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 10px; margin-top: 6px; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--border-color); border-radius: 6px;">
+            <div>
+              <strong style="color: var(--text); font-size: 12.5px;">${r.icon || '🤖'} ${r.name}</strong>
+              <span class="badge" style="margin-left: 6px; font-size: 10px; background: rgba(16, 185, 129, 0.15); color: #10b981;">Score ${r.opportunity_score}/100</span>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${r.evidence_summary || r.description || ''} (${r.estimated_minutes_saved_per_week || 30} min/wk saved)</div>
+            </div>
+            <button type="button" class="btn btn-sm btn-primary" style="white-space: nowrap; font-size: 11px; padding: 4px 10px;" onclick="FleetNavigator.spawnDiscoveredAgent('${r.recommendation_id}')">🚀 Spawn Agent</button>
+          </div>
+        `).join('');
+        outBox.innerHTML = `<div><strong style="color: var(--accent-cyan);">${data.title || data.message}</strong>${recsHtml}</div>`;
+      } else {
+        outBox.innerHTML = `<div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+          <span><strong style="color: var(--accent-green);">✔ ${data.title || 'Omnibar'}:</strong> ${data.message || 'Executed.'}</span>
+          ${data.agent_id ? `<button type="button" class="btn btn-sm" style="font-size: 11px; padding: 2px 8px;" onclick="FleetNavigator.switchAgent('${data.agent_id}')">Open ${data.agent_id} →</button>` : ''}
+        </div>`;
+      }
+    } catch (e) {
+      if (outBox) {
+        outBox.innerHTML = `<span style="color: #ef4444;">⚠️ Omnibar error: ${e.message}</span>`;
+      }
+    }
+  },
+
+  async spawnDiscoveredAgent(recId) {
+    const outBox = document.getElementById('cmdPaletteOmnibarResult');
+    if (outBox) {
+      outBox.innerHTML = `<span style="color: var(--accent-cyan);">🚀 Spawning recommended agent (${recId})...</span>`;
+    }
+    try {
+      const res = await fetch('/api/discovery/spawn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recommendation_id: recId })
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        await this.fetchFleetData();
+        if (outBox) {
+          outBox.innerHTML = `<div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="color: #10b981;">🎉 ${data.message}</strong>
+            <button type="button" class="btn btn-sm btn-primary" onclick="FleetNavigator.switchAgent('${data.agent_id}')">Switch to ${data.agent_id} →</button>
+          </div>`;
+        }
+      } else {
+        if (outBox) outBox.innerHTML = `<span style="color: #ef4444;">⚠️ ${data.message || 'Spawn failed'}</span>`;
+      }
+    } catch (e) {
+      if (outBox) outBox.innerHTML = `<span style="color: #ef4444;">⚠️ ${e.message}</span>`;
+    }
+  },
+
   filterCommandPalette(query) {
     const q = (query || '').toLowerCase().trim();
     if (!q) {
       this.paletteResults = this.agents.slice(0, 12);
     } else {
+      const stripped = q.startsWith('@') ? q.slice(1).split(' ')[0] : q;
       this.paletteResults = this.agents.filter(a =>
-        a.name.toLowerCase().includes(q) ||
-        a.id.toLowerCase().includes(q) ||
-        a.category.toLowerCase().includes(q) ||
-        (a.description || '').toLowerCase().includes(q)
+        a.name.toLowerCase().includes(stripped) ||
+        a.id.toLowerCase().includes(stripped) ||
+        a.category.toLowerCase().includes(stripped) ||
+        (a.description || '').toLowerCase().includes(stripped)
       ).slice(0, 15);
     }
 
@@ -1032,8 +1117,8 @@ const FleetNavigator = {
 
     if (this.paletteResults.length === 0) {
       list.innerHTML = `
-        <div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">
-          No matching agents found. Try a different keyword or create a new agent with ➕.
+        <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">
+          Press <strong>Enter</strong> or click <strong>Run ↵</strong> to execute query in the Unified Fleet Omnibar.
         </div>`;
       return;
     }
@@ -1051,7 +1136,7 @@ const FleetNavigator = {
           </div>
           <div style="display: flex; align-items: center; gap: 8px;">
             <span class="badge" style="font-size: 11px; background: rgba(255,255,255,0.06);">${a.category}</span>
-            <span style="font-size: 11px; color: var(--accent-cyan); font-family: monospace;">Jump ↵</span>
+            <span style="font-size: 11px; color: var(--accent-cyan); font-family: monospace;">@${a.id} ↵</span>
           </div>
         </div>`;
     }).join('');
@@ -1066,6 +1151,12 @@ const FleetNavigator = {
   },
 
   paletteSelectCurrent() {
+    const input = document.getElementById('cmdPaletteInput');
+    const rawQuery = (input ? input.value : '').trim();
+    if (rawQuery.startsWith('@') || (rawQuery && this.paletteResults.length === 0)) {
+      this.executeOmnibarInput(rawQuery);
+      return;
+    }
     if (this.paletteResults[this.paletteSelectedIndex]) {
       this.switchAgent(this.paletteResults[this.paletteSelectedIndex].id);
     }

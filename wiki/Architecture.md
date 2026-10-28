@@ -1,6 +1,6 @@
 # 🏛️ System Architecture & Microkernel Internals
 
-> **Release Version**: `v2.8.8` | **Core Modules**: `fleet/server.py`, `fleet/api/router.py`, `fleet/core/database.py`, `fleet/core/registry.py`, `fleet/core/plugin_sandbox.py`, `fleet/core/event_bus.py`
+> **Release Version**: `v2.8.9` | **Core Modules**: `fleet/server.py`, `fleet/api/router.py`, `fleet/core/database.py`, `fleet/core/registry.py`, `fleet/core/plugin_sandbox.py`, `fleet/core/event_bus.py`
 
 The **Personal Agentic Fleet** is engineered as a local-first, zero-dependency Python microkernel operating system. It combines a multi-threaded HTTP/1.1 + RFC 7233 byte-range server (`fleet/server.py`), a modular REST & SSE router (`fleet/api/router.py`), a capability-enforced plugin sandbox (`fleet/core/plugin_sandbox.py`), a thread-pooled SQLite 3 WAL storage engine (`fleet/core/database.py`), and the **4-Layer Cognitive Fleet Mind** (`fleet/core/mind/`).
 
