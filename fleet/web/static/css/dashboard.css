@@ -1979,4 +1979,54 @@
       box-shadow: 0 0 12px rgba(0, 242, 254, 0.2);
     }
 
+    /* Right-Docked Persistent Antigravity Live & $0.00 Fleet Chatbot Panel */
+    .ag-right-dock-panel {
+      width: 440px;
+      min-width: 370px;
+      max-width: 44vw;
+      flex-shrink: 0;
+      position: sticky;
+      top: 16px;
+      max-height: calc(100vh - 32px);
+      display: flex;
+      flex-direction: column;
+      z-index: 90;
+    }
+    #viewAntigravity.ag-docked-right {
+      height: calc(100vh - 32px);
+      max-height: calc(100vh - 32px);
+      background: var(--card-bg);
+      border: 1px solid rgba(0, 242, 254, 0.32);
+      border-radius: var(--radius);
+      padding: 12px;
+      box-shadow: -8px 0 28px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(16px);
+      gap: 10px;
+      overflow: hidden;
+    }
+    #viewAntigravity.ag-docked-right .ag-header-bar {
+      padding: 10px 12px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    #viewAntigravity.ag-docked-right #agParallelFleetStrip {
+      padding: 7px 10px;
+      margin-bottom: 4px;
+    }
+    #viewAntigravity.ag-docked-right .ag-chat-scroll {
+      flex: 1;
+      height: auto;
+      min-height: 220px;
+      max-height: none;
+    }
+    #viewAntigravity.ag-docked-right .ag-cmd-console {
+      padding: 10px 12px;
+    }
+    @media (max-width: 1180px) {
+      .ag-right-dock-panel {
+        width: 380px;
+        min-width: 320px;
+      }
+    }
+
 

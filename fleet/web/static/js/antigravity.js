@@ -739,11 +739,294 @@ let availableModels = [];
       }
     }
 
+    window.agChatEngineMode = 'antigravity_live'; // 'antigravity_live' | 'fleet_zero_token'
+
+    function setAgChatEngineMode(mode) {
+      window.agChatEngineMode = (mode === 'fleet_zero_token') ? 'fleet_zero_token' : 'antigravity_live';
+      const isFleetZero = window.agChatEngineMode === 'fleet_zero_token';
+
+      const btnLive = document.getElementById('btnAgModeLive');
+      const btnFleet = document.getElementById('btnAgModeFleet');
+      const liveScroll = document.getElementById('agChatScroll');
+      const fleetScroll = document.getElementById('agFleetZeroChatScroll');
+      const liveChips = document.getElementById('agLiveQuickChips');
+      const fleetChips = document.getElementById('agFleetZeroQuickChips');
+      const modelDropWrap = document.getElementById('agModelDropdownBtn');
+      const input = document.getElementById('agCommandInput');
+      const sendBtn = document.getElementById('agSendBtn');
+      const costBadge = document.getElementById('agCostModeBadge');
+      const footerLabel = document.getElementById('agConsoleFooterModeLabel');
+      const parallelStrip = document.getElementById('agParallelFleetStrip');
+
+      if (btnLive) {
+        btnLive.style.background = !isFleetZero ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.04)';
+        btnLive.style.borderColor = !isFleetZero ? 'var(--accent-cyan)' : 'var(--card-border)';
+        btnLive.style.color = !isFleetZero ? '#fff' : 'var(--text-muted)';
+      }
+      if (btnFleet) {
+        btnFleet.style.background = isFleetZero ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.04)';
+        btnFleet.style.borderColor = isFleetZero ? 'var(--accent-green)' : 'var(--card-border)';
+        btnFleet.style.color = isFleetZero ? '#fff' : 'var(--text-muted)';
+      }
+
+      if (liveScroll) liveScroll.style.display = isFleetZero ? 'none' : 'flex';
+      if (fleetScroll) fleetScroll.style.display = isFleetZero ? 'flex' : 'none';
+      if (liveChips) liveChips.style.display = isFleetZero ? 'none' : 'flex';
+      if (fleetChips) fleetChips.style.display = isFleetZero ? 'flex' : 'none';
+      if (modelDropWrap) modelDropWrap.style.display = isFleetZero ? 'none' : 'inline-flex';
+      if (parallelStrip) {
+        parallelStrip.style.display = isFleetZero ? 'none' : 'flex';
+      }
+      if (costBadge) {
+        costBadge.innerText = isFleetZero ? '⚡ $0.00 Zero-Token Fleet Chat' : 'Tier 0 • 0 Tokens ($0.00)';
+      }
+      if (footerLabel) {
+        footerLabel.innerText = isFleetZero ? '⚡ Instant $0.00 Local Fleet Conversational Engine' : '● Multi-Hyperscaler & Dev Tools Hub';
+      }
+      if (input) {
+        input.placeholder = isFleetZero
+          ? "Chat with Fleet at $0.00 ('hi', 'daily briefing', 'what is my workout?', '@discover')..."
+          : "Ask Antigravity, paste image (Ctrl+V), /task, /sync, or type prompt...";
+        input.focus();
+      }
+      if (sendBtn) {
+        if (isFleetZero) {
+          sendBtn.innerHTML = '⚡ Ask Fleet ($0.00)';
+          sendBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+        } else {
+          fetchAgentQueue();
+        }
+      }
+      if (isFleetZero) {
+        renderAgFleetZeroChat();
+      } else {
+        fetchTranscript(true);
+      }
+    }
+
+    function renderAgFleetZeroChat() {
+      const container = document.getElementById('agFleetZeroChatScroll');
+      if (!container) return;
+      const turns = (typeof FleetNavigator !== 'undefined' && Array.isArray(FleetNavigator.omnibarChatTurns))
+        ? FleetNavigator.omnibarChatTurns
+        : [];
+
+      if (turns.length === 0) {
+        container.innerHTML = `
+          <div style="margin: auto; max-width: 520px; text-align: center; padding: 28px 20px; background: rgba(15, 23, 42, 0.55); border: 1px solid var(--card-border); border-radius: 12px;">
+            <div style="font-size: 28px; margin-bottom: 8px;">⚡🤖</div>
+            <div style="font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 6px;">Zero-Token Conversational Fleet Assistant ($0.00)</div>
+            <div style="font-size: 12.5px; color: var(--text-muted); line-height: 1.5; margin-bottom: 14px;">
+              Chat naturally with your Personal Agentic Fleet at <strong>$0.00 token spend</strong>—ask about your daily briefing, pending tasks, hydration, 6-day Mudgal/Samtola/Bhim Gadha workouts, 35-page FFD diet &amp; smoothie rules, or agent creation. Switch to <strong>Antigravity Live</strong> anytime with 1 click!
+            </div>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;">
+              <button type="button" class="badge" style="cursor: pointer; padding: 5px 10px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35);" onclick="sendZeroTokenFleetChatFromAg('hi')">👋 Say Hi</button>
+              <button type="button" class="badge" style="cursor: pointer; padding: 5px 10px; background: rgba(56, 189, 248, 0.15); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.35);" onclick="sendZeroTokenFleetChatFromAg('Give me my daily briefing')">☀️ Daily Briefing</button>
+              <button type="button" class="badge" style="cursor: pointer; padding: 5px 10px; background: rgba(56, 189, 248, 0.15); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.35);" onclick="sendZeroTokenFleetChatFromAg('What are my pending tasks?')">📋 Pending Tasks</button>
+              <button type="button" class="badge" style="cursor: pointer; padding: 5px 10px; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35);" onclick="sendZeroTokenFleetChatFromAg('What is my workout today?')">🏋️ Workout Today</button>
+              <button type="button" class="badge" style="cursor: pointer; padding: 5px 10px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35);" onclick="sendZeroTokenFleetChatFromAg('FFD Green Smoothie recipe')">🥤 Smoothie Recipe</button>
+              <button type="button" class="badge" style="cursor: pointer; padding: 5px 10px; background: rgba(56, 189, 248, 0.15); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.35);" onclick="sendZeroTokenFleetChatFromAg('@discover')">🕵️ @discover Agents</button>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      const html = turns.map((turn, idx) => {
+        const data = turn.data || {};
+        const isLatest = idx === turns.length - 1;
+        const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
+        const safePromptAttr = String(turn.userQuery || '').replace(/'/g, "\\'");
+
+        const suggestionsHtml = (isLatest && suggestions.length > 0) ? `
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+            ${suggestions.map(s => {
+              const safeS = String(s).replace(/'/g, "\\'");
+              return `<button type="button" class="badge" style="cursor: pointer; background: rgba(56, 189, 248, 0.14); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.3); font-size: 11px; padding: 3px 8px;" onclick="sendZeroTokenFleetChatFromAg('${safeS}')">💬 ${escapeHtml(s)}</button>`;
+            }).join('')}
+          </div>
+        ` : '';
+
+        return `
+          <div class="ag-message ag-msg-user">
+            <div class="ag-msg-role">👤 You</div>
+            <div>${formatMarkdown(turn.userQuery || '')}</div>
+          </div>
+          <div class="ag-message ag-msg-assistant" style="border-left: 3px solid var(--accent-green);">
+            <div class="ag-msg-role" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <span>${escapeHtml(data.title || '⚡ Fleet Conversational Assistant ($0.00)')}</span>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                ${data.agent_id ? `<button type="button" class="btn btn-sm" style="font-size: 10.5px; padding: 2px 7px;" onclick="FleetNavigator.switchAgent('${escapeHtml(data.agent_id)}')">Open ${escapeHtml(data.agent_id)} →</button>` : ''}
+                <button type="button" class="btn btn-sm" style="font-size: 10.5px; padding: 2px 7px; border-color: rgba(56, 189, 248, 0.35); color: var(--accent-cyan);" onclick="escalateZeroTokenTurnToAgLive('${safePromptAttr}')" title="Send this prompt to Antigravity 2.0 Live LLM">🚀 Send to Antigravity Live</button>
+              </div>
+            </div>
+            <div>${formatMarkdown(data.message || '')}</div>
+            ${suggestionsHtml}
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = html;
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function sendZeroTokenFleetChatFromAg(queryText) {
+      const q = (queryText || '').trim();
+      if (!q) return;
+      if (window.agChatEngineMode !== 'fleet_zero_token') {
+        setAgChatEngineMode('fleet_zero_token');
+      }
+      if (typeof FleetNavigator !== 'undefined' && typeof FleetNavigator.executeOmnibarInput === 'function') {
+        await FleetNavigator.executeOmnibarInput(q);
+      }
+      const input = document.getElementById('agCommandInput');
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+      renderAgFleetZeroChat();
+    }
+
+    function escalateZeroTokenTurnToAgLive(promptText) {
+      setAgChatEngineMode('antigravity_live');
+      const input = document.getElementById('agCommandInput');
+      if (input) {
+        input.value = promptText || '';
+        input.focus();
+      }
+    }
+
+    function toggleAntigravityRightDock(forceState) {
+      const nextState = (typeof forceState === 'boolean') ? forceState : !window.isAgRightDocked;
+      const viewAg = document.getElementById('viewAntigravity');
+      const dockSlot = document.getElementById('agRightDockSlot');
+      const mainAnchor = document.getElementById('agMainStageAnchor');
+      const btnToggle = document.getElementById('btnToggleAgRightDock');
+      const btnClose = document.getElementById('btnCloseAgRightDock');
+      const btnHeader = document.getElementById('btnHeaderRightDockChat');
+      const btnGlobalHeader = document.getElementById('btnGlobalHeaderRightDock');
+
+      if (!viewAg || !dockSlot) return;
+      window.isAgRightDocked = nextState;
+      try {
+        localStorage.setItem('fleet_ag_right_docked', nextState ? '1' : '0');
+      } catch (e) {}
+
+      if (nextState) {
+        dockSlot.appendChild(viewAg);
+        dockSlot.style.display = 'flex';
+        viewAg.style.display = 'flex';
+        viewAg.classList.add('ag-docked-right');
+
+        if (btnToggle) {
+          btnToggle.innerHTML = '⤢ Full Page';
+          btnToggle.title = 'Expand chatbot back to full page tab';
+        }
+        if (btnClose) btnClose.style.display = 'inline-flex';
+        if (btnHeader) {
+          btnHeader.innerHTML = '◨ Undock Chat';
+          btnHeader.style.background = 'rgba(0, 242, 254, 0.2)';
+        }
+        if (btnGlobalHeader) {
+          btnGlobalHeader.innerHTML = '◨ Hide Right Chat';
+          btnGlobalHeader.style.background = 'rgba(16, 185, 129, 0.2)';
+          btnGlobalHeader.style.color = 'var(--accent-green)';
+        }
+
+        fetchTranscript(true);
+        fetchModels();
+        fetchAgentQueue();
+        if (!agInterval) {
+          agInterval = setInterval(() => {
+            fetchTranscript(false);
+            fetchAgentQueue();
+          }, 2500);
+        }
+
+        // If user was on the full-page antigravity tab, switch the left main stage to their previous agent tab so they can browse side-by-side!
+        if (typeof currentTab !== 'undefined' && currentTab === 'antigravity') {
+          const targetTab = (window.lastNonAgTab && window.lastNonAgTab !== 'antigravity') ? window.lastNonAgTab : 'overview';
+          if (typeof FleetNavigator !== 'undefined' && typeof FleetNavigator.switchAgent === 'function') {
+            FleetNavigator.switchAgent(targetTab);
+          } else if (typeof switchTab === 'function') {
+            switchTab(targetTab);
+          }
+        }
+      } else {
+        if (mainAnchor && mainAnchor.parentNode) {
+          mainAnchor.parentNode.insertBefore(viewAg, mainAnchor.nextSibling);
+        }
+        dockSlot.style.display = 'none';
+        viewAg.classList.remove('ag-docked-right');
+
+        if (btnToggle) {
+          btnToggle.innerHTML = '◨ Dock to Right Panel';
+          btnToggle.title = 'Dock chatbot to the right panel so you can browse other agent pages while chatting';
+        }
+        if (btnClose) btnClose.style.display = 'none';
+        if (btnHeader) {
+          btnHeader.innerHTML = '◨ Dock Chat Panel';
+          btnHeader.style.background = 'rgba(16, 185, 129, 0.12)';
+        }
+        if (btnGlobalHeader) {
+          btnGlobalHeader.innerHTML = '◨ Right Chat';
+          btnGlobalHeader.style.background = 'rgba(0, 242, 254, 0.08)';
+          btnGlobalHeader.style.color = 'var(--accent-cyan)';
+        }
+        if (typeof switchTab === 'function') {
+          switchTab('antigravity');
+        }
+      }
+    }
+
+    function closeAntigravityRightDock() {
+      const viewAg = document.getElementById('viewAntigravity');
+      const dockSlot = document.getElementById('agRightDockSlot');
+      const mainAnchor = document.getElementById('agMainStageAnchor');
+      const btnToggle = document.getElementById('btnToggleAgRightDock');
+      const btnClose = document.getElementById('btnCloseAgRightDock');
+      const btnHeader = document.getElementById('btnHeaderRightDockChat');
+      const btnGlobalHeader = document.getElementById('btnGlobalHeaderRightDock');
+
+      window.isAgRightDocked = false;
+      try {
+        localStorage.setItem('fleet_ag_right_docked', '0');
+      } catch (e) {}
+
+      if (viewAg && mainAnchor && mainAnchor.parentNode) {
+        mainAnchor.parentNode.insertBefore(viewAg, mainAnchor.nextSibling);
+        viewAg.classList.remove('ag-docked-right');
+        if (typeof currentTab !== 'undefined' && currentTab !== 'antigravity') {
+          viewAg.style.display = 'none';
+        }
+      }
+      if (dockSlot) dockSlot.style.display = 'none';
+      if (btnToggle) btnToggle.innerHTML = '◨ Dock to Right Panel';
+      if (btnClose) btnClose.style.display = 'none';
+      if (btnHeader) btnHeader.innerHTML = '◨ Dock Chat Panel';
+      if (btnGlobalHeader) {
+        btnGlobalHeader.innerHTML = '◨ Right Chat';
+        btnGlobalHeader.style.background = 'rgba(0, 242, 254, 0.08)';
+        btnGlobalHeader.style.color = 'var(--accent-cyan)';
+      }
+    }
+
+    function dockFleetChatToRightPanel() {
+      toggleAntigravityRightDock(true);
+      setAgChatEngineMode('fleet_zero_token');
+    }
+
     async function submitAgCommand() {
       const input = document.getElementById('agCommandInput');
       const cmd = input.value.trim();
       const images = attachedImages.map(img => img.path || img.filename);
       if (!cmd && images.length === 0) return;
+
+      // If in Zero-Token Fleet Chat mode (and no image attachments), route directly to $0.00 Conversational Fleet Assistant
+      if (window.agChatEngineMode === 'fleet_zero_token' && images.length === 0) {
+        await sendZeroTokenFleetChatFromAg(cmd);
+        return;
+      }
 
       const toast = document.getElementById('cmdToast');
       toast.style.display = 'block';
@@ -821,3 +1104,10 @@ window.fastTrackAgentQueue = fastTrackAgentQueue;
 window.changeConcurrencyLimit = changeConcurrencyLimit;
 window.cancelQueueItem = cancelQueueItem;
 window.submitAgCommand = submitAgCommand;
+window.setAgChatEngineMode = setAgChatEngineMode;
+window.renderAgFleetZeroChat = renderAgFleetZeroChat;
+window.sendZeroTokenFleetChatFromAg = sendZeroTokenFleetChatFromAg;
+window.escalateZeroTokenTurnToAgLive = escalateZeroTokenTurnToAgLive;
+window.toggleAntigravityRightDock = toggleAntigravityRightDock;
+window.closeAntigravityRightDock = closeAntigravityRightDock;
+window.dockFleetChatToRightPanel = dockFleetChatToRightPanel;

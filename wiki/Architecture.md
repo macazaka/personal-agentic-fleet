@@ -1,6 +1,6 @@
 # 🏛️ System Architecture & Microkernel Internals
 
-> **Release Version**: `v2.9.7` | **Core Modules**: `fleet/server.py`, `fleet/api/router.py`, `fleet/core/database.py`, `fleet/core/registry.py`, `fleet/core/plugin_sandbox.py`, `fleet/core/event_bus.py`
+> **Release Version**: `v2.10.0` | **Core Modules**: `fleet/server.py`, `fleet/api/router.py`, `fleet/core/database.py`, `fleet/core/registry.py`, `fleet/core/plugin_sandbox.py`, `fleet/core/event_bus.py`
 
 The **Personal Agentic Fleet** is engineered as a local-first, zero-dependency Python microkernel operating system. It combines a multi-threaded HTTP/1.1 + RFC 7233 byte-range server (`fleet/server.py`), a modular REST & SSE router (`fleet/api/router.py`), a capability-enforced plugin sandbox (`fleet/core/plugin_sandbox.py`), a thread-pooled SQLite 3 WAL storage engine (`fleet/core/database.py`), and the **4-Layer Cognitive Fleet Mind** (`fleet/core/mind/`).
 
@@ -116,7 +116,7 @@ Every agent in `fleet/agents/<agent_id>/` declares its required permissions in `
 | **`auto_improvements`** | `id INTEGER PRIMARY KEY AUTOINCREMENT` | `timestamp TEXT`, `category TEXT`, `issue_detected TEXT`, `action_taken TEXT`, `status TEXT`, `impact_score INTEGER DEFAULT 5` | Autonomous self-healing actions recorded by `AutoHealer` and `FleetSoul`. |
 
 <!-- AUTO-CORE-MODULES:START -->
-## 🧩 Live Microkernel Core Modules Inventory (`31` Modules — `v2.9.7`)
+## 🧩 Live Microkernel Core Modules Inventory (`31` Modules — `v2.10.0`)
 
 Automatically introspected from `fleet/core/*.py` on every release:
 

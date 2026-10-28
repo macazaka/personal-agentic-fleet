@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.10.0] - 2026-10-28
+
+### Added
+- **Omnibar**: Upgrade Unified Fleet Omnibar into multi-turn conversational assistant.
+
+---
+
 ## [2.9.7] - 2026-10-28
 
 ### Fixed

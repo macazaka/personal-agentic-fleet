@@ -46,7 +46,17 @@
     let activeModelId = 'gemini-3.8-flash-high';
     let availableModels = [];
 
+    window.isAgRightDocked = false;
+    window.lastNonAgTab = 'health';
+
     function switchTab(tab) {
+      if (tab !== 'antigravity') {
+        window.lastNonAgTab = tab;
+      } else if (window.isAgRightDocked && typeof toggleAntigravityRightDock === 'function') {
+        // If already docked to the right panel and user clicks the Antigravity Live tab, expand to full page
+        toggleAntigravityRightDock(false);
+        return;
+      }
       currentTab = tab;
       const tabOverview = document.getElementById('tabBtnOverview');
       const tabAg = document.getElementById('tabBtnAntigravity');
@@ -64,15 +74,15 @@
       document.querySelectorAll('.nav-tab').forEach(b => { if (b) b.classList.remove('active'); });
       const dynTabBtn = document.getElementById('tabBtn_' + tab);
       if (dynTabBtn) dynTabBtn.classList.add('active');
-      // Reset views
+      // Reset views (preserve viewAg if it is docked in the right panel)
       if (viewOverview) viewOverview.style.display = 'none';
-      if (viewAg) viewAg.style.display = 'none';
+      if (viewAg && !window.isAgRightDocked) viewAg.style.display = 'none';
       if (viewHealth) viewHealth.style.display = 'none';
       if (viewBacklog) viewBacklog.style.display = 'none';
       if (viewOptimizer) viewOptimizer.style.display = 'none';
       if (viewStage) viewStage.style.display = 'none';
 
-      if (agInterval && tab !== 'antigravity') {
+      if (agInterval && tab !== 'antigravity' && !window.isAgRightDocked) {
         clearInterval(agInterval);
         agInterval = null;
       }

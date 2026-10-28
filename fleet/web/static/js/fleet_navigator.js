@@ -927,9 +927,11 @@ const FleetNavigator = {
       if (typeof switchTab === 'function') switchTab('overview');
       return;
     }
+    window.lastNonAgTab = agentId;
 
-    // Hide all standard view divs
+    // Hide all standard view divs (except viewAntigravity when docked to the right panel)
     ['viewOverview', 'viewAntigravity', 'viewHealth', 'viewBacklog', 'viewOptimizer'].forEach(id => {
+      if (id === 'viewAntigravity' && window.isAgRightDocked) return;
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
@@ -1124,6 +1126,7 @@ const FleetNavigator = {
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
         <span style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">💬 Conversational Fleet Session (${this.omnibarChatTurns.length} turn${this.omnibarChatTurns.length === 1 ? '' : 's'})</span>
         <div style="display: flex; gap: 6px;">
+          <button type="button" class="btn btn-sm" style="font-size: 10.5px; padding: 1px 7px; border-color: rgba(16, 185, 129, 0.4); color: var(--accent-green);" onclick="FleetNavigator.closeCommandPalette(); if(typeof dockFleetChatToRightPanel==='function') dockFleetChatToRightPanel();">◨ Dock to Right Panel</button>
           <button type="button" class="btn btn-sm" style="font-size: 10.5px; padding: 1px 7px;" onclick="FleetNavigator.switchAgent('antigravity')">Open Live Console →</button>
           <button type="button" class="btn btn-sm" style="font-size: 10.5px; padding: 1px 7px; color: var(--text-muted);" onclick="FleetNavigator.clearOmnibarConversation()">Clear</button>
         </div>
@@ -1135,6 +1138,9 @@ const FleetNavigator = {
     const scrollEl = document.getElementById('omnibarChatScrollContainer');
     if (scrollEl) {
       scrollEl.scrollTop = scrollEl.scrollHeight;
+    }
+    if (typeof renderAgFleetZeroChat === 'function') {
+      renderAgFleetZeroChat();
     }
   },
 

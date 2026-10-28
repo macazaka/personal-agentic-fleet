@@ -22,7 +22,7 @@
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
               <h1 style="margin: 0; white-space: nowrap;">Personal Agentic Fleet</h1>
               <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.35); font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;" onclick="openReleaseNotesModal()" title="View Release Notes & Versions">
-                <span id="fleetHeaderVerBadge">v2.9.7</span>
+                <span id="fleetHeaderVerBadge">v2.10.0</span>
                 <span style="font-size: 9px; opacity: 0.8;">📜</span>
               </span>
             </div>
@@ -68,6 +68,9 @@
             <span>🚀</span>
             <span id="headerUpdateBadgeText">Update Available</span>
           </div>
+          <button class="btn" id="btnGlobalHeaderRightDock" onclick="toggleAntigravityRightDock()" title="Dock / Undock Antigravity Live &amp; $0.00 Fleet Chat in the Right Side Panel" style="padding: 7px 11px; font-size: 12px; border-color: rgba(0, 242, 254, 0.35); color: var(--accent-cyan); background: rgba(0, 242, 254, 0.08);">
+            ◨ Right Chat
+          </button>
           <button class="btn btn-primary" onclick="triggerNotification()" style="padding: 7px 12px; font-size: 12px;">
             🔔 Alert
           </button>
@@ -93,7 +96,10 @@
             🤖 Fleet Hub <span id="fleetAgentCountNavBadge" class="badge" style="background: rgba(0, 242, 254, 0.18); color: var(--accent-cyan); font-size: 10px; padding: 1px 6px; margin-left: 4px;">6</span>
           </button>
         </div>
-        <div class="wcc-deck-right-meta">
+        <div class="wcc-deck-right-meta" style="display: flex; align-items: center; gap: 8px;">
+          <button type="button" id="btnHeaderRightDockChat" class="wcc-overflow-pill" onclick="toggleAntigravityRightDock()" title="Dock Antigravity Live & Zero-Token Fleet Chat to the Right Side Panel while browsing other pages" style="background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.35); color: var(--accent-green);">
+            ◨ Dock Chat Panel
+          </button>
           <span id="wccDeckOverflowNotice" class="wcc-overflow-pill" onclick="toggleFleetNavigator(true)" title="View all installed & catalog agents">
             📂 Browse All Domains ▸
           </span>
@@ -421,20 +427,21 @@
       </div>
     </div>
 
-    <!-- View 2: Antigravity Live Mirror -->
+    <!-- View 2: Antigravity Live Mirror & Integrated Zero-Token Fleet Chat -->
+    <div id="agMainStageAnchor" style="display: none;"></div>
     <div id="viewAntigravity" style="display: none;" class="ag-view-container">
       <div class="ag-header-bar">
-        <div class="ag-status-group">
+        <div class="ag-status-group" style="flex-wrap: wrap;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <div class="pulse-dot" id="agAgentDot"></div>
-            <strong style="color: var(--text); font-size: 15px;">Antigravity 2.0 Live Stream</strong>
+            <strong id="agHeaderMainTitle" style="color: var(--text); font-size: 15px;">Antigravity 2.0 Live &amp; Fleet Chat</strong>
           </div>
           <span class="badge" id="agAgentStateBadge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3);">● Idle</span>
-          <span class="badge" style="background: rgba(0, 242, 254, 0.12); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.3);">Tier 0 • 0 Tokens ($0.00)</span>
+          <span class="badge" id="agCostModeBadge" style="background: rgba(0, 242, 254, 0.12); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.3);">Tier 0 • 0 Tokens ($0.00)</span>
           <span class="badge" id="agSessionBadge" style="background: rgba(255,255,255,0.05); color: var(--text-muted); font-family: monospace;">Session: Live</span>
           <span class="badge" id="agMsgCountBadge" style="background: rgba(168, 85, 247, 0.12); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">0 Steps</span>
         </div>
-        <div style="display: flex; gap: 10px; align-items: center;">
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
           <div id="agTokenHealthBar" style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border);" onclick="openUsageModal()" title="Context Window & Token Capacity">
             <span style="font-size: 11px; color: var(--text-muted);">Context:</span>
             <div style="width: 50px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
@@ -442,11 +449,31 @@
             </div>
             <span id="agTokenCountLabel" style="font-size: 11px; color: var(--accent-cyan); font-family: monospace;">0%</span>
           </div>
-          <button class="btn" style="font-size: 12px;" onclick="openUsageModal()">⚡ LLM Details</button>
+          <button class="btn" id="btnAgLlmDetails" style="font-size: 12px;" onclick="openUsageModal()">⚡ LLM Details</button>
           <button class="btn" style="font-size: 12px;" onclick="fetchTranscript(true)">🔄 Refresh</button>
+          <button class="btn btn-primary" id="btnToggleAgRightDock" style="font-size: 12px; padding: 6px 12px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(6, 182, 212, 0.22)); border: 1px solid var(--accent-cyan); color: var(--accent-cyan);" onclick="toggleAntigravityRightDock()" title="Dock chatbot to the right panel so you can browse other agent pages while chatting">
+            ◨ Dock to Right Panel
+          </button>
+          <button class="btn" id="btnCloseAgRightDock" style="display: none; font-size: 12px; padding: 5px 9px; color: var(--text-muted);" onclick="closeAntigravityRightDock()" title="Close Right Dock Panel">✕</button>
           <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer;">
             <input type="checkbox" id="autoScrollCheck" checked style="accent-color: var(--accent-cyan);"> Auto-scroll
           </label>
+        </div>
+      </div>
+
+      <!-- Unified Chat Engine Switcher: Antigravity Live (LLM) <-> Chat with Fleet ($0.00 Zero-Token) -->
+      <div id="agChatEngineToggleBar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 14px; border-radius: 10px; background: rgba(15, 23, 42, 0.72); border: 1px solid var(--card-border);">
+        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+          <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px;">CHAT MODE:</span>
+          <button type="button" id="btnAgModeLive" class="btn btn-sm active" onclick="setAgChatEngineMode('antigravity_live')" style="font-size: 12px; padding: 5px 12px; border-radius: 7px; background: rgba(56, 189, 248, 0.2); border: 1px solid var(--accent-cyan); color: #fff; font-weight: 600;">
+            🤖 Antigravity Live (LLM &amp; Parallel Agents)
+          </button>
+          <button type="button" id="btnAgModeFleet" class="btn btn-sm" onclick="setAgChatEngineMode('fleet_zero_token')" style="font-size: 12px; padding: 5px 12px; border-radius: 7px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--card-border); color: var(--text-muted); font-weight: 600;">
+            ⚡ Chat with Fleet ($0.00 Zero-Token)
+          </button>
+        </div>
+        <div id="agChatModeHintText" style="font-size: 11.5px; color: var(--text-muted);">
+          Switch anytime between <strong style="color: var(--accent-cyan);">Antigravity Live</strong> and <strong style="color: var(--accent-green);">$0.00 Fleet Assistant</strong>
         </div>
       </div>
 
@@ -506,11 +533,16 @@
         </div>
       </div>
 
-      <!-- Live Chat Stream Box -->
+      <!-- Live Chat Stream Box (Antigravity 2.0 Live Mode) -->
       <div class="ag-chat-scroll" id="agChatScroll">
         <div style="text-align: center; color: var(--text-muted); padding: 40px; font-size: 13px;">
           Loading live Antigravity conversation stream...
         </div>
+      </div>
+
+      <!-- Integrated Zero-Token Conversational Fleet Chat Box ($0.00 Mode) -->
+      <div class="ag-chat-scroll" id="agFleetZeroChatScroll" style="display: none;">
+        <!-- Rendered dynamically by antigravity.js / FleetNavigator -->
       </div>
 
       <!-- Message Queue Tray -->
@@ -536,7 +568,7 @@
       <!-- Command Console & Action Bar -->
       <div class="ag-cmd-console" id="agConsoleContainer">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
-          <div class="ag-quick-chips" style="flex-wrap: wrap;">
+          <div class="ag-quick-chips" id="agLiveQuickChips" style="flex-wrap: wrap;">
             <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">QUICK ACTIONS:</span>
             <span class="quick-chip" onclick="fillCommand('/sync')">⚡ /sync</span>
             <span class="quick-chip" onclick="fillCommand('/briefing')">📅 /briefing</span>
@@ -547,8 +579,20 @@
             <span class="quick-chip" onclick="fillCommand('/azure ')" title="Microsoft Azure OpenAI & Foundry">🔵 /azure</span>
             <span class="quick-chip" onclick="fillCommand('/bedrock ')" title="Amazon Web Services Bedrock & Amazon Q">🟠 /bedrock</span>
             <span class="quick-chip" onclick="fillCommand('/providers')" title="Inspect All Hyperscalers & Dev Tools">☁️ /providers</span>
+            <span class="quick-chip" style="border-color: rgba(16, 185, 129, 0.4); color: var(--accent-green);" onclick="setAgChatEngineMode('fleet_zero_token')">⚡ Switch to $0.00 Fleet Chat</span>
           </div>
-          <span style="font-size: 11px; color: var(--accent-green);">● Multi-Hyperscaler & Dev Tools Hub</span>
+          <div class="ag-quick-chips" id="agFleetZeroQuickChips" style="display: none; flex-wrap: wrap;">
+            <span style="font-size: 11px; color: var(--accent-green); font-weight: 600;">$0.00 FLEET CHAT:</span>
+            <span class="quick-chip" onclick="sendZeroTokenFleetChatFromAg('hi')">👋 Say Hi</span>
+            <span class="quick-chip" onclick="sendZeroTokenFleetChatFromAg('Give me my daily briefing')">☀️ Daily Briefing</span>
+            <span class="quick-chip" onclick="sendZeroTokenFleetChatFromAg('What are my pending tasks?')">📋 My Tasks</span>
+            <span class="quick-chip" onclick="sendZeroTokenFleetChatFromAg('What is my workout today?')">🏋️ Workout Today</span>
+            <span class="quick-chip" onclick="sendZeroTokenFleetChatFromAg('FFD Green Smoothie recipe')">🥤 Smoothie Recipe</span>
+            <span class="quick-chip" onclick="sendZeroTokenFleetChatFromAg('@discover')">🕵️ @discover</span>
+            <span class="quick-chip" onclick="sendZeroTokenFleetChatFromAg('@health water +1')">💧 +1 Water</span>
+            <span class="quick-chip" style="border-color: rgba(56, 189, 248, 0.4); color: var(--accent-cyan);" onclick="setAgChatEngineMode('antigravity_live')">🤖 Switch to Antigravity Live</span>
+          </div>
+          <span id="agConsoleFooterModeLabel" style="font-size: 11px; color: var(--accent-green);">● Multi-Hyperscaler &amp; Dev Tools Hub</span>
         </div>
 
         <div class="ag-input-row" style="align-items: center;">
@@ -1485,6 +1529,8 @@
     </div>
   </div>
       </main>
+      <!-- Right Dock Slot for Persistent Antigravity Live & Zero-Token Fleet Chat -->
+      <aside id="agRightDockSlot" class="ag-right-dock-panel" style="display: none;" aria-label="Right Docked Antigravity &amp; Fleet Chat Panel"></aside>
     </div>
   </div>
 
@@ -1520,7 +1566,7 @@
           <span style="font-size: 22px;">📜</span>
           <div>
             <strong style="font-size: 16px; color: var(--text);">Fleet Release Notes & Version History</strong>
-            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.9.7</div>
+            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.10.0</div>
           </div>
         </div>
         <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeReleaseNotesModal()">✕</button>
