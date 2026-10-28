@@ -277,6 +277,8 @@ class DeterministicEventBus:
             return run_proactive_log_scan_and_heal(db=self.db)
         elif action == "PROACTIVE_SCAN_COMPLETE":
             return {"status": "received", "data": p}
+        elif action in ("SETTINGS_UPDATED", "UPDATE_SETTINGS", "RELOAD_SETTINGS"):
+            return {"status": "success", "action": "settings_updated", "data": p}
         else:
             raise ValueError(f"Unknown System action: {event.action}")
 

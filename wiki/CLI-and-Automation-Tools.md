@@ -1,4 +1,4 @@
-# Unified Fleet CLI & Proactive Automation Tools (`v2.8.1`)
+# Unified Fleet CLI & Proactive Automation Tools (`v2.8.2`)
 
 Personal Agentic Fleet provides a complete zero-token (`$0.00`) command-line interface and proactive automation suite that keeps code quality, release versions, security invariants, documentation, and the GitHub Wiki continuously synchronized.
 

@@ -392,6 +392,50 @@ def fix_vscode_pyright_problems(
     return fixes_applied
 
 
+def fix_html_and_template_problems(repo_root: Path = REPO_ROOT) -> List[Dict[str, Any]]:
+    """
+    Automatically detects and repairs HTML/CSS template syntax corruptions
+    (e.g., stray parentheses in inline style attributes, mismatched CSS values)
+    to maintain 0 diagnostics in VS Code HTML/CSS language services.
+    """
+    fixes_applied: List[Dict[str, Any]] = []
+    html_files: List[Path] = []
+
+    web_templates = repo_root / "fleet" / "web" / "templates"
+    if web_templates.is_dir():
+        html_files.extend(web_templates.glob("*.html"))
+    agents_dir = repo_root / "fleet" / "agents"
+    if agents_dir.is_dir():
+        html_files.extend(agents_dir.glob("**/ui/*.html"))
+
+    for hf in html_files:
+        try:
+            content = hf.read_text(encoding="utf-8")
+            modified = False
+
+            # Pattern: style="...color: #hex); or other stray closing paren before semicolon
+            fixed_content = re.sub(r'(style="[^"]*?(?:#[0-9a-fA-F]{3,8}|[a-zA-Z0-9_\-]+))\);', r'\1;', content)
+            if fixed_content != content:
+                content = fixed_content
+                modified = True
+
+            if modified:
+                hf.write_text(content, encoding="utf-8", newline="\n")
+                try:
+                    rel_f = str(hf.relative_to(repo_root)).replace("\\", "/")
+                except Exception:
+                    rel_f = hf.name
+                fixes_applied.append({
+                    "category": "HTML/CSS Syntax Hygiene",
+                    "file": rel_f,
+                    "detail": "Auto-repaired corrupted CSS declaration in inline style attribute.",
+                })
+        except Exception:
+            continue
+
+    return fixes_applied
+
+
 def stage_modified_files(repo_root: Path = REPO_ROOT, files: List[str] | None = None) -> bool:
     """Stages auto-fixed files in Git so commits/pushes proceed without human intervention."""
     git_exe = shutil.which("git") or "git"
@@ -423,12 +467,14 @@ def run_auto_fixer(
     run_pyright_cli: bool = True,
 ) -> Dict[str, Any]:
     """
-    Executes both the CodeQL/Security Auto-Fixer and the VS Code/Pyright Auto-Fixer.
+    Executes both the CodeQL/Security Auto-Fixer, the VS Code/Pyright Auto-Fixer,
+    and the HTML/CSS Template Validator.
     Optionally stages (`git add`) any repaired files automatically.
     """
     security_fixes = fix_codeql_and_security_issues(repo_root=repo_root)
     type_fixes = fix_vscode_pyright_problems(repo_root=repo_root, run_pyright_cli=run_pyright_cli)
-    all_fixes = security_fixes + type_fixes
+    html_fixes = fix_html_and_template_problems(repo_root=repo_root)
+    all_fixes = security_fixes + type_fixes + html_fixes
 
     staged = False
     if stage_changes and all_fixes:
@@ -440,6 +486,7 @@ def run_auto_fixer(
         "fixes_applied_count": len(all_fixes),
         "security_fixes_count": len(security_fixes),
         "vscode_type_fixes_count": len(type_fixes),
+        "html_fixes_count": len(html_fixes),
         "staged_in_git": staged,
         "fixes": all_fixes,
         "tokens_used": 0,

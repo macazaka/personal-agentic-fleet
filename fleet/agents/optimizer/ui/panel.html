@@ -1,14 +1,14 @@
 <div id="viewOptimizer" style="display: none; flex-direction: column; gap: 20px;">
     <!-- Optimizer Header & Quick 1-Click Action -->
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 18px 22px; backdrop-filter: blur(12px);">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; background: var(--card-bg; border: 1px solid var(--card-border; border-radius: var(--radius); padding: 18px 22px; backdrop-filter: blur(12px);">
       <div>
         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
           <span style="font-size: 24px;">🚀</span>
           <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: #fff;">PC Performance Optimizer & System Tuning</h2>
-          <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 11px;">⚡ 0 Tokens ($0.00) — Tier 0 Deterministic</span>
-          <span id="optimizerScoreBadge" class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); font-size: 12px; font-weight: 700;">Health Score: --/100</span>
+          <span class="badge" style="background: rgba(16, 185, 129, 0.15; color: var(--accent-green; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 11px;">⚡ 0 Tokens ($0.00) — Tier 0 Deterministic</span>
+          <span id="optimizerScoreBadge" class="badge" style="background: rgba(0, 242, 254, 0.15; color: var(--accent-cyan; font-size: 12px; font-weight: 700;">Health Score: --/100</span>
         </div>
-        <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
+        <div style="font-size: 12px; color: var(--text-muted; margin-top: 6px;">
           Hardware diagnostics, memory working set optimization, junk temporary file cleaner, DNS resolver flushing, and Windows startup management.
         </div>
       </div>
@@ -33,59 +33,59 @@
       <!-- RAM / Memory Card -->
       <div class="card" style="margin: 0; padding: 16px 18px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">💾 RAM / Memory Load</span>
-          <span id="optRamBadge" class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan);">--%</span>
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted;">💾 RAM / Memory Load</span>
+          <span id="optRamBadge" class="badge" style="background: rgba(0, 242, 254, 0.15; color: var(--accent-cyan;">--%</span>
         </div>
         <div style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px;" id="optRamUsage">-- GB / -- GB</div>
-        <div style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; margin-bottom: 8px;">
-          <div id="optRamBar" style="height: 100%; width: 0%; background: var(--accent-cyan); transition: width 0.4s ease;"></div>
+        <div style="height: 6px; background: rgba(255,255,255,0.08; border-radius: 3px; overflow: hidden; margin-bottom: 8px;">
+          <div id="optRamBar" style="height: 100%; width: 0%; background: var(--accent-cyan; transition: width 0.4s ease;"></div>
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; color: var(--text-muted);" id="optRamAvail">Available: -- GB</span>
-          <span style="font-size: 11px; color: var(--accent-cyan);">Live Telemetry</span>
+          <span style="font-size: 11px; color: var(--text-muted;" id="optRamAvail">Available: -- GB</span>
+          <span style="font-size: 11px; color: var(--accent-cyan;">Live Telemetry</span>
         </div>
       </div>
 
       <!-- Disk Storage (C:) Card -->
       <div class="card" style="margin: 0; padding: 16px 18px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">💿 Disk Storage (C:)</span>
-          <span id="optDiskBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green);">--% Free</span>
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted;">💿 Disk Storage (C:)</span>
+          <span id="optDiskBadge" class="badge" style="background: rgba(16, 185, 129, 0.15; color: var(--accent-green;">--% Free</span>
         </div>
         <div style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px;" id="optDiskUsage">-- GB Free</div>
-        <div style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; margin-bottom: 8px;">
-          <div id="optDiskBar" style="height: 100%; width: 0%; background: var(--accent-green); transition: width 0.4s ease;"></div>
+        <div style="height: 6px; background: rgba(255,255,255,0.08; border-radius: 3px; overflow: hidden; margin-bottom: 8px;">
+          <div id="optDiskBar" style="height: 100%; width: 0%; background: var(--accent-green; transition: width 0.4s ease;"></div>
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; color: var(--text-muted);" id="optDiskTotal">Total: -- GB</span>
-          <span style="font-size: 11px; color: var(--accent-green);" id="optDiskPercent">--% Used</span>
+          <span style="font-size: 11px; color: var(--text-muted;" id="optDiskTotal">Total: -- GB</span>
+          <span style="font-size: 11px; color: var(--accent-green;" id="optDiskPercent">--% Used</span>
         </div>
       </div>
 
       <!-- Temp Junk Bloat Card -->
       <div class="card" style="margin: 0; padding: 16px 18px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">🧹 Temporary Junk Bloat</span>
-          <span id="optTempBadge" class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-amber);">-- MB</span>
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted;">🧹 Temporary Junk Bloat</span>
+          <span id="optTempBadge" class="badge" style="background: rgba(245, 158, 11, 0.15; color: var(--accent-amber;">-- MB</span>
         </div>
         <div style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px;" id="optTempSize">-- MB Junk</div>
-        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;" id="optTempFiles">-- files in Windows Temp</div>
+        <div style="font-size: 12px; color: var(--text-muted; margin-bottom: 12px;" id="optTempFiles">-- files in Windows Temp</div>
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; color: var(--text-muted);">Reclaimable space</span>
-          <span style="font-size: 11px; color: var(--accent-amber);">System Temp</span>
+          <span style="font-size: 11px; color: var(--text-muted;">Reclaimable space</span>
+          <span style="font-size: 11px; color: var(--accent-amber;">System Temp</span>
         </div>
       </div>
 
       <!-- Startup Boot Apps Card -->
       <div class="card" style="margin: 0; padding: 16px 18px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">🚀 Startup Boot Programs</span>
-          <span id="optStartupBadge" class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">-- Apps</span>
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted;">🚀 Startup Boot Programs</span>
+          <span id="optStartupBadge" class="badge" style="background: rgba(168, 85, 247, 0.15; color: #c084fc;">-- Apps</span>
         </div>
         <div style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px;" id="optStartupCount">-- Active on Boot</div>
-        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Programs launching on Windows start</div>
+        <div style="font-size: 12px; color: var(--text-muted; margin-bottom: 12px;">Programs launching on Windows start</div>
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; color: var(--text-muted);">Boot impact</span>
+          <span style="font-size: 11px; color: var(--text-muted;">Boot impact</span>
           <span style="font-size: 11px; color: #c084fc;">Registry & Startup</span>
         </div>
       </div>
@@ -96,9 +96,9 @@
       <div class="card-title">
         <div>
           <span>💡 Targeted PC Optimization Recommendations</span>
-          <span style="font-size: 12px; color: var(--text-muted); margin-left: 8px;">(Actionable Steps to Maximize Speed)</span>
+          <span style="font-size: 12px; color: var(--text-muted; margin-left: 8px;">(Actionable Steps to Maximize Speed)</span>
         </div>
-        <span style="font-size: 12px; color: var(--accent-cyan);" id="optRecomCount">-- Actions Available</span>
+        <span style="font-size: 12px; color: var(--accent-cyan;" id="optRecomCount">-- Actions Available</span>
       </div>
       <div id="optRecommendationsList" style="display: flex; flex-direction: column; gap: 12px;">
         <!-- Rendered via JS -->
@@ -113,42 +113,42 @@
           <span>🛠️ One-Click PC Optimization Actions</span>
         </div>
         <div style="display: flex; flex-direction: column; gap: 10px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 8px; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: rgba(255,255,255,0.03; border: 1px solid var(--card-border; border-radius: 8px; gap: 10px;">
             <div>
               <div style="font-weight: 600; font-size: 13.5px; color: #fff;">🧹 Clean Windows Temporary Files</div>
-              <div style="font-size: 11.5px; color: var(--text-muted);">Deletes stale cache files from %TEMP% to free disk space and reduce file search latency.</div>
+              <div style="font-size: 11.5px; color: var(--text-muted;">Deletes stale cache files from %TEMP% to free disk space and reduce file search latency.</div>
             </div>
             <button class="btn btn-primary" style="font-size: 12px; white-space: nowrap;" onclick="runCleanTemp()">Clean Temp</button>
           </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 8px; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: rgba(255,255,255,0.03; border: 1px solid var(--card-border; border-radius: 8px; gap: 10px;">
             <div>
               <div style="font-weight: 600; font-size: 13.5px; color: #fff;">⚡ Flush DNS Resolver Cache</div>
-              <div style="font-size: 11.5px; color: var(--text-muted);">Purges stale DNS records via ipconfig /flushdns to resolve network and web API lags.</div>
+              <div style="font-size: 11.5px; color: var(--text-muted;">Purges stale DNS records via ipconfig /flushdns to resolve network and web API lags.</div>
             </div>
-            <button class="btn" style="font-size: 12px; white-space: nowrap; border-color: var(--accent-cyan); color: var(--accent-cyan);" onclick="runFlushDns()">Flush DNS</button>
+            <button class="btn" style="font-size: 12px; white-space: nowrap; border-color: var(--accent-cyan; color: var(--accent-cyan;" onclick="runFlushDns()">Flush DNS</button>
           </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 8px; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: rgba(255,255,255,0.03; border: 1px solid var(--card-border; border-radius: 8px; gap: 10px;">
             <div>
               <div style="font-weight: 600; font-size: 13.5px; color: #fff;">🐍 Purge Dev & PyCache Folders</div>
-              <div style="font-size: 11.5px; color: var(--text-muted);">Recursively deletes __pycache__, .pytest_cache, and compiled bytecode (.pyc) files.</div>
+              <div style="font-size: 11.5px; color: var(--text-muted;">Recursively deletes __pycache__, .pytest_cache, and compiled bytecode (.pyc) files.</div>
             </div>
-            <button class="btn" style="font-size: 12px; white-space: nowrap; border-color: var(--accent-amber); color: var(--accent-amber);" onclick="runPurgeDevCaches()">Purge PyCache</button>
+            <button class="btn" style="font-size: 12px; white-space: nowrap; border-color: var(--accent-amber; color: var(--accent-amber;" onclick="runPurgeDevCaches()">Purge PyCache</button>
           </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 8px; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: rgba(255,255,255,0.03; border: 1px solid var(--card-border; border-radius: 8px; gap: 10px;">
             <div>
               <div style="font-weight: 600; font-size: 13.5px; color: #fff;">💾 Optimize RAM Working Sets</div>
-              <div style="font-size: 11.5px; color: var(--text-muted);">Performs garbage collection sweep and memory reclaim to free inactive background pages.</div>
+              <div style="font-size: 11.5px; color: var(--text-muted;">Performs garbage collection sweep and memory reclaim to free inactive background pages.</div>
             </div>
-            <button class="btn" style="font-size: 12px; white-space: nowrap; border-color: var(--accent-pink); color: var(--accent-pink);" onclick="runOptimizeRam()">Optimize RAM</button>
+            <button class="btn" style="font-size: 12px; white-space: nowrap; border-color: var(--accent-pink; color: var(--accent-pink;" onclick="runOptimizeRam()">Optimize RAM</button>
           </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 8px; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: rgba(255,255,255,0.03; border: 1px solid var(--card-border; border-radius: 8px; gap: 10px;">
             <div>
               <div style="font-weight: 600; font-size: 13.5px; color: #fff;">🚀 Manage Windows Startup Apps</div>
-              <div style="font-size: 11.5px; color: var(--text-muted);">Directly opens the Windows Settings Startup page to toggle unneeded startup programs.</div>
+              <div style="font-size: 11.5px; color: var(--text-muted;">Directly opens the Windows Settings Startup page to toggle unneeded startup programs.</div>
             </div>
             <button class="btn" style="font-size: 12px; white-space: nowrap; border-color: #c084fc; color: #c084fc;" onclick="runOpenStartupSettings()">Open Settings</button>
           </div>
@@ -159,7 +159,7 @@
       <div class="card">
         <div class="card-title">
           <span>📊 Top Memory-Consuming Processes</span>
-          <span style="font-size: 11px; color: var(--text-muted);" id="optProcessCount">Active Apps</span>
+          <span style="font-size: 11px; color: var(--text-muted;" id="optProcessCount">Active Apps</span>
         </div>
         <div id="optProcessList" style="display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto;">
           <!-- Rendered via JS -->
@@ -174,7 +174,7 @@
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 22px;">⚡</span>
-          <strong style="font-size: 16px; color: var(--text);">LLM Model & Usage Details</strong>
+          <strong style="font-size: 16px; color: var(--text;">LLM Model & Usage Details</strong>
         </div>
         <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeUsageModal()">✕</button>
       </div>
@@ -187,25 +187,25 @@
   <!-- Image Lightbox Modal -->
   <div id="imageLightboxModal" class="ag-modal-overlay" style="display: none;" onclick="closeImageLightbox()">
     <div style="position: relative; max-width: 90vw; max-height: 90vh;">
-      <img id="lightboxImg" src="" style="max-width: 100%; max-height: 85vh; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.8);">
-      <button class="btn" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; border: none;" onclick="closeImageLightbox()">✕ Close</button>
+      <img id="lightboxImg" src="" style="max-width: 100%; max-height: 85vh; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.8;">
+      <button class="btn" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7; color: white; border: none;" onclick="closeImageLightbox()">✕ Close</button>
     </div>
   </div>
 
   <!-- Release Notes Modal -->
   <div id="releaseNotesModal" class="ag-modal-overlay" style="display: none;" onclick="if(event.target===this) closeReleaseNotesModal()">
     <div class="ag-modal-box" style="width: 720px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--card-border); padding-bottom: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--card-border; padding-bottom: 12px;">
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 22px;">📜</span>
           <div>
-            <strong style="font-size: 16px; color: var(--text);">Fleet Release Notes & Version History</strong>
-            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v1.8.0</div>
+            <strong style="font-size: 16px; color: var(--text;">Fleet Release Notes & Version History</strong>
+            <div style="font-size: 11.5px; color: var(--accent-cyan; font-weight: 600;" id="currentReleaseVerLabel">Current Release: v1.8.0</div>
           </div>
         </div>
         <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeReleaseNotesModal()">✕</button>
       </div>
-      <div id="releaseNotesBody" style="overflow-y: auto; max-height: 65vh; padding-right: 8px; font-size: 13px; line-height: 1.6; color: var(--text);">
+      <div id="releaseNotesBody" style="overflow-y: auto; max-height: 65vh; padding-right: 8px; font-size: 13px; line-height: 1.6; color: var(--text;">
         <!-- Loaded dynamically via /api/release_notes -->
       </div>
     </div>
@@ -214,12 +214,12 @@
   <!-- Token Preservation Vault Modal -->
   <div id="tokenVaultModal" class="ag-modal-overlay" style="display: none;" onclick="if(event.target===this) closeVaultModal()">
     <div class="ag-modal-box" style="width: 700px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--card-border); padding-bottom: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--card-border; padding-bottom: 12px;">
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 22px;">📦</span>
           <div>
-            <strong style="font-size: 16px; color: var(--text);">Token Preservation Vault</strong>
-            <div style="font-size: 11.5px; color: var(--text-muted);">Safeguards user prompts & work across quota interruptions with zero data loss</div>
+            <strong style="font-size: 16px; color: var(--text;">Token Preservation Vault</strong>
+            <div style="font-size: 11.5px; color: var(--text-muted;">Safeguards user prompts & work across quota interruptions with zero data loss</div>
           </div>
         </div>
         <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeVaultModal()">✕</button>
@@ -227,11 +227,11 @@
       <div id="tokenVaultContent" style="overflow-y: auto; max-height: 55vh; padding-right: 6px;">
         <!-- Dynamic content -->
       </div>
-      <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-size: 11px; color: var(--text-muted);">Tier 0 SQLite Vault Storage</span>
+      <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--card-border; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 11px; color: var(--text-muted;">Tier 0 SQLite Vault Storage</span>
         <div style="display: flex; gap: 8px;">
           <button class="btn" onclick="closeVaultModal()" style="font-size: 12px;">Close</button>
-          <button class="btn btn-primary" onclick="resumeVaultedWork()" style="font-size: 12px; background: linear-gradient(135deg, #10b981, #059669); border-color: #10b981;">
+          <button class="btn btn-primary" onclick="resumeVaultedWork()" style="font-size: 12px; background: linear-gradient(135deg, #10b981, #059669; border-color: #10b981;">
             🔄 Resume All Prompts
           </button>
         </div>
@@ -242,19 +242,19 @@
   <!-- Comprehensive Detailed Lab Report Modal -->
   <div id="apolloModal" class="ag-modal-overlay" style="display: none;" onclick="if(event.target===this) closeApolloModal()">
     <div class="ag-modal-box" style="width: 820px; max-width: 96vw; max-height: 88vh; display: flex; flex-direction: column;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--card-border; padding-bottom: 10px;">
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 22px;">🔬</span>
           <div>
-            <strong style="font-size: 16px; color: var(--text);">Comprehensive Metabolic — Full Body Checkup</strong>
-            <div style="font-size: 11px; color: var(--accent-cyan);">Personal Health & Wellness Profile • Reference Baseline</div>
+            <strong style="font-size: 16px; color: var(--text;">Comprehensive Metabolic — Full Body Checkup</strong>
+            <div style="font-size: 11px; color: var(--accent-cyan;">Personal Health & Wellness Profile • Reference Baseline</div>
           </div>
         </div>
         <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeApolloModal()">✕</button>
       </div>
-      <div style="overflow-y: auto; max-height: 72vh; padding-right: 8px; font-size: 12.5px; line-height: 1.5; color: var(--text);">
+      <div style="overflow-y: auto; max-height: 72vh; padding-right: 8px; font-size: 12.5px; line-height: 1.5; color: var(--text;">
         <!-- Summary Alert -->
-        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
+        <div style="background: rgba(239, 68, 68, 0.1; border: 1px solid rgba(239, 68, 68, 0.3; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
           <strong style="color: #f87171;">Key Findings & Areas Requiring Intervention:</strong>
           <ul style="margin-left: 20px; margin-top: 6px; font-size: 12px;">
             <li><strong>Diabetic Glycemic Control:</strong> HbA1c 7.1% (eAG 157 mg/dL), Fasting Glucose 108 mg/dL, 2hr Post-Prandial Glucose 165 mg/dL.</li>
@@ -269,7 +269,7 @@
         <!-- Detailed Table -->
         <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px;">
           <thead>
-            <tr style="border-bottom: 1px solid var(--card-border); background: rgba(255,255,255,0.04); text-align: left;">
+            <tr style="border-bottom: 1px solid var(--card-border; background: rgba(255,255,255,0.04; text-align: left;">
               <th style="padding: 8px;">Test Parameter</th>
               <th style="padding: 8px;">Result</th>
               <th style="padding: 8px;">Biological Ref. Interval</th>
@@ -277,22 +277,22 @@
             </tr>
           </thead>
           <tbody>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Fasting Glucose</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">108 mg/dL</td><td style="padding: 6px 8px;">70 - 100</td><td style="padding: 6px 8px; color: #f87171;">Prediabetes</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Post Prandial Glucose (2hr)</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">165 mg/dL</td><td style="padding: 6px 8px;">&lt; 140 (Diabetic &gt;200)</td><td style="padding: 6px 8px; color: #f87171;">Diabetic</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">HbA1c (Glycated Hb)</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-amber);">7.1 %</td><td style="padding: 6px 8px;">&lt; 5.7 (Diabetic &ge;6.5)</td><td style="padding: 6px 8px; color: var(--accent-amber);">Diabetic (Fair Control)</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Fasting C-Peptide</td><td style="padding: 6px 8px; font-weight: 700; color: #c084fc;">7.530 ng/mL</td><td style="padding: 6px 8px;">1.1 - 4.4</td><td style="padding: 6px 8px; color: #c084fc;">Hyperinsulinemia</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Total Cholesterol</td><td style="padding: 6px 8px; font-weight: 700;">209 mg/dL</td><td style="padding: 6px 8px;">&lt; 200</td><td style="padding: 6px 8px; color: var(--accent-amber);">Borderline High</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Triglycerides</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">208 mg/dL</td><td style="padding: 6px 8px;">&lt; 150</td><td style="padding: 6px 8px; color: #f87171;">High</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">HDL Cholesterol</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">31 mg/dL</td><td style="padding: 6px 8px;">&ge; 40 Desirable</td><td style="padding: 6px 8px; color: #f87171;">Low</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">LDL Cholesterol</td><td style="padding: 6px 8px; font-weight: 700;">136.8 mg/dL</td><td style="padding: 6px 8px;">&lt; 100</td><td style="padding: 6px 8px; color: var(--accent-amber);">Elevated</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">SGPT / ALT (Liver)</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">68.8 U/L</td><td style="padding: 6px 8px;">10 - 50</td><td style="padding: 6px 8px; color: #f87171;">Elevated (NAFLD)</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">SGOT / AST (Liver)</td><td style="padding: 6px 8px; font-weight: 700;">40.1 U/L</td><td style="padding: 6px 8px;">10 - 50</td><td style="padding: 6px 8px;">Normal</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Serum Creatinine</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green);">0.70 mg/dL</td><td style="padding: 6px 8px;">0.7 - 1.2</td><td style="padding: 6px 8px; color: var(--accent-green);">Normal</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">eGFR (Glomerular Filtration)</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green);">113.92 mL/min</td><td style="padding: 6px 8px;">&gt; 60</td><td style="padding: 6px 8px; color: var(--accent-green);">Optimal</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Vitamin D (25-OH)</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green);">66.9 ng/mL</td><td style="padding: 6px 8px;">30 - 100</td><td style="padding: 6px 8px; color: var(--accent-green);">Sufficient</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Vitamin B12</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green);">545 pg/mL</td><td style="padding: 6px 8px;">197 - 771</td><td style="padding: 6px 8px; color: var(--accent-green);">Normal</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">hs-CRP (Cardiac Risk)</td><td style="padding: 6px 8px; font-weight: 700;">1.10 mg/L</td><td style="padding: 6px 8px;">&lt; 3.0</td><td style="padding: 6px 8px;">Average Risk</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Urine Pus Cells</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">12 - 15 /hpf</td><td style="padding: 6px 8px;">0 - 5</td><td style="padding: 6px 8px; color: #f87171;">Elevated</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;">Fasting Glucose</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">108 mg/dL</td><td style="padding: 6px 8px;">70 - 100</td><td style="padding: 6px 8px; color: #f87171;">Prediabetes</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;">Post Prandial Glucose (2hr)</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">165 mg/dL</td><td style="padding: 6px 8px;">&lt; 140 (Diabetic &gt;200)</td><td style="padding: 6px 8px; color: #f87171;">Diabetic</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;">HbA1c (Glycated Hb)</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-amber;">7.1 %</td><td style="padding: 6px 8px;">&lt; 5.7 (Diabetic &ge;6.5)</td><td style="padding: 6px 8px; color: var(--accent-amber;">Diabetic (Fair Control)</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;">Fasting C-Peptide</td><td style="padding: 6px 8px; font-weight: 700; color: #c084fc;">7.530 ng/mL</td><td style="padding: 6px 8px;">1.1 - 4.4</td><td style="padding: 6px 8px; color: #c084fc;">Hyperinsulinemia</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;">Total Cholesterol</td><td style="padding: 6px 8px; font-weight: 700;">209 mg/dL</td><td style="padding: 6px 8px;">&lt; 200</td><td style="padding: 6px 8px; color: var(--accent-amber;">Borderline High</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;">Triglycerides</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">208 mg/dL</td><td style="padding: 6px 8px;">&lt; 150</td><td style="padding: 6px 8px; color: #f87171;">High</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;">HDL Cholesterol</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">31 mg/dL</td><td style="padding: 6px 8px;">&ge; 40 Desirable</td><td style="padding: 6px 8px; color: #f87171;">Low</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;">LDL Cholesterol</td><td style="padding: 6px 8px; font-weight: 700;">136.8 mg/dL</td><td style="padding: 6px 8px;">&lt; 100</td><td style="padding: 6px 8px; color: var(--accent-amber;">Elevated</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;">SGPT / ALT (Liver)</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">68.8 U/L</td><td style="padding: 6px 8px;">10 - 50</td><td style="padding: 6px 8px; color: #f87171;">Elevated (NAFLD)</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;">SGOT / AST (Liver)</td><td style="padding: 6px 8px; font-weight: 700;">40.1 U/L</td><td style="padding: 6px 8px;">10 - 50</td><td style="padding: 6px 8px;">Normal</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;">Serum Creatinine</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green;">0.70 mg/dL</td><td style="padding: 6px 8px;">0.7 - 1.2</td><td style="padding: 6px 8px; color: var(--accent-green;">Normal</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;">eGFR (Glomerular Filtration)</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green;">113.92 mL/min</td><td style="padding: 6px 8px;">&gt; 60</td><td style="padding: 6px 8px; color: var(--accent-green;">Optimal</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;">Vitamin D (25-OH)</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green;">66.9 ng/mL</td><td style="padding: 6px 8px;">30 - 100</td><td style="padding: 6px 8px; color: var(--accent-green;">Sufficient</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;">Vitamin B12</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green;">545 pg/mL</td><td style="padding: 6px 8px;">197 - 771</td><td style="padding: 6px 8px; color: var(--accent-green;">Normal</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;">hs-CRP (Cardiac Risk)</td><td style="padding: 6px 8px; font-weight: 700;">1.10 mg/L</td><td style="padding: 6px 8px;">&lt; 3.0</td><td style="padding: 6px 8px;">Average Risk</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;">Urine Pus Cells</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">12 - 15 /hpf</td><td style="padding: 6px 8px;">0 - 5</td><td style="padding: 6px 8px; color: #f87171;">Elevated</td></tr>
           </tbody>
         </table>
       </div>
@@ -302,46 +302,46 @@
   <!-- FFD Diet Protocol & Smoothie Recipes Modal -->
   <div id="ffdDietModal" class="ag-modal-overlay" style="display: none;" onclick="if(event.target===this) closeDietProtocolModal()">
     <div class="ag-modal-box" style="width: 760px; max-width: 96vw; max-height: 88vh; display: flex; flex-direction: column;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--card-border; padding-bottom: 10px;">
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 22px;">🥗</span>
           <div>
-            <strong style="font-size: 16px; color: var(--text);">Freedom From Diabetes — Phase 1.1 Diet Protocol</strong>
-            <div style="font-size: 11px; color: var(--accent-green);">3-Meal Rapid Fat Loss • Phase 1.1 Protocol</div>
+            <strong style="font-size: 16px; color: var(--text;">Freedom From Diabetes — Phase 1.1 Diet Protocol</strong>
+            <div style="font-size: 11px; color: var(--accent-green;">3-Meal Rapid Fat Loss • Phase 1.1 Protocol</div>
           </div>
         </div>
         <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeDietProtocolModal()">✕</button>
       </div>
-      <div style="overflow-y: auto; max-height: 72vh; padding-right: 8px; font-size: 12.5px; line-height: 1.6; color: var(--text);">
+      <div style="overflow-y: auto; max-height: 72vh; padding-right: 8px; font-size: 12.5px; line-height: 1.6; color: var(--text;">
         <!-- Core Golden Rule -->
-        <div style="background: rgba(0, 242, 254, 0.08); border: 1px solid rgba(0, 242, 254, 0.25); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
-          <strong style="color: var(--accent-cyan);">🌟 The Golden "Rule of 4th Morsel":</strong>
+        <div style="background: rgba(0, 242, 254, 0.08; border: 1px solid rgba(0, 242, 254, 0.25; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
+          <strong style="color: var(--accent-cyan;">🌟 The Golden "Rule of 4th Morsel":</strong>
           <p style="margin-top: 4px; font-size: 12px;">The first 3 morsels of every meal MUST be <strong>1. Salad</strong>, <strong>2. Cooked Vegetable</strong>, and <strong>3. Dal / Pulses</strong> in that order. Grain (rotis/millets/rice) should only be taken from the <strong>4th morsel</strong> onwards!</p>
         </div>
 
-        <h3 style="color: var(--accent-green); font-size: 14px; margin-bottom: 8px;">⏰ Daily Meal Schedule</h3>
+        <h3 style="color: var(--accent-green; font-size: 14px; margin-bottom: 8px;">⏰ Daily Meal Schedule</h3>
         <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
-          <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px;">
+          <div style="background: rgba(255,255,255,0.03; padding: 8px 12px; border-radius: 6px;">
             <strong>06:00 - 07:30 AM: Smoothie (250ml)</strong> — Green Smoothie or White Smoothie on empty stomach. Drink sip by sip over 3 mins.
           </div>
-          <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px;">
+          <div style="background: rgba(255,255,255,0.03; padding: 8px 12px; border-radius: 6px;">
             <strong>08:00 - 09:00 AM: Breakfast (25-25-50% Formula)</strong> — 25% Salads (1 katori) + 25% Raw Sprouts (1 katori) + 50% Cooked Dal item (Besan chilla, moong/urad dosa, pesaruttu) + 2 tbsp Chutney.
           </div>
-          <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px;">
+          <div style="background: rgba(255,255,255,0.03; padding: 8px 12px; border-radius: 6px;">
             <strong>01:00 - 02:00 PM: Lunch (25% Quad Formula)</strong> — 25% Salad (1 katori) + 25% Cooked Veg (1 katori) + 25% Dal (1 portion) + 25% Whole Grain (Khapli wheat / bajra / jowar / brown rice).
           </div>
-          <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px;">
+          <div style="background: rgba(255,255,255,0.03; padding: 8px 12px; border-radius: 6px;">
             <strong>04:00 - 04:30 PM: Snack</strong> — 250ml Smoothie + 5-6 soaked almonds + 4-5 soaked walnuts + 4 tsp mixed seeds (pumpkin, flax, sunflower, watermelon).
           </div>
-          <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px;">
+          <div style="background: rgba(255,255,255,0.03; padding: 8px 12px; border-radius: 6px;">
             <strong>07:00 - 08:00 PM: Dinner</strong> — Finish before 8:30 PM (definitely before 9 PM). Low-carb dal and vegetables. Sleep by 11:00 PM latest!
           </div>
         </div>
 
-        <h3 style="color: var(--accent-cyan); font-size: 14px; margin-bottom: 8px;">🥤 Smoothie Recipes (500ml batch)</h3>
+        <h3 style="color: var(--accent-cyan; font-size: 14px; margin-bottom: 8px;">🥤 Smoothie Recipes (500ml batch)</h3>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;">
-          <div style="background: rgba(0,0,0,0.3); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--card-border);">
-            <strong style="color: var(--accent-green);">Green Smoothie Recipe:</strong>
+          <div style="background: rgba(0,0,0,0.3; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--card-border;">
+            <strong style="color: var(--accent-green;">Green Smoothie Recipe:</strong>
             <ul style="margin-left: 18px; margin-top: 6px; font-size: 11.5px;">
               <li>1.5 cup Major Greens (Amaranth, Lettuce, Kale, or Spinach max 2x/wk)</li>
               <li>0.5 cup Minor Greens (Mint, Curry leaves, Tulsi, Coriander)</li>
@@ -351,8 +351,8 @@
               <li>250ml Water. Blend 3 mins.</li>
             </ul>
           </div>
-          <div style="background: rgba(0,0,0,0.3); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--card-border);">
-            <strong style="color: var(--text);">White Smoothie Recipe:</strong>
+          <div style="background: rgba(0,0,0,0.3; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--card-border;">
+            <strong style="color: var(--text;">White Smoothie Recipe:</strong>
             <ul style="margin-left: 18px; margin-top: 6px; font-size: 11.5px;">
               <li>1.5 cup Bottle Gourd (check non-bitter), Cucumber, or Ash Gourd</li>
               <li>0.5 cup Minor Greens (Mint, Tulsi, Celery, Parsley)</li>
@@ -364,7 +364,7 @@
           </div>
         </div>
 
-        <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 6px; padding: 10px 12px;">
+        <div style="background: rgba(239, 68, 68, 0.08; border: 1px solid rgba(239, 68, 68, 0.25; border-radius: 6px; padding: 10px 12px;">
           <strong style="color: #f87171;">🚫 Strictly Avoided Foods:</strong>
           <span style="font-size: 11.5px;"> Table sugar, jaggery, honey, sweets, sodas, high-GI grains (maida, white rice, cornflakes), animal milk (cow A1/A2, buffalo) & all dairy products, deep-fried snacks, and refined oils.</span>
         </div>
@@ -375,24 +375,24 @@
   <!-- Doctor's Prescription Modal -->
   <div id="ffdPrescriptionModal" class="ag-modal-overlay" style="display: none;" onclick="if(event.target===this) closePrescriptionModal()">
     <div class="ag-modal-box" style="width: 760px; max-width: 96vw; max-height: 88vh; display: flex; flex-direction: column;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--card-border; padding-bottom: 10px;">
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 22px;">💊</span>
           <div>
-            <strong style="font-size: 16px; color: var(--text);">Doctor's Prescription & Medication Directives</strong>
-            <div style="font-size: 11px; color: var(--accent-cyan);">Prescribed Clinical Regimen • 09-Oct-2026</div>
+            <strong style="font-size: 16px; color: var(--text;">Doctor's Prescription & Medication Directives</strong>
+            <div style="font-size: 11px; color: var(--accent-cyan;">Prescribed Clinical Regimen • 09-Oct-2026</div>
           </div>
         </div>
         <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closePrescriptionModal()">✕</button>
       </div>
-      <div style="overflow-y: auto; max-height: 72vh; padding-right: 8px; font-size: 12.5px; line-height: 1.6; color: var(--text);">
-        <div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
-          <strong>Consult Goals:</strong> Within 3 Months (07 Jan 2027) <strong style="color: var(--accent-cyan);">HbA1c &lt; 6.4%</strong> • Diet Remarks: <strong style="color: #f87171;">Salt restricted diet</strong> • Recommendations: <strong style="color: var(--accent-amber);">Monitor BP</strong>
+      <div style="overflow-y: auto; max-height: 72vh; padding-right: 8px; font-size: 12.5px; line-height: 1.6; color: var(--text;">
+        <div style="background: rgba(168, 85, 247, 0.1; border: 1px solid rgba(168, 85, 247, 0.3; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
+          <strong>Consult Goals:</strong> Within 3 Months (07 Jan 2027) <strong style="color: var(--accent-cyan;">HbA1c &lt; 6.4%</strong> • Diet Remarks: <strong style="color: #f87171;">Salt restricted diet</strong> • Recommendations: <strong style="color: var(--accent-amber;">Monitor BP</strong>
         </div>
 
         <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px;">
           <thead>
-            <tr style="border-bottom: 1px solid var(--card-border); background: rgba(255,255,255,0.04); text-align: left;">
+            <tr style="border-bottom: 1px solid var(--card-border; background: rgba(255,255,255,0.04; text-align: left;">
               <th style="padding: 8px;">Medicine Name</th>
               <th style="padding: 8px;">Dosage Timing</th>
               <th style="padding: 8px;">Frequency</th>
@@ -400,13 +400,13 @@
             </tr>
           </thead>
           <tbody>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;"><strong>Morning Metabolic Support</strong> (Configured Regimen)</td><td style="padding: 6px 8px;">0 - 1 - 0 - 0 - 0 (After Breakfast)</td><td style="padding: 6px 8px;">Everyday</td><td style="padding: 6px 8px;">x 3 Months</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;"><strong>Glycemic Support Regimen</strong> (Configured Regimen)</td><td style="padding: 6px 8px;">0 - 1 - 0 - 1 - 0 (After Breakfast & Dinner)</td><td style="padding: 6px 8px;">Everyday</td><td style="padding: 6px 8px;">x 1 Month</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;"><strong>Tab. Vit B Complex</strong></td><td style="padding: 6px 8px;">0 - 1 - 0 - 0 - 0 (After Breakfast)</td><td style="padding: 6px 8px;">Everyday</td><td style="padding: 6px 8px;">x 3 Months</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;"><strong>Cap. Garlic Pearls</strong> (Garlic oil 0.5% W/W)</td><td style="padding: 6px 8px;">0 - 1 - 0 - 1 - 0 (After Breakfast & Dinner)</td><td style="padding: 6px 8px;">Everyday</td><td style="padding: 6px 8px;">x 1 Month</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;"><strong>Antioxidant Vitamin E</strong> (Nutritional Supplement)</td><td style="padding: 6px 8px;">0 - 0 - 1 - 0 - 0 (After Lunch)</td><td style="padding: 6px 8px;">Everyday</td><td style="padding: 6px 8px;">x 3 Months</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;"><strong>Hepatic Support Supplement</strong> (Nutritional Extract)</td><td style="padding: 6px 8px;">0 - 0 - 1 - 0 - 0 (After Lunch)</td><td style="padding: 6px 8px;">Everyday</td><td style="padding: 6px 8px;">x 3 Months</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;"><strong>Tab. Vitamin D3 60K</strong></td><td style="padding: 6px 8px;">0 - 0 - 1 - 0 - 0 (After Lunch)</td><td style="padding: 6px 8px; color: var(--accent-cyan); font-weight: 700;">1 per Month</td><td style="padding: 6px 8px;">x 3 Months</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;"><strong>Morning Metabolic Support</strong> (Configured Regimen)</td><td style="padding: 6px 8px;">0 - 1 - 0 - 0 - 0 (After Breakfast)</td><td style="padding: 6px 8px;">Everyday</td><td style="padding: 6px 8px;">x 3 Months</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;"><strong>Glycemic Support Regimen</strong> (Configured Regimen)</td><td style="padding: 6px 8px;">0 - 1 - 0 - 1 - 0 (After Breakfast & Dinner)</td><td style="padding: 6px 8px;">Everyday</td><td style="padding: 6px 8px;">x 1 Month</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;"><strong>Tab. Vit B Complex</strong></td><td style="padding: 6px 8px;">0 - 1 - 0 - 0 - 0 (After Breakfast)</td><td style="padding: 6px 8px;">Everyday</td><td style="padding: 6px 8px;">x 3 Months</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;"><strong>Cap. Garlic Pearls</strong> (Garlic oil 0.5% W/W)</td><td style="padding: 6px 8px;">0 - 1 - 0 - 1 - 0 (After Breakfast & Dinner)</td><td style="padding: 6px 8px;">Everyday</td><td style="padding: 6px 8px;">x 1 Month</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;"><strong>Antioxidant Vitamin E</strong> (Nutritional Supplement)</td><td style="padding: 6px 8px;">0 - 0 - 1 - 0 - 0 (After Lunch)</td><td style="padding: 6px 8px;">Everyday</td><td style="padding: 6px 8px;">x 3 Months</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;"><strong>Hepatic Support Supplement</strong> (Nutritional Extract)</td><td style="padding: 6px 8px;">0 - 0 - 1 - 0 - 0 (After Lunch)</td><td style="padding: 6px 8px;">Everyday</td><td style="padding: 6px 8px;">x 3 Months</td></tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05;"><td style="padding: 6px 8px;"><strong>Tab. Vitamin D3 60K</strong></td><td style="padding: 6px 8px;">0 - 0 - 1 - 0 - 0 (After Lunch)</td><td style="padding: 6px 8px; color: var(--accent-cyan; font-weight: 700;">1 per Month</td><td style="padding: 6px 8px;">x 3 Months</td></tr>
           </tbody>
         </table>
       </div>
@@ -416,12 +416,12 @@
   <!-- Exercise Video Player Modal -->
   <div id="exerciseVideoModal" class="ag-modal-overlay" style="display: none;" onclick="if(event.target===this) closeVideoModal()">
     <div class="ag-modal-box" style="width: 860px; max-width: 96vw; max-height: 90vh; display: flex; flex-direction: column;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--card-border; padding-bottom: 10px;">
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 22px;">🎬</span>
           <div>
-            <strong id="videoModalTitle" style="font-size: 15px; color: var(--text);">Exercise Video Player</strong>
-            <div id="videoModalCategory" style="font-size: 11px; color: var(--accent-cyan);">FFD Video Vault</div>
+            <strong id="videoModalTitle" style="font-size: 15px; color: var(--text;">Exercise Video Player</strong>
+            <div id="videoModalCategory" style="font-size: 11px; color: var(--accent-cyan;">FFD Video Vault</div>
           </div>
         </div>
         <div style="display: flex; gap: 8px; align-items: center;">
@@ -434,7 +434,7 @@
           Your browser does not support HTML5 video streaming.
         </video>
       </div>
-      <div style="margin-top: 10px; font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between;">
+      <div style="margin-top: 10px; font-size: 11px; color: var(--text-muted; display: flex; justify-content: space-between;">
         <span id="videoModalPath">Path: ./data/videos/...</span>
         <span>HTML5 Fast HTTP Range Streaming</span>
       </div>

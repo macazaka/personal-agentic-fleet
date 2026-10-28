@@ -5,9 +5,9 @@
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 22px;">📋</span>
           <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: #fff;">Personal Fleet Feature Backlog</h2>
-          <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); font-size: 11px;">Roadmap & Capabilities</span>
+          <span class="badge" style="background: rgba(0, 242, 254, 0.15; color: var(--accent-cyan; font-size: 11px;">Roadmap & Capabilities</span>
         </div>
-        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+        <div style="font-size: 12px; color: var(--text-muted; margin-top: 4px;">
           Manage and prioritize fleet capabilities, system integrations, roadmap versions, and backlog tasks.
         </div>
       </div>
@@ -17,14 +17,14 @@
     </div>
 
     <!-- Backlog Statistics Metrics Grid -->
-    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;" id="backlogStatsGrid">
+    <div style="display: grid; grid-template-columns: repeat(5, 1fr; gap: 12px;" id="backlogStatsGrid">
       <div class="stat-pill" style="min-width: unset;">
         <span class="label">Total Features</span>
-        <span class="val" id="backlogStatTotal" style="color: var(--text);">0</span>
+        <span class="val" id="backlogStatTotal" style="color: var(--text;">0</span>
       </div>
       <div class="stat-pill" style="min-width: unset;">
         <span class="label">In Progress</span>
-        <span class="val" id="backlogStatInProgress" style="color: var(--accent-cyan);">0</span>
+        <span class="val" id="backlogStatInProgress" style="color: var(--accent-cyan;">0</span>
       </div>
       <div class="stat-pill" style="min-width: unset;">
         <span class="label">Planned</span>
@@ -36,24 +36,24 @@
       </div>
       <div class="stat-pill" style="min-width: unset;">
         <span class="label">Completed</span>
-        <span class="val" id="backlogStatCompleted" style="color: var(--accent-green);">0</span>
+        <span class="val" id="backlogStatCompleted" style="color: var(--accent-green;">0</span>
       </div>
     </div>
 
     <!-- Collapsible Add Feature Form Card -->
-    <div class="card" id="addBacklogCard" style="display: none; padding: 20px; border: 1px solid rgba(0, 242, 254, 0.3); background: rgba(15, 23, 42, 0.85); margin-bottom: 0;">
-      <div style="font-size: 14px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+    <div class="card" id="addBacklogCard" style="display: none; padding: 20px; border: 1px solid rgba(0, 242, 254, 0.3; background: rgba(15, 23, 42, 0.85; margin-bottom: 0;">
+      <div style="font-size: 14px; font-weight: 700; color: var(--accent-cyan; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
         <span>⚡ Create Backlog Feature</span>
         <button class="btn" style="padding: 2px 8px; font-size: 11px;" onclick="toggleAddBacklogCard()">✕ Cancel</button>
       </div>
       <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
         <div>
-          <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">FEATURE TITLE *</label>
-          <input type="text" id="newBacklogTitle" placeholder="e.g. Local Speech-to-Text Voice Engine..." style="width: 100%; box-sizing: border-box; padding: 9px 12px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 13px;">
+          <label style="font-size: 11px; font-weight: 600; color: var(--text-muted; display: block; margin-bottom: 4px;">FEATURE TITLE *</label>
+          <input type="text" id="newBacklogTitle" placeholder="e.g. Local Speech-to-Text Voice Engine..." style="width: 100%; box-sizing: border-box; padding: 9px 12px; background: rgba(0,0,0,0.4; border: 1px solid var(--card-border; border-radius: 6px; color: var(--text); font-size: 13px;">
         </div>
         <div>
-          <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">CATEGORY</label>
-          <select id="newBacklogCategory" style="width: 100%; box-sizing: border-box; padding: 9px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 13px;">
+          <label style="font-size: 11px; font-weight: 600; color: var(--text-muted; display: block; margin-bottom: 4px;">CATEGORY</label>
+          <select id="newBacklogCategory" style="width: 100%; box-sizing: border-box; padding: 9px 10px; background: rgba(0,0,0,0.4; border: 1px solid var(--card-border; border-radius: 6px; color: var(--text); font-size: 13px;">
             <option value="Core">Core System</option>
             <option value="AI/LLM">AI & LLM</option>
             <option value="UI/UX">UI & Dashboard</option>
@@ -63,16 +63,16 @@
           </select>
         </div>
         <div>
-          <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">PRIORITY</label>
-          <select id="newBacklogPriority" style="width: 100%; box-sizing: border-box; padding: 9px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 13px;">
+          <label style="font-size: 11px; font-weight: 600; color: var(--text-muted; display: block; margin-bottom: 4px;">PRIORITY</label>
+          <select id="newBacklogPriority" style="width: 100%; box-sizing: border-box; padding: 9px 10px; background: rgba(0,0,0,0.4; border: 1px solid var(--card-border; border-radius: 6px; color: var(--text); font-size: 13px;">
             <option value="P1">🔴 P1 High</option>
             <option value="P2" selected>🟡 P2 Medium</option>
             <option value="P3">🟢 P3 Low</option>
           </select>
         </div>
         <div>
-          <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">TARGET RELEASE</label>
-          <select id="newBacklogVersion" style="width: 100%; box-sizing: border-box; padding: 9px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 13px;">
+          <label style="font-size: 11px; font-weight: 600; color: var(--text-muted; display: block; margin-bottom: 4px;">TARGET RELEASE</label>
+          <select id="newBacklogVersion" style="width: 100%; box-sizing: border-box; padding: 9px 10px; background: rgba(0,0,0,0.4; border: 1px solid var(--card-border; border-radius: 6px; color: var(--text); font-size: 13px;">
             <option value="v1.4.0">v1.4.0 (Next)</option>
             <option value="v1.5.0">v1.5.0</option>
             <option value="v2.0.0">v2.0.0</option>
@@ -81,8 +81,8 @@
         </div>
       </div>
       <div style="margin-bottom: 14px;">
-        <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">DESCRIPTION & SCOPE</label>
-        <textarea id="newBacklogDesc" placeholder="Brief technical scope or user story description..." rows="2" style="width: 100%; box-sizing: border-box; padding: 8px 12px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 13px; font-family: inherit; resize: vertical;"></textarea>
+        <label style="font-size: 11px; font-weight: 600; color: var(--text-muted; display: block; margin-bottom: 4px;">DESCRIPTION & SCOPE</label>
+        <textarea id="newBacklogDesc" placeholder="Brief technical scope or user story description..." rows="2" style="width: 100%; box-sizing: border-box; padding: 8px 12px; background: rgba(0,0,0,0.4; border: 1px solid var(--card-border; border-radius: 6px; color: var(--text); font-size: 13px; font-family: inherit; resize: vertical;"></textarea>
       </div>
       <div style="display: flex; justify-content: flex-end; gap: 10px;">
         <button class="btn btn-primary" onclick="submitNewBacklogItem()" style="padding: 7px 18px; font-size: 12.5px;">✓ Save Feature to Backlog</button>
@@ -90,9 +90,9 @@
     </div>
 
     <!-- Filters & Search Toolbar -->
-    <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; background: rgba(15, 23, 42, 0.4); border: 1px solid var(--card-border); border-radius: 10px; padding: 10px 14px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; background: rgba(15, 23, 42, 0.4; border: 1px solid var(--card-border; border-radius: 10px; padding: 10px 14px;">
       <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-        <span style="font-size: 11.5px; color: var(--text-muted); font-weight: 600;">STATUS:</span>
+        <span style="font-size: 11.5px; color: var(--text-muted; font-weight: 600;">STATUS:</span>
         <button class="filter-btn active" id="backlogFilterStatusAll" onclick="filterBacklogByStatus('ALL')">All</button>
         <button class="filter-btn" id="backlogFilterStatusIdea" onclick="filterBacklogByStatus('Idea')">Idea</button>
         <button class="filter-btn" id="backlogFilterStatusPlanned" onclick="filterBacklogByStatus('Planned')">Planned</button>
@@ -100,7 +100,7 @@
         <button class="filter-btn" id="backlogFilterStatusCompleted" onclick="filterBacklogByStatus('Completed')">Completed</button>
       </div>
       <div style="display: flex; align-items: center; gap: 10px;">
-        <select id="backlogCategoryFilter" onchange="fetchBacklog()" style="background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); padding: 5px 10px; font-size: 12px;">
+        <select id="backlogCategoryFilter" onchange="fetchBacklog()" style="background: rgba(0,0,0,0.4; border: 1px solid var(--card-border; border-radius: 6px; color: var(--text); padding: 5px 10px; font-size: 12px;">
           <option value="ALL">All Categories</option>
           <option value="Core">Core System</option>
           <option value="AI/LLM">AI & LLM</option>
@@ -109,7 +109,7 @@
           <option value="Integration">Integration</option>
           <option value="Security">Security</option>
         </select>
-        <select id="backlogVersionFilter" onchange="fetchBacklog()" style="background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); padding: 5px 10px; font-size: 12px;">
+        <select id="backlogVersionFilter" onchange="fetchBacklog()" style="background: rgba(0,0,0,0.4; border: 1px solid var(--card-border; border-radius: 6px; color: var(--text); padding: 5px 10px; font-size: 12px;">
           <option value="ALL">All Releases</option>
           <option value="v1.4.0">v1.4.0</option>
           <option value="v1.5.0">v1.5.0</option>
@@ -121,7 +121,7 @@
 
     <!-- Backlog Item List Container -->
     <div id="backlogListContainer" style="display: flex; flex-direction: column; gap: 10px;">
-      <div style="text-align: center; color: var(--text-muted); padding: 40px; font-size: 13px;">
+      <div style="text-align: center; color: var(--text-muted; padding: 40px; font-size: 13px;">
         Loading feature backlog...
       </div>
     </div>

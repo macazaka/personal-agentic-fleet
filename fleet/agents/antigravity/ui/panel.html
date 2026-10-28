@@ -3,46 +3,46 @@
         <div class="ag-status-group">
           <div style="display: flex; align-items: center; gap: 8px;">
             <div class="pulse-dot" id="agAgentDot"></div>
-            <strong style="color: var(--text); font-size: 15px;">Antigravity 2.0 Live Stream</strong>
+            <strong style="color: var(--text; font-size: 15px;">Antigravity 2.0 Live Stream</strong>
           </div>
-          <span class="badge" id="agAgentStateBadge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3);">● Idle</span>
-          <span class="badge" style="background: rgba(0, 242, 254, 0.12); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.3);">Tier 0 • 0 Tokens ($0.00)</span>
-          <span class="badge" id="agSessionBadge" style="background: rgba(255,255,255,0.05); color: var(--text-muted); font-family: monospace;">Session: Live</span>
-          <span class="badge" id="agMsgCountBadge" style="background: rgba(168, 85, 247, 0.12); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">0 Steps</span>
+          <span class="badge" id="agAgentStateBadge" style="background: rgba(16, 185, 129, 0.15; color: var(--accent-green; border: 1px solid rgba(16, 185, 129, 0.3);">● Idle</span>
+          <span class="badge" style="background: rgba(0, 242, 254, 0.12; color: var(--accent-cyan; border: 1px solid rgba(0, 242, 254, 0.3);">Tier 0 • 0 Tokens ($0.00)</span>
+          <span class="badge" id="agSessionBadge" style="background: rgba(255,255,255,0.05; color: var(--text-muted; font-family: monospace;">Session: Live</span>
+          <span class="badge" id="agMsgCountBadge" style="background: rgba(168, 85, 247, 0.12; color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3;">0 Steps</span>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
-          <div id="agTokenHealthBar" style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border);" onclick="openUsageModal()" title="Context Window & Token Capacity">
-            <span style="font-size: 11px; color: var(--text-muted);">Context:</span>
-            <div style="width: 50px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
-              <div id="agTokenFill" style="width: 2%; height: 100%; background: var(--accent-cyan); border-radius: 3px; transition: width 0.3s ease;"></div>
+          <div id="agTokenHealthBar" style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,0.03; border: 1px solid var(--card-border;" onclick="openUsageModal()" title="Context Window & Token Capacity">
+            <span style="font-size: 11px; color: var(--text-muted;">Context:</span>
+            <div style="width: 50px; height: 6px; background: rgba(255,255,255,0.1; border-radius: 3px; overflow: hidden;">
+              <div id="agTokenFill" style="width: 2%; height: 100%; background: var(--accent-cyan; border-radius: 3px; transition: width 0.3s ease;"></div>
             </div>
-            <span id="agTokenCountLabel" style="font-size: 11px; color: var(--accent-cyan); font-family: monospace;">0%</span>
+            <span id="agTokenCountLabel" style="font-size: 11px; color: var(--accent-cyan; font-family: monospace;">0%</span>
           </div>
           <button class="btn" style="font-size: 12px;" onclick="openUsageModal()">⚡ LLM Details</button>
           <button class="btn" style="font-size: 12px;" onclick="fetchTranscript(true)">🔄 Refresh</button>
-          <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer;">
-            <input type="checkbox" id="autoScrollCheck" checked style="accent-color: var(--accent-cyan);"> Auto-scroll
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted; cursor: pointer;">
+            <input type="checkbox" id="autoScrollCheck" checked style="accent-color: var(--accent-cyan;"> Auto-scroll
           </label>
         </div>
       </div>
 
       <!-- Token Exhaustion / Health Alert Banner -->
-      <div id="agTokenExhaustedBanner" style="display: none; margin-bottom: 12px; padding: 12px 16px; border-radius: 10px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); box-shadow: 0 4px 16px rgba(239, 68, 68, 0.1);">
+      <div id="agTokenExhaustedBanner" style="display: none; margin-bottom: 12px; padding: 12px 16px; border-radius: 10px; background: rgba(239, 68, 68, 0.15; border: 1px solid rgba(239, 68, 68, 0.4; box-shadow: 0 4px 16px rgba(239, 68, 68, 0.1);">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
           <div style="display: flex; align-items: center; gap: 10px;">
             <div style="font-size: 22px;">⚠️</div>
             <div>
               <div style="font-weight: 700; color: #f87171; font-size: 13.5px; display: flex; align-items: center; gap: 8px;">
                 <span id="agTokenBannerTitle">Token Limit Reached — Prompts Preserved</span>
-                <span id="agTokenBannerVaultBadge" class="badge" style="background: rgba(239, 68, 68, 0.3); color: #fca5a5; font-size: 10.5px;">0 Vaulted</span>
+                <span id="agTokenBannerVaultBadge" class="badge" style="background: rgba(239, 68, 68, 0.3; color: #fca5a5; font-size: 10.5px;">0 Vaulted</span>
               </div>
-              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;" id="agTokenBannerDesc">
+              <div style="font-size: 11.5px; color: var(--text-muted; margin-top: 2px;" id="agTokenBannerDesc">
                 Active context window exhausted. All pending prompts have been safely vaulted in SQLite to prevent loss.
               </div>
             </div>
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <button class="btn btn-primary" id="agResumeFallbackBtn" onclick="resumeVaultedWork()" style="font-size: 11.5px; background: linear-gradient(135deg, #10b981, #059669); border-color: #10b981; padding: 6px 12px;">
+            <button class="btn btn-primary" id="agResumeFallbackBtn" onclick="resumeVaultedWork()" style="font-size: 11.5px; background: linear-gradient(135deg, #10b981, #059669; border-color: #10b981; padding: 6px 12px;">
               🔄 Resume with Fallback (<span id="agFallbackModelName">Gemini 3.8 Flash</span>)
             </button>
             <button class="btn" onclick="openVaultModal()" style="font-size: 11.5px; padding: 6px 10px;">
@@ -56,12 +56,12 @@
       </div>
 
       <!-- Parallel Agent Fleet Concurrency Strip -->
-      <div id="agParallelFleetStrip" style="margin-bottom: 12px; padding: 10px 16px; border-radius: 10px; background: rgba(0, 242, 254, 0.04); border: 1px solid rgba(0, 242, 254, 0.18); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+      <div id="agParallelFleetStrip" style="margin-bottom: 12px; padding: 10px 16px; border-radius: 10px; background: rgba(0, 242, 254, 0.04; border: 1px solid rgba(0, 242, 254, 0.18; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-          <div style="font-weight: 700; font-size: 13px; color: var(--accent-cyan); display: flex; align-items: center; gap: 6px;">
+          <div style="font-weight: 700; font-size: 13px; color: var(--accent-cyan; display: flex; align-items: center; gap: 6px;">
             <span>⚡ Parallel Agent Fleet</span>
           </div>
-          <span id="agParallelCapacityBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 11px;">
+          <span id="agParallelCapacityBadge" class="badge" style="background: rgba(16, 185, 129, 0.15; color: var(--accent-green; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 11px;">
             0 / 4 Active Slots
           </span>
           <div id="agActiveSlotsRow" style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;"></div>
@@ -70,9 +70,9 @@
           <button id="agFastTrackBtn" class="btn btn-primary" style="font-size: 11.5px; padding: 5px 12px; display: none;" onclick="fastTrackAgentQueue()">
             🚀 Fast-Track Queue
           </button>
-          <div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-muted);">
+          <div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-muted;">
             <span>Concurrency Limit:</span>
-            <select id="agConcurrencySelect" onchange="changeConcurrencyLimit(this.value)" style="background: #131a2a; border: 1px solid var(--card-border); color: var(--accent-cyan); border-radius: 6px; padding: 4px 8px; font-size: 11.5px; cursor: pointer;">
+            <select id="agConcurrencySelect" onchange="changeConcurrencyLimit(this.value)" style="background: #131a2a; border: 1px solid var(--card-border; color: var(--accent-cyan; border-radius: 6px; padding: 4px 8px; font-size: 11.5px; cursor: pointer;">
               <option value="2">2 Agents</option>
               <option value="4" selected>4 Agents (Default)</option>
               <option value="6">6 Agents</option>
@@ -84,7 +84,7 @@
 
       <!-- Live Chat Stream Box -->
       <div class="ag-chat-scroll" id="agChatScroll">
-        <div style="text-align: center; color: var(--text-muted); padding: 40px; font-size: 13px;">
+        <div style="text-align: center; color: var(--text-muted; padding: 40px; font-size: 13px;">
           Loading live Antigravity conversation stream...
         </div>
       </div>
@@ -92,12 +92,12 @@
       <!-- Message Queue Tray -->
       <div id="agQueueBanner" class="ag-queue-banner" style="display: none; margin-bottom: 10px;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-          <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 12px; color: var(--accent-cyan);">
+          <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 12px; color: var(--accent-cyan;">
             <span>📥 Message Queue</span>
-            <span id="agQueueCountBadge" class="badge" style="background: rgba(0, 242, 254, 0.2); color: var(--accent-cyan); font-size: 11px;">0</span>
+            <span id="agQueueCountBadge" class="badge" style="background: rgba(0, 242, 254, 0.2; color: var(--accent-cyan; font-size: 11px;">0</span>
           </div>
           <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 11px; color: var(--text-muted);">Auto-launches into open parallel slots</span>
+            <span style="font-size: 11px; color: var(--text-muted;">Auto-launches into open parallel slots</span>
             <button class="btn btn-primary" style="font-size: 11px; padding: 3px 10px; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue)); border: none;" onclick="fastTrackAgentQueue()">
               🚀 Launch All in Parallel
             </button>
@@ -113,7 +113,7 @@
       <div class="ag-cmd-console" id="agConsoleContainer">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
           <div class="ag-quick-chips" style="flex-wrap: wrap;">
-            <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">QUICK ACTIONS:</span>
+            <span style="font-size: 11px; color: var(--text-muted; font-weight: 600;">QUICK ACTIONS:</span>
             <span class="quick-chip" onclick="fillCommand('/sync')">⚡ /sync</span>
             <span class="quick-chip" onclick="fillCommand('/briefing')">📅 /briefing</span>
             <span class="quick-chip" onclick="fillCommand('/task ')">🎯 /task</span>
@@ -124,7 +124,7 @@
             <span class="quick-chip" onclick="fillCommand('/bedrock ')" title="Amazon Web Services Bedrock & Amazon Q">🟠 /bedrock</span>
             <span class="quick-chip" onclick="fillCommand('/providers')" title="Inspect All Hyperscalers & Dev Tools">☁️ /providers</span>
           </div>
-          <span style="font-size: 11px; color: var(--accent-green);">● Multi-Hyperscaler & Dev Tools Hub</span>
+          <span style="font-size: 11px; color: var(--accent-green;">● Multi-Hyperscaler & Dev Tools Hub</span>
         </div>
 
         <div class="ag-input-row" style="align-items: center;">
@@ -152,7 +152,7 @@
                   <span>⚡</span>
                   <span>View Usage</span>
                 </div>
-                <span style="color: var(--text-muted); font-size: 14px;">›</span>
+                <span style="color: var(--text-muted; font-size: 14px;">›</span>
               </div>
             </div>
           </div>

@@ -1,5 +1,21 @@
 [
   {
+    "scan_id": "SCAN-20261028-003701",
+    "issue_type": "CRASH_DUMPS",
+    "severity": "LOW",
+    "description": "Found 11 crash dump files (0 older than 7 days, max age 0.1 days). Retention threshold is 10.",
+    "action_taken": "Pruned 1 aged/excess crash report dumps. Reclaimed 0.72 KB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "total_dumps": 11
+    },
+    "metrics_after": {
+      "remaining_dumps": 10,
+      "reclaimed_kb": 0.72
+    },
+    "created_at": "2026-10-28T00:37:01.149021"
+  },
+  {
     "scan_id": "SCAN-20261027-235439",
     "issue_type": "CRASH_DUMPS",
     "severity": "LOW",
