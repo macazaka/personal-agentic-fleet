@@ -44,7 +44,9 @@ scratch/
 # 5. Process IDs & Runtime Logs
 fleet/data/*.pid
 fleet/data/*.log
+fleet/data/*.log.*
 *.log
+*.log.*
 fleet/data/backups/
 fleet/data/crash_reports/
 

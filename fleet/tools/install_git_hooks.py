@@ -58,9 +58,23 @@ if report.get("total_findings", 0) > 0:
     print("==================================================================")
     sys.exit(1)
 
-# Proactive Static Typing Verification & Auto-Remediation Gate
-print("[Fleet Type Gate] Running Pyright Type Diagnostics (pre-commit)...")
+# Proactive VS Code Workspace & Static Typing Verification Gate (HTML/CSS/Settings/Pyright)
+print("[Fleet VS Code & Type Gate] Running HTML/CSS/Settings & Pyright Diagnostics (pre-commit)...")
 try:
+    from fleet.tools.auto_fixer import audit_vscode_workspace_problems, run_auto_fixer
+    ws_audit = audit_vscode_workspace_problems(repo_root=repo_root)
+    if ws_audit.get("problems_count", 0) > 0:
+        print(f"[Fleet VS Code Gate] {{ws_audit['problems_count']}} HTML/CSS/VS Code problem(s) detected; running auto-fixer...")
+        run_auto_fixer(repo_root=repo_root, stage_changes=True, run_pyright_cli=False)
+        ws_audit = audit_vscode_workspace_problems(repo_root=repo_root)
+    if ws_audit.get("problems_count", 0) > 0:
+        for p in ws_audit.get("problems", [])[:20]:
+            print(f"  - {{p['file']}}:{{p['line']}} [{{p['source']}}({{p['code']}})] {{p['message']}}")
+        print("==================================================================")
+        print("[BLOCKED] Fleet VS Code Gate: Unresolved HTML/CSS/VS Code diagnostics.")
+        print("==================================================================")
+        sys.exit(1)
+
     import shutil
     import subprocess
     npx_cmd = (
@@ -79,7 +93,6 @@ try:
     )
     if pyright_res.returncode != 0:
         print("[Fleet Type Gate] Diagnostics detected; running automatic VS Code/Pyright auto-fixer...")
-        from fleet.tools.auto_fixer import run_auto_fixer
         run_auto_fixer(repo_root=repo_root, stage_changes=True, run_pyright_cli=True)
         pyright_res = subprocess.run(
             [npx_cmd, "pyright", "fleet", "tests", "conftest.py", "pong.py"],
@@ -95,7 +108,9 @@ try:
         print("[BLOCKED] Fleet Type Gate: Type checking failed after auto-remediation.")
         print("==================================================================")
         sys.exit(1)
-    print("=== Fleet Type Check [PASS] | 0 errors, 0 warnings ===")
+    print("=== Fleet VS Code & Type Check [PASS] | 0 Pyright errors, 0 HTML/CSS/Settings problems ===")
+except SystemExit:
+    raise
 except Exception:
     pass
 

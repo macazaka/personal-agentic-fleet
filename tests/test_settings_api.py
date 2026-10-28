@@ -735,5 +735,33 @@ def test_zero_horizontal_scrollbars_and_afcc_branding():
     assert "Personal Agentic Fleet — Agentic Fleet Control Center (AFCC)" in dash_html
 
 
+def test_proactive_vscode_html_css_auditor_and_auto_fixer():
+    """Verifies zero VS Code HTML/CSS/Settings diagnostics across the repository and tests auto-repair."""
+    import pathlib
+    from fleet.tools.auto_fixer import (
+        _repair_style_attribute_value,
+        audit_vscode_workspace_problems,
+    )
+
+    root_dir = pathlib.Path(__file__).resolve().parent.parent
+
+    # 1. Verify entire repo has 0 VS Code HTML/CSS/Settings problems
+    audit = audit_vscode_workspace_problems(repo_root=root_dir)
+    assert audit["status"] == "PASS", f"VS Code problems found: {audit['problems']}"
+    assert audit["problems_count"] == 0
+
+    # 2. Verify _repair_style_attribute_value safely repairs both missing ')' and stray ')'
+    # Case A: stray ')' after hex color (e.g., color: #c084fc);)
+    assert _repair_style_attribute_value("color: #c084fc); font-weight: 700;") == "color: #c084fc; font-weight: 700;"
+    # Case B: missing ')' in CSS function (e.g., color: var(--text;)
+    assert _repair_style_attribute_value("color: var(--text; background: rgba(16, 185, 129, 0.1;") == (
+        "color: var(--text); background: rgba(16, 185, 129, 0.1);"
+    )
+    # Case C: already valid CSS functions are never corrupted
+    valid_style = "background: var(--bg-card); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8;"
+    assert _repair_style_attribute_value(valid_style) == valid_style
+
+
+
 
 

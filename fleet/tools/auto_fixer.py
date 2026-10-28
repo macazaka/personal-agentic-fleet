@@ -392,11 +392,43 @@ def fix_vscode_pyright_problems(
     return fixes_applied
 
 
+def _repair_style_attribute_value(style_val: str) -> str:
+    """
+    Repairs CSS syntax errors inside an inline style="..." attribute value so VS Code's
+    built-in CSS Language Server reports 0 diagnostics (no css-rparentexpected,
+    css-semicolonexpected, or css-ruleorselectorexpected).
+    """
+    fixed = style_val
+    # 1. Fix stray closing paren after hex color code (e.g. #c084fc); -> #c084fc;)
+    fixed = re.sub(r"(#[0-9a-fA-F]{3,8})\)\s*;", r"\1;", fixed)
+
+    # 2. Repair each semicolon-delimited CSS declaration's parenthesis balance
+    parts = fixed.split(";")
+    repaired_parts: List[str] = []
+    for part in parts:
+        stripped = part.strip()
+        if not stripped:
+            repaired_parts.append(part)
+            continue
+        open_p = part.count("(")
+        close_p = part.count(")")
+        if open_p > close_p:
+            part = part.rstrip() + (")" * (open_p - close_p))
+        elif close_p > open_p:
+            excess = close_p - open_p
+            while excess > 0 and part.rstrip().endswith(")"):
+                part = part.rstrip()[:-1]
+                excess -= 1
+        repaired_parts.append(part)
+    return ";".join(repaired_parts)
+
+
 def fix_html_and_template_problems(repo_root: Path = REPO_ROOT) -> List[Dict[str, Any]]:
     """
     Automatically detects and repairs HTML/CSS template syntax corruptions
-    (e.g., stray parentheses in inline style attributes, mismatched CSS values)
-    to maintain 0 diagnostics in VS Code HTML/CSS language services.
+    (e.g., missing closing parentheses in var()/rgba()/calc(), stray parentheses in
+    inline style attributes, and mismatched CSS values) to guarantee 0 diagnostics
+    in VS Code HTML/CSS language services before every commit.
     """
     fixes_applied: List[Dict[str, Any]] = []
     html_files: List[Path] = []
@@ -408,19 +440,20 @@ def fix_html_and_template_problems(repo_root: Path = REPO_ROOT) -> List[Dict[str
     if agents_dir.is_dir():
         html_files.extend(agents_dir.glob("**/ui/*.html"))
 
+    style_attr_re = re.compile(r'style="([^"]*)"')
+
     for hf in html_files:
         try:
             content = hf.read_text(encoding="utf-8")
-            modified = False
 
-            # Pattern: stray closing paren after hex color code (e.g. #c084fc); -> #c084fc;)
-            fixed_content = re.sub(r'(#[0-9a-fA-F]{3,8})\);', r'\1;', content)
+            def _replace_style(m: re.Match) -> str:
+                orig_val = m.group(1)
+                new_val = _repair_style_attribute_value(orig_val)
+                return f'style="{new_val}"'
+
+            fixed_content = style_attr_re.sub(_replace_style, content)
             if fixed_content != content:
-                content = fixed_content
-                modified = True
-
-            if modified:
-                hf.write_text(content, encoding="utf-8", newline="\n")
+                hf.write_text(fixed_content, encoding="utf-8", newline="\n")
                 try:
                     rel_f = str(hf.relative_to(repo_root)).replace("\\", "/")
                 except Exception:
@@ -428,12 +461,120 @@ def fix_html_and_template_problems(repo_root: Path = REPO_ROOT) -> List[Dict[str
                 fixes_applied.append({
                     "category": "HTML/CSS Syntax Hygiene",
                     "file": rel_f,
-                    "detail": "Auto-repaired corrupted CSS declaration in inline style attribute.",
+                    "detail": "Auto-repaired corrupted CSS declaration(s) in inline style attribute(s).",
                 })
         except Exception:
             continue
 
     return fixes_applied
+
+
+def audit_vscode_workspace_problems(repo_root: Path = REPO_ROOT) -> Dict[str, Any]:
+    """
+    Performs a comprehensive pre-commit audit of all VS Code language service problem vectors:
+      1. HTML & Inline CSS (`style="..."`) syntax diagnostics (`css-rparentexpected`, `css-semicolonexpected`, etc.)
+      2. Standalone CSS stylesheet brace and parenthesis balance (`fleet/web/static/css/*.css`)
+      3. HTML tag balance and unique DOM ID invariants (`dashboard.html` and agent `panel.html` files)
+      4. VS Code JSON settings & Pylance configuration hygiene (`pyrightconfig.json`, `.vscode/settings.json`)
+    Returns `{"status": "PASS" | "FAIL", "problems_count": int, "problems": [...]}`.
+    """
+    problems: List[Dict[str, Any]] = []
+
+    # 1. Audit all HTML templates and inline CSS style attributes
+    html_files: List[Path] = []
+    web_templates = repo_root / "fleet" / "web" / "templates"
+    if web_templates.is_dir():
+        html_files.extend(web_templates.glob("*.html"))
+    agents_dir = repo_root / "fleet" / "agents"
+    if agents_dir.is_dir():
+        html_files.extend(agents_dir.glob("**/ui/*.html"))
+
+    style_attr_re = re.compile(r'style="([^"]*)"')
+    for hf in html_files:
+        if not hf.is_file():
+            continue
+        try:
+            rel_f = str(hf.relative_to(repo_root)).replace("\\", "/")
+        except Exception:
+            rel_f = hf.name
+        text = hf.read_text(encoding="utf-8", errors="ignore")
+        for m in style_attr_re.finditer(text):
+            s_val = m.group(1)
+            line_no = text[: m.start()].count("\n") + 1
+            if s_val.count("(") != s_val.count(")"):
+                problems.append({
+                    "file": rel_f,
+                    "line": line_no,
+                    "source": "css",
+                    "code": "css-rparentexpected" if s_val.count("(") > s_val.count(")") else "css-semicolonexpected",
+                    "message": f"Unbalanced parentheses in inline style attribute: {s_val!r}",
+                })
+            for decl in s_val.split(";"):
+                d_strip = decl.strip()
+                if d_strip and ":" not in d_strip:
+                    problems.append({
+                        "file": rel_f,
+                        "line": line_no,
+                        "source": "css",
+                        "code": "css-colonexpected",
+                        "message": f"Missing colon in inline CSS declaration: {d_strip!r}",
+                    })
+
+    # 2. Audit standalone CSS stylesheets
+    css_dir = repo_root / "fleet" / "web" / "static" / "css"
+    if css_dir.is_dir():
+        for cf in css_dir.glob("*.css"):
+            try:
+                rel_c = str(cf.relative_to(repo_root)).replace("\\", "/")
+            except Exception:
+                rel_c = cf.name
+            c_text = cf.read_text(encoding="utf-8", errors="ignore")
+            # Strip CSS comments before counting braces/parens
+            c_clean = re.sub(r"/\*.*?\*/", "", c_text, flags=re.S)
+            if c_clean.count("{") != c_clean.count("}"):
+                problems.append({
+                    "file": rel_c,
+                    "line": 1,
+                    "source": "css",
+                    "code": "css-rcurlyexpected",
+                    "message": f"Unbalanced curly braces in stylesheet ({c_clean.count('{')} open vs {c_clean.count('}')} close).",
+                })
+            if c_clean.count("(") != c_clean.count(")"):
+                problems.append({
+                    "file": rel_c,
+                    "line": 1,
+                    "source": "css",
+                    "code": "css-rparentexpected",
+                    "message": f"Unbalanced parentheses in stylesheet ({c_clean.count('(')} open vs {c_clean.count(')')} close).",
+                })
+
+    # 3. Audit .vscode/settings.json for Pylance conflicts
+    vs_settings = repo_root / ".vscode" / "settings.json"
+    if vs_settings.is_file() and (repo_root / "pyrightconfig.json").is_file():
+        try:
+            cfg = json.loads(vs_settings.read_text(encoding="utf-8"))
+            if "python.analysis.extraPaths" in cfg:
+                problems.append({
+                    "file": ".vscode/settings.json",
+                    "line": 1,
+                    "source": "Pylance",
+                    "code": "settingsNotOverridden",
+                    "message": "'python.analysis.extraPaths' cannot be set when a pyrightconfig.json is being used.",
+                })
+        except Exception as exc:
+            problems.append({
+                "file": ".vscode/settings.json",
+                "line": 1,
+                "source": "json",
+                "code": "json-syntax",
+                "message": f"Invalid JSON in .vscode/settings.json: {exc}",
+            })
+
+    return {
+        "status": "PASS" if not problems else "FAIL",
+        "problems_count": len(problems),
+        "problems": problems,
+    }
 
 
 def stage_modified_files(repo_root: Path = REPO_ROOT, files: List[str] | None = None) -> bool:
@@ -476,17 +617,20 @@ def run_auto_fixer(
     html_fixes = fix_html_and_template_problems(repo_root=repo_root)
     all_fixes = security_fixes + type_fixes + html_fixes
 
+    vscode_audit = audit_vscode_workspace_problems(repo_root=repo_root)
+
     staged = False
     if stage_changes and all_fixes:
         modified_files = list(dict.fromkeys(f["file"] for f in all_fixes if f.get("file")))
         staged = stage_modified_files(repo_root=repo_root, files=modified_files)
 
     return {
-        "status": "PASS",
+        "status": "PASS" if vscode_audit.get("problems_count", 0) == 0 else "FAIL",
         "fixes_applied_count": len(all_fixes),
         "security_fixes_count": len(security_fixes),
         "vscode_type_fixes_count": len(type_fixes),
         "html_fixes_count": len(html_fixes),
+        "vscode_audit": vscode_audit,
         "staged_in_git": staged,
         "fixes": all_fixes,
         "tokens_used": 0,

@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.8.2] - 2026-10-28
 
+### Added
+- **UI**: Eliminate horizontal scrollbars across AFCC and rename Workstation Control Center to Agentic Fleet Control Center (AFCC) (v2.8.4).
+
 ### Fixed
 - **UI**: Encapsulate Exercise & Strength Training Hub strictly inside viewHealth container (v2.8.3).
 - **UI**: Resolve VS Code HTML/CSS diagnostics on dashboard.html and add proactive HTML/CSS template auto-fixer (v2.8.2).
