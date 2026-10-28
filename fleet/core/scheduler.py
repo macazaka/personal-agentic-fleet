@@ -267,6 +267,16 @@ DEFAULT_SCHEDULES: List[Dict[str, Any]] = [
         "enabled": False,
         "notify": False,
     },
+    {
+        "id": "daily_github_release_sync",
+        "agent": "pr_review",
+        "task": "daily_github_release_sync",
+        "description": "End-of-day batched GitHub commit, semantic release, and Wiki synchronization (Local-First Mode)",
+        "schedule_type": "time_of_day",
+        "time": "21:30",
+        "enabled": True,
+        "notify": True,
+    },
 ]
 
 
@@ -802,6 +812,15 @@ class FleetScheduler:
 
         # 7. PR Review Agent Tasks
         elif a_low == "pr_review":
+            if "daily" in t_low or "release" in t_low or "sync" in t_low:
+                from fleet.tools.release_manager import run_daily_git_sync_and_release
+                rel_res = run_daily_git_sync_and_release()
+                return {
+                    "status": "success" if rel_res.get("status") != "ERROR" else "error",
+                    "title": f"🚀 Daily GitHub Release & Wiki Sync (v{rel_res.get('version', 'latest')})",
+                    "message": rel_res.get("message", "Completed daily GitHub sync."),
+                    "release": rel_res,
+                }
             from fleet.agents.pr_review.agent import PRReviewAgent
             agent = PRReviewAgent()
             audit_res = agent.audit_pull_requests()

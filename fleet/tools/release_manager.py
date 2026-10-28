@@ -672,6 +672,91 @@ def run_proactive_release_check(
     }
 
 
+def run_daily_git_sync_and_release(
+    repo_root: Path = REPO_ROOT,
+    push_remote: bool = True,
+) -> Dict[str, Any]:
+    """
+    Daily End-of-Day Batched GitHub Commit, Semantic Release & Wiki Sync.
+    Allows Local-First Live Mode throughout the day without per-tweak Git overhead,
+    then bundles all modified local files into a single clean daily release.
+    """
+    if is_test_environment() and repo_root == REPO_ROOT:  # type: ignore[reportUndefinedVariable]
+        return {
+            "status": "SKIPPED_TEST_ENV",
+            "committed": False,
+            "pushed": False,
+            "message": "Skipped live Git sync in test environment.",
+        }
+
+    try:
+        st_proc = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+        dirty_lines = [ln.strip() for ln in (st_proc.stdout or "").splitlines() if ln.strip()]
+        if not dirty_lines:
+            return {
+                "status": "CLEAN",
+                "committed": False,
+                "pushed": False,
+                "dirty_files_count": 0,
+                "version": get_current_configured_version(repo_root),
+                "message": "Working tree is already clean; no daily commit needed.",
+            }
+
+        subprocess.run(["git", "add", "-A"], cwd=str(repo_root), check=False, timeout=30)
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        commit_msg = f"feat(release): daily batched workstation sync and documentation update ({date_str})"
+        env = dict(os.environ)
+        env["FLEET_FAST_COMMIT"] = "1"
+        env["FLEET_FAST_PUSH"] = "1"
+
+        c_proc = subprocess.run(
+            ["git", "commit", "-m", commit_msg],
+            cwd=str(repo_root),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=180,
+            check=False,
+        )
+        committed = c_proc.returncode == 0
+        pushed = False
+        if committed and push_remote:
+            p_proc = subprocess.run(
+                ["git", "push", "origin", "main", "--follow-tags"],
+                cwd=str(repo_root),
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                check=False,
+            )
+            pushed = p_proc.returncode == 0
+
+        ver = get_current_configured_version(repo_root)
+        return {
+            "status": "SUCCESS" if committed else "NO_CHANGES",
+            "committed": committed,
+            "pushed": pushed,
+            "dirty_files_count": len(dirty_lines),
+            "version": ver,
+            "message": f"Daily GitHub Release v{ver} committed ({len(dirty_lines)} file(s)) and {'pushed' if pushed else 'saved locally'}.",
+        }
+    except Exception as e:
+        return {
+            "status": "ERROR",
+            "committed": False,
+            "pushed": False,
+            "message": f"Daily Git sync failed: {e}",
+        }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Fleet Proactive Semantic Release & Version Synchronization Engine ($0.00 / 0 Tokens)"

@@ -2,7 +2,7 @@
 
 Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operations Wiki**!
 
-[![Release: v2.11.0](https://img.shields.io/badge/Release-v2.11.0-00b4d8.svg)](Release-Notes)
+[![Release: v2.11.1](https://img.shields.io/badge/Release-v2.11.1-00b4d8.svg)](Release-Notes)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%5B12%20Layers%5D-brightgreen.svg)](Security-Model)
@@ -52,10 +52,10 @@ Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operat
 | **[[Release-Notes]]** | Complete semantic version history and categorized changelog notes (synchronized with `CHANGELOG.md` at `v2.8.6`). |
 
 <!-- AUTO-LATEST-RELEASE:START -->
-## 🆕 Latest Release Highlights (`v2.11.0`)
+## 🆕 Latest Release Highlights (`v2.11.1`)
 
 > **Live Codebase Inventory**: `7` Built-In Agents • `109` REST API Endpoints • `31` Core Microkernel Modules • `19` Automation Tools • `428` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
 
-### Added
-- **UI**: Add Right-Docked Antigravity Live panel and integrated .00 Fleet Chat switcher.
+### Fixed
+- **Tests**: Compute future version dynamically in updater tests so semantic version bumps past 2.10.0 never fail CI.
 <!-- AUTO-LATEST-RELEASE:END -->

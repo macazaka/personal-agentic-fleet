@@ -1,4 +1,4 @@
-# Release Notes & Version History (Current: `v2.11.0`)
+# Release Notes & Version History (Current: `v2.11.1`)
 
 This page is **automatically synchronized** from [`CHANGELOG.md`](https://github.com/macazaka/personal-agentic-fleet/blob/main/CHANGELOG.md) by `fleet.tools.doc_wiki_enhancer` whenever release versions or release notes are updated.
 
@@ -8,6 +8,13 @@ All notable changes to the **Personal Agentic Fleet** project will be documented
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [2.11.1] - 2026-10-28
+
+### Fixed
+- **Tests**: Compute future version dynamically in updater tests so semantic version bumps past 2.10.0 never fail CI.
 
 ---
 

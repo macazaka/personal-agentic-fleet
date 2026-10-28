@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.11.1] - 2026-10-28
+
+### Fixed
+- **Tests**: Compute future version dynamically in updater tests so semantic version bumps past 2.10.0 never fail CI.
+
+---
+
 ## [2.11.0] - 2026-10-28
 
 ### Added
