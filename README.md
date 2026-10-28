@@ -1,6 +1,6 @@
 # ⚡ Personal Agentic Fleet
 
-[![Release: v2.8.9](https://img.shields.io/badge/Release-v2.8.9-00b4d8.svg)](CHANGELOG.md)
+[![Release: v2.9.5](https://img.shields.io/badge/Release-v2.9.5-00b4d8.svg)](CHANGELOG.md)
 [![GitHub Wiki: 17 Deep-Dive Guides](https://img.shields.io/badge/GitHub%20Wiki-17%20Deep--Dive%20Guides-0284c7.svg?logo=github)](https://github.com/macazaka/personal-agentic-fleet/wiki)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -123,13 +123,23 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
   - **Layer 3: Subconsciousness (Circadian Dreaming & Memory Consolidation)**: Background memory consolidation engine executing during sleep windows (23:00–06:00) to discover latent habit clusters, operational friction patterns, and immunological pruning.
   - **Layer 4: Soul (Teleological Purpose & Moral Compass)**: Inviolable ethical tenets (**Sovereign Privacy**, **$0.00 Token Frugality**, **Metabolic Care**, **Transparent Integrity**), soul alignment audits (`audit_alignment()`), and evolutionary generation ascent (`evolve_and_improve()`).
   - **Cognitive Harmony Index**: Quantitative 0–100 equilibrium metric with terminal introspection via `python -m fleet.tools.fleet_mind`. See **[Wiki: Cognitive Fleet Mind](https://github.com/macazaka/personal-agentic-fleet/wiki/Cognitive-Fleet-Mind)**.
-- **🧭 100+ Agent Fleet Navigator & Spotlight Command Palette (`Ctrl+K` / `/`)**:
-  - Designed for enterprise scale: manage dozens or hundreds of concurrent agents without UI clutter.
+- **🧭 100+ Agent Fleet Navigator & Unified `Ctrl+K` Omnibar (`UX-05`)**:
+  - Designed for enterprise scale: manage dozens or hundreds of concurrent agents without UI clutter via 3 workspace layouts (`sidebar_dock`, `command_deck`, `launchpad_grid`).
   - Off-canvas drawer with real-time fuzzy search, domain categories, state filtering (`Working`, `Idle`, `Disabled`), and 1-click pin-to-bar.
-  - Spotlight Command Palette with keyboard shortcuts (`↑` / `↓` / `Enter`) for instant jumping between agents. See **[Wiki: AFCC & UI Features](https://github.com/macazaka/personal-agentic-fleet/wiki/AFCC-and-UI-Features)**.
-- **🪄 Visual Agent Creation Wizard & `create-agent` Skill Workflow**:
-  - Click the **`+` icon** in the workstation header to launch an interactive 4-step wizard: Identity & Persona, Security Capabilities, Settings Schema, and One-Click Launch with live code preview.
-  - Backed by the official `create-agent` skill in `.gemini/antigravity/builtin/skills/create-agent/` and CLI tool `fleet/tools/create_agent.py`. See **[Wiki: Agent Development Guide](https://github.com/macazaka/personal-agentic-fleet/wiki/Agent-Development-Guide)**.
+  - **Unified "Ask Fleet Anything" Omnibar (`Ctrl+K` / `/`)**: Supports `@agent` slash commands (`@discover`, `@studio`, `@playbook`, `@health water +2`), Tier-0 natural-language execution, and inline result cards via `fleet/core/omnibar_dispatcher.py` (`POST /api/omnibar/execute`). See **[Wiki: AFCC & UI Features](https://github.com/macazaka/personal-agentic-fleet/wiki/AFCC-and-UI-Features)** and **[Wiki: UX Roadmap & Backlog](https://github.com/macazaka/personal-agentic-fleet/wiki/UX-Roadmap-and-Feature-Backlog)**.
+- **🪄 Zero-Code Natural-Language Agent Studio (`UX-01`) & Visual Creation Wizard**:
+  - Describe any agent in a single plain-English sentence (e.g., *"Check my local git repos every evening at 6 PM and alert me if uncommitted changes exist"*) inside the **`+` Create Agent Wizard** or via `POST /api/studio/synthesize` (`fleet/core/agent_studio.py`).
+  - Automatically synthesizes least-privilege `manifest.json` permissions, `schedules.yaml` cron/interval rules, `agent.py`, and **6 Declarative UI Widget Blocks** (`alert_banner`, `kpi_row`, `quick_capture_bar`, `habit_checklist`, `history_table`, `status_timeline`) in `< 5 ms` at `$0.00` token cost.
+  - Backed by the `create-agent` skill in `.agents/skills/create-agent/SKILL.md` and CLI tool `fleet/tools/create_agent.py`. See **[Wiki: Agent Development Guide](https://github.com/macazaka/personal-agentic-fleet/wiki/Agent-Development-Guide)**.
+- **🕵️ Autonomous Process Discovery & Agent Recommendation Engine (`UX-02`, `fleet/core/process_miner.py`)**:
+  - Passively mines 4 local privacy-preserving telemetry streams (dashboard task/activity logs, Win32 PSAPI memory/process clusters, Git working trees, and `02-Paper-Trail` inbox triage) at `$0.00` token spend.
+  - Ranks candidate automations using the mathematical Automation Opportunity Score $\mathcal{A}_p = \text{round}(0.35 F_p + 0.30 T_p + 0.20 R_p + 0.15 D_p, 1)$ (`GET /api/discovery/recommendations`) and spawns any recommended agent in 1 click (`POST /api/discovery/spawn`). See **[Wiki: UX Roadmap & Backlog](https://github.com/macazaka/personal-agentic-fleet/wiki/UX-Roadmap-and-Feature-Backlog)**.
+- **🔗 Visual Multi-Agent Playbook & Event-Chain Composer (`UX-03`, `fleet/core/playbook_engine.py`)**:
+  - Connects multiple agents into deterministic, zero-token pipelines (`WHEN [Trigger] -> IF [Condition] -> THEN [Step 1 -> Step 2 -> ...]`) with 8 built-in cross-agent playbooks (`morning_vitality_launchpad`, `high_ram_autonomic_relief`, `invoice_to_priority_task`, `evening_shutdown_and_dream`, `post_workout_hydration_boost`, `pre_commit_security_sentinel`, `afternoon_glucose_walk_nudge`, `weekly_roadmap_grooming`).
+  - Manage and execute playbooks via `GET /api/playbooks`, `POST /api/playbooks`, and `POST /api/playbooks/run` or `@playbook <id>` in the `Ctrl+K` Omnibar. See **[Wiki: UX Roadmap & Backlog](https://github.com/macazaka/personal-agentic-fleet/wiki/UX-Roadmap-and-Feature-Backlog)**.
+- **📦 Portable `.fleetagent` Share Packs & Blueprint Catalog (`UX-04`, `fleet/core/agent_catalog.py`)**:
+  - Export any installed or custom agent into a portable `fleetagent-v1` JSON bundle signed with a SHA-256 cryptographic digest (`GET /api/agents/export?id=<agent_id>`).
+  - Import community or teammate `.fleetagent` bundles (`POST /api/agents/import`) gated by SHA-256 verification, sandbox permission allowlists (`ALLOWED_AGENT_PERMISSIONS`), and Python AST static security scanning blocking `eval`, `exec`, `compile`, `__import__`, and `os.system`. See **[Wiki: Customizing Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Customizing-Agents)**.
 - **🛠️ Proactive Log Scanner & Autonomous Self-Healing Engine (`fleet/core/auto_healer.py`)**:
   - Continuous proactive background analysis across application logs, ring buffers, error tails, and crash dumps.
   - Detects database contention, disk bloat, crash accumulations, rate limit backoffs, and task failure loops, executing automated zero-token self-healing actions. See **[Wiki: Robustness & Self-Healing](https://github.com/macazaka/personal-agentic-fleet/wiki/Robustness-and-Self-Healing)**.

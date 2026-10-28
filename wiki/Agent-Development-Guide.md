@@ -26,16 +26,17 @@ flowchart LR
 
 ---
 
-## 2. Four Ways to Create an Agent
+## 2. Five Ways to Create or Share an Agent
 
-Fleet supports **4 distinct creation workflows** depending on developer preference:
+Fleet supports **5 distinct creation & sharing workflows** depending on user preference:
 
 | Method | Target Persona | Interface | Generation Speed |
 | :--- | :--- | :--- | :--- |
-| **1. UI 4-Step Wizard** | Visual developers | AFCC Dashboard (**Settings -> Agents & Activation -> Create New Agent**) | 30 seconds |
-| **2. Unified CLI** | Terminal power users | `fleet create-agent --name "..." --id "..."` | Instant |
-| **3. Antigravity Skill** | AI-assisted developers | Chat prompt: *"Create a new Fleet agent for monitoring Docker containers"* | Autonomous |
-| **4. Manual Coding** | Senior engineers | Create directory in `fleet/agents/<id>/` with code & tests | Full control |
+| **0. Zero-Code Agent Studio (`UX-01`)** | Any user (no coding required) | Type 1 plain-English sentence in `+` Wizard (`✨ Auto-Fill Wizard`), `Ctrl+K` (`@studio ...`), or `POST /api/studio/synthesize` | `< 5 ms` (`$0.00`) |
+| **1. Autonomous Process Discovery (`UX-02`)** | Proactive automation | Press `Ctrl+K` -> `🕵️ @discover` and click **🚀 Spawn Agent** (`POST /api/discovery/spawn`) | 1 Click |
+| **2. UI 4-Step Wizard + 6 UI Blocks** | Visual builders | AFCC Header **`+`** button with 6 Declarative UI Widget Blocks (`alert_banner`, `kpi_row`, `quick_capture_bar`, `habit_checklist`, `history_table`, `status_timeline`) | 15 seconds |
+| **3. Portable `.fleetagent` Share Packs (`UX-04`)** | Teams & community | Export via `GET /api/agents/export?id=<id>` and import via `POST /api/agents/import` (SHA-256 + AST security audited) | Instant |
+| **4. Unified CLI & Manual Coding** | Terminal & senior engineers | `python -m fleet.core.agent_studio --prompt "..."` or `fleet/tools/create_agent.py` | Full control |
 
 ---
 

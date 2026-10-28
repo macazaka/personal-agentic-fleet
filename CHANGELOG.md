@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.9.5] - 2026-10-28
+
+### Fixed
+- Proactive release synchronization, static type verification, and documentation maintenance.
+
+---
+
+## [2.9.0] - 2026-10-28
+
+### Fixed
+- Proactive release synchronization, static type verification, and documentation maintenance.
+
+---
+
 ## [2.8.9] - 2026-10-28
 
 ### Documentation & Maintenance

@@ -1,6 +1,6 @@
 # 🖥️ Agentic Fleet Control Center (AFCC) & UI Architecture Deep-Dive
 
-> **Release Version**: `v2.8.9` | **Templates & Assets**: `fleet/web/templates/dashboard.html`, `fleet/agents/<agent_id>/ui/panel.html` | **Default Endpoint**: `http://127.0.0.1:7890`
+> **Release Version**: `v2.9.5` | **Templates & Assets**: `fleet/web/templates/dashboard.html`, `fleet/agents/<agent_id>/ui/panel.html` | **Default Endpoint**: `http://127.0.0.1:7890`
 
 The **Agentic Fleet Control Center (AFCC)** is the local desktop web console for Personal Agentic Fleet. Engineered in zero-dependency HTML5, modern CSS Grid/Flexbox, and vanilla ES6+ JavaScript, AFCC renders in `< 10ms` from local disk and scales cleanly from 7 built-in agents to **100+ concurrent modular agents** with **zero horizontal scrollbars**, **strict DOM view scoping**, and **instant keyboard navigation**.
 
@@ -56,18 +56,23 @@ AFCC ships with **6 WCAG-compliant visual themes** controlled via CSS Custom Pro
 - **Real-Time Fuzzy Filtering**: Filters 100+ agents by title, ID, category (`Core`, `Health`, `Productivity`, `System`, `DevOps`, `Custom`), or runtime state (`Working`, `Idle`, `Disabled`).
 - **1-Click Pin-to-Bar**: Users can pin/unpin any agent to the primary navigation bar (`pinned_agents` persisted in `fleet.yaml`).
 
-### 4.2 Spotlight Command Palette (`Ctrl+K` or `/`)
-- Instant keyboard-first launcher supporting:
-  - **Agent Switching**: Jump to any agent in `< 50ms` (`Enter`).
-  - **Direct Operational Actions**: Trigger `Run 12-Layer Security Audit`, `Run Circadian Dream Cycle`, `Flush DNS & Optimize RAM`, `Open Agent Creation Wizard (+)`, or `Check GitHub Releases`.
-  - **Tier 0 Natural-Language Execution**: Type commands directly into the command bar to execute zero-token intents.
+### 4.2 Unified "Ask Fleet Anything" Omnibar (`Ctrl+K` / `/`, `UX-05`)
+- Instant keyboard-first launcher and cross-agent dispatcher (`fleet/core/omnibar_dispatcher.py`, `POST /api/omnibar/execute`):
+  - **Agent Switching**: Jump to any agent in `< 30ms` (`Enter`).
+  - **1-Click Omnibar Quick Pills**:
+    - `🕵️ @discover`: Runs the Autonomous Process Discovery Engine (`UX-02`) and renders inline 1-click **🚀 Spawn Agent** cards.
+    - `🔗 Run Morning Playbook`: Executes `@playbook pb_morning_vitality` (`UX-03`) across Health, Optimizer, Gmail, and Overview.
+    - `💧 +2 Glasses Water`: Logs `@health water +2` directly to SQLite without switching tabs (`UX-05`).
+    - `✨ Zero-Code Studio`: Opens the Natural-Language Agent Studio (`UX-01`).
+  - **Direct `@agent` Slash Commands & Tier 0 Execution**: Type `@studio <description>`, `@playbook <id>`, `@<agent_id> <task>`, or natural-language queries to execute zero-token actions inline.
 
 ---
 
-## 5. Interactive 4-Step Visual Agent Creation Wizard (`+` Header Button)
+## 5. Zero-Code Agent Studio (`UX-01`) & Interactive 4-Step Visual Creation Wizard (`+` Header Button)
 
-Clicking the **`+` Create Agent** button in the AFCC header opens an interactive 4-step modal wizard:
+Clicking the **`+` Create Agent** button in the AFCC header opens the interactive 4-step modal wizard powered by `fleet/core/agent_studio.py`:
+0. **✨ Zero-Code Plain-English Synthesizer Bar (`UX-01`)**: Describe your agent in 1 sentence (e.g., *"Check my local git repos every evening at 6 PM and alert me if uncommitted changes exist"*) and click **✨ Auto-Fill Wizard** (`POST /api/studio/synthesize`) to auto-populate all 4 steps in `< 5ms` at `$0.00` token cost.
 1. **Step 1 — Identity & Persona**: Configure `agent_id` (`^[a-z][a-z0-9_]{1,30}$`), display name, emoji icon, category, and system prompt persona.
-2. **Step 2 — Capability Sandbox Permissions**: Select least-privilege permissions (`db:read`, `db:write`, `ui:render`, `notifications:send`, `network:http`, `secrets:read`) with live security risk explanations.
-3. **Step 3 — Custom Settings Schema**: Define typed configuration fields (`string`, `number`, `boolean`, `select`) that automatically render in the Settings modal.
-4. **Step 4 — Live Code Preview & 1-Click Scaffold**: Previews generated `manifest.json`, `agent.py`, and `ui/panel.html` and scaffolds the package via `POST /api/agents/create` with immediate hot-reload into AFCC.
+2. **Step 2 — Capability Sandbox Permissions**: Select least-privilege permissions (`db:read`, `db:write`, `ui:render`, `event_bus:publish`, `network:outbound`, `system:diagnostics`) with live security explanations.
+3. **Step 3 — Custom Settings Schema & 6 Declarative UI Widget Blocks**: Define typed configuration fields (`string`, `number`, `boolean`, `select`), schedule cadence, and pick from **6 Declarative UI Widget Blocks** (`alert_banner`, `kpi_row`, `quick_capture_bar`, `habit_checklist`, `history_table`, `status_timeline`).
+4. **Step 4 — Live Code Preview & 1-Click Scaffold**: Previews generated `manifest.json`, `agent.py`, and `ui/panel.html` and scaffolds the package via `POST /api/settings/agents/create` with immediate hot-reload into AFCC.

@@ -347,3 +347,58 @@ Toggles completion of a daily habit routine.
   "completed": true
 }
 ```
+
+---
+
+## 6. P1 UX & Agent-Simplicity Endpoints (`UX-01` – `UX-05`)
+
+### `POST /api/studio/synthesize` (`UX-01`)
+Synthesizes a complete, least-privilege Fleet agent specification (`manifest.json`, `agent.py`, 6 declarative UI widget blocks, and `schedules.yaml` cadence) from a plain-English description at `$0.00` token spend.
+
+#### Request Body
+```json
+{
+  "prompt": "Check my local git repos every evening at 6 PM and alert me if uncommitted changes exist"
+}
+```
+
+---
+
+### `GET /api/discovery/recommendations` (`UX-02`)
+Mines 4 local privacy-preserving telemetry streams (dashboard task/activity logs, Win32 PSAPI memory/process clusters, Git repos, and `02-Paper-Trail` inbox triage) and returns ranked agent recommendations scored via $\mathcal{A}_p = \text{round}(0.35 F_p + 0.30 T_p + 0.20 R_p + 0.15 D_p, 1)$.
+
+### `POST /api/discovery/spawn` (`UX-02` -> `UX-01`)
+Scaffolds and hot-loads a recommended agent in 1 click using `recommendation_id`.
+```json
+{
+  "recommendation_id": "rec_git_eod_sentinel"
+}
+```
+
+---
+
+### `GET /api/playbooks` & `POST /api/playbooks` (`UX-03`)
+Lists or creates/updates deterministic multi-agent event chains (`WHEN [Trigger] -> IF [Condition] -> THEN [Step 1 -> Step 2 -> ...]`). Ships with 8 built-in playbooks (`morning_vitality_launchpad`, `high_ram_autonomic_relief`, `invoice_to_priority_task`, `evening_shutdown_and_dream`, `post_workout_hydration_boost`, `pre_commit_security_sentinel`, `afternoon_glucose_walk_nudge`, `weekly_roadmap_grooming`).
+
+### `POST /api/playbooks/run` (`UX-03`)
+Executes a multi-agent playbook immediately and returns step-by-step telemetry.
+```json
+{
+  "playbook_id": "morning_vitality_launchpad"
+}
+```
+
+---
+
+### `GET /api/agents/export?id=<agent_id>` & `POST /api/agents/import` (`UX-04`)
+Exports any installed or catalog agent as a `fleetagent-v1` JSON bundle signed with a SHA-256 cryptographic digest, or imports a `.fleetagent` bundle after verifying its SHA-256 digest, `ALLOWED_AGENT_PERMISSIONS`, and Python AST static security gate.
+
+---
+
+### `GET /api/omnibar/commands` & `POST /api/omnibar/execute` (`UX-05`)
+Lists all `@agent` slash commands across active agents or executes a Unified `Ctrl+K` Omnibar query (`@discover`, `@studio <prompt>`, `@playbook <id>`, `@health water +2`, or Tier-0 natural language) returning an inline preview card in `< 30 ms`.
+```json
+{
+  "query": "@discover"
+}
+```
