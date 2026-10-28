@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.8.2] - 2026-10-28
 
 ### Fixed
-- Proactive release synchronization, static type verification, and documentation maintenance.
+- **UI**: Resolve VS Code HTML/CSS diagnostics on dashboard.html and add proactive HTML/CSS template auto-fixer (v2.8.2).
 
 ---
 

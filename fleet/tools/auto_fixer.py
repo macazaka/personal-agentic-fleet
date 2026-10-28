@@ -413,8 +413,8 @@ def fix_html_and_template_problems(repo_root: Path = REPO_ROOT) -> List[Dict[str
             content = hf.read_text(encoding="utf-8")
             modified = False
 
-            # Pattern: style="...color: #hex); or other stray closing paren before semicolon
-            fixed_content = re.sub(r'(style="[^"]*?(?:#[0-9a-fA-F]{3,8}|[a-zA-Z0-9_\-]+))\);', r'\1;', content)
+            # Pattern: stray closing paren after hex color code (e.g. #c084fc); -> #c084fc;)
+            fixed_content = re.sub(r'(#[0-9a-fA-F]{3,8})\);', r'\1;', content)
             if fixed_content != content:
                 content = fixed_content
                 modified = True
