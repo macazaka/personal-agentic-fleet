@@ -360,7 +360,7 @@ As new official and community agents become available, you can browse, preview, 
 ## 🚀 Method 8: GitHub Version Updates & Notifications
 
 Personal Agentic Fleet monitors GitHub releases automatically:
-1. **Launch-Time Check**: When the workstation control center launches, it silently checks the official GitHub repository for newer releases.
+1. **Launch-Time Check**: When the Agentic Fleet Control Center (AFCC) launches, it silently checks the official GitHub repository for newer releases.
 2. **Notification & Badge**: If an update is detected, a glowing `🚀 Update Available` badge appears in the header and a native desktop toast alert is dispatched.
 3. **1-Click Review**: Click the badge to open **⚙️ Settings > 🚀 GitHub Updates**, review release notes, and install updates safely with automated pre-update backups.
 

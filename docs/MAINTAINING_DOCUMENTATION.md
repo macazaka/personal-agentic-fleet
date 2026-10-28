@@ -23,7 +23,7 @@ Every commit and push automatically enforces five core invariants:
 | `python -m fleet.tools.release_manager` | Semantic version auto-bumper, `CHANGELOG.md` synthesizer, and 8-file version synchronizer. |
 | `python -m fleet.tools.doc_wiki_enhancer` | Live codebase introspector updating `docs/` and `wiki/` pages automatically. |
 | `python -m fleet.tools.auto_fixer` | Zero-intervention VS Code (Pylance/Pyright) and GitHub CodeQL SAST auto-remediator. |
-| `python -m fleet.tools.preflight_gate` | 6-stage pre-push gate verifying Fleet Doctor, 12-Layer Security (`100/100`), Agent Isolation, Docs/Wiki links, Pyright (`0 errors`), and all `413+` unit tests. |
+| `python -m fleet.tools.preflight_gate` | 6-stage pre-push gate verifying Fleet Doctor, 12-Layer Security (`100/100`), Agent Isolation, Docs/Wiki links, Pyright (`0 errors`), and all `414+` unit tests. |
 | `python -m fleet.tools.sync_wiki` | Synchronizes `wiki/*.md` to `macazaka/personal-agentic-fleet.wiki.git`. |
 
 ---

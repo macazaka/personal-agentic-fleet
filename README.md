@@ -48,7 +48,7 @@
 | **macOS (12+ Monterey / Ventura / Sonoma / Sequoia on Apple Silicon & Intel)** | 🟢 **Officially Supported (Primary)** | Native AppleScript Notification Center alerts (`osascript`), hardware-backed **Apple Keychain Services** (`/usr/bin/security`), native `sysctl` (`hw.memsize`) & `vm_stat` memory telemetry, Directory Services DNS flush (`dscacheutil`), RAM cache purge (`purge`), LaunchAgents auto-start auditing, and Homebrew (`/opt/homebrew` & `/usr/local`) CLI discovery. |
 | **Linux (Ubuntu 20.04+, Debian 11+, Fedora 38+, Arch)** | 🟢 **Officially Supported (Primary)** | First-class native Linux integration: systemd user units (`systemctl --user`), `resolvectl` DNS cache flush, FreeDesktop SecretService (`secret-tool` / libsecret) keyring encryption, `notify-send` (libnotify) / Zenity / KDialog desktop notifications, in-process `/proc` telemetry, XDG autostart, POSIX `RLIMIT_AS` memory containment, and POSIX `chmod 0700` vault hardening. Continuous 9-matrix verification across Python 3.10, 3.11, and 3.12. |
 | **Windows 7 / 8 / 8.1 / 32-bit (x86)** | 🔴 **Not Supported** | Missing modern WinRT notification subsystems, TLS 1.3 cryptographic cipher suites, and modern Python 3.10+ runtimes. Do not deploy on legacy Windows. |
-| **Mobile / Android / iOS** | 🔴 **Not Supported** | Designed as a local workstation control center, not a mobile app. Access remotely via desktop browser over local LAN/VPN. |
+| **Mobile / Android / iOS** | 🔴 **Not Supported** | Designed as a local Agentic Fleet Control Center (AFCC), not a mobile app. Access remotely via desktop browser over local LAN/VPN. |
 
 For deep technical details on OS capability matrices and runtime requirements, refer to **[docs/PREREQUISITES_AND_OS.md](docs/PREREQUISITES_AND_OS.md)**.
 

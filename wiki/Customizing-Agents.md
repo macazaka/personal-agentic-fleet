@@ -6,7 +6,7 @@ The Personal Agentic Fleet provides runtime customization capabilities allowing 
 
 ## Runtime Activation & Deactivation
 
-Agents can be dynamically activated or deactivated directly from the Workstation Control Center:
+Agents can be dynamically activated or deactivated directly from the Agentic Fleet Control Center (AFCC):
 
 1. Click the **Settings** gear icon in the top header.
 2. Navigate to the **Agent Management** drawer.
@@ -40,7 +40,7 @@ Beside the agent list in Settings, click **Discover Agents** to browse the verif
 
 ## GitHub Version Release Notifications
 
-The Workstation Control Center checks GitHub Releases periodically:
+The Agentic Fleet Control Center (AFCC) checks GitHub Releases periodically:
 
 - When a new version is released on GitHub, a banner notification appears in the header.
 - Click **View Release Notes** to review changes or **One-Click Upgrade** to stage the update.

@@ -136,7 +136,7 @@ bus.dispatch(FleetEvent(
 ```
 
 ### 4.3 Unit Test Logging Suppression Invariant
-To keep the Workstation Control Center's Overview and Tasks panes completely clean of development test noise:
+To keep the Agentic Fleet Control Center (AFCC)'s Overview and Tasks panes completely clean of development test noise:
 - The microkernel enforces `is_unit_test_log(message, agent, action)`.
 - Never bypass the `FLEET_TEST_MODE` environment check.
 - When writing tests, use `conftest.py` fixtures which automatically redirect logs away from production activity tables.

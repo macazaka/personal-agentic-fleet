@@ -61,7 +61,7 @@ cd personal-agentic-fleet
 # Run the automated preflight quality gate
 python -m fleet.tools.preflight_gate
 
-# Launch the Workstation Control Center
+# Launch the Agentic Fleet Control Center (AFCC)
 python -m fleet.server --port 7890
 ```
 Open your browser to `http://127.0.0.1:7890` to access the live dashboard.

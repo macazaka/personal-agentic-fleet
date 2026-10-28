@@ -716,4 +716,24 @@ def test_exercise_hub_strictly_scoped_inside_health_view():
     assert 'id="exSubTabStrength"' in health_view_html
 
 
+def test_zero_horizontal_scrollbars_and_afcc_branding():
+    """Verifies complete horizontal scrollbar elimination and official AFCC branding."""
+    import pathlib
+    root_dir = pathlib.Path(__file__).resolve().parent.parent
+
+    # 1. Verify CSS rules eliminate horizontal scrollbars
+    dash_css = (root_dir / "fleet" / "web" / "static" / "css" / "dashboard.css").read_text(encoding="utf-8")
+    assert "*::-webkit-scrollbar:horizontal" in dash_css
+    assert "display: none !important" in dash_css
+    assert ".settings-nav-tabs" in dash_css
+    assert "flex-wrap: wrap" in dash_css
+    assert "overflow-x: hidden" in dash_css
+
+    # 2. Verify AFCC branding in HTML
+    dash_html = (root_dir / "fleet" / "web" / "templates" / "dashboard.html").read_text(encoding="utf-8")
+    assert "Agentic Fleet Control Center (AFCC)" in dash_html
+    assert "Personal Agentic Fleet — Agentic Fleet Control Center (AFCC)" in dash_html
+
+
+
 

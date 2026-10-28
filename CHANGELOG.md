@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.8.2] - 2026-10-28
 
 ### Fixed
+- **UI**: Encapsulate Exercise & Strength Training Hub strictly inside viewHealth container (v2.8.3).
 - **UI**: Resolve VS Code HTML/CSS diagnostics on dashboard.html and add proactive HTML/CSS template auto-fixer (v2.8.2).
 
 ### Documentation & Maintenance

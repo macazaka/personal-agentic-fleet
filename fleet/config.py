@@ -18,7 +18,7 @@ PORT = 7890
 def get_live_version() -> str:
     """
     Dynamically reads the current Fleet version from fleet/__init__.py or fleet/config.py on disk
-    so long-running Workstation Control Center daemons always report the exact current release version
+    so long-running Agentic Fleet Control Center (AFCC) daemons always report the exact current release version
     without requiring a process restart.
     """
     global VERSION

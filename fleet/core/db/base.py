@@ -40,7 +40,7 @@ def get_effective_db_path(custom_path: Optional[Path] = None) -> Path:
             pass
         return custom_path
 
-    # Production Workstation Control Center server is strictly bound to production database
+    # Production Agentic Fleet Control Center (AFCC) server is strictly bound to production database
     if os.environ.get("FLEET_PRODUCTION_SERVER") == "1":
         return custom_path or DB_PATH
 

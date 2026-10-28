@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Personal Agentic Fleet — Control Center</title>
+  <title>Personal Agentic Fleet — Agentic Fleet Control Center (AFCC)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
 <body data-layout="sidebar_dock" data-theme="dark">
   <div class="container">
-    <!-- Scalable Workstation Control Center Header (Never Overflows for 100+ Agents) -->
+    <!-- Scalable Agentic Fleet Control Center (AFCC) Header (Never Overflows for 100+ Agents) -->
     <header class="wcc-top-header">
       <div class="wcc-header-primary">
         <div class="brand">
@@ -26,7 +26,7 @@
                 <span style="font-size: 9px; opacity: 0.8;">📜</span>
               </span>
             </div>
-            <p class="brand-subtitle">Workstation Control Center • Universal OS • IST (UTC+05:30) • Powered by Antigravity</p>
+            <p class="brand-subtitle">Agentic Fleet Control Center (AFCC) • Universal OS • IST (UTC+05:30) • Powered by Antigravity</p>
           </div>
         </div>
 
@@ -345,7 +345,7 @@
           </div>
 
           <!-- Filter Tabs -->
-          <div style="display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto;" id="emailFilterBar">
+          <div style="display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap;" id="emailFilterBar">
             <button class="filter-btn active" onclick="filterEmails('ALL')">All</button>
             <button class="filter-btn" onclick="filterEmails('Meetings')">📅 Meetings</button>
             <button class="filter-btn" onclick="filterEmails('Respond')">💬 Respond</button>
@@ -1928,8 +1928,8 @@
                 <label style="font-size: 13.5px; font-weight: 700; color: var(--accent-cyan;">📐 Workspace Layout Mode (Engineered for 100+ Agents)</label>
                 <span class="badge" style="background: rgba(0, 242, 254, 0.15; color: var(--accent-cyan; font-size: 10.5px;">3 Scalable Architectures</span>
               </div>
-              <p style="font-size: 11.5px; color: var(--text-muted; margin: 0 0 10px 0;">
-                Choose how the Workstation Control Center organizes navigation across 100+ concurrent agents without ever overflowing the top header bar.
+              <p style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 10px 0;">
+                Choose how the Agentic Fleet Control Center (AFCC) organizes navigation across 100+ concurrent agents without ever overflowing the top header bar.
               </p>
               <select id="genSettingLayout" class="form-control" onchange="onSelectLayoutInSettings(this.value)" style="margin-bottom: 12px;">
                 <option value="sidebar_dock">1. IDE Left Activity Dock &amp; Sidebar (Default — Best for 100+ Agents)</option>
@@ -2321,7 +2321,7 @@
       </div>
 
       <!-- Step Indicator Bar -->
-      <div style="display: flex; border-bottom: 1px solid var(--border-color; background: rgba(255, 255, 255, 0.02; padding: 8px 16px; overflow-x: auto;">
+      <div style="display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.02); padding: 8px 16px;">
         <div class="wizard-step-pill active" id="wizardPill_1" onclick="goToWizardStep(1)">
           <span class="wizard-step-num">1</span>
           <span>Identity</span>

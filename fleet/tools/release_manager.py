@@ -458,9 +458,9 @@ def ensure_git_tag(repo_root: Path = REPO_ROOT, version: str = "") -> bool:
 
 def ensure_workstation_version_parity(repo_root: Path = REPO_ROOT, target_version: str = "2.6.0") -> bool:
     """
-    Ensures the local Workstation Control Center (`http://127.0.0.1:7890`) and any mirror
+    Ensures the local Agentic Fleet Control Center (AFCC) (`http://127.0.0.1:7890`) and any mirror
     workspace stay in 100% version parity with GitHub Releases.
-    If the running Workstation Control Center reports an older in-memory version, stops and restarts it
+    If the running AFCC reports an older in-memory version, stops and restarts it
     silently in the background so `/api/version` and `/api/status` immediately match `target_version`.
     """
     clean_ver = format_semver(parse_semver(target_version))
@@ -477,7 +477,7 @@ def ensure_workstation_version_parity(repo_root: Path = REPO_ROOT, target_versio
     except Exception:
         pass
 
-    # 2. Check live Workstation Control Center at http://127.0.0.1:7890/api/version
+    # 2. Check live Agentic Fleet Control Center (AFCC) at http://127.0.0.1:7890/api/version
     try:
         import urllib.request
         with urllib.request.urlopen("http://127.0.0.1:7890/api/version", timeout=1.5) as resp:

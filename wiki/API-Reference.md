@@ -1,6 +1,6 @@
 # API Reference Manual
 
-The Workstation Control Center exposes a clean, zero-dependency REST and Server-Sent Events (SSE) API on port `7890`.
+The Agentic Fleet Control Center (AFCC) exposes a clean, zero-dependency REST and Server-Sent Events (SSE) API on port `7890`.
 
 ---
 
