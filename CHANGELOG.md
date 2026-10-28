@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **UI**: Resolve VS Code HTML/CSS diagnostics on dashboard.html and add proactive HTML/CSS template auto-fixer (v2.8.2).
 
+### Documentation & Maintenance
+- **Hygiene**: Ignore test_user directory and refine template CSS auto-fixer.
+
 ---
 
 ## [2.8.1] - 2026-10-28

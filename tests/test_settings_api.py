@@ -695,3 +695,25 @@ def test_zero_duplicate_agent_info_on_wcc(mock_fleet_env):
     assert "duplicateTitle" in nav_js
 
 
+def test_exercise_hub_strictly_scoped_inside_health_view():
+    """Verifies the Exercise, Videos & Traditional Strength Training Hub is strictly inside viewHealth."""
+    import pathlib
+    import re
+    root_dir = pathlib.Path(__file__).resolve().parent.parent
+    dash_html = (root_dir / "fleet" / "web" / "templates" / "dashboard.html").read_text(encoding="utf-8")
+
+    vh_start = dash_html.find('id="viewHealth"')
+    assert vh_start != -1, "viewHealth container not found"
+    vb_start = dash_html.find('id="viewBacklog"')
+    assert vb_start != -1, "viewBacklog container not found"
+    assert vh_start < vb_start, "viewHealth must come before viewBacklog"
+
+    health_view_html = dash_html[vh_start:vb_start]
+    assert "Exercise, Videos & Traditional Strength Training Hub" in health_view_html, (
+        "Exercise Hub must be located inside viewHealth"
+    )
+    assert 'id="exPanelVideos"' in health_view_html
+    assert 'id="exSubTabStrength"' in health_view_html
+
+
+
