@@ -2,7 +2,7 @@
 
 Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operations Wiki**!
 
-[![Release: v2.8.7](https://img.shields.io/badge/Release-v2.8.7-00b4d8.svg)](Release-Notes)
+[![Release: v2.8.8](https://img.shields.io/badge/Release-v2.8.8-00b4d8.svg)](Release-Notes)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%5B12%20Layers%5D-brightgreen.svg)](Security-Model)
@@ -35,6 +35,7 @@ Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operat
 | **[[Built-in-Agents]]** | Complete reference for all **7 built-in agents**: **Health & Wellness** (6-Day Mudgal/Samtola/Bhim Gadha Split + FFD Protocols + HTTP 206 video streaming), **Overview**, **PC Optimizer** (Win32 PSAPI), **Antigravity Mirror**, **Gmail 5-Folder Classifier**, **Backlog**, and **Mind**. |
 | **[[Customizing-Agents]]** | Per-agent runtime customization (display name, icon, tab order, default landing tab, hyperscaler provider/model override, custom prompt, and `schedules.yaml` cron expressions). |
 | **[[Agent-Development-Guide]]** | Masterclass in building isolated agents via the **4-Step Visual Wizard (`+`)**, `create-agent` Skill, CLI generator (`fleet create-agent`), `manifest.json` contracts, and unit testing. |
+| **[[UX-Roadmap-and-Feature-Backlog]]** | Prioritized 10-feature **UX & Agent-Simplicity Roadmap (`UX-01` – `UX-10`)**: Zero-Code Agent Studio Skill, Autonomous Process Discovery Agent (`process_discovery`), Multi-Agent Playbooks, and Universal Omnibar. |
 
 ### ⚙️ Security, Robustness, CI/CD & Operations
 | Wiki Guide | Deep-Dive Technical Scope |

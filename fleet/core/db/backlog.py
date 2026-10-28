@@ -14,7 +14,122 @@ else:
     _DbBase = object
 
 
+UX_ROADMAP_BACKLOG_ITEMS: List[Dict[str, str]] = [
+    {
+        "title": "[UX-01] Natural-Language 'Zero-Code' Agent Studio Skill & Conversational Workflow",
+        "description": "Describe any agent in 1 plain-English sentence to auto-synthesize manifest.json, schedules.yaml, 6 declarative UI blocks (kpi_row, history_table, checklist), and unit tests in <15s. Spec: docs/backlog/UX-01-natural-language-agent-studio-skill.md",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Planned",
+        "target_version": "v2.9.0",
+    },
+    {
+        "title": "[UX-02] Autonomous Process Discovery & Agent Recommendation Engine (process_discovery)",
+        "description": "100% local ($0.00 token) workflow miner observing dashboard logs, Win32 PSAPI app clusters, Git repos, and email triage over 1-14 days to recommend ready-to-spawn agents at 21:00 with 1-click creation. Spec: docs/backlog/UX-02-process-discovery-and-recommendation-agent.md",
+        "category": "AI/LLM",
+        "priority": "P1",
+        "status": "Planned",
+        "target_version": "v2.9.0",
+    },
+    {
+        "title": "[UX-03] Visual Multi-Agent Playbook & Event-Chain Composer (IFTTT for Fleet)",
+        "description": "Connect multiple agents into automated pipelines (WHEN [Trigger] -> IF [Condition] -> THEN [Agent A -> Agent B -> Toast]) via playbooks.yaml and a visual builder. Spec: docs/backlog/UX-03-multi-agent-playbook-and-workflow-chaining.md",
+        "category": "Automation",
+        "priority": "P1",
+        "status": "Planned",
+        "target_version": "v2.9.0",
+    },
+    {
+        "title": "[UX-04] 1-Click Agent Blueprint Templates & Portable .fleetagent Share Packs",
+        "description": "15+ ready-to-use domain blueprints (Pomodoro Guardian, Subscription Sentinel, Multi-Repo Git Watcher, CGM Glucose Log) + drag-and-drop .fleetagent export/import audited by 12-Layer Security Scanner. Spec: docs/backlog/UX-04-agent-blueprint-templates-and-share-packs.md",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Planned",
+        "target_version": "v2.9.0",
+    },
+    {
+        "title": "[UX-05] Unified 'Ask Fleet Anything' Omnibar & Cross-Agent Dispatcher (Ctrl+K)",
+        "description": "Upgrades Ctrl+K Spotlight into a Raycast-style universal Omnibar supporting @agent commands, natural-language Tier-0 execution, and instant inline result cards without switching tabs. Spec: docs/backlog/UX-05-unified-ask-fleet-omnibar-and-nl-dispatcher.md",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Planned",
+        "target_version": "v2.9.0",
+    },
+    {
+        "title": "[UX-06] Interactive First-Run Persona Onboarding & Goal-Driven Auto-Setup",
+        "description": "60-second guided setup where users pick personas (FFD Athlete, Software Engineer, Inbox Zero) to auto-configure layouts, themes, schedules.yaml, and pinned tabs. Spec: docs/backlog/UX-06-interactive-persona-onboarding-and-auto-setup.md",
+        "category": "UI/UX",
+        "priority": "P2",
+        "status": "Planned",
+        "target_version": "v3.0.0",
+    },
+    {
+        "title": "[UX-07] Focus-Aware Smart Nudges & Actionable Notification Cards",
+        "description": "Detects full-screen meetings/deep-work flow to batch non-urgent alerts, and adds 1-click action buttons ([+1 Glass], [Snooze 30m], [Complete]) directly inside notifications. Spec: docs/backlog/UX-07-context-aware-smart-nudges-and-interactive-toasts.md",
+        "category": "Automation",
+        "priority": "P2",
+        "status": "Planned",
+        "target_version": "v3.0.0",
+    },
+    {
+        "title": "[UX-08] Agent Time-Machine, 1-Click Undo Rollback & Safe Dry-Run Sandbox",
+        "description": "Adds a Simulate (Dry Run) preview button using SQLite savepoints and a transactional agent_undo_journal allowing 1-click rollback of any agent mutation. Spec: docs/backlog/UX-08-agent-time-machine-undo-and-dry-run-sandbox.md",
+        "category": "Security",
+        "priority": "P2",
+        "status": "Planned",
+        "target_version": "v3.0.0",
+    },
+    {
+        "title": "[UX-09] Pin-to-Overview Micro-Widgets & Customizable Executive Bento Grid",
+        "description": "Pin compact 1x1 or 2x1 live micro-widgets (get_micro_widget) from your favorite agents onto the main Overview Executive Cockpit. Spec: docs/backlog/UX-09-pin-to-overview-micro-widgets-and-bento-grid.md",
+        "category": "UI/UX",
+        "priority": "P2",
+        "status": "Idea",
+        "target_version": "v3.0.0",
+    },
+    {
+        "title": "[UX-10] Ambient System Tray Companion, Global Hotkey (Alt+Space) & Voice Capture",
+        "description": "Native OS system tray status icon, global Alt+Space quick-capture HUD over any app, and zero-token voice command transcription. Spec: docs/backlog/UX-10-system-tray-companion-global-hotkey-and-voice-capture.md",
+        "category": "Integration",
+        "priority": "P3",
+        "status": "Idea",
+        "target_version": "v3.1.0",
+    },
+]
+
+
 class BacklogMixin(_DbBase):
+    def sync_ux_roadmap_backlog(self) -> int:
+        """Idempotently ensures all 10 UX-01..UX-10 roadmap features exist in feature_backlog."""
+        inserted = 0
+        now = datetime.now().isoformat()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT title FROM feature_backlog")
+            existing_titles = {row["title"] for row in cursor.fetchall()}
+            for item in UX_ROADMAP_BACKLOG_ITEMS:
+                if item["title"] not in existing_titles:
+                    cursor.execute(
+                        """
+                        INSERT INTO feature_backlog (title, description, category, priority, status, target_version, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            item["title"],
+                            item["description"],
+                            item["category"],
+                            item["priority"],
+                            item["status"],
+                            item["target_version"],
+                            now,
+                            now,
+                        ),
+                    )
+                    inserted += 1
+            if inserted > 0:
+                conn.commit()
+        return inserted
+
     # --- Feature Backlog Operations ---
     def add_feature_backlog_item(self, title: str, description: str = "",
                                  category: str = "Core", priority: str = "P2",

@@ -11,6 +11,7 @@
 - [[Built-in-Agents|Built-in Agents Matrix]]
 - [[Customizing-Agents|Customizing Agents]]
 - [[Agent-Development-Guide|Agent Development Guide]]
+- [[UX-Roadmap-and-Feature-Backlog|UX & Agent-Simplicity Backlog]]
 
 ### Operations & Infrastructure
 - [[Installation-and-Quick-Start|Installation & Quick Start]]
@@ -25,7 +26,7 @@
 - [[Release-Notes|Release Notes]]
 
 ### Quick Reference
-- **Release:** `v2.8.7`
+- **Release:** `v2.8.8`
 - **Port:** `7890`
 - **Palette:** `Ctrl+K` or `/`
 - **Cost:** `$0.00 / Zero-Token`

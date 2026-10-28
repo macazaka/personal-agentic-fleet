@@ -251,6 +251,30 @@ class BaseDatabase:
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, default_backlog)
 
+            if not is_test_environment() and self.db_path == DB_PATH:
+                from fleet.core.db.backlog import UX_ROADMAP_BACKLOG_ITEMS
+                now_str = datetime.now().isoformat()
+                cursor.execute("SELECT title FROM feature_backlog")
+                existing_titles = {row["title"] for row in cursor.fetchall()}
+                for item in UX_ROADMAP_BACKLOG_ITEMS:
+                    if item["title"] not in existing_titles:
+                        cursor.execute(
+                            """
+                            INSERT INTO feature_backlog (title, description, category, priority, status, target_version, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (
+                                item["title"],
+                                item["description"],
+                                item["category"],
+                                item["priority"],
+                                item["status"],
+                                item["target_version"],
+                                now_str,
+                                now_str,
+                            ),
+                        )
+
             # Unsubscribed Emails table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS unsubscribed_emails (

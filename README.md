@@ -1,6 +1,6 @@
 # ⚡ Personal Agentic Fleet
 
-[![Release: v2.8.7](https://img.shields.io/badge/Release-v2.8.7-00b4d8.svg)](CHANGELOG.md)
+[![Release: v2.8.8](https://img.shields.io/badge/Release-v2.8.8-00b4d8.svg)](CHANGELOG.md)
 [![GitHub Wiki: 17 Deep-Dive Guides](https://img.shields.io/badge/GitHub%20Wiki-17%20Deep--Dive%20Guides-0284c7.svg?logo=github)](https://github.com/macazaka/personal-agentic-fleet/wiki)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -45,6 +45,7 @@ The documentation follows a **Two-Tier Progressive Disclosure Model**: this `REA
 | 🚀 **[CI/CD & Immutable Releases (`wiki/CI-CD-and-Immutable-Releases.md`)](wiki/CI-CD-and-Immutable-Releases.md)** | 🌐 **[Wiki: CI/CD & Immutable Releases](https://github.com/macazaka/personal-agentic-fleet/wiki/CI-CD-and-Immutable-Releases)** | GitHub Actions Node 24 / `ubuntu-24.04` pipelines, immutable release tag validation, CycloneDX SBOMs, and SHA-256 checksums. |
 | 🔄 **[Documentation Maintenance Guide (`docs/MAINTAINING_DOCUMENTATION.md`)](docs/MAINTAINING_DOCUMENTATION.md)** | 🌐 **[Wiki: Documentation Sync Architecture](https://github.com/macazaka/personal-agentic-fleet/wiki/CLI-and-Automation-Tools)** | Continuous documentation verification invariants, commit checklist, and update cadence. |
 | 🛡️ **[Native Robustness Architecture Backlog (`docs/ROBUSTNESS_BACKLOG.md`)](docs/ROBUSTNESS_BACKLOG.md)** | 🌐 **[Wiki: Robustness & Self-Healing](https://github.com/macazaka/personal-agentic-fleet/wiki/Robustness-and-Self-Healing)** | 6-pillar framework robustness roadmap: thread supervisors, connection pool, OS job objects, circuit breakers, and crash forensics. |
+| 🌟 **[UX & Agent-Simplicity Backlog (`docs/backlog/README.md`)](docs/backlog/README.md)** | 🌐 **[Wiki: UX Roadmap & Backlog](https://github.com/macazaka/personal-agentic-fleet/wiki/UX-Roadmap-and-Feature-Backlog)** | Prioritized 10-feature UX & Agent-Simplicity roadmap (`UX-01` to `UX-10`): Zero-Code Agent Studio, Process Discovery Agent, Playbooks, Blueprints, and Omnibar. |
 | 🤝 **[Community Contributing Guide (`CONTRIBUTING.md`)](CONTRIBUTING.md)** | 🌐 **[Wiki: Troubleshooting & FAQ](https://github.com/macazaka/personal-agentic-fleet/wiki/Troubleshooting-and-FAQ)** | Branching workflow, pull request guidelines, security disclosure policy, and troubleshooting runbooks. |
 
 ---

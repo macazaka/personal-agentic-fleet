@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.8] - 2026-10-28
+
+### Documentation & Maintenance
+- **Wiki**: Add comprehensive README-to-Wiki links and expand deep-dive technical wiki documentation.
+
+---
+
 ## [2.8.7] - 2026-10-28
 
 ### Fixed

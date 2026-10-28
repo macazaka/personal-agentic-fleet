@@ -1,5 +1,66 @@
 [
   {
+    "scan_id": "SCAN-20261028-133117",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-10-28T13:31:17.064238"
+  },
+  {
+    "scan_id": "SCAN-20261028-131613",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-10-28T13:16:13.897210"
+  },
+  {
+    "scan_id": "SCAN-20261028-131613",
+    "issue_type": "CRASH_DUMPS",
+    "severity": "LOW",
+    "description": "Found 11 crash dump files (0 older than 7 days, max age 0.1 days). Retention threshold is 10.",
+    "action_taken": "Pruned 1 aged/excess crash report dumps. Reclaimed 0.49 KB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "total_dumps": 11
+    },
+    "metrics_after": {
+      "remaining_dumps": 10,
+      "reclaimed_kb": 0.49
+    },
+    "created_at": "2026-10-28T13:16:13.896822"
+  },
+  {
+    "scan_id": "SCAN-20261028-130946",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-10-28T13:09:46.730872"
+  },
+  {
     "scan_id": "SCAN-20261028-125834",
     "issue_type": "TASK_FAILURES",
     "severity": "MEDIUM",
