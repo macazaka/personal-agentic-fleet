@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.5] - 2026-10-28
+
+### Documentation & Maintenance
+- **Wiki**: Create comprehensive detailed wiki covering AFCC, built-in agents, CI/CD, and architecture.
+
+---
+
 ## [2.8.4] - 2026-10-28
 
 ### Fixed

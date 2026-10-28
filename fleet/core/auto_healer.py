@@ -754,6 +754,20 @@ def persist_improvements_to_ledger(improvements: List[ImprovementAction], db_ins
                 conn = sqlite3.connect(str(get_effective_db_path(DB_PATH)), timeout=10.0)
                 with conn:
                     conn.execute("""
+                        CREATE TABLE IF NOT EXISTS auto_improvements (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            scan_id TEXT NOT NULL,
+                            issue_type TEXT NOT NULL,
+                            severity TEXT NOT NULL,
+                            description TEXT NOT NULL,
+                            action_taken TEXT NOT NULL,
+                            status TEXT NOT NULL,
+                            metrics_before TEXT,
+                            metrics_after TEXT,
+                            created_at TEXT NOT NULL
+                        )
+                    """)
+                    conn.execute("""
                         INSERT INTO auto_improvements (
                             scan_id, issue_type, severity, description, action_taken,
                             status, metrics_before, metrics_after, created_at
