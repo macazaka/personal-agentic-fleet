@@ -276,15 +276,18 @@ def test_version_endpoints_and_updater(mock_fleet_env):
     assert parse_version_tuple("invalid") == (0, 0, 0)
 
     # 2. Check for updates mock (newer version available)
+    from fleet.config import get_live_version
+    future_major = parse_version_tuple(get_live_version())[0] + 10
+    future_ver = f"{future_major}.0.0"
     with patch("urllib.request.urlopen") as mock_open:
         mock_resp = MagicMock()
         mock_resp.status = 200
         mock_resp.read.return_value = json.dumps({
-            "tag_name": "v3.0.0",
-            "name": "Fleet Release v3.0.0",
+            "tag_name": f"v{future_ver}",
+            "name": f"Fleet Release v{future_ver}",
             "body": "Major release with new autonomous agent capabilities",
-            "html_url": "https://github.com/macazaka/personal-agentic-fleet/releases/tag/v3.0.0",
-            "zipball_url": "https://github.com/macazaka/personal-agentic-fleet/archive/refs/tags/v3.0.0.zip",
+            "html_url": f"https://github.com/macazaka/personal-agentic-fleet/releases/tag/v{future_ver}",
+            "zipball_url": f"https://github.com/macazaka/personal-agentic-fleet/archive/refs/tags/v{future_ver}.zip",
             "published_at": "2026-10-27T00:00:00Z"
         }).encode("utf-8")
         mock_open.return_value.__enter__.return_value = mock_resp
@@ -292,7 +295,7 @@ def test_version_endpoints_and_updater(mock_fleet_env):
         res = check_github_for_updates()
         assert res["status"] == "success"
         assert res["update_available"] is True
-        assert res["latest_version"] == "3.0.0"
+        assert res["latest_version"] == future_ver
 
     # 3. Check for updates mock (already up to date)
     with patch("urllib.request.urlopen") as mock_open:
@@ -426,7 +429,10 @@ def test_updater_and_settings_edge_cases(mock_fleet_env):
     handler = MagicMock()
 
     # 1. Fallback raw URL when Releases API fails
-    raw_payload = b'__version__ = "2.9.9"\n'
+    from fleet.config import get_live_version
+    from fleet.core.updater import parse_version_tuple
+    future_ver = f"{parse_version_tuple(get_live_version())[0] + 10}.9.9"
+    raw_payload = f'__version__ = "{future_ver}"\n'.encode("utf-8")
     def fake_urlopen(req, *args, **kwargs):
         url = req.full_url if hasattr(req, "full_url") else str(req)
         if "releases/latest" in url:
@@ -437,7 +443,7 @@ def test_updater_and_settings_edge_cases(mock_fleet_env):
 
     with patch("urllib.request.urlopen", side_effect=fake_urlopen):
         info = check_github_for_updates()
-        assert info["latest_version"] == "2.9.9"
+        assert info["latest_version"] == future_ver
         assert info["update_available"] is True
 
     # 2. Both Releases API and Raw fail
