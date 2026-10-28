@@ -1,4 +1,4 @@
-# Unified Fleet CLI & Proactive Automation Tools (`v2.9.6`)
+# Unified Fleet CLI & Proactive Automation Tools (`v2.9.7`)
 
 Personal Agentic Fleet provides a complete zero-token (`$0.00`) command-line interface and proactive automation suite that keeps code quality, release versions, security invariants, documentation, and the GitHub Wiki continuously synchronized.
 
@@ -33,7 +33,7 @@ Run via `fleet <command>`, `python -m fleet <command>`, or `.\fleet.bat <command
 Personal Agentic Fleet enforces a strict **Two-Tier Progressive Disclosure Model** across `README.md`, `docs/*.md`, and `wiki/*.md`:
 - **Tier 1 (`README.md`)**: Executive summary, OS compatibility table, 60-second installation, auto-synchronized What's New release box, and direct deep-dive links into the live GitHub Wiki.
 - **Tier 2 (`wiki/*.md` — 21 Deep-Dive Guides)**: Exhaustive subsystem specifications, mathematical formulas, SQL schemas, live AST-introspected REST API inventories, and operational runbooks.
-- **Automated Version Parity (`release_manager.py` & `doc_wiki_enhancer.py`)**: On every commit and release tag, `run_proactive_release_check()` and `run_proactive_doc_wiki_enhancement()` synchronize the exact semantic version (`v2.9.6`) across `fleet/__init__.py`, `fleet/config.py`, `pyproject.toml`, `dashboard.html`, `README.md`, `CHANGELOG.md`, `wiki/Home.md`, `wiki/_Sidebar.md`, `wiki/_Footer.md`, `wiki/Release-Notes.md`, and all deep-dive Wiki headers.
+- **Automated Version Parity (`release_manager.py` & `doc_wiki_enhancer.py`)**: On every commit and release tag, `run_proactive_release_check()` and `run_proactive_doc_wiki_enhancement()` synchronize the exact semantic version (`v2.9.7`) across `fleet/__init__.py`, `fleet/config.py`, `pyproject.toml`, `dashboard.html`, `README.md`, `CHANGELOG.md`, `wiki/Home.md`, `wiki/_Sidebar.md`, `wiki/_Footer.md`, `wiki/Release-Notes.md`, and all deep-dive Wiki headers.
 
 ---
 

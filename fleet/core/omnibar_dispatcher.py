@@ -1,10 +1,12 @@
 """
-UX-05: Unified "Ask Fleet Anything" Omnibar & Cross-Agent Natural-Language Dispatcher.
-Unifies Spotlight tab navigation, @agent slash commands, UX-01 Agent Studio synthesis,
-UX-02 Process Discovery, UX-03 Playbook triggers, and Tier-0 natural-language execution
-into a single zero-token ($0.00) dispatcher returning inline preview cards in < 30ms.
+UX-05: Unified "Ask Fleet Anything" Conversational Omnibar & Cross-Agent Dispatcher.
+Unifies Spotlight tab navigation, multi-turn conversational AI & Fleet telemetry chat,
+@agent slash commands, UX-01 Agent Studio synthesis, UX-02 Process Discovery,
+UX-03 Playbook triggers, Tier-0 natural-language execution, and BM25 Knowledge RAG
+into a single responsive conversational interface.
 """
 
+from datetime import datetime
 import re
 from typing import Any, Dict, List, Optional
 
@@ -75,6 +77,80 @@ BUILTIN_OMNIBAR_SHORTCUTS: List[Dict[str, Any]] = [
     },
 ]
 
+# Rolling in-memory conversational history for the Unified Omnibar
+_OMNIBAR_CHAT_HISTORY: List[Dict[str, Any]] = []
+MAX_OMNIBAR_HISTORY = 20
+
+_DAY_WORKOUT_MAP: Dict[str, str] = {
+    "Monday": "🪵 **Mudgal Strength Training** (Beginner Playlist) + Mandatory World's Best Warm-up",
+    "Tuesday": "🔥 **Mandatory World's Best Warm-up** + FFD Anti-Gravity Step Climbing / Nitric Oxide Dump & Core Mobility",
+    "Wednesday": "⚖️ **Samtola (Indian Barbell) Strength Training** (Beginner Playlist) + Mandatory World's Best Warm-up",
+    "Thursday": "🔥 **Mandatory World's Best Warm-up** + FFD Anti-Gravity / Upper & Lower Body Resistance",
+    "Friday": "🔱 **Bhim Gadha (Macebell) Strength Training** (Beginner Playlist) + Mandatory World's Best Warm-up",
+    "Saturday": "🔥 **Mandatory World's Best Warm-up** + FFD Full-Body Metabolic & Flexibility Flow",
+    "Sunday": "🛌 **Mandatory Full Rest & Metabolic Recovery**",
+}
+
+
+def get_omnibar_chat_history() -> List[Dict[str, Any]]:
+    """Returns the current rolling conversational history for the Omnibar."""
+    return list(_OMNIBAR_CHAT_HISTORY)
+
+
+def clear_omnibar_chat_history() -> None:
+    """Clears the rolling conversational history for the Omnibar."""
+    _OMNIBAR_CHAT_HISTORY.clear()
+
+
+def _record_turn(user_query: str, reply: Dict[str, Any]) -> Dict[str, Any]:
+    """Appends a conversational turn to rolling history and attaches history to the response."""
+    turn = {
+        "user": user_query,
+        "title": reply.get("title", "⚡ Fleet Assistant"),
+        "message": reply.get("message", ""),
+        "mode": reply.get("mode", "conversation"),
+        "timestamp": datetime.now().strftime("%H:%M:%S"),
+    }
+    _OMNIBAR_CHAT_HISTORY.append(turn)
+    if len(_OMNIBAR_CHAT_HISTORY) > MAX_OMNIBAR_HISTORY:
+        del _OMNIBAR_CHAT_HISTORY[:-MAX_OMNIBAR_HISTORY]
+    reply.setdefault("conversational", True)
+    reply.setdefault("history_count", len(_OMNIBAR_CHAT_HISTORY))
+    return reply
+
+
+def _gather_live_fleet_snapshot(agent_registry: Optional[Any] = None, db: Optional[Any] = None) -> Dict[str, Any]:
+    """Collects live workstation & Fleet telemetry for context-aware conversational replies."""
+    agents_map = getattr(agent_registry, "agents", {}) if agent_registry else {}
+    active_agents = len(agents_map) if agents_map else 7
+    pending_tasks: List[Dict[str, Any]] = []
+    hydration = {"glasses": 0, "amount_ml": 0, "goal_ml": 2500}
+
+    if db is not None:
+        try:
+            if hasattr(db, "list_tasks"):
+                pending_tasks = db.list_tasks(status="pending", exclude_tests=True) or []
+        except Exception:
+            pass
+        try:
+            if hasattr(db, "get_today_hydration"):
+                hyd = db.get_today_hydration()
+                if isinstance(hyd, dict):
+                    hydration = hyd
+        except Exception:
+            pass
+
+    today_name = datetime.now().strftime("%A")
+    today_workout = _DAY_WORKOUT_MAP.get(today_name, _DAY_WORKOUT_MAP["Monday"])
+    return {
+        "active_agents": active_agents,
+        "pending_tasks": pending_tasks,
+        "pending_count": len(pending_tasks),
+        "hydration": hydration,
+        "today_name": today_name,
+        "today_workout": today_workout,
+    }
+
 
 def get_all_omnibar_commands(agent_registry: Optional[Any] = None) -> List[Dict[str, Any]]:
     """Aggregates built-in shortcuts and all active agents' get_omnibar_commands()."""
@@ -101,13 +177,34 @@ def dispatch_omnibar_query(
     db: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
-    Executes an Omnibar command or natural-language query deterministically at $0.00 token cost
-    and returns a structured inline card payload.
+    Executes an Omnibar command, natural-language question, or conversational chat turn.
+    Combines deterministic Tier-0 execution ($0.00), live Fleet SQLite telemetry,
+    BM25 Knowledge RAG, and optional Hyperscaler LLM completion into a conversational response.
     """
     raw = (query or "").strip()
     if not raw:
         raise ValueError("Omnibar query cannot be empty.")
     lower = raw.lower()
+    cleaned_words = re.sub(r"[^\w\s]", "", lower).strip()
+
+    # 0. Clear history command
+    if cleaned_words in ("clear", "reset", "clear chat", "reset chat"):
+        clear_omnibar_chat_history()
+        return {
+            "status": "ok",
+            "mode": "conversation",
+            "title": "🧹 Omnibar Conversation Cleared",
+            "message": "Chat history has been reset. How can I help you today?",
+            "suggestions": [
+                "Give me my daily briefing",
+                "What are my pending tasks?",
+                "What is my workout today?",
+                "@discover",
+            ],
+            "tokens_used": 0,
+            "conversational": True,
+            "history_count": 0,
+        }
 
     # 1. @discover or "recommend agent" -> UX-02 Process Discovery
     if lower.startswith("@discover") or "recommend agent" in lower or "discover agent" in lower:
@@ -116,14 +213,15 @@ def dispatch_omnibar_query(
         report = mine_workstation_recommendations(db=db, installed_agent_ids=installed)
         top = report["recommendations"][:3]
         summary = " | ".join(f"{r['icon']} {r['name']} ({r['opportunity_score']}/100)" for r in top)
-        return {
+        return _record_turn(raw, {
             "status": "ok",
             "mode": "discovery",
             "title": f"🕵️ {len(top)} Recommended Agents Discovered (Save ~{report['total_estimated_minutes_saved_per_week']}m/wk)",
             "message": summary,
             "recommendations": top,
+            "suggestions": ["@studio Create a habit tracker agent", "Give me my daily briefing"],
             "tokens_used": 0,
-        }
+        })
 
     # 2. @studio or "create agent ..." -> UX-01 Zero-Code Agent Studio
     if lower.startswith("@studio") or lower.startswith("create agent"):
@@ -132,14 +230,15 @@ def dispatch_omnibar_query(
             prompt_body = "Monitor my daily deep work sessions and alert me at 6 PM"
         from fleet.core.agent_studio import synthesize_agent_from_prompt
         spec = synthesize_agent_from_prompt(prompt_body)
-        return {
+        return _record_turn(raw, {
             "status": "ok",
             "mode": "studio_synthesis",
             "title": f"✨ Synthesized: {spec['icon']} {spec['name']} ({spec['agent_id']})",
             "message": f"Schedule: {spec['schedule']['display']} | Permissions: {', '.join(spec['permissions'])} | Blocks: {len(spec['ui_blocks'])}",
             "spec": spec,
+            "suggestions": ["@discover", "Show Fleet status"],
             "tokens_used": 0,
-        }
+        })
 
     # 3. @playbook <id> -> UX-03 Playbook Execution
     if lower.startswith("@playbook"):
@@ -147,39 +246,48 @@ def dispatch_omnibar_query(
         pb_id = parts[1].strip() if len(parts) > 1 else "morning_vitality_launchpad"
         from fleet.core.playbook_engine import execute_playbook
         res = execute_playbook(pb_id, agent_registry=agent_registry, db=db)
-        return {
+        return _record_turn(raw, {
             "status": "ok",
             "mode": "playbook",
             "title": f"🔗 Playbook Executed: {res['name']}",
             "message": f"Completed {res['steps_executed']} cross-agent steps deterministically.",
             "playbook_result": res,
+            "suggestions": ["Give me my daily briefing", "How much water did I drink?"],
             "tokens_used": 0,
-        }
+        })
 
     # 4. Hydration quick capture: "@health water" or "drank N glasses"
-    if lower.startswith("@health water") or re.search(r"\b(?:drank|log|add)\s+\d*\s*(?:glass|water|ml)\b", lower):
+    if lower.startswith("@health water") or re.search(r"\b(?:drank|log|add)\s+\d*\s*(?:glass|glasses|water|ml)\b", lower):
         m_num = re.search(r"(\d+)", lower)
         glasses = int(m_num.group(1)) if m_num and int(m_num.group(1)) <= 20 else 1
-        if db is not None and hasattr(db, "log_hydration"):
+        if db is not None:
             try:
-                hyd = db.log_hydration(glasses_delta=glasses)
-                return {
-                    "status": "ok",
-                    "mode": "hydration",
-                    "title": f"🌿 Logged +{glasses} Glass(es) of Water",
-                    "message": f"Today's hydration total: {hyd.get('glasses', glasses)} glasses ({hyd.get('amount_ml', glasses * 250)} ml).",
-                    "hydration": hyd,
-                    "tokens_used": 0,
-                }
+                if hasattr(db, "log_water_intake"):
+                    hyd = db.log_water_intake(glasses_delta=glasses, amount_delta_ml=glasses * 250)
+                elif hasattr(db, "log_hydration"):
+                    hyd = db.log_hydration(glasses_delta=glasses)
+                else:
+                    hyd = None
+                if isinstance(hyd, dict):
+                    return _record_turn(raw, {
+                        "status": "ok",
+                        "mode": "hydration",
+                        "title": f"🌿 Logged +{glasses} Glass(es) of Water",
+                        "message": f"Today's hydration total: {hyd.get('glasses', glasses)} glasses ({hyd.get('amount_ml', glasses * 250)} / {hyd.get('goal_ml', 2500)} ml).",
+                        "hydration": hyd,
+                        "suggestions": ["What is my workout today?", "FFD Green Smoothie recipe"],
+                        "tokens_used": 0,
+                    })
             except Exception:
                 pass
-        return {
+        return _record_turn(raw, {
             "status": "ok",
             "mode": "hydration",
             "title": f"🌿 Logged +{glasses} Glass(es) of Water",
             "message": f"Added {glasses * 250} ml to today's hydration tracker.",
+            "suggestions": ["What is my workout today?", "FFD Green Smoothie recipe"],
             "tokens_used": 0,
-        }
+        })
 
     # 5. Direct @<agent_id> [task] invocation
     if lower.startswith("@"):
@@ -190,16 +298,16 @@ def dispatch_omnibar_query(
         agent = agents_map.get(target_id)
         if agent:
             if task_arg in ("open", "open_tab", "view"):
-                return {
+                return _record_turn(raw, {
                     "status": "ok",
                     "mode": "navigate",
                     "agent_id": target_id,
                     "title": f"{agent.display_icon} Switched to {agent.display_name}",
                     "message": f"Opened workspace for '{target_id}'.",
                     "tokens_used": 0,
-                }
+                })
             res = agent.execute_task(task_arg)
-            return {
+            return _record_turn(raw, {
                 "status": "ok",
                 "mode": "agent_task",
                 "agent_id": target_id,
@@ -207,29 +315,269 @@ def dispatch_omnibar_query(
                 "message": res.get("message", f"Executed task '{task_arg}' on {agent.display_name}."),
                 "result": res,
                 "tokens_used": 0,
-            }
+            })
 
-    # 6. Fallback to Tier-0 / BM25 RAG via TokenOptimizer
+    # 6. Conversational Greetings, Small Talk & Identity ("hi", "hello", "hey", "how are you", "who are you", "help")
+    greeting_patterns = {
+        "hi", "hello", "hey", "hola", "namaste", "yo", "sup", "howdy",
+        "hi there", "hello there", "hey there", "good morning", "good afternoon",
+        "good evening", "gm", "hi fleet", "hello fleet", "hey fleet",
+    }
+    if cleaned_words in greeting_patterns or re.match(r"^(?:hi|hello|hey)\b[\s!.,?]*$", lower):
+        snap = _gather_live_fleet_snapshot(agent_registry=agent_registry, db=db)
+        hyd = snap["hydration"]
+        msg = (
+            f"👋 Hey there! I'm your **Personal Agentic Fleet Conversational Assistant**.\n"
+            f"• **Fleet Status**: {snap['active_agents']} agents online & operational\n"
+            f"• **Pending Tasks**: {snap['pending_count']} task(s) on your board\n"
+            f"• **Today's Hydration**: {hyd.get('glasses', 0)} glasses ({hyd.get('amount_ml', 0)} / {hyd.get('goal_ml', 2500)} ml)\n"
+            f"• **{snap['today_name']} Focus**: {snap['today_workout']}\n\n"
+            f"Ask me anything in plain English—your daily briefing, tasks, FFD diet/smoothie rules, PC optimization, or click a suggestion below!"
+        )
+        return _record_turn(raw, {
+            "status": "ok",
+            "mode": "conversation",
+            "title": "🤖 Fleet Conversational Assistant",
+            "message": msg,
+            "suggestions": [
+                "Give me my daily briefing",
+                "What are my pending tasks?",
+                "What is my workout today?",
+                "FFD Green Smoothie recipe",
+                "@discover",
+            ],
+            "tokens_used": 0,
+        })
+
+    if any(p in cleaned_words for p in ("how are you", "how are things", "whats up", "what is up", "how is it going")):
+        snap = _gather_live_fleet_snapshot(agent_registry=agent_registry, db=db)
+        return _record_turn(raw, {
+            "status": "ok",
+            "mode": "conversation",
+            "title": "⚡ All Systems Nominal",
+            "message": (
+                f"I'm running at peak efficiency! All **{snap['active_agents']} Fleet agents** are online, "
+                f"you have **{snap['pending_count']} pending task(s)**, and today's hydration is at "
+                f"**{snap['hydration'].get('amount_ml', 0)} ml**. What would you like to work on?"
+            ),
+            "suggestions": [
+                "What are my pending tasks?",
+                "Log +1 glass of water",
+                "Optimize my PC",
+                "Run security scan",
+            ],
+            "tokens_used": 0,
+        })
+
+    if any(p in cleaned_words for p in ("thank you", "thanks", "thx", "awesome", "great job", "cool")):
+        return _record_turn(raw, {
+            "status": "ok",
+            "mode": "conversation",
+            "title": "🙌 Happy to Help!",
+            "message": "Anytime! Let me know if you want to check tasks, log hydration, run a playbook, or build a new agent.",
+            "suggestions": [
+                "Give me my daily briefing",
+                "What are my pending tasks?",
+                "@discover",
+            ],
+            "tokens_used": 0,
+        })
+
+    if cleaned_words in ("help", "commands", "what can you do", "who are you", "capabilities", "menu") or any(
+        p in lower for p in ("what can you do", "who are you", "how do i use", "help me")
+    ):
+        return _record_turn(raw, {
+            "status": "ok",
+            "mode": "conversation",
+            "title": "🧭 What You Can Ask the Fleet Omnibar",
+            "message": (
+                "I'm your conversational interface across the entire Personal Agentic Fleet:\n"
+                "1. **Daily Operations & Tasks**: Ask *\"What are my pending tasks?\"*, *\"Add task Review PR\"*, or *\"Give me my daily briefing\"*.\n"
+                "2. **Health, Hydration & 6-Day Workout Split**: Ask *\"How much water did I drink?\"*, *\"Drank 2 glasses of water\"*, *\"What is my workout today?\"*, or *\"FFD Green Smoothie recipe\"*.\n"
+                "3. **PC Optimization & Security**: Ask *\"Optimize my PC\"*, *\"Clean temp files\"*, *\"Flush DNS\"*, or *\"Run security scan\"*.\n"
+                "4. **Agent Studio & Discovery**: Type `@discover` to mine workstation patterns or `@studio <description>` to synthesize a new agent."
+            ),
+            "suggestions": [
+                "Give me my daily briefing",
+                "What are my pending tasks?",
+                "What is my workout today?",
+                "Optimize my PC",
+                "@discover",
+            ],
+            "tokens_used": 0,
+        })
+
+    # 7. Conversational Task Management ("what are my tasks", "add task ...")
+    add_task_match = re.match(r"^(?:add\s+task|create\s+task|new\s+task|todo|remind\s+me\s+to)\s+(.+)$", raw, flags=re.I)
+    if add_task_match and db is not None and hasattr(db, "add_task"):
+        task_title = add_task_match.group(1).strip()
+        task_id = db.add_task(title=task_title, description=f"Created via Conversational Omnibar: {task_title}", priority="P2", assigned_agent="Omnibar")
+        return _record_turn(raw, {
+            "status": "ok",
+            "mode": "conversation",
+            "agent_id": "overview",
+            "title": f"✅ Created Task #{task_id}",
+            "message": f"Added **\"{task_title}\"** (Priority P2) to your Task & Goal Board.",
+            "suggestions": ["What are my pending tasks?", "Give me my daily briefing"],
+            "tokens_used": 0,
+        })
+
+    if any(p in lower for p in ("my tasks", "pending tasks", "list tasks", "show tasks", "what tasks", "todo list", "to-do list")) or cleaned_words in ("tasks", "todos"):
+        snap = _gather_live_fleet_snapshot(agent_registry=agent_registry, db=db)
+        tasks = snap["pending_tasks"][:5]
+        if not tasks:
+            msg = "🎉 Your task board is clear! You have **0 pending tasks**. Type `Add task <title>` to create one."
+        else:
+            lines = [f"• **#{t.get('id')}** [{t.get('priority', 'P2')}] {t.get('title')}" for t in tasks]
+            msg = f"📋 You have **{snap['pending_count']} pending task(s)** (showing top {len(tasks)}):\n" + "\n".join(lines)
+        return _record_turn(raw, {
+            "status": "ok",
+            "mode": "conversation",
+            "agent_id": "overview",
+            "title": f"📋 Pending Tasks ({snap['pending_count']})",
+            "message": msg,
+            "suggestions": ["Add task Review sprint goals", "Give me my daily briefing"],
+            "tokens_used": 0,
+        })
+
+    # 8. Conversational Daily Briefing & Fleet Status ("briefing", "daily briefing", "status", "how is my fleet")
+    if any(p in lower for p in ("daily briefing", "morning briefing", "give me my briefing", "summarize my day", "fleet status", "how is my fleet", "system status")) or cleaned_words in ("briefing", "status"):
+        snap = _gather_live_fleet_snapshot(agent_registry=agent_registry, db=db)
+        hyd = snap["hydration"]
+        return _record_turn(raw, {
+            "status": "ok",
+            "mode": "conversation",
+            "agent_id": "overview",
+            "title": f"☀️ Daily Fleet Briefing ({snap['today_name']})",
+            "message": (
+                f"Here is your live Fleet snapshot:\n"
+                f"• **Active Agents**: {snap['active_agents']} autonomous agents online\n"
+                f"• **Pending Tasks**: {snap['pending_count']} pending task(s)\n"
+                f"• **Hydration Progress**: {hyd.get('glasses', 0)} glasses ({hyd.get('amount_ml', 0)} / {hyd.get('goal_ml', 2500)} ml)\n"
+                f"• **Today's Training ({snap['today_name']})**: {snap['today_workout']}"
+            ),
+            "suggestions": [
+                "What are my pending tasks?",
+                "Log +1 glass of water",
+                "FFD Green Smoothie recipe",
+                "Run security scan",
+            ],
+            "tokens_used": 0,
+        })
+
+    # 9. Conversational Hydration & Workout Queries ("how much water", "what is my workout today")
+    if any(p in lower for p in ("how much water", "water intake", "hydration status", "my hydration", "glasses of water")):
+        snap = _gather_live_fleet_snapshot(agent_registry=agent_registry, db=db)
+        hyd = snap["hydration"]
+        amt = hyd.get("amount_ml", 0)
+        goal = hyd.get("goal_ml", 2500)
+        pct = min(100, round((amt / max(1, goal)) * 100))
+        return _record_turn(raw, {
+            "status": "ok",
+            "mode": "conversation",
+            "agent_id": "health",
+            "title": f"💧 Today's Hydration: {amt} / {goal} ml ({pct}%)",
+            "message": f"You've logged **{hyd.get('glasses', 0)} glass(es)** ({amt} ml out of your {goal} ml goal) today.",
+            "suggestions": ["@health water +1", "@health water +2", "What is my workout today?"],
+            "tokens_used": 0,
+        })
+
+    if any(p in lower for p in ("workout today", "exercise today", "todays workout", "today's workout", "what is my workout", "training today")):
+        snap = _gather_live_fleet_snapshot(agent_registry=agent_registry, db=db)
+        return _record_turn(raw, {
+            "status": "ok",
+            "mode": "conversation",
+            "agent_id": "health",
+            "title": f"🏋️ {snap['today_name']} Workout Plan",
+            "message": f"Today is **{snap['today_name']}**: {snap['today_workout']}.\nRemember to perform **FFD Antigravity Step Climbing / Nitric Oxide Dump** 1 hr 45 mins after each meal!",
+            "suggestions": ["Show full 6-day workout schedule", "FFD Green Smoothie recipe", "@health water +1"],
+            "tokens_used": 0,
+        })
+
+    # 10. Tier-0 Deterministic Intent Router & Offline BM25 Knowledge RAG ($0.00)
     try:
-        from fleet.core.token_optimizer import get_token_optimizer  # type: ignore[reportAttributeAccessIssue]
-        opt = get_token_optimizer()
-        rag_ans = opt.try_tier0_or_rag(raw) if hasattr(opt, "try_tier0_or_rag") else None
-        if rag_ans:
-            return {
+        from fleet.core.token_optimizer import (
+            get_cached_prompt_response,
+            query_local_knowledge_base,
+            try_deterministic_intent_route,
+        )
+        det_res = try_deterministic_intent_route(raw, db=db)
+        if det_res is not None:
+            return _record_turn(raw, {
                 "status": "ok",
                 "mode": "tier0_rag",
-                "title": "⚡ Instant Local Knowledge Answer ($0.00)",
-                "message": str(rag_ans)[:280],
+                "title": det_res.get("title", "⚡ Instant Local Fleet Response ($0.00)"),
+                "message": det_res.get("message", ""),
+                "suggestions": ["Give me my daily briefing", "What are my pending tasks?", "Help"],
                 "tokens_used": 0,
-            }
+            })
+
+        rag_res = query_local_knowledge_base(raw)
+        if rag_res is not None:
+            return _record_turn(raw, {
+                "status": "ok",
+                "mode": "tier0_rag",
+                "title": f"📚 {rag_res.get('title', 'Fleet Knowledge Base')} ($0.00)",
+                "message": rag_res.get("message", ""),
+                "suggestions": ["What is my workout today?", "FFD Breakfast protocol", "FFD Lunch plate formula"],
+                "tokens_used": 0,
+            })
+
+        cached = get_cached_prompt_response(raw)
+        if cached is not None:
+            return _record_turn(raw, {
+                "status": "ok",
+                "mode": "tier0_rag",
+                "title": "⚡ Semantic Cache Answer ($0.00)",
+                "message": cached,
+                "suggestions": ["Give me my daily briefing", "Help"],
+                "tokens_used": 0,
+            })
     except Exception:
         pass
 
-    return {
-        "status": "ok",
-        "mode": "intent_routed",
-        "title": "⚡ Fleet Omnibar Dispatched",
-        "message": f"Processed command '{raw}' locally at $0.00 token spend.",
-        "tokens_used": 0,
-    }
+    # 11. Check if a Cloud Hyperscaler or Local Ollama is configured for open-ended LLM conversation
+    try:
+        from fleet.core.hyperscalers import HyperscalerGateway
+        provs = HyperscalerGateway.list_available_providers()
+        configured = [p for p in provs if p.get("is_configured") and p.get("id") != "ollama"]
+        if configured:
+            gw = HyperscalerGateway()
+            llm_res = gw.complete(
+                prompt=raw,
+                provider=configured[0]["id"],
+                system_instruction="You are the Personal Agentic Fleet Conversational Omnibar Assistant. Keep responses concise (2-4 sentences) and helpful.",
+            )
+            if llm_res.get("status") == "SUCCESS" and llm_res.get("text"):
+                return _record_turn(raw, {
+                    "status": "ok",
+                    "mode": "conversation",
+                    "title": f"🤖 {llm_res.get('provider', 'Fleet AI')} ({llm_res.get('model', 'LLM')})",
+                    "message": llm_res["text"],
+                    "suggestions": ["Give me my daily briefing", "What are my pending tasks?", "@discover"],
+                    "tokens_used": llm_res.get("tokens_used", 0),
+                })
+    except Exception:
+        pass
 
+    # 12. Conversational Local Fleet Mind Fallback (Rich, Helpful & Context-Aware)
+    snap = _gather_live_fleet_snapshot(agent_registry=agent_registry, db=db)
+    return _record_turn(raw, {
+        "status": "ok",
+        "mode": "conversation",
+        "agent_id": "antigravity",
+        "title": "💬 Fleet Conversational Assistant ($0.00 Local Mode)",
+        "message": (
+            f"I heard you say: **\"{raw}\"**.\n"
+            f"Right now I'm running in **$0.00 Zero-Token Local Mode** ({snap['active_agents']} agents active, {snap['pending_count']} pending tasks). "
+            f"I can answer questions about your **daily briefing, tasks, hydration, FFD diet & smoothie protocol, 6-day Mudgal/Samtola/Bhim Gadha workouts, PC optimization, or agent creation**—or you can open the **Antigravity Live Console** for deep multi-file coding and cloud LLM reasoning!"
+        ),
+        "suggestions": [
+            "Give me my daily briefing",
+            "What are my pending tasks?",
+            "What is my workout today?",
+            "FFD Green Smoothie recipe",
+            "Help",
+        ],
+        "tokens_used": 0,
+    })

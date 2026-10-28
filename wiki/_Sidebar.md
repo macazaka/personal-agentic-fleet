@@ -26,7 +26,7 @@
 - [[Release-Notes|Release Notes]]
 
 ### Quick Reference
-- **Release:** `v2.9.6`
+- **Release:** `v2.9.7`
 - **Port:** `7890`
 - **Palette:** `Ctrl+K` or `/`
 - **Cost:** `$0.00 / Zero-Token`

@@ -252,6 +252,30 @@ def test_ux05_omnibar_commands_and_dispatch(mock_fleet_env):
     assert hyd["status"] == "ok"
     assert hyd["mode"] == "hydration"
 
+    # Conversational Omnibar queries ("hi", "help", task creation, briefing, RAG)
+    hi_res = dispatch_omnibar_query("hi", agent_registry=registry, db=db)
+    assert hi_res["status"] == "ok"
+    assert hi_res["mode"] == "conversation"
+    assert "Personal Agentic Fleet Conversational Assistant" in hi_res["message"]
+    assert isinstance(hi_res.get("suggestions"), list) and len(hi_res["suggestions"]) >= 3
+
+    task_res = dispatch_omnibar_query("add task Verify conversational omnibar", agent_registry=registry, db=db)
+    assert task_res["status"] == "ok"
+    assert "Verify conversational omnibar" in task_res["message"]
+
+    list_res = dispatch_omnibar_query("what are my pending tasks?", agent_registry=registry, db=db)
+    assert list_res["status"] == "ok"
+    assert "Verify conversational omnibar" in list_res["message"]
+
+    rag_res = dispatch_omnibar_query("FFD green smoothie recipe", agent_registry=registry, db=db)
+    assert rag_res["status"] == "ok"
+    assert rag_res["mode"] == "tier0_rag"
+    assert "Smoothie" in rag_res["message"]
+
+    clr_res = dispatch_omnibar_query("clear chat", agent_registry=registry, db=db)
+    assert clr_res["status"] == "ok"
+    assert clr_res["history_count"] == 0
+
 
 def test_ux_p1_api_handlers(mock_fleet_env):
     from fleet.api.settings_api import (

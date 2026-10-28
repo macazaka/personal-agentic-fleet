@@ -22,7 +22,7 @@
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
               <h1 style="margin: 0; white-space: nowrap;">Personal Agentic Fleet</h1>
               <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.35); font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;" onclick="openReleaseNotesModal()" title="View Release Notes & Versions">
-                <span id="fleetHeaderVerBadge">v2.9.6</span>
+                <span id="fleetHeaderVerBadge">v2.9.7</span>
                 <span style="font-size: 9px; opacity: 0.8;">📜</span>
               </span>
             </div>
@@ -1520,7 +1520,7 @@
           <span style="font-size: 22px;">📜</span>
           <div>
             <strong style="font-size: 16px; color: var(--text);">Fleet Release Notes & Version History</strong>
-            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.9.6</div>
+            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.9.7</div>
           </div>
         </div>
         <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeReleaseNotesModal()">✕</button>
@@ -2284,12 +2284,13 @@
     <div class="cmd-palette-box" style="width: 680px; max-width: 95vw;">
       <div style="display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.8);">
         <span style="font-size: 18px; color: var(--accent-cyan);">⚡</span>
-        <input type="text" id="cmdPaletteInput" placeholder="Ask Fleet anything or type @command... (e.g. @discover, @studio, @playbook, @health water +2)" style="flex: 1; background: transparent; border: none; color: var(--text); font-size: 15px; outline: none;" oninput="FleetNavigator.onPaletteInput(this.value)">
-        <button type="button" class="btn btn-sm btn-primary" onclick="FleetNavigator.executeOmnibarInput()" style="font-size: 11.5px; padding: 4px 10px;">Run ↵</button>
+        <input type="text" id="cmdPaletteInput" placeholder="Chat with Fleet ('hi', 'daily briefing', 'what is my workout?') or type @command..." style="flex: 1; background: transparent; border: none; color: var(--text); font-size: 15px; outline: none;" oninput="FleetNavigator.onPaletteInput(this.value)">
+        <button type="button" class="btn btn-sm btn-primary" onclick="FleetNavigator.executeOmnibarInput()" style="font-size: 11.5px; padding: 4px 10px;">Ask / Run ↵</button>
         <span style="font-size: 11px; color: var(--text-muted); border: 1px solid var(--border-color); padding: 2px 6px; border-radius: 4px;">ESC</span>
       </div>
       <!-- UX-01..UX-05 Quick Omnibar Action Pills -->
       <div style="display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 16px; border-bottom: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.45);">
+        <button type="button" class="badge" style="cursor: pointer; background: rgba(56, 189, 248, 0.14); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.3);" onclick="FleetNavigator.runOmnibarPreset('Give me my daily briefing')">☀️ Daily Briefing</button>
         <button type="button" class="badge" style="cursor: pointer; background: rgba(56, 189, 248, 0.14); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.3);" onclick="FleetNavigator.runOmnibarPreset('@discover')">🕵️ @discover Agents (UX-02)</button>
         <button type="button" class="badge" style="cursor: pointer; background: rgba(168, 85, 247, 0.14); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);" onclick="FleetNavigator.runOmnibarPreset('@playbook pb_morning_vitality')">🔗 Run Morning Playbook (UX-03)</button>
         <button type="button" class="badge" style="cursor: pointer; background: rgba(16, 185, 129, 0.14); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);" onclick="FleetNavigator.runOmnibarPreset('@health water +2')">💧 +2 Glasses Water (UX-05)</button>

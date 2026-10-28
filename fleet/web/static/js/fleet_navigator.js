@@ -986,14 +986,37 @@ const FleetNavigator = {
     }
   },
 
-  // --- Command Palette & Unified Omnibar (Ctrl+K Spotlight / UX-05) ---
+  // --- Command Palette & Unified Conversational Omnibar (Ctrl+K Spotlight / UX-05) ---
+  omnibarChatTurns: [],
+  paletteNavigatedByKeyboard: false,
+
+  formatOmnibarMarkdown(text) {
+    if (!text) return '';
+    const escaped = String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    return escaped
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="color: var(--text);">$1</strong>')
+      .replace(/`([^`]+)`/g, '<code style="background: rgba(15, 23, 42, 0.75); padding: 1px 5px; border-radius: 4px; color: var(--accent-cyan); font-size: 11.5px;">$1</code>')
+      .replace(/\n/g, '<br>');
+  },
+
   openCommandPalette() {
     const modal = document.getElementById('commandPaletteModal');
     if (!modal) return;
     modal.style.display = 'flex';
     this.paletteSelectedIndex = 0;
+    this.paletteNavigatedByKeyboard = false;
     const outBox = document.getElementById('cmdPaletteOmnibarResult');
-    if (outBox) outBox.style.display = 'none';
+    if (outBox) {
+      if (this.omnibarChatTurns.length > 0) {
+        outBox.style.display = 'block';
+        this.renderOmnibarChatThread();
+      } else {
+        outBox.style.display = 'none';
+      }
+    }
     const input = document.getElementById('cmdPaletteInput');
     if (input) {
       input.value = '';
@@ -1007,7 +1030,24 @@ const FleetNavigator = {
     if (modal) modal.style.display = 'none';
   },
 
+  clearOmnibarConversation() {
+    this.omnibarChatTurns = [];
+    const outBox = document.getElementById('cmdPaletteOmnibarResult');
+    if (outBox) {
+      outBox.innerHTML = '';
+      outBox.style.display = 'none';
+    }
+    fetch('/api/omnibar/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: 'clear chat' })
+    }).catch(() => {});
+    const input = document.getElementById('cmdPaletteInput');
+    if (input) input.focus();
+  },
+
   onPaletteInput(query) {
+    this.paletteNavigatedByKeyboard = false;
     this.filterCommandPalette(query);
   },
 
@@ -1020,28 +1060,23 @@ const FleetNavigator = {
     this.executeOmnibarInput(presetQuery);
   },
 
-  async executeOmnibarInput(overrideQuery) {
-    const input = document.getElementById('cmdPaletteInput');
-    const rawQuery = (overrideQuery !== undefined ? overrideQuery : (input ? input.value : '')).trim();
-    if (!rawQuery) return;
-
+  renderOmnibarChatThread() {
     const outBox = document.getElementById('cmdPaletteOmnibarResult');
-    if (outBox) {
-      outBox.style.display = 'block';
-      outBox.innerHTML = '<span style="color: var(--accent-cyan);">⚡ Dispatching via Unified Fleet Omnibar...</span>';
+    if (!outBox) return;
+    if (this.omnibarChatTurns.length === 0) {
+      outBox.style.display = 'none';
+      outBox.innerHTML = '';
+      return;
     }
+    outBox.style.display = 'block';
 
-    try {
-      const res = await fetch('/api/omnibar/execute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: rawQuery })
-      });
-      const data = await res.json();
-      if (!outBox) return;
+    const turnsHtml = this.omnibarChatTurns.map((turn, idx) => {
+      const isLatest = idx === this.omnibarChatTurns.length - 1;
+      const data = turn.data || {};
+      let extraContentHtml = '';
 
       if ((data.mode === 'discovery' || data.mode === 'process_discovery') && Array.isArray(data.recommendations)) {
-        const recsHtml = data.recommendations.map(r => `
+        extraContentHtml = data.recommendations.map(r => `
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 10px; margin-top: 6px; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--border-color); border-radius: 6px;">
             <div>
               <strong style="color: var(--text); font-size: 12.5px;">${r.icon || '🤖'} ${r.name}</strong>
@@ -1051,15 +1086,93 @@ const FleetNavigator = {
             <button type="button" class="btn btn-sm btn-primary" style="white-space: nowrap; font-size: 11px; padding: 4px 10px;" onclick="FleetNavigator.spawnDiscoveredAgent('${r.recommendation_id}')">🚀 Spawn Agent</button>
           </div>
         `).join('');
-        outBox.innerHTML = `<div><strong style="color: var(--accent-cyan);">${data.title || data.message}</strong>${recsHtml}</div>`;
+      }
+
+      const suggestions = isLatest && Array.isArray(data.suggestions) ? data.suggestions : [];
+      const suggestionsHtml = suggestions.length > 0 ? `
+        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.06);">
+          ${suggestions.map(s => {
+            const safeAttr = String(s).replace(/'/g, "\\'");
+            return `<button type="button" class="badge" style="cursor: pointer; background: rgba(56, 189, 248, 0.12); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.28); font-size: 11px; padding: 3px 8px;" onclick="FleetNavigator.runOmnibarPreset('${safeAttr}')">💬 ${s}</button>`;
+          }).join('')}
+        </div>
+      ` : '';
+
+      return `
+        <div style="margin-bottom: ${isLatest ? '0' : '10px'}; padding-bottom: ${isLatest ? '0' : '10px'}; border-bottom: ${isLatest ? 'none' : '1px solid rgba(255,255,255,0.06)'};">
+          <div style="display: flex; justify-content: flex-end; margin-bottom: 6px;">
+            <div style="background: rgba(56, 189, 248, 0.16); border: 1px solid rgba(56, 189, 248, 0.32); color: var(--text); padding: 5px 11px; border-radius: 12px 12px 2px 12px; font-size: 12.5px; max-width: 85%;">
+              <span style="color: var(--accent-cyan); font-weight: 600; margin-right: 4px;">You:</span> ${this.formatOmnibarMarkdown(turn.userQuery)}
+            </div>
+          </div>
+          <div style="background: rgba(15, 23, 42, 0.82); border: 1px solid var(--border-color); padding: 10px 13px; border-radius: 12px 12px 12px 2px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <strong style="color: var(--accent-green); font-size: 12.5px;">${data.title || '🤖 Fleet Conversational Assistant'}</strong>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                ${data.agent_id ? `<button type="button" class="btn btn-sm" style="font-size: 10.5px; padding: 2px 8px;" onclick="FleetNavigator.switchAgent('${data.agent_id}')">Open ${data.agent_id} →</button>` : ''}
+              </div>
+            </div>
+            <div style="font-size: 12.5px; line-height: 1.5; color: var(--text);">${this.formatOmnibarMarkdown(data.message || '')}</div>
+            ${extraContentHtml}
+            ${suggestionsHtml}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    outBox.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+        <span style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">💬 Conversational Fleet Session (${this.omnibarChatTurns.length} turn${this.omnibarChatTurns.length === 1 ? '' : 's'})</span>
+        <div style="display: flex; gap: 6px;">
+          <button type="button" class="btn btn-sm" style="font-size: 10.5px; padding: 1px 7px;" onclick="FleetNavigator.switchAgent('antigravity')">Open Live Console →</button>
+          <button type="button" class="btn btn-sm" style="font-size: 10.5px; padding: 1px 7px; color: var(--text-muted);" onclick="FleetNavigator.clearOmnibarConversation()">Clear</button>
+        </div>
+      </div>
+      <div id="omnibarChatScrollContainer" style="max-height: 250px; overflow-y: auto; padding-right: 4px;">
+        ${turnsHtml}
+      </div>
+    `;
+    const scrollEl = document.getElementById('omnibarChatScrollContainer');
+    if (scrollEl) {
+      scrollEl.scrollTop = scrollEl.scrollHeight;
+    }
+  },
+
+  async executeOmnibarInput(overrideQuery) {
+    const input = document.getElementById('cmdPaletteInput');
+    const rawQuery = (overrideQuery !== undefined ? overrideQuery : (input ? input.value : '')).trim();
+    if (!rawQuery) return;
+
+    const outBox = document.getElementById('cmdPaletteOmnibarResult');
+    if (outBox && this.omnibarChatTurns.length === 0) {
+      outBox.style.display = 'block';
+      outBox.innerHTML = '<span style="color: var(--accent-cyan);">⚡ Thinking...</span>';
+    }
+
+    try {
+      const res = await fetch('/api/omnibar/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: rawQuery })
+      });
+      const data = await res.json();
+      if (rawQuery.toLowerCase().trim() === 'clear' || rawQuery.toLowerCase().trim() === 'clear chat') {
+        this.omnibarChatTurns = [];
       } else {
-        outBox.innerHTML = `<div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-          <span><strong style="color: var(--accent-green);">✔ ${data.title || 'Omnibar'}:</strong> ${data.message || 'Executed.'}</span>
-          ${data.agent_id ? `<button type="button" class="btn btn-sm" style="font-size: 11px; padding: 2px 8px;" onclick="FleetNavigator.switchAgent('${data.agent_id}')">Open ${data.agent_id} →</button>` : ''}
-        </div>`;
+        this.omnibarChatTurns.push({ userQuery: rawQuery, data });
+        if (this.omnibarChatTurns.length > 12) {
+          this.omnibarChatTurns.shift();
+        }
+      }
+      this.renderOmnibarChatThread();
+      if (input) {
+        input.value = '';
+        this.filterCommandPalette('');
+        input.focus();
       }
     } catch (e) {
       if (outBox) {
+        outBox.style.display = 'block';
         outBox.innerHTML = `<span style="color: #ef4444;">⚠️ Omnibar error: ${e.message}</span>`;
       }
     }
@@ -1117,14 +1230,14 @@ const FleetNavigator = {
 
     if (this.paletteResults.length === 0) {
       list.innerHTML = `
-        <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">
-          Press <strong>Enter</strong> or click <strong>Run ↵</strong> to execute query in the Unified Fleet Omnibar.
+        <div style="padding: 16px 20px; text-align: center; color: var(--text-muted); font-size: 13px;">
+          💬 Press <strong>Enter</strong> or click <strong>Ask ↵</strong> to chat with the Fleet Conversational Assistant.
         </div>`;
       return;
     }
 
     list.innerHTML = this.paletteResults.map((a, idx) => {
-      const isSelected = (idx === this.paletteSelectedIndex);
+      const isSelected = (idx === this.paletteSelectedIndex && this.paletteNavigatedByKeyboard);
       return `
         <div class="cmd-palette-item ${isSelected ? 'selected' : ''}" onclick="FleetNavigator.paletteSelectIndex(${idx})">
           <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
@@ -1144,6 +1257,7 @@ const FleetNavigator = {
 
   paletteNavigate(dir) {
     if (this.paletteResults.length === 0) return;
+    this.paletteNavigatedByKeyboard = true;
     this.paletteSelectedIndex = (this.paletteSelectedIndex + dir + this.paletteResults.length) % this.paletteResults.length;
     this.renderPaletteResults();
     const activeEl = document.querySelector('.cmd-palette-item.selected');
@@ -1153,13 +1267,25 @@ const FleetNavigator = {
   paletteSelectCurrent() {
     const input = document.getElementById('cmdPaletteInput');
     const rawQuery = (input ? input.value : '').trim();
-    if (rawQuery.startsWith('@') || (rawQuery && this.paletteResults.length === 0)) {
-      this.executeOmnibarInput(rawQuery);
+    if (!rawQuery) {
+      if (this.paletteResults[this.paletteSelectedIndex]) {
+        this.switchAgent(this.paletteResults[this.paletteSelectedIndex].id);
+      }
       return;
     }
-    if (this.paletteResults[this.paletteSelectedIndex]) {
+    const lower = rawQuery.toLowerCase();
+    const exactAgentMatch = this.agents.find(
+      a => a.id.toLowerCase() === lower || a.name.toLowerCase() === lower
+    );
+    if (this.paletteNavigatedByKeyboard && this.paletteResults[this.paletteSelectedIndex]) {
       this.switchAgent(this.paletteResults[this.paletteSelectedIndex].id);
+      return;
     }
+    if (exactAgentMatch && !rawQuery.startsWith('@')) {
+      this.switchAgent(exactAgentMatch.id);
+      return;
+    }
+    this.executeOmnibarInput(rawQuery);
   },
 
   paletteSelectIndex(idx) {

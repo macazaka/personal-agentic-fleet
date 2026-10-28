@@ -1,6 +1,6 @@
 # 🛡️ Robustness, Self-Healing & Crash Recovery Deep-Dive
 
-> **Release Version**: `v2.9.6` | **Core Modules**: `fleet/core/supervisor.py`, `fleet/core/connection_pool.py`, `fleet/core/resource_quota.py`, `fleet/core/circuit_breaker.py`, `fleet/core/auto_healer.py`, `fleet/core/crash_reporter.py`
+> **Release Version**: `v2.9.7` | **Core Modules**: `fleet/core/supervisor.py`, `fleet/core/connection_pool.py`, `fleet/core/resource_quota.py`, `fleet/core/circuit_breaker.py`, `fleet/core/auto_healer.py`, `fleet/core/crash_reporter.py`
 
 Personal Agentic Fleet is engineered for non-stop, unattended operation. It treats failures, process terminations, database lock contention, and environment corruption as expected events, handling them through a structured **7-Pillar Native Robustness Architecture**.
 
