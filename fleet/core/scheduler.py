@@ -416,11 +416,17 @@ class FleetScheduler:
                 except Exception as e:
                     logger.warning(f"Could not load custom {cpath}: {e}")
 
-        # 4. Merge persistent overrides (toggles, edits from Web Dashboard/API)
+        # 4. Merge persistent overrides (toggles, edits & custom agent schedules from Web Dashboard/API)
         overrides = self.load_overrides()
         for oid, o_data in overrides.items():
-            if oid in rules_by_id and isinstance(o_data, dict):
+            if not isinstance(o_data, dict):
+                continue
+            if o_data.get("_deleted"):
+                rules_by_id.pop(oid, None)
+            elif oid in rules_by_id:
                 rules_by_id[oid].update(o_data)
+            elif o_data.get("agent") and o_data.get("task"):
+                rules_by_id[oid] = dict(o_data, id=oid)
 
         # Normalize and store final rules
         self.schedules = []
@@ -507,6 +513,85 @@ class FleetScheduler:
     def get_schedules(self) -> List[Dict[str, Any]]:
         """Returns all registered agent schedules with live execution states."""
         return list(self.schedules)
+
+    def upsert_custom_schedule(
+        self,
+        agent_id: str,
+        task_name: str,
+        cadence: str = "daily_morning",
+        schedule_info: Optional[Dict[str, Any]] = None,
+        description: str = "",
+        enabled: bool = True,
+        notify: bool = True,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Registers or updates a live scheduled job for a custom agent at runtime
+        and persists it in schedule_overrides.json so it survives restarts.
+        """
+        schedule_id = f"{agent_id}_{task_name}"
+        overrides = self.load_overrides()
+
+        if cadence == "manual_only":
+            self.schedules = [r for r in self.schedules if r.get("id") != schedule_id]
+            if schedule_id in overrides:
+                overrides.pop(schedule_id, None)
+                self.save_overrides(overrides)
+            return None
+
+        info = schedule_info or {}
+        rule_raw: Dict[str, Any] = {
+            "id": schedule_id,
+            "agent": agent_id,
+            "task": task_name,
+            "description": description or f"Automated check: {task_name} ({agent_id})",
+            "enabled": bool(enabled),
+            "notify": bool(notify),
+        }
+
+        if cadence == "every_30_min":
+            rule_raw["schedule_type"] = "interval"
+            rule_raw["interval_minutes"] = 30
+        elif cadence == "hourly":
+            rule_raw["schedule_type"] = "interval"
+            rule_raw["interval_hours"] = 1
+        elif info.get("type") == "cron" and info.get("value"):
+            rule_raw["schedule_type"] = "cron"
+            rule_raw["cron"] = str(info["value"])
+        elif info.get("type") == "interval_hours" and info.get("value"):
+            rule_raw["schedule_type"] = "interval"
+            rule_raw["interval_hours"] = int(info["value"])
+        else:
+            rule_raw["schedule_type"] = "time_of_day"
+            rule_raw["time"] = str(info.get("time") or "08:30")
+
+        norm = self._normalize_rule(rule_raw)
+        replaced = False
+        for idx, existing in enumerate(self.schedules):
+            if existing.get("id") == schedule_id:
+                self.schedules[idx] = norm
+                replaced = True
+                break
+        if not replaced:
+            self.schedules.append(norm)
+
+        overrides[schedule_id] = rule_raw
+        self.save_overrides(overrides)
+        return norm
+
+    def remove_agent_schedules(self, agent_id: str) -> int:
+        """Removes all dynamic schedules belonging to a deleted custom agent."""
+        removed_ids = [r["id"] for r in self.schedules if r.get("agent") == agent_id]
+        self.schedules = [r for r in self.schedules if r.get("agent") != agent_id]
+        overrides = self.load_overrides()
+        changed = False
+        for sid in list(overrides.keys()):
+            val = overrides.get(sid)
+            if sid in removed_ids or (isinstance(val, dict) and val.get("agent") == agent_id):
+                overrides.pop(sid, None)
+                changed = True
+        if changed:
+            self.save_overrides(overrides)
+        return len(removed_ids)
 
     def toggle_schedule(self, schedule_id: str, enabled: Optional[bool] = None) -> Dict[str, Any]:
         """Toggles or sets the enabled status of a schedule."""
@@ -635,8 +720,15 @@ class FleetScheduler:
         try:
             # 1. Check if agent instance exists in AgentRegistry
             agent_inst = None
-            if self.registry:
-                agent_inst = self.registry.agents.get(agent_id)
+            active_registry = self.registry
+            if active_registry is None:
+                try:
+                    import fleet.server as _srv
+                    active_registry = getattr(_srv, "agent_registry", None)
+                except Exception:
+                    active_registry = None
+            if active_registry:
+                agent_inst = active_registry.agents.get(agent_id)
 
             if agent_inst and hasattr(agent_inst, "execute_task"):
                 result_data = agent_inst.execute_task(task_name, payload)

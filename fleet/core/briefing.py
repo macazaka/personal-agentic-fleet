@@ -52,10 +52,11 @@ def extract_meeting_agenda(subject: str, snippet: str = "", sender: str = "") ->
 
 
 class BriefingEngine:
-    def __init__(self, db: Any = None):
+    def __init__(self, db: Any = None, agent_registry: Any = None):
         self.db = db or FleetDatabase()
+        self.agent_registry = agent_registry
 
-    def generate_daily_briefing(self) -> Dict[str, Any]:
+    def generate_daily_briefing(self, agent_registry: Any = None) -> Dict[str, Any]:
         tasks = self.db.list_tasks()
         routines = self.db.list_routines()
 
@@ -150,6 +151,44 @@ class BriefingEngine:
                 for p_note in m["prep_notes"]:
                     briefing_text += f"  • 💡 *Prep*: {p_note}\n"
 
+        # Phase 4: $0.00 SQLite Rollup across Custom Studio Agents (urgent renewals <= 15d & warnings)
+        custom_rollup: Dict[str, Any] = {
+            "custom_agents_count": 0,
+            "total_alerts": 0,
+            "urgent_items": [],
+            "warning_runs": [],
+            "alerts": [],
+        }
+        try:
+            if hasattr(self.db, "get_custom_agents_fleet_rollup"):
+                reg = agent_registry or self.agent_registry
+                if reg is None:
+                    try:
+                        import fleet.server as srv
+                        if getattr(srv, "db", None) is self.db and getattr(srv, "agent_registry", None) is not None:
+                            reg = srv.agent_registry
+                    except Exception:
+                        reg = None
+                c_manifests = (
+                    [m for m in reg.get_manifests() if m.get("is_custom")]
+                    if reg is not None and hasattr(reg, "get_manifests")
+                    else None
+                )
+                custom_rollup = self.db.get_custom_agents_fleet_rollup(custom_manifests=c_manifests)
+        except Exception:
+            pass
+
+        custom_alerts = custom_rollup.get("alerts") or []
+        if custom_alerts:
+            briefing_text += f"\n**🛡️ Custom Agent Alerts & Upcoming Renewals ({custom_rollup.get('total_alerts', len(custom_alerts))}):**\n"
+            for al in custom_alerts[:5]:
+                if al.get("kind") == "deadline":
+                    days_l = int(al.get("days_left", 0))
+                    when_str = f"{abs(days_l)}d OVERDUE" if days_l < 0 else ("DUE TODAY" if days_l == 0 else f"due in {days_l}d")
+                    briefing_text += f"- {al.get('agent_icon', '✨')} **{al.get('agent_name')}**: {al.get('title')} ({when_str} • {al.get('due_date')})\n"
+                else:
+                    briefing_text += f"- {al.get('agent_icon', '✨')} **{al.get('agent_name')}**: {al.get('title')}\n"
+
         return {
             "date": date_str,
             "time": time_str,
@@ -166,9 +205,12 @@ class BriefingEngine:
                 "p3_count": len(p3_tasks),
                 "routines_done": len(routines_done),
                 "routines_total": len(routines),
-                "meetings_count": len(meetings_prep)
+                "meetings_count": len(meetings_prep),
+                "custom_alerts_count": int(custom_rollup.get("total_alerts") or 0),
             },
             "top_focus": top_focus,
             "upcoming_meetings": meetings_prep,
-            "metabolic_profile": metabolic
+            "metabolic_profile": metabolic,
+            "custom_agent_alerts": custom_alerts,
+            "custom_agents_rollup": custom_rollup,
         }

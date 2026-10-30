@@ -13,19 +13,19 @@
         </div>
       </div>
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <button class="btn" onclick="openApolloModal()" style="font-size: 12px; padding: 7px 12px; border-color: rgba(0, 242, 254, 0.4);">
+        <button title="Open Diagnostic Lab Report" class="btn" onclick="openApolloModal()" style="font-size: 12px; padding: 7px 12px; border-color: rgba(0, 242, 254, 0.4);">
           🔬 Diagnostic Lab Report
         </button>
-        <button class="btn" onclick="openDietProtocolModal()" style="font-size: 12px; padding: 7px 12px; border-color: rgba(16, 185, 129, 0.4);">
+        <button title="Open FFD Diet Protocol & Recipes" class="btn" onclick="openDietProtocolModal()" style="font-size: 12px; padding: 7px 12px; border-color: rgba(16, 185, 129, 0.4);">
           🥗 FFD Diet & Recipes
         </button>
-        <button class="btn" onclick="openPrescriptionModal()" style="font-size: 12px; padding: 7px 12px; border-color: rgba(192, 132, 252, 0.4);">
+        <button title="Open Doctor Prescription Details" class="btn" onclick="openPrescriptionModal()" style="font-size: 12px; padding: 7px 12px; border-color: rgba(192, 132, 252, 0.4);">
           💊 Doctor Prescription
         </button>
-        <button class="btn btn-primary" onclick="toggleAddMedCard()" id="btnToggleAddMed" style="font-size: 12px; padding: 7px 14px;">
+        <button title="Toggle Add Medication form" class="btn btn-primary" onclick="toggleAddMedCard()" id="btnToggleAddMed" style="font-size: 12px; padding: 7px 14px;">
           + Add Med
         </button>
-        <button class="btn" onclick="fetchHealthDashboard()" style="font-size: 12px; padding: 7px 12px;">
+        <button title="Refresh health and wellness metrics" class="btn" onclick="fetchHealthDashboard()" style="font-size: 12px; padding: 7px 12px;">
           🔄 Refresh
         </button>
       </div>
@@ -50,7 +50,7 @@
         <div style="display: flex; gap: 10px; align-items: center;">
           <div style="text-align: right; background: rgba(0,0,0,0.3); padding: 8px 14px; border-radius: 8px; border: 1px solid var(--card-border);">
             <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Days to Follow-up</div>
-            <div style="font-size: 18px; font-weight: 800; color: var(--accent-cyan);" id="ffdDaysRemaining">75 Days</div>
+            <div style="font-size: 18px; font-weight: 800; color: var(--accent-cyan);" id="ffdDaysRemaining">-- Days Left</div>
             <div style="font-size: 9.5px; color: var(--text-muted);">Target: 07-Jan-2027</div>
           </div>
         </div>
@@ -105,10 +105,10 @@
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 11px; color: var(--text-muted);" id="healthWaterNext">Next: in 45 min</span>
-          <div style="display: flex; gap: 4px;">
-            <button class="btn btn-primary" style="font-size: 10.5px; padding: 2px 7px;" onclick="logWater(1, 250)">+250ml</button>
-            <button class="btn" style="font-size: 10.5px; padding: 2px 6px;" onclick="logWater(-1, -250)" title="Undo glass">-1</button>
-          </div>
+          <span style="font-size: 11px; color: var(--accent-cyan); display: flex; align-items: center; gap: 4px;" title="Tracked via Visual Glasses Schedule below">
+            <span>🥛</span>
+            <span id="healthWaterGlassesSummary">0 / 10 Glasses</span>
+          </span>
         </div>
       </div>
 
@@ -136,7 +136,7 @@
         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Deep restorative rest recorded</div>
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 11px; color: var(--text-muted);">Quality: Good</span>
-          <button class="btn" style="font-size: 10.5px; padding: 2px 8px;" onclick="quickLogVital('sleep_hours', 7.5, 'hrs')">Log Sleep</button>
+          <button title="Log Sleep" class="btn" style="font-size: 10.5px; padding: 2px 8px;" onclick="quickLogVital('sleep_hours', 7.5, 'hrs')">Log Sleep</button>
         </div>
       </div>
 
@@ -150,7 +150,7 @@
         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">~5.8 km walked • 320 kcal</div>
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 11px; color: var(--accent-amber);" id="healthStepsPct">84.2% of goal</span>
-          <button class="btn" style="font-size: 10.5px; padding: 2px 8px;" onclick="quickLogVital('steps', 1000, 'steps')">+1k Steps</button>
+          <button title="+1k Steps" class="btn" style="font-size: 10.5px; padding: 2px 8px;" onclick="quickLogVital('steps', 1000, 'steps')">+1k Steps</button>
         </div>
       </div>
     </div>
@@ -159,7 +159,7 @@
     <div class="card" id="addMedCard" style="display: none; padding: 20px; border: 1px solid rgba(0, 242, 254, 0.3); background: rgba(15, 23, 42, 0.85); margin-bottom: 0;">
       <div style="font-size: 14px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
         <span>💊 Add Medication / Supplement Schedule</span>
-        <button class="btn" style="padding: 2px 8px; font-size: 11px;" onclick="toggleAddMedCard()">✕ Cancel</button>
+        <button title="Toggle Add Medication form" class="btn" style="padding: 2px 8px; font-size: 11px;" onclick="toggleAddMedCard()">✕ Cancel</button>
       </div>
       <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
         <div>
@@ -180,6 +180,7 @@
             <option value="Daily">Daily</option>
             <option value="Twice Daily">Twice Daily</option>
             <option value="Weekly">Weekly</option>
+            <option value="Monthly">Monthly</option>
             <option value="As Needed">As Needed</option>
           </select>
         </div>
@@ -189,7 +190,7 @@
         <input type="text" id="newMedInstructions" placeholder="e.g. Take with warm water after breakfast..." style="width: 100%; box-sizing: border-box; padding: 9px 12px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 13px;">
       </div>
       <div style="display: flex; justify-content: flex-end; gap: 10px;">
-        <button class="btn btn-primary" onclick="submitNewMedication()" style="padding: 7px 18px; font-size: 12.5px;">✓ Save Medication</button>
+        <button title="Save medication to daily routine schedule" class="btn btn-primary" onclick="submitNewMedication()" style="padding: 7px 18px; font-size: 12.5px;">✓ Save Medication</button>
       </div>
     </div>
 
@@ -203,8 +204,9 @@
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="font-size: 18px;">🥛</span>
               <strong style="font-size: 15px; color: #fff;">Interactive 250ml Glass Schedule</strong>
+              <span id="healthWaterGlassesBadge" class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); font-size: 11px; font-weight: 700;">-- Glasses</span>
             </div>
-            <button class="btn" style="font-size: 11px; padding: 3px 8px;" onclick="promptWaterGoal()">⚙️ Set Daily Goal</button>
+            <button title="Set daily target water intake goal" class="btn" style="font-size: 11px; padding: 3px 8px;" onclick="promptWaterGoal()">⚙️ Set Daily Goal</button>
           </div>
           <!-- Glasses Indicator Grid -->
           <div id="healthGlassesGrid" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;"></div>
@@ -241,14 +243,14 @@
             </div>
             <!-- Metric Selection Tabs -->
             <div style="display: flex; gap: 4px; background: rgba(255,255,255,0.05); padding: 3px; border-radius: 8px; flex-wrap: wrap;">
-              <button class="filter-btn active" id="chartTabWater" onclick="selectTrendMetric('water_ml')" style="font-size: 11px; padding: 3px 8px;">💧 Water</button>
-              <button class="filter-btn" id="chartTabFasting" onclick="selectTrendMetric('fasting_glucose')" style="font-size: 11px; padding: 3px 8px;">🩸 Fasting Sugar</button>
-              <button class="filter-btn" id="chartTabPp" onclick="selectTrendMetric('pp_glucose')" style="font-size: 11px; padding: 3px 8px;">🍬 PPBS Sugar</button>
-              <button class="filter-btn" id="chartTabWeight" onclick="selectTrendMetric('weight_kg')" style="font-size: 11px; padding: 3px 8px;">⚖️ Weight</button>
-              <button class="filter-btn" id="chartTabBp" onclick="selectTrendMetric('blood_pressure_sys')" style="font-size: 11px; padding: 3px 8px;">🩺 BP Sys</button>
-              <button class="filter-btn" id="chartTabSleep" onclick="selectTrendMetric('sleep_hours')" style="font-size: 11px; padding: 3px 8px;">💤 Sleep</button>
-              <button class="filter-btn" id="chartTabSteps" onclick="selectTrendMetric('steps')" style="font-size: 11px; padding: 3px 8px;">👟 Steps</button>
-              <button class="filter-btn" id="chartTabHr" onclick="selectTrendMetric('resting_hr')" style="font-size: 11px; padding: 3px 8px;">❤️ Heart</button>
+              <button title="💧 Water" class="filter-btn active" id="chartTabWater" onclick="selectTrendMetric('water_ml')" style="font-size: 11px; padding: 3px 8px;">💧 Water</button>
+              <button title="🩸 Fasting Sugar" class="filter-btn" id="chartTabFasting" onclick="selectTrendMetric('fasting_glucose')" style="font-size: 11px; padding: 3px 8px;">🩸 Fasting Sugar</button>
+              <button title="🍬 PPBS Sugar" class="filter-btn" id="chartTabPp" onclick="selectTrendMetric('pp_glucose')" style="font-size: 11px; padding: 3px 8px;">🍬 PPBS Sugar</button>
+              <button title="⚖️ Weight" class="filter-btn" id="chartTabWeight" onclick="selectTrendMetric('weight_kg')" style="font-size: 11px; padding: 3px 8px;">⚖️ Weight</button>
+              <button title="🩺 BP Sys" class="filter-btn" id="chartTabBp" onclick="selectTrendMetric('blood_pressure_sys')" style="font-size: 11px; padding: 3px 8px;">🩺 BP Sys</button>
+              <button title="💤 Sleep" class="filter-btn" id="chartTabSleep" onclick="selectTrendMetric('sleep_hours')" style="font-size: 11px; padding: 3px 8px;">💤 Sleep</button>
+              <button title="👟 Steps" class="filter-btn" id="chartTabSteps" onclick="selectTrendMetric('steps')" style="font-size: 11px; padding: 3px 8px;">👟 Steps</button>
+              <button title="❤️ Heart" class="filter-btn" id="chartTabHr" onclick="selectTrendMetric('resting_hr')" style="font-size: 11px; padding: 3px 8px;">❤️ Heart</button>
             </div>
           </div>
 
@@ -294,8 +296,7 @@
             <div>
               <label style="font-size: 10.5px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">METRIC TYPE</label>
               <select id="quickMetricType" onchange="updateMetricUnitHint()" style="width: 100%; box-sizing: border-box; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 12.5px;">
-                <option value="water_ml">💧 Water Intake (ml)</option>
-                <option value="fasting_glucose">🩸 Fasting Sugar (mg/dL)</option>
+                                <option value="fasting_glucose" selected>🩸 Fasting Sugar (mg/dL)</option>
                 <option value="pp_glucose">🍬 Post-Prandial Sugar (mg/dL)</option>
                 <option value="weight_kg">⚖️ Body Weight (kg)</option>
                 <option value="blood_pressure_sys">🩺 BP Systolic (mmHg)</option>
@@ -307,13 +308,13 @@
             </div>
             <div>
               <label style="font-size: 10.5px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">VALUE</label>
-              <input type="number" id="quickMetricValue" step="any" placeholder="e.g. 7.5" style="width: 100%; box-sizing: border-box; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 12.5px;">
+              <input type="number" id="quickMetricValue" step="any" placeholder="e.g. 98" style="width: 100%; box-sizing: border-box; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 12.5px;">
             </div>
             <div>
               <label style="font-size: 10.5px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">UNIT</label>
-              <input type="text" id="quickMetricUnit" value="ml" style="width: 100%; box-sizing: border-box; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 12.5px;">
+              <input type="text" id="quickMetricUnit" value="mg/dL" style="width: 100%; box-sizing: border-box; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 12.5px;">
             </div>
-            <button class="btn btn-primary" onclick="submitQuickVital()" style="font-size: 12px; padding: 8px 14px;">+ Log</button>
+            <button title="Log biometric vital entry to health database" class="btn btn-primary" onclick="submitQuickVital()" style="font-size: 12px; padding: 8px 14px;">+ Log</button>
           </div>
         </div>
       </div>
@@ -334,9 +335,9 @@
           </div>
         </div>
         <div style="display: flex; gap: 6px; background: rgba(0,0,0,0.3); padding: 3px; border-radius: 8px;">
-          <button class="filter-btn active" id="exSubTabVideos" onclick="switchExSubTab('videos')" style="font-size: 11.5px; padding: 4px 12px;">📹 Video Vault</button>
-          <button class="filter-btn" id="exSubTabStrength" onclick="switchExSubTab('strength')" style="font-size: 11.5px; padding: 4px 12px;">💪 6-Day Plan (Sunday Rest)</button>
-          <button class="filter-btn" id="exSubTabAntigravity" onclick="switchExSubTab('antigravity')" style="font-size: 11.5px; padding: 4px 12px;">🏃‍♂️ Antigravity & Hypo Guide</button>
+          <button title="📹 Video Vault" class="filter-btn active" id="exSubTabVideos" onclick="switchExSubTab('videos')" style="font-size: 11.5px; padding: 4px 12px;">📹 Video Vault</button>
+          <button title="💪 6-Day Plan (Sunday Rest)" class="filter-btn" id="exSubTabStrength" onclick="switchExSubTab('strength')" style="font-size: 11.5px; padding: 4px 12px;">💪 6-Day Plan (Sunday Rest)</button>
+          <button title="🏃‍♂️ Antigravity & Hypo Guide" class="filter-btn" id="exSubTabAntigravity" onclick="switchExSubTab('antigravity')" style="font-size: 11.5px; padding: 4px 12px;">🏃‍♂️ Antigravity & Hypo Guide</button>
         </div>
       </div>
 
@@ -346,10 +347,10 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--card-border);">
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <span style="font-size: 11.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Video Library:</span>
-            <button class="filter-btn active" id="vTypeBtnExercise" onclick="switchVideoType('exercise')" style="padding: 5px 14px; font-size: 12px; border-radius: 6px;">
+            <button title="🏋️‍♂️ Exercise & Movement (11)" class="filter-btn active" id="vTypeBtnExercise" onclick="switchVideoType('exercise')" style="padding: 5px 14px; font-size: 12px; border-radius: 6px;">
               🏋️‍♂️ Exercise & Movement (<span id="countExerciseVideos">11</span>)
             </button>
-            <button class="filter-btn" id="vTypeBtnDiet" onclick="switchVideoType('diet')" style="padding: 5px 14px; font-size: 12px; border-radius: 6px;">
+            <button title="🥗 Diet & Nutrition (4)" class="filter-btn" id="vTypeBtnDiet" onclick="switchVideoType('diet')" style="padding: 5px 14px; font-size: 12px; border-radius: 6px;">
               🥗 Diet & Nutrition (<span id="countDietVideos">4</span>)
             </button>
           </div>
@@ -578,7 +579,7 @@
               If stairs are unavailable or you have joint discomfort, perform 3 rounds of the 4 NOD movements (Deep squats, Arm raises, Non-jumping jacks, Shoulder punches). Takes only 2 minutes and releases massive nitric oxide into circulation!
             </p>
             <div style="margin-top: 8px;">
-              <button class="btn" style="font-size: 11.5px; padding: 4px 10px;" onclick="playExerciseVideo('04 - Modified Nitric Oxide Dump Exercise for Diabetes.mp4', 'Modified Nitric Oxide Dump Exercise for Diabetes', 'Nitric Oxide Dump (NOD)')">▶ Play NOD Video</button>
+              <button title="▶ Play NOD Video" class="btn" style="font-size: 11.5px; padding: 4px 10px;" onclick="playExerciseVideo('04 - Modified Nitric Oxide Dump Exercise for Diabetes.mp4', 'Modified Nitric Oxide Dump Exercise for Diabetes', 'Nitric Oxide Dump (NOD)')">▶ Play NOD Video</button>
             </div>
           </div>
 

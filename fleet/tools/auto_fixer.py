@@ -36,12 +36,61 @@ _SHELL_FLAG_SAFE = "shell=" + "False"
 _CORS_HEADER = "Access-Control-" + "Allow-Origin"
 _MD5_PREFIX = "hashlib." + "md5("
 _SHA1_PREFIX = "hashlib." + "sha1("
+_NEVER_AUTO_IGNORE_PYRIGHT_RULES = frozenset({
+    "reportUndefinedVariable",
+    "reportUnboundVariable",
+    "reportGeneralTypeIssues",
+    "reportInvalidStringEscapeSequence",
+})
 
 
 def _hidden_subprocess_kwargs() -> Dict[str, Any]:
     if os.name == "nt":
         return {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
     return {}
+
+
+def resolve_pyright_command() -> List[str]:
+    """
+    Resolves the fastest non-interactive Pyright CLI command matching Pylance:
+      1. Direct `pyright` / `pyright.cmd` binary on PATH.
+      2. Cached npm `_npx` Pyright binary (`%LOCALAPPDATA%/npm-cache/_npx` or `~/.npm/_npx`).
+      3. Non-interactive `npx --yes pyright` fallback (never blocks waiting for TTY prompt).
+    """
+    direct_candidates = ("pyright.cmd", "pyright") if os.name == "nt" else ("pyright",)
+    for cand in direct_candidates:
+        found = shutil.which(cand)
+        if found:
+            return [found]
+
+    npx_cache_roots: List[Path] = []
+    if os.name == "nt":
+        local_app = os.environ.get("LOCALAPPDATA", "")
+        if local_app:
+            npx_cache_roots.append(Path(local_app) / "npm-cache" / "_npx")
+    npx_cache_roots.append(Path.home() / ".npm" / "_npx")
+
+    bin_name = "pyright.cmd" if os.name == "nt" else "pyright"
+    cached_bins: List[Path] = []
+    for root in npx_cache_roots:
+        if root.is_dir():
+            try:
+                for entry in root.iterdir():
+                    cand_bin = entry / "node_modules" / ".bin" / bin_name
+                    if cand_bin.is_file():
+                        cached_bins.append(cand_bin)
+            except Exception:
+                continue
+    if cached_bins:
+        cached_bins.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        return [str(cached_bins[0])]
+
+    npx_candidates = ("npx.cmd", "npx") if os.name == "nt" else ("npx",)
+    for cand in npx_candidates:
+        npx_bin = shutil.which(cand)
+        if npx_bin:
+            return [npx_bin, "--yes", "pyright"]
+    return []
 
 
 def fix_codeql_and_security_issues(repo_root: Path = REPO_ROOT) -> List[Dict[str, Any]]:
@@ -168,6 +217,7 @@ def fix_codeql_and_security_issues(repo_root: Path = REPO_ROOT) -> List[Dict[str
 def fix_vscode_pyright_problems(
     repo_root: Path = REPO_ROOT,
     run_pyright_cli: bool = True,
+    auto_suppress_types: bool = False,
 ) -> List[Dict[str, Any]]:
     """
     Automatically detects and fixes VS Code / Pylance / Pyright problems across the workspace:
@@ -315,21 +365,17 @@ def fix_vscode_pyright_problems(
         except Exception:
             continue
 
-    # 3. Run Pyright JSON output and auto-remediate any line-level diagnostics
-    if not run_pyright_cli:
+    # 3. Optional Pyright JSON output auto-suppression (disabled by default so real type errors require proper fixes)
+    if not run_pyright_cli or not auto_suppress_types:
         return fixes_applied
 
-    npx_bin = (
-        shutil.which("npx.cmd") or shutil.which("npx")
-        if os.name == "nt"
-        else shutil.which("npx")
-    )
-    if not npx_bin:
+    pyright_cmd = resolve_pyright_command()
+    if not pyright_cmd:
         return fixes_applied
 
     try:
         res = subprocess.run(
-            [npx_bin, "pyright", "fleet", "tests", "conftest.py", "pong.py", "--outputjson"],
+            [*pyright_cmd, "fleet", "tests", "conftest.py", "pong.py", "--outputjson"],
             cwd=str(repo_root),
             capture_output=True,
             text=True,
@@ -360,6 +406,8 @@ def fix_vscode_pyright_problems(
                     lines = orig.splitlines()
                     changed = False
                     for line_idx, rules in sorted(line_map.items()):
+                        if any(r in _NEVER_AUTO_IGNORE_PYRIGHT_RULES for r in rules):
+                            continue
                         if 0 <= line_idx < len(lines):
                             cur_line = lines[line_idx]
                             if "# type: ignore" not in cur_line and not cur_line.rstrip().endswith("\\"):
@@ -614,6 +662,47 @@ def audit_vscode_workspace_problems(repo_root: Path = REPO_ROOT) -> Dict[str, An
                         "code": "immutable-release-idempotency",
                         "message": "release.yml must check 'gh release view' before creating a release to respect GitHub Immutable Releases.",
                     })
+
+    # 5. Audit Frontend JavaScript Assets (fleet/web/static/js/*.js) via single-process Node V8 syntax parser
+    js_dir = repo_root / "fleet" / "web" / "static" / "js"
+    if js_dir.is_dir():
+        js_files = sorted(js_dir.glob("*.js"))
+        node_bin = shutil.which("node.exe" if os.name == "nt" else "node") or shutil.which("node")
+        if js_files and node_bin:
+            node_script = (
+                "const fs=require('fs'),vm=require('vm'),out=[];"
+                "for(const f of process.argv.slice(1)){"
+                "try{new vm.Script(fs.readFileSync(f,'utf8'),{filename:f});}"
+                "catch(e){const m=/\\:(\\d+)/.exec(String(e.stack||''));"
+                "out.push({file:f,line:m?Number(m[1]):1,message:String(e.message||e)});}}"
+                "process.stdout.write(JSON.stringify(out));"
+            )
+            try:
+                js_res = subprocess.run(
+                    [node_bin, "-e", node_script, *[str(jf) for jf in js_files]],
+                    cwd=str(repo_root),
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                    check=False,
+                    **_hidden_subprocess_kwargs(),
+                )
+                if js_res.stdout:
+                    for jerr in json.loads(js_res.stdout):
+                        raw_fp = Path(str(jerr.get("file") or ""))
+                        try:
+                            rel_js = raw_fp.resolve().relative_to(repo_root.resolve()).as_posix()
+                        except Exception:
+                            rel_js = raw_fp.name
+                        problems.append({
+                            "file": rel_js,
+                            "line": int(jerr.get("line") or 1),
+                            "source": "javascript",
+                            "code": "js-syntax-error",
+                            "message": str(jerr.get("message") or "JavaScript syntax error"),
+                        })
+            except Exception:
+                pass
 
     return {
         "status": "PASS" if not problems else "FAIL",

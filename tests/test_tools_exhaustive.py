@@ -404,3 +404,28 @@ def test_security_scanner_rules(tmp_path):
         with patch("sys.argv", ["sec_scan.py", "--strict"]), pytest.raises(SystemExit) as exc:
             sec_scan.main()
         assert exc.value.code == 1
+
+
+def test_proactive_pyright_and_js_workspace_gate(tmp_path):
+    """Verifies non-interactive Pyright resolution, JS syntax auditing, and zero-suppression type checking."""
+    from fleet.tools import auto_fixer as af
+
+    # 1. Non-interactive npx --yes fallback when direct/cached pyright is absent
+    with patch("shutil.which", side_effect=lambda name: "/usr/bin/npx" if name in ("npx", "npx.cmd") else None), \
+         patch("pathlib.Path.is_dir", return_value=False):
+        cmd = af.resolve_pyright_command()
+        assert cmd == ["/usr/bin/npx", "--yes", "pyright"]
+
+    # 2. Frontend JS syntax audit catches broken JS in fleet/web/static/js/*.js
+    js_dir = tmp_path / "fleet" / "web" / "static" / "js"
+    js_dir.mkdir(parents=True)
+    broken_js = js_dir / "broken_widget.js"
+    broken_js.write_text("function broken( { return 1; }\n", encoding="utf-8")
+    ws_fail = af.audit_vscode_workspace_problems(repo_root=tmp_path)
+    if af.shutil.which("node.exe" if os.name == "nt" else "node") or af.shutil.which("node"):
+        assert ws_fail["status"] == "FAIL"
+        assert any(p["source"] == "javascript" and "broken_widget.js" in p["file"] for p in ws_fail["problems"])
+
+    broken_js.write_text("function validWidget() { return 42; }\n", encoding="utf-8")
+    ws_pass = af.audit_vscode_workspace_problems(repo_root=tmp_path)
+    assert ws_pass["status"] == "PASS"

@@ -76,6 +76,7 @@ LOCAL_KNOWLEDGE_CORPUS: List[Dict[str, Any]] = [
         "id": "ffd_antigravity_nod",
         "title": "Antigravity Step Climbing & Nitric Oxide Dump (NOD)",
         "keywords": {"antigravity", "step", "climbing", "stairs", "nod", "nitric", "oxide", "dump", "post", "meal"},
+        "required_any": {"step", "climbing", "stairs", "nod", "nitric", "oxide", "meal", "bsl"},
         "answer": (
             "🏃 **FFD Antigravity Step Climbing & Nitric Oxide Dump (0-Token Local Knowledge Base):**\n"
             "- **Timing:** Perform **1 hour 45 minutes** after the starting time of each meal.\n"
@@ -146,6 +147,33 @@ LOCAL_KNOWLEDGE_CORPUS: List[Dict[str, Any]] = [
             "- **Friday:** 🔱 **Bhim Gadha (Macebell) Strength Training** (Beginner Playlist) + Mandatory World's Best Warm-up.\n"
             "- **Saturday:** 🔥 **Mandatory World's Best Warm-up** + FFD Full-Body Metabolic & Flexibility Flow.\n"
             "- **Sunday:** 🛌 **Mandatory Full Rest & Metabolic Recovery**."
+        ),
+    },
+    {
+        "id": "afcc_delete_agent",
+        "title": "How to Delete or Deactivate an Agent in AFCC",
+        "keywords": {"delete", "deleting", "remove", "removing", "uninstall", "agent", "agents", "afcc", "custom", "deactivate"},
+        "required_any": {"delete", "deleting", "remove", "removing", "uninstall"},
+        "answer": (
+            "🗑️ **How to Delete or Remove an Agent in AFCC:**\n"
+            "1. **From the Left Sidebar Dock:** Click the **`🗑️`** trash icon next to any custom/installed agent to permanently delete it.\n"
+            "2. **From the Active Agent Pane:** Open the custom agent and click **`🗑️ Delete Agent`** in the top-right stage header.\n"
+            "3. **From Settings → Agents Manager:** Click **`⚙️ Settings`** (top-right) → **`Agents`** tab → click **`🗑️ Delete`** on any custom agent (or toggle the switch off to deactivate built-in core agents)."
+        ),
+    },
+    {
+        "id": "afcc_llm_vs_deterministic_routing",
+        "title": "How Fleet Autonomous Intelligence Decides Between Deterministic Engine vs Live LLM",
+        "keywords": {"autonomous", "intelligence", "decide", "decides", "prompts", "prompt", "llm", "deterministic", "engine", "tier", "routing", "route"},
+        "required_any": {"deterministic", "routing"},
+        "answer": (
+            "🧠 **How Fleet Autonomous Intelligence Routes Prompts (Tier 0 vs Live LLM):**\n"
+            "AFCC evaluates every prompt through a **5-Stage Lowest-Cost-First Pipeline**:\n"
+            "1. **Stage 1 — Tier 0 Slash & Action Intent Router (`$0.00` / 0 Tokens):** Exact operational commands (`/briefing`, `/tasks`, `/security`, `/optimize`, `/water`, `/done #ID`, `/sbom`) execute directly in local Python.\n"
+            "2. **Stage 2 — Tier 0 Offline BM25 Knowledge RAG (`$0.00` / 0 Tokens):** Domain questions matching high-confidence local corpus topics (AFCC guides, FFD protocol, strength split) are answered locally in `<2 ms`.\n"
+            "3. **Stage 3 — Semantic SHA-256 & Jaccard/Trigram Cache (`$0.00` / 0 Tokens):** Repeat or ≥80% similar questions reuse cached answers without re-billing tokens.\n"
+            "4. **Stage 4 — Prompt Compressor & Tier Selector:** Open-ended reasoning, coding, and general chat bypass Tier 0, strip redundant comments/stack-traces (saving 20–50% tokens), and pick the optimal model tier.\n"
+            "5. **Stage 5 — Live LLM Execution:** Dispatches to your signed-in **Google Antigravity CLI (`agy`)** or configured cloud hyperscaler (Gemini/Vertex, Azure/GitHub Models, AWS Bedrock, Claude, OpenAI, or local Ollama)."
         ),
     },
 ]
@@ -270,13 +298,19 @@ def query_local_knowledge_base(query: str) -> Optional[Dict[str, Any]]:
     Answers questions about FFD Diet, Smoothie, Hypoglycemia, Antigravity Step Climbing,
     25% Meal Protocol, Thyroid Vegetables, Oils/Seeds, and the 6-Day Mudgal/Samtola/Bhim Gadha Split.
     """
-    q_tokens = tokenize_keywords(query)
+    raw_q = query or ""
+    if len(raw_q) > 320 or "\n- " in raw_q or "```" in raw_q:
+        return None
+    q_tokens = tokenize_keywords(raw_q)
     if not q_tokens:
         return None
 
     best_doc = None
     best_score = 0
     for doc in LOCAL_KNOWLEDGE_CORPUS:
+        req_any = doc.get("required_any")
+        if req_any and not (q_tokens & req_any):
+            continue
         matched = q_tokens & doc["keywords"]
         score = len(matched)
         # Boost if primary topic keyword is present

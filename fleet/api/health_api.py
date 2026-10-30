@@ -79,6 +79,25 @@ def delete_medication(handler: Any, body: Dict[str, Any]):
     handler._send_json({"status": "deleted", "deleted": deleted})
 
 
+@router.post("/api/health/medications/update")
+def update_medication(handler: Any, body: Dict[str, Any]):
+    med_id = body.get("id")
+    if not med_id:
+        handler._send_json({"error": "Medication ID required"}, 400)
+        return
+    try:
+        med_id_int = int(med_id)
+    except (ValueError, TypeError):
+        handler._send_json({"error": "Invalid medication ID"}, 400)
+        return
+    kwargs = {}
+    for key in ("frequency", "dosage", "schedule_time", "instructions", "name"):
+        if key in body and body[key] is not None:
+            kwargs[key] = str(body[key]).strip()
+    updated = srv.db.update_medication(med_id_int, **kwargs)
+    handler._send_json({"status": "updated", "success": updated})
+
+
 @router.get("/api/health/trends")
 def get_health_trends(handler: Any, parsed_url: urllib.parse.ParseResult):
     query = urllib.parse.parse_qs(parsed_url.query)

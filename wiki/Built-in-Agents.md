@@ -1,6 +1,6 @@
 # 🤖 Built-in Agents Deep-Dive Reference
 
-> **Release Version**: `v2.11.1` | **Package Root**: `fleet/agents/<agent_id>/` | **Core Engines**: `fleet/core/exercise_manager.py`, `fleet/core/antigravity_mirror.py`, `fleet/core/system_optimizer.py`, `fleet/integrations/gmail_classifier.py`
+> **Release Version**: `v2.13.0` | **Package Root**: `fleet/agents/<agent_id>/` | **Core Engines**: `fleet/core/exercise_manager.py`, `fleet/core/antigravity_mirror.py`, `fleet/core/system_optimizer.py`, `fleet/integrations/gmail_classifier.py`
 
 Personal Agentic Fleet ships with **7 production-grade built-in agents**, each isolated in its own self-contained package under `fleet/agents/<agent_id>/` with a declarative `manifest.json` capability contract, a `FleetAgent` subclass in `agent.py`, and a scoped HTML5/CSS/JS workspace in `ui/panel.html`.
 

@@ -214,8 +214,12 @@ def test_models_and_usage_details():
     assert set_active_model("Claude Sonnet 5.5") is True
     assert get_active_model() == "claude-sonnet-5-5-medium"
 
+    # Gemini 4 Argon is now fully available and selectable!
+    assert set_active_model("gemini-4-argon") is True
+    assert get_active_model() == "gemini-4-argon"
+
     # Unavailable model
-    assert set_active_model("gemini-4-argon") is False
+    assert set_active_model("gemini-experimental-preview") is False
 
     # Nonexistent model
     assert set_active_model("nonexistent-model-xyz") is False
@@ -548,3 +552,69 @@ def test_parallel_agent_pool_and_fast_track():
 
 
 
+
+
+def test_intelligent_agent_parallel_overlap_and_queueing():
+    from fleet.core.antigravity_mirror import (
+        ACTIVE_PARALLEL_AGENTS,
+        _spawn_parallel_agent_worker,
+        detect_agent_task_overlap,
+        execute_dashboard_command,
+        extract_task_fingerprint,
+        process_next_in_queue,
+        sync_agent_state,
+    )
+    from fleet.core.database import FleetDatabase
+    from unittest.mock import patch
+
+    # 1. Fingerprint extraction
+    fp1 = extract_task_fingerprint("@health record fasting blood sugar 98mg/dL")
+    assert "health" in fp1["agent_targets"]
+    assert "health" in fp1["domains"]
+
+    fp2 = extract_task_fingerprint("Update styles in fleet/web/templates/dashboard.html")
+    assert "dashboard.html" in fp2["files"]
+
+    # 2. Overlap detection
+    # No running agents -> no overlap
+    assert detect_agent_task_overlap("@health water +1", []) == (False, None)
+
+    # Active running agent on health
+    running = [{"agent_id": "Agent-1", "task": "@health drink water"}]
+    ov, reason = detect_agent_task_overlap("@health record vitals", running)
+    assert ov is True
+    assert reason is not None and "@health" in reason
+
+    # Active running agent on git_pr, new task on optimizer -> orthogonal!
+    running_pr = [{"agent_id": "Agent-1", "task": "Review PR #42 in git"}]
+    ov_pr, _ = detect_agent_task_overlap("Optimize RAM and flush DNS", running_pr)
+    assert ov_pr is False
+
+    # Shared file conflict
+    running_file = [{"agent_id": "Agent-1", "task": "Edit dashboard.html layout"}]
+    ov_file, reason_file = detect_agent_task_overlap("Refactor dashboard.html CSS", running_file)
+    assert ov_file is True
+    assert reason_file is not None and "dashboard.html" in reason_file
+
+    # 3. Intelligent parallel execution vs queueing
+    ACTIVE_PARALLEL_AGENTS.clear()
+    sync_agent_state()
+
+    with patch("threading.Thread.start"), patch("fleet.core.antigravity_mirror.process_next_in_queue"):
+        # Agent 1 starts health task
+        a1 = _spawn_parallel_agent_worker("@health log water 250ml")
+        assert a1 == "Agent-1"
+
+        # Agent 2 starts optimizer task -> no overlap -> launches in parallel!
+        res_opt = execute_dashboard_command("Optimize memory and temp files")
+        assert res_opt["status"] == "success"
+        assert res_opt["type"] in ("agent_dispatched", "note_logged")
+
+        # Agent 3 submits health task -> overlaps with Agent 1 -> queued intelligently!
+        res_health = execute_dashboard_command("@health record blood pressure 120/80")
+        assert res_health["status"] == "queued"
+        assert res_health["type"] == "overlap_queued"
+        assert "Queued intelligently" in res_health["message"]
+
+    ACTIVE_PARALLEL_AGENTS.clear()
+    sync_agent_state()

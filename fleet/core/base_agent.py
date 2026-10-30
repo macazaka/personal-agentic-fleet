@@ -31,11 +31,14 @@ class FleetAgent(ABC):
         self.event_bus = event_bus
         self.enabled = bool(self.config.get("enabled", True))
 
+        self.manifest_meta: Dict[str, Any] = {}
         manifest_path = self.agent_dir / "manifest.json"
         if manifest_path.is_file():
             try:
                 manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
-                self.permissions: List[str] = manifest_data.get("permissions", ["db:read", "ui:render"])
+                if isinstance(manifest_data, dict):
+                    self.manifest_meta = manifest_data
+                self.permissions: List[str] = self.manifest_meta.get("permissions", ["db:read", "ui:render"])
             except Exception:
                 self.permissions = ["db:read", "ui:render"]
         else:
@@ -76,6 +79,11 @@ class FleetAgent(ABC):
     def is_default(self) -> bool:
         """Whether this agent is the active default tab on dashboard load."""
         return False
+
+    @property
+    def is_custom(self) -> bool:
+        """Whether this agent is a user-created or catalog-installed custom agent."""
+        return "custom_agents" in self.agent_dir.as_posix()
 
     # === Universal User Customization Overrides ===
 
@@ -120,15 +128,19 @@ class FleetAgent(ABC):
     @property
     def preferred_model(self) -> Optional[str]:
         """
-        Configured LLM model for this agent (e.g., 'claude-3-7-sonnet', 'gemini-2.5-pro', 'gpt-4o', 'llama3.2').
+        Configured LLM model for this agent (e.g., 'gemini-3.8-flash-low', 'claude-sonnet-5-5-medium').
         """
-        val = self.config.get("model")
+        val = self.config.get("model") or getattr(self, "manifest_meta", {}).get("model")
         return str(val) if val else None
 
     @property
     def system_prompt(self) -> Optional[str]:
         """User-customized system instruction or prompt for this agent."""
-        return self.config.get("system_prompt") or self.config.get("prompt")
+        return (
+            self.config.get("system_prompt")
+            or self.config.get("prompt")
+            or getattr(self, "manifest_meta", {}).get("system_prompt")
+        )
 
     def complete_prompt(
         self,
@@ -221,18 +233,21 @@ class FleetAgent(ABC):
 
     def get_omnibar_commands(self) -> List[Dict[str, Any]]:
         """
-        UX-05: Returns a list of @agent slash/omnibar commands supported by this agent.
-        Automatically indexed by the Unified Ask-Fleet Omnibar (Ctrl+K).
+        UX-05 & Phase 4: Returns @agent slash/omnibar commands supported by this agent.
+        Automatically indexed by the Unified Ask-Fleet Omnibar (Ctrl+K), including
+        auto-generated quick-capture (`add`) and on-demand AI briefing (`ai`) shortcuts for custom Studio agents.
         """
-        return [
+        meta = getattr(self, "manifest_meta", {}) or {}
+        routine_task = str(meta.get("routine_task") or "default")
+        cmds: List[Dict[str, Any]] = [
             {
                 "agent_id": self.id,
                 "agent_name": self.display_name,
                 "icon": self.display_icon,
                 "trigger": f"@{self.id}",
                 "syntax": f"@{self.id} run",
-                "description": f"Execute default task on {self.display_name}",
-                "task": "default",
+                "description": f"Execute '{routine_task}' on {self.display_name}",
+                "task": routine_task if self.is_custom else "default",
             },
             {
                 "agent_id": self.id,
@@ -244,6 +259,28 @@ class FleetAgent(ABC):
                 "task": "open_tab",
             },
         ]
+        if self.is_custom:
+            cmds.append({
+                "agent_id": self.id,
+                "agent_name": self.display_name,
+                "icon": self.display_icon,
+                "trigger": f"@{self.id} add",
+                "syntax": f"@{self.id} add <item> [YYYY-MM-DD] [amount]",
+                "description": f"Log a new SQLite record into {self.display_name} ($0.00)",
+                "task": "add_record",
+            })
+            intel_mode = str(meta.get("intelligence_mode") or "hybrid")
+            if intel_mode != "deterministic":
+                cmds.append({
+                    "agent_id": self.id,
+                    "agent_name": self.display_name,
+                    "icon": self.display_icon,
+                    "trigger": f"@{self.id} ai",
+                    "syntax": f"@{self.id} ai",
+                    "description": f"Synthesize Antigravity AI executive briefing on {self.display_name}",
+                    "task": "ai_analyze",
+                })
+        return cmds
 
 
     # === UI Manifest & Template Customization ===
@@ -309,16 +346,36 @@ class FleetAgent(ABC):
             or self.config.get("settings")
         )
 
+        is_custom = "custom_agents" in self.agent_dir.as_posix()
+        meta = getattr(self, "manifest_meta", {}) or {}
+
         return {
             "id": self.id,
             "name": self.display_name,
+            "version": str(meta.get("version") or "1.0.0"),
             "icon": self.display_icon,
             "order": self.display_order,
+            "category": str(meta.get("category") or ""),
+            "description": str(meta.get("description") or ""),
             "is_default": self.is_active_default,
+            "is_custom": is_custom,
             "enabled": self.enabled,
             "provider": self.preferred_provider,
             "model": self.preferred_model,
             "system_prompt": self.system_prompt,
+            "intelligence_mode": str(meta.get("intelligence_mode") or "hybrid"),
+            "archetype": str(meta.get("archetype") or ""),
+            "ui_blocks": meta.get("ui_blocks", []),
+            "routine_task": str(meta.get("routine_task") or ""),
+            "schedule": meta.get("schedule", {}),
+            "schedule_cadence": str(meta.get("schedule_cadence") or ""),
+            "fields": meta.get("fields", []),
+            "checklist_items": meta.get("checklist_items", []),
+            "event_triggers": meta.get("event_triggers", []),
+            "outbound_actions": meta.get("outbound_actions", []),
+            "auto_ingest_inbox": bool(meta.get("auto_ingest_inbox", False)),
+            "default_recurrence": str(meta.get("default_recurrence") or "none"),
+            "evolution_improvements": meta.get("evolution_improvements", []),
             "settings": current_settings,
             "agent_settings_schema": enriched_schema,
             "is_customized": is_customized,

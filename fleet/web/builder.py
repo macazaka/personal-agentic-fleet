@@ -47,6 +47,22 @@ def get_dashboard_html(standalone: bool = False) -> str:
     html = tmpl_path.read_text(encoding="utf-8")
 
     if not standalone:
+        try:
+            css_file = STATIC_DIR / "css" / "dashboard.css"
+            css_ver = int(css_file.stat().st_mtime) if css_file.exists() else 1
+            html = html.replace(
+                'href="/static/css/dashboard.css"',
+                f'href="/static/css/dashboard.css?v={css_ver}"',
+            )
+            for js_name in JS_LOAD_ORDER:
+                js_file = STATIC_DIR / "js" / js_name
+                js_ver = int(js_file.stat().st_mtime) if js_file.exists() else 1
+                html = html.replace(
+                    f'src="/static/js/{js_name}"',
+                    f'src="/static/js/{js_name}?v={js_ver}"',
+                )
+        except OSError:
+            pass
         return html
 
     # In standalone mode, inline the CSS

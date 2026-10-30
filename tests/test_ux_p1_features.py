@@ -89,7 +89,9 @@ def test_ux01_synthesize_agent_from_prompt_finance_and_health():
 
 
 def test_ux01_render_declarative_ui_blocks():
-    assert len(SUPPORTED_UI_BLOCKS) == 6
+    assert len(SUPPORTED_UI_BLOCKS) >= 6
+    assert "countdown_cards" in SUPPORTED_UI_BLOCKS
+    assert "ai_insight_card" in SUPPORTED_UI_BLOCKS
     html = render_declarative_ui_blocks(
         agent_id="demo_studio_bot",
         name="Demo Studio Bot",
@@ -345,3 +347,37 @@ def test_automated_release_doc_wiki_introspection():
     doc_res = verify_documentation_integrity()
     assert doc_res["status"] == "PASS"
     assert doc_res["findings"] == []
+
+
+def test_right_dock_default_open_and_js_scope_integrity():
+    import re
+    from fleet.web.builder import JS_LOAD_ORDER, STATIC_DIR, get_dashboard_html
+
+    modular_html = get_dashboard_html(standalone=False)
+    assert '/static/css/dashboard.css?v=' in modular_html
+    assert '/static/js/antigravity.js?v=' in modular_html
+    assert 'id="agRightDockSlot" class="ag-right-dock-panel" style="display: flex;"' in modular_html
+    assert 'id="viewAntigravity" style="display: flex;" class="ag-view-container ag-docked-right"' in modular_html
+
+    standalone_html = get_dashboard_html(standalone=True)
+    assert "function openAntigravityRightDock(" in standalone_html
+    assert "function toggleAntigravityRightDock(" in standalone_html
+    assert "function toggleAntigravityFullPageOrDock(" in standalone_html
+
+    # Ensure zero top-level let/const collisions across JS_LOAD_ORDER
+    top_level_decls = {}
+    for js_name in JS_LOAD_ORDER:
+        js_text = (STATIC_DIR / "js" / js_name).read_text(encoding="utf-8")
+        brace_depth = 0
+        for line in js_text.splitlines():
+            stripped = line.strip()
+            if brace_depth == 0 and not stripped.startswith("//"):
+                m = re.match(r"^(?:let|const)\s+([a-zA-Z0-9_$]+)\b", stripped)
+                if m:
+                    ident = m.group(1)
+                    assert ident not in top_level_decls, (
+                        f"Duplicate top-level declaration '{ident}' in {js_name} and {top_level_decls[ident]}"
+                    )
+                    top_level_decls[ident] = js_name
+            brace_depth += line.count("{") - line.count("}")
+

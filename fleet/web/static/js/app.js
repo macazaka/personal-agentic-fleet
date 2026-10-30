@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof fetchOptimizerDiagnostics === 'function') fetchOptimizerDiagnostics();
   if (typeof fetchHealthDashboard === 'function') fetchHealthDashboard();
   if (typeof fetchExerciseVideos === 'function') fetchExerciseVideos();
+  if (typeof openAntigravityRightDock === 'function') openAntigravityRightDock();
   if (typeof initDynamicAgentTabs === 'function') initDynamicAgentTabs();
   else if (typeof switchTab === 'function') switchTab('health');
 

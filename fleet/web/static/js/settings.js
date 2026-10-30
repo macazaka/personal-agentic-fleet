@@ -157,6 +157,10 @@ function renderSettingsAgents() {
             </div>
           </div>
           <div class="agent-card-actions">
+            <button class="btn btn-sm btn-outline" style="border-color: rgba(56,189,248,0.4); color: var(--accent-cyan);" onclick="cloneCustomAgentFromUI('${agent.id}')" title="Duplicate Agent Blueprint into a Fresh Custom Agent">📋 Clone</button>
+            ${agent.is_custom ? `<button class="btn btn-sm btn-outline" style="border-color: rgba(16,185,129,0.4); color: #34d399;" onclick="exportAgentPackFromUI('${agent.id}')" title="Export Portable SHA-256 Verified .fleetagent Pack">📤 Export</button>` : ''}
+            ${agent.is_custom ? `<button class="btn btn-sm btn-outline" style="border-color: rgba(168,85,247,0.45); color: #d8b4fe;" onclick="openEvolveAgentModal('${agent.id}')" title="Evolve Custom Agent UI, Fields &amp; Logic in Studio">✨ Evolve</button>` : ''}
+            ${agent.is_custom ? `<button class="btn btn-sm btn-outline" style="border-color: rgba(239,68,68,0.4); color: #f87171;" onclick="deleteCustomAgentFromSettings('${agent.id}')" title="Permanently Delete Custom Agent">🗑️ Delete</button>` : ''}
             <button class="btn btn-sm btn-outline" onclick="toggleAgentDrawer('${agent.id}')" title="Configure Agent Properties">
               ⚙️ Customize
             </button>
@@ -195,7 +199,7 @@ function renderSettingsAgents() {
             </div>
             <div class="form-group" style="grid-column: span 2;">
               <label>LLM Model Tier / ID</label>
-              <input type="text" id="cfg_model_${agent.id}" class="form-control" value="${escapeHtml(agent.model || '')}" placeholder="e.g. gemini-2.5-flash, claude-3-7-sonnet, llama3.2">
+              <input type="text" id="cfg_model_${agent.id}" list="antigravityModelsDatalist" class="form-control" value="${escapeHtml(agent.model || '')}" placeholder="e.g. gemini-4-argon-high, gemini-3.8-flash-high, claude-opus-5-5-medium, llama3.2">
             </div>
             <div class="form-group" style="grid-column: span 2;">
               <label>Custom System Instruction / Prompt</label>
@@ -286,6 +290,47 @@ function toggleAgentDrawer(agentId) {
   if (!drawer) return;
   const isHidden = drawer.style.display === 'none';
   drawer.style.display = isHidden ? 'block' : 'none';
+}
+
+async function deleteCustomAgentFromSettings(agentId) {
+  const agent = fleetSettingsState.agents.find(a => a.id === agentId);
+  const label = agent ? `${agent.name} (${agentId})` : agentId;
+  if (!confirm(`Permanently delete custom agent "${label}" from AFCC?`)) {
+    return;
+  }
+  try {
+    const res = await fetch('/api/settings/agents/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: agentId })
+    });
+    const data = await res.json();
+    if (!res.ok && res.status !== 404) {
+      throw new Error(data.message || 'Delete failed');
+    }
+    if (res.status !== 404 && data.status !== 'success') {
+      throw new Error(data.message || 'Delete failed');
+    }
+    fleetSettingsState.agents = fleetSettingsState.agents.filter(a => a.id !== agentId);
+    const activeCount = data.active_agents_count ?? fleetSettingsState.agents.filter(a => a.enabled).length;
+    const totalCount = data.total_agents_count ?? fleetSettingsState.agents.length;
+    updateSettingsBadgeCounts(activeCount, totalCount);
+    renderAgentCardsList();
+    const nav = window.FleetNavigator || (typeof FleetNavigator !== 'undefined' ? FleetNavigator : null);
+    if (nav && typeof nav.fetchFleetData === 'function') {
+      if (nav.activeAgentId === agentId) {
+        nav.switchAgent('antigravity');
+      }
+      await nav.fetchFleetData();
+    }
+    if (typeof initDynamicAgentTabs === 'function') {
+      await initDynamicAgentTabs();
+    }
+    showSettingsToast(`🗑️ ${data.message || `Deleted '${label}'`}`);
+  } catch (err) {
+    console.error('Error deleting agent:', err);
+    showSettingsToast('Failed to delete agent: ' + err.message, 'error');
+  }
 }
 
 async function onToggleAgentSwitch(agentId, enabled) {

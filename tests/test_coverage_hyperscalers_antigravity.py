@@ -232,4 +232,39 @@ def test_antigravity_mirror_execute_prompt_target_models():
             assert r8["status"] == "SUCCESS"
             r9 = ag_mirror._execute_agy_or_fallback("prompt", model="openai-gpt-4o")
             assert r9["status"] == "SUCCESS"
+            r10 = ag_mirror._execute_agy_or_fallback("prompt", model="claude-3-7-sonnet")
+            assert r10["status"] == "SUCCESS"
+
+
+def test_all_13_antigravity_live_models_and_aliases():
+    from fleet.core.hyperscalers import _normalize_agy_cli_model
+
+    expected_agy_models = [
+        ("gemini-4-argon-high", "Gemini 4 Argon (High)"),
+        ("gemini-4-argon-medium", "Gemini 4 Argon (Medium)"),
+        ("gemini-4-argon-low", "Gemini 4 Argon (Low)"),
+        ("gemini-3.8-flash-high", "Gemini 3.8 Flash (High)"),
+        ("gemini-3.8-flash-medium", "Gemini 3.8 Flash (Medium)"),
+        ("gemini-3.8-flash-low", "Gemini 3.8 Flash (Low)"),
+        ("claude-opus-5-5-high", "Claude Opus 5.5 (High)"),
+        ("claude-opus-5-5-medium", "Claude Opus 5.5 (Medium)"),
+        ("claude-opus-5-5-low", "Claude Opus 5.5 (Low)"),
+        ("claude-sonnet-5-5-high", "Claude Sonnet 5.5 (High)"),
+        ("claude-sonnet-5-5-medium", "Claude Sonnet 5.5 (Medium)"),
+        ("claude-sonnet-5-5-low", "Claude Sonnet 5.5 (Low)"),
+        ("gpt-oss-120b-medium", "GPT-OSS 120B (Medium)"),
+    ]
+    catalog = {m["id"]: m for m in ag_mirror.get_available_models()}
+    for m_id, m_name in expected_agy_models:
+        assert m_id in catalog, f"Missing Antigravity model {m_id}"
+        assert catalog[m_id]["name"] == m_name
+        assert catalog[m_id]["available"] is True
+        assert ag_mirror.is_antigravity_native_model(m_id) is True
+        assert _normalize_agy_cli_model(m_id) == m_id
+        assert ag_mirror.set_active_model(m_id) is True
+        assert ag_mirror.get_active_model() == m_id
+
+    # Verify external direct Claude model is not misclassified as Antigravity CLI native
+    assert ag_mirror.is_antigravity_native_model("claude-3-7-sonnet") is False
+    ag_mirror.set_active_model("gemini-3.8-flash-high")
 

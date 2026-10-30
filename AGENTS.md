@@ -50,3 +50,21 @@ Every agent integrated into or created within the fleet adheres to the 4-layer C
 - **Concurrency & Virtualization**: The fleet architecture supports 100+ concurrent agents. Agents must implement lazy state hydration and expose lightweight status endpoints.
 - **Runtime State Control**: Agents can be enabled, disabled, or configured at runtime without restarting the workstation control center. Disabled agents cease background polling and release system handles immediately.
 - **Agent Settings Schemas**: Agent-specific settings are validated strictly against their manifest.json schemas and persisted in the local SQLite key-value store.
+
+---
+
+### 6. AFCC UI & UX Standards (Universal Tooltips SOP)
+- **Mandatory Tooltip Coverage**: Every button (`<button>`) across all Agentic Fleet Control Center (AFCC) HTML templates, modals, cards, toolbars, and agent UI panels MUST include an informative, descriptive `title="..."` attribute explaining clearly what action occurs upon hover, click, or keyboard trigger.
+- **Zero-Unlabeled Buttons Invariant**: Automated test suites (`test_afcc_all_buttons_have_tooltips_sop`) strictly enforce 100% button tooltip coverage across all HTML assets in `fleet/`.
+
+---
+
+### 7. Proactive Zero-Diagnostic Static Analysis & Pre-Commit Quality Gate SOP
+- **Zero Pylance / Pyright Diagnostics Invariant**: Every code modification across `fleet/` and `tests/` MUST pass static type analysis (`0 errors, 0 warnings`) using the workspace Pyright/Pylance configuration (`pyrightconfig.json` / `[tool.pyright]` in `pyproject.toml`) **before** finishing an engineering task or committing.
+- **Genuine Type Narrowing Over Suppression**: Fix static type errors via proper variable narrowing (e.g., bind `raw_val = obj.get("k")` to a local variable before `isinstance(raw_val, dict)` checks rather than repeating `obj.get("k")`, narrow stdlib union returns like `Message.get_payload(decode=True)` with `isinstance(payload, (bytes, bytearray))`, and import all typing symbols explicitly). Never mask genuine undefined variables or broken types with `# type: ignore`.
+- **Mandatory Post-Edit / Pre-Commit Verification Checklist**:
+  1. `python -X utf8 -c "from fleet.tools.preflight_gate import verify_static_type_integrity; r = verify_static_type_integrity(); assert r['status'] == 'PASS', r"` (verifies **0 Pylance/Pyright errors** + **0 HTML/CSS/JS/Workflow diagnostics**).
+  2. `python -X utf8 -m fleet.tools.security_scanner` (verifies **100/100** across all 12 security & privacy layers).
+  3. `python -X utf8 -m pytest` on affected & regression test suites (verifies **100% passing runtime behavior** + tooltip SOP).
+
+

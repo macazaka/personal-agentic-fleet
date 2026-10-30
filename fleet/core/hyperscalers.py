@@ -32,6 +32,7 @@ import json
 import logging
 import os
 import subprocess
+import tempfile
 from typing import Any, Dict, List, Optional
 import urllib.error
 import urllib.parse
@@ -56,7 +57,13 @@ SUPPORTED_PROVIDERS: List[Dict[str, Any]] = [
         "methods": ["Google Antigravity CLI", "Gemini REST API (AI Studio)", "Google Cloud Vertex AI", "Gemini CLI"],
         "default_model": "gemini-2.5-pro",
         "supported_models": [
+            "gemini-4-argon-high",
+            "gemini-4-argon-medium",
+            "gemini-4-argon-low",
+            "gemini-4-argon",
             "gemini-3.8-flash-high",
+            "gemini-3.8-flash-medium",
+            "gemini-3.8-flash-low",
             "gemini-2.5-pro",
             "gemini-2.0-flash",
             "gemini-1.5-pro",
@@ -73,6 +80,7 @@ SUPPORTED_PROVIDERS: List[Dict[str, Any]] = [
         "methods": ["Vertex AI Publisher Gemini", "Vertex AI Model Garden (Claude)", "gcloud ADC"],
         "default_model": "gemini-2.5-pro",
         "supported_models": [
+            "gemini-4-argon",
             "gemini-2.5-pro",
             "gemini-2.0-flash",
             "gemini-1.5-pro",
@@ -127,6 +135,12 @@ SUPPORTED_PROVIDERS: List[Dict[str, Any]] = [
         "methods": ["Anthropic Messages REST API", "Claude Code CLI (`claude`)", "Claude on Bedrock/Vertex"],
         "default_model": "claude-3-5-sonnet-latest",
         "supported_models": [
+            "claude-opus-5-5-high",
+            "claude-opus-5-5-medium",
+            "claude-opus-5-5-low",
+            "claude-sonnet-5-5-high",
+            "claude-sonnet-5-5-medium",
+            "claude-sonnet-5-5-low",
             "claude-3-7-sonnet-latest",
             "claude-3-5-sonnet-latest",
             "claude-3-5-haiku-latest",
@@ -255,6 +269,74 @@ def _sign_aws_sigv4_headers(
     return out_headers
 
 
+def _get_antigravity_cli_path() -> Optional[str]:
+    """Resolves the signed-in Google Antigravity CLI (`agy`) binary if available outside test mode."""
+    if os.environ.get("FLEET_TEST_MODE") == "1":
+        return None
+    from pathlib import Path
+    import shutil
+    found = shutil.which("agy") or shutil.which("agy.exe")
+    if found:
+        return found
+    home = os.environ.get("USERPROFILE") or os.environ.get("HOME") or ""
+    if home:
+        candidate = Path(home) / ".gemini" / "bin" / ("agy.exe" if os.name == "nt" else "agy")
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
+def _is_ollama_reachable() -> bool:
+    """Performs a fast non-blocking TCP probe to check if a local Ollama daemon is listening."""
+    if os.environ.get("FLEET_TEST_MODE") == "1":
+        return False
+    import socket
+    base_url = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+    parsed = urllib.parse.urlparse(base_url)
+    host = parsed.hostname or "127.0.0.1"
+    port = parsed.port or 11434
+    try:
+        with socket.create_connection((host, port), timeout=0.15):
+            return True
+    except OSError:
+        return False
+
+
+def _normalize_agy_cli_model(model: Optional[str]) -> str:
+    """Maps generic or UI model identifiers to valid Antigravity CLI (`agy`) model IDs."""
+    valid_agy_models = {
+        "gemini-4-argon-high", "gemini-4-argon-medium", "gemini-4-argon-low",
+        "gemini-3.8-flash-high", "gemini-3.8-flash-medium", "gemini-3.8-flash-low",
+        "claude-opus-5-5-high", "claude-opus-5-5-medium", "claude-opus-5-5-low",
+        "claude-sonnet-5-5-high", "claude-sonnet-5-5-medium", "claude-sonnet-5-5-low",
+        "gpt-oss-120b-medium",
+    }
+    try:
+        from fleet.core.antigravity_mirror import _DYNAMIC_AGY_MODEL_IDS
+        valid_agy_models = valid_agy_models | {x.lower() for x in _DYNAMIC_AGY_MODEL_IDS}
+    except Exception:
+        pass
+    if not model:
+        return "gemini-3.8-flash-high"
+    m = model.strip().lower()
+    if m in valid_agy_models:
+        return m
+    tier = "low" if "low" in m else ("medium" if "medium" in m else "high")
+    if "argon" in m or "gemini-4" in m:
+        return f"gemini-4-argon-{tier}"
+    if "3.8" in m and "flash" in m:
+        return f"gemini-3.8-flash-{tier}"
+    if "opus" in m:
+        opus_tier = "high" if "high" in m else ("low" if "low" in m else "medium")
+        return f"claude-opus-5-5-{opus_tier}"
+    if "sonnet" in m or "claude" in m:
+        sonnet_tier = "high" if "high" in m else ("low" if "low" in m else "medium")
+        return f"claude-sonnet-5-5-{sonnet_tier}"
+    if "gpt" in m or "oss" in m:
+        return "gpt-oss-120b-medium"
+    return "gemini-3.8-flash-high"
+
+
 class HyperscalerGateway:
     """
     Multi-Provider LLM Gateway capable of routing inference requests to
@@ -270,6 +352,8 @@ class HyperscalerGateway:
     def list_available_providers(cls) -> List[Dict[str, Any]]:
         """Scans credentials and returns live availability status for each hyperscaler."""
         providers = []
+        agy_cli = _get_antigravity_cli_path()
+        ollama_up = _is_ollama_reachable()
         for prov in SUPPORTED_PROVIDERS:
             p_copy = dict(prov)
             env_k = prov.get("env_key")
@@ -279,8 +363,11 @@ class HyperscalerGateway:
                 configured = True
             elif any(get_secure_secret(k) for k in alt_keys):
                 configured = True
+            elif prov["id"] == "google" and agy_cli:
+                configured = True
+                p_copy["auth_method"] = "antigravity_cli"
             elif prov["id"] == "ollama":
-                configured = True  # Offline local fallback is always candidate
+                configured = ollama_up
             p_copy["is_configured"] = configured
             providers.append(p_copy)
         return providers
@@ -293,6 +380,7 @@ class HyperscalerGateway:
         system_instruction: str = "",
         max_tokens: int = 1024,
         allow_tier0: bool = True,
+        max_prompt_chars: int = 12000,
     ) -> Dict[str, Any]:
         """
         Executes a prompt across the selected or best available hyperscaler:
@@ -347,7 +435,7 @@ class HyperscalerGateway:
                 "text": cached,
             }
 
-        compressed_info = compress_prompt(prompt)
+        compressed_info = compress_prompt(prompt, max_chars=max(4000, int(max_prompt_chars or 12000)))
         compressed_prompt = compressed_info.get("text", prompt)
         target_provider = (provider or self.default_provider).lower()
 
@@ -387,10 +475,118 @@ class HyperscalerGateway:
 
     # --- Provider Implementations ---
 
+    def _call_antigravity_cli(self, prompt: str, model: Optional[str] = None, sys_inst: str = "") -> Dict[str, Any]:
+        """
+        Executes inference via the signed-in Google Antigravity CLI (`agy`) when direct API keys
+        are not configured, enabling zero-setup LLM token inference on the local workstation.
+        """
+        agy_path = _get_antigravity_cli_path()
+        if not agy_path:
+            raise ValueError("Google Antigravity CLI (`agy`) not found.")
+        agy_model = _normalize_agy_cli_model(model)
+        if sys_inst and not prompt.lstrip().startswith(sys_inst[:64]):
+            full_prompt = f"{sys_inst}\n\n{prompt}".strip()
+        else:
+            full_prompt = prompt.strip()
+        while full_prompt.startswith("-"):
+            full_prompt = full_prompt.lstrip("-").strip()
+
+        effort_level = "low" if "low" in agy_model else ("medium" if "medium" in agy_model else "high")
+        agy_cwd = tempfile.gettempdir()
+        creation_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+        cmd = [
+            agy_path,
+            "-p", full_prompt,
+            "--model", agy_model,
+            "--effort", effort_level,
+            "--output-format", "json",
+            "--disable-slash-commands",
+        ]
+
+        # Guard against Windows CreateProcessW 32,767-char command-line limit ([WinError 206])
+        cmdline_too_long = os.name == "nt" and len(subprocess.list2cmdline(cmd)) > 27000
+        res = None
+        if cmdline_too_long:
+            stdin_cmd = [
+                agy_path,
+                "-p", "Follow all instructions and analyze the complete document input piped via stdin.",
+                "--input-format", "text",
+                "--model", agy_model,
+                "--effort", effort_level,
+                "--output-format", "json",
+                "--disable-slash-commands",
+            ]
+            try:
+                cand_res = subprocess.run(
+                    stdin_cmd,
+                    input=full_prompt,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=90,
+                    cwd=agy_cwd,
+                    creationflags=creation_flags,
+                )
+                if cand_res.returncode == 0 and (cand_res.stdout or "").strip():
+                    res = cand_res
+            except Exception:
+                res = None
+
+            if res is None:
+                safe_prompt = compress_prompt(full_prompt, max_chars=21000).get("text", full_prompt[:21000])
+                while safe_prompt.startswith("-"):
+                    safe_prompt = safe_prompt.lstrip("-").strip()
+                cmd = [
+                    agy_path,
+                    "-p", safe_prompt,
+                    "--model", agy_model,
+                    "--effort", effort_level,
+                    "--output-format", "json",
+                    "--disable-slash-commands",
+                ]
+
+        if res is None:
+            res = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=90,
+                cwd=agy_cwd,
+                stdin=subprocess.DEVNULL,
+                creationflags=creation_flags,
+            )
+        raw_out = (res.stdout or "").strip()
+        if not raw_out:
+            err_msg = (res.stderr or "").strip() or f"exit code {res.returncode}"
+            raise RuntimeError(f"Antigravity CLI returned empty output ({err_msg})")
+        text = raw_out
+        tokens = 0
+        try:
+            parsed = json.loads(raw_out)
+            if isinstance(parsed, dict):
+                text = str(parsed.get("response") or parsed.get("content") or parsed.get("output") or raw_out).strip()
+                usage = parsed.get("usage", {})
+                if isinstance(usage, dict):
+                    tokens = int(usage.get("total_tokens", 0) or 0)
+        except Exception:
+            pass
+        cache_prompt_response(prompt, text)
+        return {
+            "status": "SUCCESS",
+            "provider": "Google Antigravity CLI",
+            "model": agy_model,
+            "tokens_used": tokens,
+            "text": text,
+        }
+
     def _call_google(self, prompt: str, model: Optional[str] = None, sys_inst: str = "") -> Dict[str, Any]:
         """
-        Calls Google Gemini Direct REST API (AI Studio) or transparently routes to
-        Google Cloud Vertex AI if GOOGLE_CLOUD_PROJECT is configured instead of GEMINI_API_KEY.
+        Calls Google Gemini Direct REST API (AI Studio), transparently routes to
+        Google Cloud Vertex AI if GOOGLE_CLOUD_PROJECT is configured, or bridges to
+        signed-in Google Antigravity CLI (`agy`) when running locally without raw API keys.
         """
         if model and model.startswith("google-vertex-"):
             clean_vertex_model = model.replace("google-vertex-", "")
@@ -400,6 +596,8 @@ class HyperscalerGateway:
         if not api_key:
             if get_secure_secret("GOOGLE_CLOUD_PROJECT"):
                 return self._call_google_vertex(prompt, model=model, sys_inst=sys_inst)
+            if _get_antigravity_cli_path():
+                return self._call_antigravity_cli(prompt, model=model, sys_inst=sys_inst)
             raise ValueError("GEMINI_API_KEY or GOOGLE_CLOUD_PROJECT not configured in DPAPI Vault or Environment.")
 
         model_name = model or "gemini-1.5-flash"
@@ -633,6 +831,8 @@ class HyperscalerGateway:
     def _call_anthropic_claude(self, prompt: str, model: Optional[str] = None, sys_inst: str = "", max_tokens: int = 1024) -> Dict[str, Any]:
         api_key = get_secure_secret("ANTHROPIC_API_KEY")
         if not api_key:
+            if model and ("opus-5-5" in model or "sonnet-5-5" in model) and _get_antigravity_cli_path():
+                return self._call_antigravity_cli(prompt, model=model, sys_inst=sys_inst)
             raise ValueError("ANTHROPIC_API_KEY not configured in DPAPI Vault or Environment.")
 
         model_name = model or "claude-3-5-sonnet-latest"
@@ -733,6 +933,17 @@ class HyperscalerGateway:
 
     def _heuristic_fallback(self, prompt: str, error: str = "") -> Dict[str, Any]:
         """Deterministic offline fallback response."""
+        kb_hit = query_local_knowledge_base(prompt)
+        if kb_hit and kb_hit.get("message"):
+            return {
+                "status": "FALLBACK",
+                "provider": "Fleet Offline Knowledge Engine",
+                "model": "tier0_bm25_rag",
+                "tokens_used": 0,
+                "cost_usd": "$0.00",
+                "text": kb_hit["message"],
+                "fallback_reason": error,
+            }
         return {
             "status": "FALLBACK",
             "provider": "Fleet Heuristic Engine",

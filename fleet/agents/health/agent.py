@@ -78,6 +78,46 @@ class HealthAgent(FleetAgent):
             }
         ]
 
+    def get_omnibar_commands(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "agent_id": self.id,
+                "agent_name": self.display_name,
+                "icon": self.display_icon,
+                "trigger": "@health bp",
+                "syntax": "@health record blood pressure 120/80",
+                "description": "Record blood pressure systolic and diastolic (mmHg)",
+                "task": "record blood pressure 120/80",
+            },
+            {
+                "agent_id": self.id,
+                "agent_name": self.display_name,
+                "icon": self.display_icon,
+                "trigger": "@health water",
+                "syntax": "@health water +1",
+                "description": "Log +1 glass (250ml) of water drank today",
+                "task": "water",
+            },
+            {
+                "agent_id": self.id,
+                "agent_name": self.display_name,
+                "icon": self.display_icon,
+                "trigger": "@health sugar",
+                "syntax": "@health record blood sugar 95",
+                "description": "Record fasting blood sugar level (mg/dL)",
+                "task": "record blood sugar 95",
+            },
+            {
+                "agent_id": self.id,
+                "agent_name": self.display_name,
+                "icon": self.display_icon,
+                "trigger": "@health split",
+                "syntax": "@health split",
+                "description": "Show today's 6-Day Traditional Strength Split (Mudgal/Samtola/Bhim Gadha)",
+                "task": "morning_smoothie_and_workout",
+            },
+        ]
+
     def register_routes(self, router) -> None:
         # Re-export / wire the modular health routes
         router.include_router(health_api.router)
@@ -95,6 +135,57 @@ class HealthAgent(FleetAgent):
         for k, (title, msg) in health_messages.items():
             if k in t_low:
                 return {"status": "success", "title": title, "message": msg}
+
+        # Blood pressure recording: e.g. "record blood pressure 120/80" or "bp 120/80"
+        if "blood pressure" in t_low or "bp" in t_low:
+            import re
+            m = re.search(r"(\d{2,3})\s*(?:/|\s+)\s*(\d{2,3})", task)
+            if m:
+                sys_val = float(m.group(1))
+                dia_val = float(m.group(2))
+                if self.db and hasattr(self.db, "log_health_metric"):
+                    self.db.log_health_metric("blood_pressure_sys", sys_val, "mmHg", "Blood pressure systolic")
+                    self.db.log_health_metric("blood_pressure_dia", dia_val, "mmHg", "Blood pressure diastolic")
+                return {
+                    "status": "success",
+                    "title": "🩺 Blood Pressure Recorded",
+                    "message": f"Recorded Blood Pressure: {int(sys_val)}/{int(dia_val)} mmHg (Systolic: {int(sys_val)} mmHg, Diastolic: {int(dia_val)} mmHg).",
+                    "systolic": int(sys_val),
+                    "diastolic": int(dia_val),
+                    "unit": "mmHg"
+                }
+
+        # Fasting/Post-meal blood sugar recording
+        if "sugar" in t_low or "glucose" in t_low or "bsl" in t_low:
+            import re
+            m = re.search(r"(\d{2,3}(?:\.\d+)?)", task)
+            if m:
+                val = float(m.group(1))
+                metric_name = "pp_glucose" if "pp" in t_low or "post" in t_low else "fasting_glucose"
+                label = "Post-Prandial Glucose" if metric_name == "pp_glucose" else "Fasting Blood Sugar"
+                if self.db and hasattr(self.db, "log_health_metric"):
+                    self.db.log_health_metric(metric_name, val, "mg/dL", label)
+                return {
+                    "status": "success",
+                    "title": f"🩸 {label} Recorded",
+                    "message": f"Recorded {label}: {val} mg/dL.",
+                    "value": val,
+                    "unit": "mg/dL"
+                }
+
+        # Water/Hydration quick logging
+        if "water" in t_low or "hydration" in t_low:
+            import re
+            m = re.search(r"(\d+)", t_low)
+            glasses = int(m.group(1)) if m and int(m.group(1)) <= 20 else 1
+            if self.db and hasattr(self.db, "log_water_intake"):
+                hyd = self.db.log_water_intake(glasses_delta=glasses, amount_delta_ml=glasses * 250)
+                return {
+                    "status": "success",
+                    "title": f"💧 Hydration Recorded (+{glasses} glasses)",
+                    "message": f"Logged +{glasses} glass(es) of water. Today's total: {hyd.get('glasses', glasses)} glasses ({hyd.get('amount_ml', glasses * 250)} ml).",
+                    "hydration": hyd
+                }
 
         if "routine" in t_low:
             routines = self.db.list_routines() if self.db and hasattr(self.db, "list_routines") else []

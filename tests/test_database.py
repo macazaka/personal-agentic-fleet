@@ -475,6 +475,14 @@ def test_email_caching_and_health_operations():
         meds_unmarked = db.list_medications()
         assert next(m for m in meds_unmarked if m["id"] == new_med_id)["taken_today"] is False
 
+        # Update medication frequency and dosage
+        upd_ok = db.update_medication(new_med_id, frequency="Monthly", dosage="1000mg")
+        assert upd_ok is True
+        meds_updated = db.list_medications()
+        updated_item = next(m for m in meds_updated if m["id"] == new_med_id)
+        assert updated_item["frequency"] == "Monthly"
+        assert updated_item["dosage"] == "1000mg"
+
         # Delete medication
         del_med = db.delete_medication(new_med_id)
         assert del_med is True

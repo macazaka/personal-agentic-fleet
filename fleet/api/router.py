@@ -56,9 +56,13 @@ class ApiRouter:
         if hasattr(other_router, "post_routes"):
             self.post_routes.update(other_router.post_routes)
         if hasattr(other_router, "get_prefix_routes"):
-            self.get_prefix_routes.extend(other_router.get_prefix_routes)
+            for entry in other_router.get_prefix_routes:
+                if entry not in self.get_prefix_routes:
+                    self.get_prefix_routes.append(entry)
         if hasattr(other_router, "post_prefix_routes"):
-            self.post_prefix_routes.extend(other_router.post_prefix_routes)
+            for entry in other_router.post_prefix_routes:
+                if entry not in self.post_prefix_routes:
+                    self.post_prefix_routes.append(entry)
 
     def dispatch_get(self, handler: Any, path: str, parsed_url: urllib.parse.ParseResult) -> bool:
         # 1. Exact match

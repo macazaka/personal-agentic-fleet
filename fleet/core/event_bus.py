@@ -72,6 +72,37 @@ class DeterministicEventBus:
             except Exception:
                 pass
 
+    def publish(
+        self,
+        topic: str,
+        payload: Optional[Dict[str, Any]] = None,
+        agent_registry: Optional[Any] = None,
+    ) -> Dict[str, Any]:
+        """
+        Publishes a named topic event (e.g. 'gmail.paper_trail_detected', 'agent.alert')
+        to in-process subscribers and Phase 3 custom agent event triggers ($0.00 / 0 tokens).
+        """
+        evt = FleetEvent(
+            sender=str((payload or {}).get("agent_id") or "event_bus"),
+            target=topic,
+            action="TOPIC_EVENT",
+            payload=dict(payload or {}),
+        )
+        self._notify_subscribers(evt)
+        try:
+            from fleet.core.playbook_engine import dispatch_event_trigger
+            reg = agent_registry
+            if reg is None:
+                try:
+                    import fleet.server as srv
+                    reg = getattr(srv, "agent_registry", None)
+                except Exception:
+                    reg = None
+            return dispatch_event_trigger(topic, payload=payload, agent_registry=reg, db=self.db)
+        except Exception as exc:
+            logger.debug("EventBus topic trigger dispatch skipped for %s: %s", topic, exc)
+            return {"status": "ok", "event": topic, "playbooks_triggered": 0, "agents_triggered": []}
+
     def dispatch(self, event: FleetEvent) -> Dict[str, Any]:
         """Route event to the appropriate target worker with zero LLM overhead."""
         self._notify_subscribers(event)

@@ -55,7 +55,12 @@ let globalHealthSummary = null;
         const meta = data.metabolic_profile || {};
         const daysRemainingEl = document.getElementById('ffdDaysRemaining');
         if (daysRemainingEl) {
-          const days = meta.days_remaining !== undefined ? meta.days_remaining : 75;
+          let days = meta.days_remaining;
+          if (days === undefined) {
+            const target = new Date('2027-01-07');
+            const now = new Date();
+            days = Math.max(0, Math.ceil((target - now) / (1000 * 60 * 60 * 24)));
+          }
           daysRemainingEl.innerText = `${days} Days Left`;
         }
 
@@ -76,7 +81,9 @@ let globalHealthSummary = null;
         if (waterBar) waterBar.style.width = `${Math.min(100, pct)}%`;
         const waterNext = document.getElementById('healthWaterNext');
         if (waterNext) waterNext.innerText = reminder;
-        const bigCount = document.getElementById('healthWaterBigCount');
+        const summaryEl = document.getElementById('healthWaterGlassesSummary');
+        if (summaryEl) summaryEl.innerText = `${glasses} / ${Math.max(1, Math.round(goalMl / 250))} Glasses`;
+        const bigCount = document.getElementById('healthWaterGlassesBadge');
         if (bigCount) bigCount.innerText = `${glasses} / ${Math.max(1, Math.round(goalMl / 250))} Glasses (${amountMl}ml)`;
         const remText = document.getElementById('healthWaterReminderText');
         if (remText) remText.innerText = reminder;
@@ -95,7 +102,7 @@ let globalHealthSummary = null;
             const color = isFilled ? 'var(--accent-cyan)' : 'rgba(255, 255, 255, 0.15)';
             const bg = isFilled ? 'rgba(0, 242, 254, 0.2)' : 'rgba(255, 255, 255, 0.03)';
             html += `
-              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 34px; height: 38px; border-radius: 6px; background: ${bg}; border: 1px solid ${isFilled ? 'rgba(0, 242, 254, 0.4)' : 'rgba(255, 255, 255, 0.08)'}; cursor: pointer;" onclick="logWater(${isFilled ? -1 : 1}, ${isFilled ? -250 : 250})" title="Glass #${i}: 250ml (${isFilled ? 'Logged' : 'Pending'})">
+              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 36px; height: 42px; border-radius: 8px; background: ${bg}; border: 1px solid ${isFilled ? 'rgba(0, 242, 254, 0.45)' : 'rgba(255, 255, 255, 0.08)'}; cursor: pointer; transition: all 0.2s ease;" onclick="logWater(${isFilled ? -1 : 1}, ${isFilled ? -250 : 250})" title="Glass #${i}: 250ml (${isFilled ? 'Filled — Click to undo' : 'Empty — Click to log'})">
                 <span style="font-size: 15px;">🥛</span>
                 <span style="font-size: 9px; font-weight: 700; color: ${color};">${i * 250 >= 1000 ? (i * 250 / 1000).toFixed(1) + 'L' : i * 250}</span>
               </div>
@@ -172,7 +179,13 @@ let globalHealthSummary = null;
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;">
               <strong style="color: #fff; font-size: 13.5px;">${escapeHtml(m.name)}</strong>
               <span class="ag-pill-badge gray" style="font-size: 10px;">${escapeHtml(m.dosage || '1 dose')}</span>
-              <span class="ag-pill-badge purple" style="font-size: 10px;">${escapeHtml(m.frequency || 'Daily')}</span>
+              <select class="ag-pill-badge purple" style="font-size: 10px; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35); border-radius: 4px; padding: 1px 4px; cursor: pointer; outline: none;" onchange="updateMedFrequency(${m.id}, this.value)" title="Change frequency for ${escapeHtml(m.name)}">
+                <option value="Daily"${(m.frequency || 'Daily') === 'Daily' ? ' selected' : ''}>Daily</option>
+                <option value="Twice Daily"${m.frequency === 'Twice Daily' ? ' selected' : ''}>Twice Daily</option>
+                <option value="Weekly"${m.frequency === 'Weekly' ? ' selected' : ''}>Weekly</option>
+                <option value="Monthly"${m.frequency === 'Monthly' ? ' selected' : ''}>Monthly</option>
+                <option value="As Needed"${m.frequency === 'As Needed' ? ' selected' : ''}>As Needed</option>
+              </select>
               ${statusBadge}
             </div>
             <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.4;">
@@ -339,6 +352,20 @@ let globalHealthSummary = null;
         fetchLogs();
       } catch (e) {
         console.error('Error deleting medication:', e);
+      }
+    }
+
+    async function updateMedFrequency(id, newFreq) {
+      try {
+        await fetch('/api/health/medications/update', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ id: id, frequency: newFreq })
+        });
+        await fetchHealthDashboard();
+        fetchLogs();
+      } catch (e) {
+        console.error('Error updating medication frequency:', e);
       }
     }
 
@@ -551,6 +578,7 @@ window.promptWaterGoal = promptWaterGoal;
 window.submitNewMedication = submitNewMedication;
 window.toggleMedication = toggleMedication;
 window.deleteMedication = deleteMedication;
+window.updateMedFrequency = updateMedFrequency;
 window.selectTrendMetric = selectTrendMetric;
 window.updateMetricUnitHint = updateMetricUnitHint;
 window.submitQuickVital = submitQuickVital;

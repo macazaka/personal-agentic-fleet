@@ -94,8 +94,14 @@ let availableModels = [];
 
     function fillCommand(cmd) {
       const input = document.getElementById('agCommandInput');
-      input.value = cmd;
-      input.focus();
+      if (input) {
+        input.value = cmd;
+        if (input.tagName && input.tagName.toLowerCase() === 'textarea') {
+          input.style.height = 'auto';
+          input.style.height = Math.min(Math.max(input.scrollHeight, 60), 180) + 'px';
+        }
+        input.focus();
+      }
     }
 
     // --- Image Upload, Paste & Drag-and-Drop ---
@@ -210,9 +216,27 @@ let availableModels = [];
           }
         });
       });
+
+      const cmdInput = document.getElementById('agCommandInput');
+      if (cmdInput && cmdInput.tagName && cmdInput.tagName.toLowerCase() === 'textarea') {
+        cmdInput.addEventListener('input', function() {
+          this.style.height = 'auto';
+          this.style.height = Math.min(Math.max(this.scrollHeight, 60), 180) + 'px';
+        });
+      }
     }, 500);
 
     // --- Model Selector & Usage Details ---
+    function formatActiveModelButtonLabel(modelObj) {
+      if (!modelObj) return 'Gemini 3.8 Flash (High)';
+      const baseName = (modelObj.name || '').trim();
+      const effort = (modelObj.effort || '').trim();
+      if (!effort || baseName.toLowerCase().includes(effort.toLowerCase())) {
+        return baseName;
+      }
+      return `${baseName} (${effort})`;
+    }
+
     async function fetchModels() {
       try {
         const res = await fetch('/api/antigravity/models');
@@ -221,19 +245,37 @@ let availableModels = [];
         activeModelId = data.active_model || 'gemini-3.8-flash-high';
         
         const activeObj = availableModels.find(m => m.id === activeModelId) || availableModels[0];
-        const labelText = activeObj ? `${activeObj.name} ${activeObj.effort || ''}`.trim() : 'Gemini 3.8 Flash High';
+        const labelText = formatActiveModelButtonLabel(activeObj);
         const labelEl = document.getElementById('agActiveModelLabel');
         if (labelEl) labelEl.innerText = labelText;
 
+        const datalist = document.getElementById('antigravityModelsDatalist');
+        if (datalist) {
+          datalist.innerHTML = availableModels
+            .filter(m => m.available && !m.hidden_in_menu)
+            .map(m => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)}</option>`)
+            .join('');
+        }
+
         const list = document.getElementById('agModelOptionsList');
         if (list) {
-          list.innerHTML = availableModels.map(m => {
+          const visibleModels = availableModels.filter(m => !m.hidden_in_menu || m.id === activeModelId);
+          let currentGroup = '';
+          const rows = [];
+          visibleModels.forEach(m => {
+            const groupName = m.group || (m.source === 'antigravity' ? 'Antigravity Live Models' : 'Cloud Hyperscalers & Dev Tools');
+            if (groupName !== currentGroup) {
+              currentGroup = groupName;
+              const groupIcon = groupName.toLowerCase().includes('antigravity') ? '⚡' : '☁️';
+              rows.push(`<div class="ag-model-group-header">${groupIcon} ${escapeHtml(groupName)}</div>`);
+            }
             const isSelected = m.id === activeModelId;
             const isDis = !m.available;
             const check = isSelected ? '<span style="color:var(--accent-cyan); font-weight:bold; margin-right:6px;">✓</span>' : '<span style="display:inline-block; width:14px; margin-right:6px;"></span>';
             const badgeClass = m.badge_color || 'gray';
-            return `
-              <div class="ag-model-menu-item ${isSelected ? 'active' : ''} ${isDis ? 'disabled' : ''}" onclick="selectModel('${m.id}', ${isDis ? 'true' : 'false'})">
+            const tip = m.description ? `${m.name} (${m.id}) — ${m.description}` : `${m.name} (${m.id})`;
+            rows.push(`
+              <div class="ag-model-menu-item ${isSelected ? 'active' : ''} ${isDis ? 'disabled' : ''}" title="${escapeHtml(tip)}" onclick="selectModel('${m.id}', ${isDis ? 'true' : 'false'})">
                 <div style="display:flex; align-items:center;">
                   ${check}
                   <span>${escapeHtml(m.name)}</span>
@@ -242,8 +284,9 @@ let availableModels = [];
                   <span class="ag-pill-badge ${badgeClass}">${escapeHtml(m.badge || m.effort || '')}</span>
                 </div>
               </div>
-            `;
-          }).join('');
+            `);
+          });
+          list.innerHTML = rows.join('');
         }
       } catch (e) {
         console.error('Error fetching models:', e);
@@ -253,8 +296,35 @@ let availableModels = [];
     function toggleModelMenu(e) {
       if (e) e.stopPropagation();
       const menu = document.getElementById('agModelMenu');
+      const btn = document.getElementById('agModelDropdownBtn');
       if (!menu) return;
-      menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+      
+      const isOpen = menu.style.display === 'block';
+      if (isOpen) {
+        menu.style.display = 'none';
+        return;
+      }
+
+      menu.style.display = 'block';
+
+      // Smart viewport boundary adjustment so the menu is never cut off
+      if (btn) {
+        const btnRect = btn.getBoundingClientRect();
+        const spaceAbove = btnRect.top;
+        const list = document.getElementById('agModelOptionsList');
+        if (list) {
+          if (spaceAbove < 390) {
+            list.style.maxHeight = Math.max(140, Math.floor(spaceAbove - 70)) + 'px';
+          } else {
+            list.style.maxHeight = '320px';
+          }
+          list.scrollTop = 0;
+          const activeEl = list.querySelector('.ag-model-menu-item.active');
+          if (activeEl) {
+            activeEl.scrollIntoView({ block: 'nearest' });
+          }
+        }
+      }
     }
 
     async function selectModel(modelId, isDisabled) {
@@ -896,85 +966,61 @@ let availableModels = [];
       }
     }
 
-    function toggleAntigravityRightDock(forceState) {
-      const nextState = (typeof forceState === 'boolean') ? forceState : !window.isAgRightDocked;
+    function openAntigravityRightDock() {
       const viewAg = document.getElementById('viewAntigravity');
       const dockSlot = document.getElementById('agRightDockSlot');
-      const mainAnchor = document.getElementById('agMainStageAnchor');
       const btnToggle = document.getElementById('btnToggleAgRightDock');
       const btnClose = document.getElementById('btnCloseAgRightDock');
       const btnHeader = document.getElementById('btnHeaderRightDockChat');
       const btnGlobalHeader = document.getElementById('btnGlobalHeaderRightDock');
 
       if (!viewAg || !dockSlot) return;
-      window.isAgRightDocked = nextState;
+      window.isAgRightDocked = true;
       try {
-        localStorage.setItem('fleet_ag_right_docked', nextState ? '1' : '0');
+        localStorage.setItem('fleet_ag_right_docked', '1');
       } catch (e) {}
 
-      if (nextState) {
+      if (viewAg.parentElement !== dockSlot) {
         dockSlot.appendChild(viewAg);
-        dockSlot.style.display = 'flex';
-        viewAg.style.display = 'flex';
-        viewAg.classList.add('ag-docked-right');
+      }
+      dockSlot.style.display = 'flex';
+      viewAg.style.display = 'flex';
+      viewAg.classList.add('ag-docked-right');
 
-        if (btnToggle) {
-          btnToggle.innerHTML = '⤢ Full Page';
-          btnToggle.title = 'Expand chatbot back to full page tab';
-        }
-        if (btnClose) btnClose.style.display = 'inline-flex';
-        if (btnHeader) {
-          btnHeader.innerHTML = '◨ Undock Chat';
-          btnHeader.style.background = 'rgba(0, 242, 254, 0.2)';
-        }
-        if (btnGlobalHeader) {
-          btnGlobalHeader.innerHTML = '◨ Hide Right Chat';
-          btnGlobalHeader.style.background = 'rgba(16, 185, 129, 0.2)';
-          btnGlobalHeader.style.color = 'var(--accent-green)';
-        }
+      if (btnToggle) {
+        btnToggle.innerHTML = '⤢ Full Page';
+        btnToggle.title = 'Expand chatbot to full page tab';
+      }
+      if (btnClose) btnClose.style.display = 'inline-flex';
+      if (btnHeader) {
+        btnHeader.innerHTML = '◨ Hide Chat Panel';
+        btnHeader.style.background = 'rgba(0, 242, 254, 0.2)';
+        btnHeader.style.color = 'var(--accent-cyan)';
+      }
+      if (btnGlobalHeader) {
+        btnGlobalHeader.innerHTML = '◨ Hide Right Chat';
+        btnGlobalHeader.style.background = 'rgba(16, 185, 129, 0.18)';
+        btnGlobalHeader.style.borderColor = 'rgba(16, 185, 129, 0.45)';
+        btnGlobalHeader.style.color = 'var(--accent-green)';
+      }
 
-        fetchTranscript(true);
-        fetchModels();
-        fetchAgentQueue();
-        if (!agInterval) {
-          agInterval = setInterval(() => {
-            fetchTranscript(false);
-            fetchAgentQueue();
-          }, 2500);
-        }
+      fetchTranscript(true);
+      fetchModels();
+      fetchAgentQueue();
+      if (!agInterval) {
+        agInterval = setInterval(() => {
+          fetchTranscript(false);
+          fetchAgentQueue();
+        }, 2500);
+      }
 
-        // If user was on the full-page antigravity tab, switch the left main stage to their previous agent tab so they can browse side-by-side!
-        if (typeof currentTab !== 'undefined' && currentTab === 'antigravity') {
-          const targetTab = (window.lastNonAgTab && window.lastNonAgTab !== 'antigravity') ? window.lastNonAgTab : 'overview';
-          if (typeof FleetNavigator !== 'undefined' && typeof FleetNavigator.switchAgent === 'function') {
-            FleetNavigator.switchAgent(targetTab);
-          } else if (typeof switchTab === 'function') {
-            switchTab(targetTab);
-          }
-        }
-      } else {
-        if (mainAnchor && mainAnchor.parentNode) {
-          mainAnchor.parentNode.insertBefore(viewAg, mainAnchor.nextSibling);
-        }
-        dockSlot.style.display = 'none';
-        viewAg.classList.remove('ag-docked-right');
-
-        if (btnToggle) {
-          btnToggle.innerHTML = '◨ Dock to Right Panel';
-          btnToggle.title = 'Dock chatbot to the right panel so you can browse other agent pages while chatting';
-        }
-        if (btnClose) btnClose.style.display = 'none';
-        if (btnHeader) {
-          btnHeader.innerHTML = '◨ Dock Chat Panel';
-          btnHeader.style.background = 'rgba(16, 185, 129, 0.12)';
-        }
-        if (btnGlobalHeader) {
-          btnGlobalHeader.innerHTML = '◨ Right Chat';
-          btnGlobalHeader.style.background = 'rgba(0, 242, 254, 0.08)';
-          btnGlobalHeader.style.color = 'var(--accent-cyan)';
-        }
-        if (typeof switchTab === 'function') {
-          switchTab('antigravity');
+      // If user was on the full-page antigravity tab, restore the left main stage to their previous agent tab
+      if (typeof currentTab !== 'undefined' && currentTab === 'antigravity') {
+        const targetTab = (window.lastNonAgTab && window.lastNonAgTab !== 'antigravity') ? window.lastNonAgTab : 'health';
+        if (typeof FleetNavigator !== 'undefined' && typeof FleetNavigator.switchAgent === 'function') {
+          FleetNavigator.switchAgent(targetTab);
+        } else if (typeof switchTab === 'function') {
+          switchTab(targetTab);
         }
       }
     }
@@ -1001,18 +1047,46 @@ let availableModels = [];
         }
       }
       if (dockSlot) dockSlot.style.display = 'none';
-      if (btnToggle) btnToggle.innerHTML = '◨ Dock to Right Panel';
+      if (btnToggle) {
+        btnToggle.innerHTML = '◨ Dock to Right Panel';
+        btnToggle.title = 'Dock chatbot to the right panel so you can browse other agent pages while chatting';
+      }
       if (btnClose) btnClose.style.display = 'none';
-      if (btnHeader) btnHeader.innerHTML = '◨ Dock Chat Panel';
+      if (btnHeader) {
+        btnHeader.innerHTML = '◨ Show Chat Panel';
+        btnHeader.style.background = 'rgba(16, 185, 129, 0.12)';
+        btnHeader.style.color = 'var(--accent-green)';
+      }
       if (btnGlobalHeader) {
-        btnGlobalHeader.innerHTML = '◨ Right Chat';
+        btnGlobalHeader.innerHTML = '◨ Show Right Chat';
         btnGlobalHeader.style.background = 'rgba(0, 242, 254, 0.08)';
+        btnGlobalHeader.style.borderColor = 'rgba(0, 242, 254, 0.35)';
         btnGlobalHeader.style.color = 'var(--accent-cyan)';
       }
     }
 
+    function toggleAntigravityRightDock(forceState) {
+      const nextState = (typeof forceState === 'boolean') ? forceState : !window.isAgRightDocked;
+      if (nextState) {
+        openAntigravityRightDock();
+      } else {
+        closeAntigravityRightDock();
+      }
+    }
+
+    function toggleAntigravityFullPageOrDock() {
+      if (window.isAgRightDocked) {
+        closeAntigravityRightDock();
+        if (typeof switchTab === 'function') {
+          switchTab('antigravity');
+        }
+      } else {
+        openAntigravityRightDock();
+      }
+    }
+
     function dockFleetChatToRightPanel() {
-      toggleAntigravityRightDock(true);
+      openAntigravityRightDock();
       setAgChatEngineMode('fleet_zero_token');
     }
 
@@ -1048,6 +1122,7 @@ let availableModels = [];
           toast.className = 'cmd-toast success';
           toast.innerText = `✅ ${result.message}`;
           input.value = '';
+          if (input.style) input.style.height = '';
           attachedImages = [];
           renderAttachmentStrip();
           fetchTranscript(true);
@@ -1061,6 +1136,7 @@ let availableModels = [];
           toast.style.background = 'rgba(239, 68, 68, 0.95)';
           toast.innerText = `📦 ${result.message}`;
           input.value = '';
+          if (input.style) input.style.height = '';
           attachedImages = [];
           renderAttachmentStrip();
           fetchTokenHealth();
@@ -1108,6 +1184,8 @@ window.setAgChatEngineMode = setAgChatEngineMode;
 window.renderAgFleetZeroChat = renderAgFleetZeroChat;
 window.sendZeroTokenFleetChatFromAg = sendZeroTokenFleetChatFromAg;
 window.escalateZeroTokenTurnToAgLive = escalateZeroTokenTurnToAgLive;
+window.openAntigravityRightDock = openAntigravityRightDock;
 window.toggleAntigravityRightDock = toggleAntigravityRightDock;
+window.toggleAntigravityFullPageOrDock = toggleAntigravityFullPageOrDock;
 window.closeAntigravityRightDock = closeAntigravityRightDock;
 window.dockFleetChatToRightPanel = dockFleetChatToRightPanel;

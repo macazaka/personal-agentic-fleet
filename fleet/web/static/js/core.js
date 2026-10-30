@@ -41,20 +41,20 @@
     // --- Antigravity Live Stream, Model Selector & Queue Engine ---
     let currentTab = 'health';
     let agInterval = null;
-    let lastRenderedStep = -1;
-    let attachedImages = [];
-    let activeModelId = 'gemini-3.8-flash-high';
-    let availableModels = [];
 
-    window.isAgRightDocked = false;
+    window.isAgRightDocked = true;
     window.lastNonAgTab = 'health';
 
     function switchTab(tab) {
       if (tab !== 'antigravity') {
         window.lastNonAgTab = tab;
-      } else if (window.isAgRightDocked && typeof toggleAntigravityRightDock === 'function') {
-        // If already docked to the right panel and user clicks the Antigravity Live tab, expand to full page
-        toggleAntigravityRightDock(false);
+      } else if (window.isAgRightDocked) {
+        // When docked to the right panel, ensure the right panel is open and focus its input without hiding the center stage
+        if (typeof openAntigravityRightDock === 'function') {
+          openAntigravityRightDock();
+        }
+        const agInput = document.getElementById('agCommandInput');
+        if (agInput) agInput.focus();
         return;
       }
       currentTab = tab;
@@ -120,18 +120,175 @@
       }
     }
 
+    function formatInlineMarkdown(escapedLine, codePlaceholders) {
+      if (!escapedLine) return '';
+      let s = escapedLine;
+      const inlineCodes = [];
+      s = s.replace(/`([^`\n]+)`/g, (_m, codeTxt) => {
+        const idx = inlineCodes.length;
+        inlineCodes.push(
+          `<code style="background:rgba(15,23,42,0.85); border:1px solid rgba(56,189,248,0.22); padding:1px 6px; border-radius:4px; font-family:monospace; color:#7dd3fc; font-size:11.5px;">${codeTxt}</code>`
+        );
+        return `@@INLINECODE_${idx}@@`;
+      });
+
+      s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, label, url) => (
+        `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#38bdf8; text-decoration:underline;">${label}</a>`
+      ));
+
+      s = s.replace(/\*\*([^*\n]+?)\*\*/g, '<strong style="color:#f8fafc; font-weight:600;">$1</strong>');
+      s = s.replace(/(^|[\s(])\*([^*\s][^*\n]*?)\*(?=[\s).,;:!?]|$)/g, '$1<em style="color:#cbd5e1;">$2</em>');
+      s = s.replace(/(^|[\s(])_([^_\s][^_\n]*?)_(?=[\s).,;:!?]|$)/g, '$1<em style="color:#cbd5e1;">$2</em>');
+
+      s = s.replace(/@@INLINECODE_(\d+)@@/g, (_m, i) => inlineCodes[Number(i)] || '');
+      if (codePlaceholders) {
+        s = s.replace(/@@CODEBLOCK_(\d+)@@/g, (_m, i) => codePlaceholders[Number(i)] || '');
+      }
+      return s;
+    }
+
     function formatMarkdown(text) {
       if (!text) return '';
-      let html = escapeHtml(text);
-      // Code blocks ```code```
-      html = html.replace(/```([\\s\\S]*?)```/g, '<pre style="background:rgba(0,0,0,0.5); padding:10px; border-radius:6px; overflow-x:auto; margin:8px 0; font-size:12px; font-family:monospace; color:#38bdf8;"><code>$1</code></pre>');
-      // Inline code `code`
-      html = html.replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.08); padding:2px 5px; border-radius:4px; font-family:monospace; color:#38bdf8; font-size:12px;">$1</code>');
-      // Bold **bold**
-      html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-      // Newlines to <br>
-      html = html.replace(/\\n/g, '<br>');
-      return html;
+      const raw = String(text).replace(/\r\n/g, '\n');
+
+      const codeBlocks = [];
+      const withPlaceholders = raw.replace(/```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g, (_m, lang, body) => {
+        const idx = codeBlocks.length;
+        const langBadge = lang
+          ? `<div style="font-size:10px; color:#7dd3fc; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; opacity:0.85;">${escapeHtml(lang)}</div>`
+          : '';
+        codeBlocks.push(
+          `<pre style="background:rgba(2,6,23,0.75); border:1px solid rgba(56,189,248,0.2); padding:10px 12px; border-radius:7px; overflow-x:auto; margin:7px 0; font-size:11.5px; line-height:1.48; font-family:monospace; color:#bae6fd; white-space:pre;">${langBadge}<code>${escapeHtml(body.replace(/\n$/, ''))}</code></pre>`
+        );
+        return `\n@@CODEBLOCK_${idx}@@\n`;
+      });
+
+      const lines = withPlaceholders.split('\n');
+      const blocks = [];
+      let i = 0;
+
+      while (i < lines.length) {
+        const rawLine = lines[i];
+        const trimmed = rawLine.trim();
+
+        if (!trimmed) {
+          i += 1;
+          continue;
+        }
+
+        const cbMatch = trimmed.match(/^@@CODEBLOCK_(\d+)@@$/);
+        if (cbMatch) {
+          blocks.push(codeBlocks[Number(cbMatch[1])] || '');
+          i += 1;
+          continue;
+        }
+
+        if (/^(?:---|\*\*\*|___)\s*$/.test(trimmed)) {
+          blocks.push('<hr style="border:none; border-top:1px solid rgba(255,255,255,0.1); margin:8px 0;">');
+          i += 1;
+          continue;
+        }
+
+        const hMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
+        if (hMatch) {
+          const level = hMatch[1].length;
+          const hText = formatInlineMarkdown(escapeHtml(hMatch[2].trim()), codeBlocks);
+          const fontSize = level === 1 ? '14.5px' : (level === 2 ? '13.5px' : '12.5px');
+          const color = level <= 2 ? '#f8fafc' : '#7dd3fc';
+          blocks.push(
+            `<div style="font-size:${fontSize}; font-weight:700; color:${color}; margin:${blocks.length > 0 ? '9px' : '2px'} 0 5px 0; letter-spacing:0.15px;">${hText}</div>`
+          );
+          i += 1;
+          continue;
+        }
+
+        if (
+          trimmed.startsWith('|') &&
+          i + 1 < lines.length &&
+          /^\s*\|?[\s:-]+\|[\s|:-]*$/.test(lines[i + 1].trim())
+        ) {
+          const parseRow = (rowStr) =>
+            rowStr.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+          const headers = parseRow(trimmed);
+          i += 2;
+          const bodyRows = [];
+          while (i < lines.length && lines[i].trim().startsWith('|')) {
+            bodyRows.push(parseRow(lines[i]));
+            i += 1;
+          }
+          const thHtml = headers
+            .map(h => `<th style="padding:6px 9px; text-align:left; font-size:11px; color:#7dd3fc; border-bottom:1px solid rgba(56,189,248,0.25); background:rgba(15,23,42,0.85);">${formatInlineMarkdown(escapeHtml(h), codeBlocks)}</th>`)
+            .join('');
+          const trHtml = bodyRows
+            .map(cols => `<tr style="border-bottom:1px solid rgba(255,255,255,0.06);">${cols.map(c => `<td style="padding:6px 9px; font-size:12px; color:#e2e8f0;">${formatInlineMarkdown(escapeHtml(c), codeBlocks)}</td>`).join('')}</tr>`)
+            .join('');
+          blocks.push(
+            `<div style="overflow-x:auto; margin:7px 0;"><table style="width:100%; border-collapse:collapse; border:1px solid rgba(255,255,255,0.08); border-radius:6px; overflow:hidden;"><thead><tr>${thHtml}</tr></thead><tbody>${trHtml}</tbody></table></div>`
+          );
+          continue;
+        }
+
+        if (/^>\s?/.test(trimmed)) {
+          const quoteLines = [];
+          while (i < lines.length && /^>\s?/.test(lines[i].trim())) {
+            quoteLines.push(formatInlineMarkdown(escapeHtml(lines[i].trim().replace(/^>\s?/, '')), codeBlocks));
+            i += 1;
+          }
+          blocks.push(
+            `<div style="margin:6px 0; padding:7px 11px; border-left:3px solid #38bdf8; background:rgba(56,189,248,0.09); border-radius:0 6px 6px 0; color:#e0f2fe; font-size:12px; line-height:1.5;">${quoteLines.join('<br>')}</div>`
+          );
+          continue;
+        }
+
+        if (/^(?:[-*•])\s+/.test(trimmed)) {
+          const items = [];
+          while (i < lines.length && /^(?:[-*•])\s+/.test(lines[i].trim())) {
+            const itemTxt = lines[i].trim().replace(/^(?:[-*•])\s+/, '');
+            items.push(
+              `<li style="line-height:1.54; color:#e2e8f0; padding-left:2px;">${formatInlineMarkdown(escapeHtml(itemTxt), codeBlocks)}</li>`
+            );
+            i += 1;
+          }
+          blocks.push(
+            `<ul style="margin:4px 0 8px 0; padding-left:18px; display:flex; flex-direction:column; gap:5px;">${items.join('')}</ul>`
+          );
+          continue;
+        }
+
+        if (/^\d+\.\s+/.test(trimmed)) {
+          const items = [];
+          while (i < lines.length && /^\d+\.\s+/.test(lines[i].trim())) {
+            const itemTxt = lines[i].trim().replace(/^\d+\.\s+/, '');
+            items.push(
+              `<li style="line-height:1.54; color:#e2e8f0; padding-left:2px;">${formatInlineMarkdown(escapeHtml(itemTxt), codeBlocks)}</li>`
+            );
+            i += 1;
+          }
+          blocks.push(
+            `<ol style="margin:4px 0 8px 0; padding-left:20px; display:flex; flex-direction:column; gap:5px;">${items.join('')}</ol>`
+          );
+          continue;
+        }
+
+        const paraLines = [];
+        while (
+          i < lines.length &&
+          lines[i].trim() !== '' &&
+          !/^@@CODEBLOCK_\d+@@$/.test(lines[i].trim()) &&
+          !/^(?:#{1,4}\s+|[-*•]\s+|\d+\.\s+|>\s?|(?:---|\*\*\*|___)\s*$)/.test(lines[i].trim()) &&
+          !(lines[i].trim().startsWith('|') && i + 1 < lines.length && /^\s*\|?[\s:-]+\|[\s|:-]*$/.test(lines[i + 1].trim()))
+        ) {
+          paraLines.push(formatInlineMarkdown(escapeHtml(lines[i].trim()), codeBlocks));
+          i += 1;
+        }
+        blocks.push(`<div style="margin:4px 0; line-height:1.56;">${paraLines.join('<br>')}</div>`);
+      }
+
+      return blocks.join('');
+    }
+
+    if (typeof window !== 'undefined') {
+      window.formatMarkdown = formatMarkdown;
     }
 
 

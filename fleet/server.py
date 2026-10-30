@@ -36,7 +36,9 @@ from fleet.core.antigravity_mirror import (
     AGENT_STATE,
     AVAILABLE_MODELS,
     UPLOADS_DIR,
+    detect_agent_task_overlap,
     execute_dashboard_command,
+    extract_task_fingerprint,
     fast_track_queue,
     get_active_model,
     get_active_transcript_path,
@@ -82,12 +84,12 @@ from fleet.config import load_fleet_config
 from fleet.core.registry import AgentRegistry
 
 fleet_config = load_fleet_config()
-agent_registry = AgentRegistry(config=fleet_config, event_bus=bus)
+agent_registry = AgentRegistry(config=fleet_config, event_bus=bus, db=db)
 agent_registry.discover_and_load()
 agent_registry.register_all_routes(router)
 
 
-MAX_PAYLOAD_BYTES = 10 * 1024 * 1024  # 10 MB request body ceiling (DoS protection)
+MAX_PAYLOAD_BYTES = 20 * 1024 * 1024  # 20 MB request body ceiling (supports base64 document uploads + DoS guard)
 
 
 def _find_safe_file_in_dir(base_dir: Path, target_rel: str, recursive: bool = False) -> Any:
@@ -208,6 +210,7 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self._send_security_headers(set_session_cookie=True)
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -467,6 +470,25 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             finally:
                 bus.unsubscribe("*", sse_listener)
             return
+
+        elif path == "/api/diagnostics/health":
+            from fleet.config import get_live_version
+            harmony_score = 100.0
+            try:
+                from fleet.core.mind import fleet_mind
+                harmony_score = float(fleet_mind.get_holistic_state().get("cognitive_harmony_index", 100.0))
+            except Exception:
+                pass
+            active_agents = len(agent_registry.agents) if agent_registry else 0
+            total_agents = len(agent_registry._all_discovered_agents) if agent_registry else 0
+            self._send_json({
+                "status": "healthy",
+                "version": get_live_version(),
+                "agents_active": active_agents,
+                "agents_total": total_agents,
+                "db_ok": db is not None,
+                "cognitive_harmony": harmony_score,
+            })
 
         elif path == "/api/diagnostics/logs":
             from fleet.core.logger import get_recent_logs, get_recent_errors

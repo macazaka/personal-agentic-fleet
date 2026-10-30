@@ -804,6 +804,18 @@ def import_agent_pack(
     ui_folder = agent_folder / "ui"
     ui_folder.mkdir(parents=True, exist_ok=True)
 
+    # Align agent.py id property & panel_html IDs if manifest['id'] was remapped on import
+    id_match = re.search(r"def\s+id\s*\(self\)[^:]*:\s*return\s+['\"]([a-zA-Z0-9_]+)['\"]", agent_code)
+    orig_code_id = id_match.group(1) if id_match else str(pack_data.get("agent_id") or "").strip()
+    if orig_code_id and orig_code_id != clean_id:
+        agent_code = re.sub(
+            r"(def\s+id\s*\(self\)[^:]*:\s*return\s+)['\"][a-zA-Z0-9_]+['\"]",
+            rf"\1'{clean_id}'",
+            agent_code,
+        )
+        if panel_html:
+            panel_html = panel_html.replace(orig_code_id, clean_id)
+
     manifest["id"] = clean_id
     manifest["permissions"] = normalized_perms
     (agent_folder / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8", newline="\n")

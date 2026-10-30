@@ -776,6 +776,36 @@ def test_proactive_vscode_html_css_auditor_and_auto_fixer():
     assert "FORCE_JAVASCRIPT_ACTIONS_TO_NODE24" in release_yml
 
 
+def test_afcc_all_buttons_have_tooltips_sop():
+    """
+    SOP Verification: All buttons across AFCC (dashboard.html and agent UI panels)
+    MUST have a descriptive title tooltip attribute explaining what the button does.
+    """
+    import re
+    from pathlib import Path
+
+    root_dir = Path(__file__).resolve().parent.parent
+    html_files = list((root_dir / "fleet").rglob("*.html"))
+    assert len(html_files) >= 5, "Expected HTML templates in fleet/"
+
+    btn_pattern = re.compile(r'<button\b([^>]*)>(.*?)</button>', re.DOTALL | re.IGNORECASE)
+    missing_tooltips = []
+
+    for fpath in html_files:
+        content = fpath.read_text(encoding="utf-8")
+        for m in btn_pattern.finditer(content):
+            attrs = m.group(1)
+            if not re.search(r'\btitle\s*=', attrs, re.IGNORECASE):
+                line_no = content[:m.start()].count('\n') + 1
+                missing_tooltips.append(f"{fpath.relative_to(root_dir)}:L{line_no} -> {m.group(0)[:80]}")
+
+    assert not missing_tooltips, (
+        f"AFCC SOP Violation: Found {len(missing_tooltips)} buttons without title tooltips:\n"
+        + "\n".join(missing_tooltips)
+    )
+
+
+
 
 
 

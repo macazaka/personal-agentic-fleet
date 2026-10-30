@@ -8,7 +8,7 @@
         </div>
         <div style="display: flex; gap: 8px;">
           <button class="btn" style="font-size: 12px;" onclick="speakBriefing()" title="Listen to spoken audio briefing">🔊 Speak</button>
-          <button class="btn" style="font-size: 12px;" onclick="fetchBriefing()">🔄 Refresh</button>
+          <button title="Refresh today's morning briefing" class="btn" style="font-size: 12px;" onclick="fetchBriefing()">🔄 Refresh</button>
         </div>
       </div>
       <div class="briefing-stats" id="statsContainer">
@@ -34,7 +34,7 @@
         </div>
         <div style="display: flex; align-items: center; gap: 10px;">
           <span id="testStatusBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 12px; padding: 4px 10px;">PASS</span>
-          <button class="btn btn-primary" id="btnRunTests" style="font-size: 12px; padding: 6px 14px;" onclick="runTestsNow()">⚡ Run Tests Now</button>
+          <button title="Run full automated test suite and calculate code coverage" class="btn btn-primary" id="btnRunTests" style="font-size: 12px; padding: 6px 14px;" onclick="runTestsNow()">⚡ Run Tests Now</button>
         </div>
       </div>
 
@@ -85,7 +85,7 @@
               <option value="Meeting">📅 Meeting</option>
               <option value="Email">📬 Email</option>
             </select>
-            <button class="btn btn-primary" onclick="addTask()">+ Add</button>
+            <button title="Add new task to the task board" class="btn btn-primary" onclick="addTask()">+ Add</button>
           </div>
 
           <!-- Task List -->
@@ -104,7 +104,7 @@
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <span id="emailLiveStatus" style="font-size: 11px; padding: 3px 8px; border-radius: 6px; background: rgba(0, 242, 254, 0.1); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.3);">5 Folders</span>
-              <button class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;" id="btnSyncEmails" onclick="syncEmails()">
+              <button title="Sync and classify recent Gmail messages" class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;" id="btnSyncEmails" onclick="syncEmails()">
                 ⚡ Sync & Classify
               </button>
             </div>
@@ -117,12 +117,12 @@
 
           <!-- Filter Tabs -->
           <div style="display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto;" id="emailFilterBar">
-            <button class="filter-btn active" onclick="filterEmails('ALL')">All</button>
-            <button class="filter-btn" onclick="filterEmails('Meetings')">📅 Meetings</button>
-            <button class="filter-btn" onclick="filterEmails('Respond')">💬 Respond</button>
-            <button class="filter-btn" onclick="filterEmails('Note')">📝 Note</button>
-            <button class="filter-btn" onclick="filterEmails('FYI')">ℹ️ FYI</button>
-            <button class="filter-btn" onclick="filterEmails('Ignore')">🚫 Ignore</button>
+            <button title="All" class="filter-btn active" onclick="filterEmails('ALL')">All</button>
+            <button title="📅 Meetings" class="filter-btn" onclick="filterEmails('Meetings')">📅 Meetings</button>
+            <button title="💬 Respond" class="filter-btn" onclick="filterEmails('Respond')">💬 Respond</button>
+            <button title="📝 Note" class="filter-btn" onclick="filterEmails('Note')">📝 Note</button>
+            <button title="ℹ️ FYI" class="filter-btn" onclick="filterEmails('FYI')">ℹ️ FYI</button>
+            <button title="🚫 Ignore" class="filter-btn" onclick="filterEmails('Ignore')">🚫 Ignore</button>
           </div>
 
           <!-- Email Feed -->

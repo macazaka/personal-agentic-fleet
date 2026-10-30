@@ -18,8 +18,8 @@
             </div>
             <span id="agTokenCountLabel" style="font-size: 11px; color: var(--accent-cyan); font-family: monospace;">0%</span>
           </div>
-          <button class="btn" style="font-size: 12px;" onclick="openUsageModal()">⚡ LLM Details</button>
-          <button class="btn" style="font-size: 12px;" onclick="fetchTranscript(true)">🔄 Refresh</button>
+          <button title="View LLM model details and token quota metrics" class="btn" style="font-size: 12px;" onclick="openUsageModal()">⚡ LLM Details</button>
+          <button title="Refresh live Antigravity conversation stream" class="btn" style="font-size: 12px;" onclick="fetchTranscript(true)">🔄 Refresh</button>
           <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer;">
             <input type="checkbox" id="autoScrollCheck" checked style="accent-color: var(--accent-cyan);"> Auto-scroll
           </label>
@@ -42,10 +42,10 @@
             </div>
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <button class="btn btn-primary" id="agResumeFallbackBtn" onclick="resumeVaultedWork()" style="font-size: 11.5px; background: linear-gradient(135deg, #10b981, #059669); border-color: #10b981; padding: 6px 12px;">
+            <button title="Resume all safely vaulted prompts with fallback model" class="btn btn-primary" id="agResumeFallbackBtn" onclick="resumeVaultedWork()" style="font-size: 11.5px; background: linear-gradient(135deg, #10b981, #059669); border-color: #10b981; padding: 6px 12px;">
               🔄 Resume with Fallback (<span id="agFallbackModelName">Gemini 3.8 Flash</span>)
             </button>
-            <button class="btn" onclick="openVaultModal()" style="font-size: 11.5px; padding: 6px 10px;">
+            <button title="Open Token Preservation Vault to inspect saved prompts" class="btn" onclick="openVaultModal()" style="font-size: 11.5px; padding: 6px 10px;">
               📦 View Vault
             </button>
             <button class="btn" onclick="clearSimulatedTokenExhaustion()" title="Clear alert status" style="font-size: 11.5px; padding: 6px 9px; opacity: 0.8;">
@@ -67,7 +67,7 @@
           <div id="agActiveSlotsRow" style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;"></div>
         </div>
         <div style="display: flex; align-items: center; gap: 10px;">
-          <button id="agFastTrackBtn" class="btn btn-primary" style="font-size: 11.5px; padding: 5px 12px; display: none;" onclick="fastTrackAgentQueue()">
+          <button title="Launch all queued agent tasks in parallel slots immediately" id="agFastTrackBtn" class="btn btn-primary" style="font-size: 11.5px; padding: 5px 12px; display: none;" onclick="fastTrackAgentQueue()">
             🚀 Fast-Track Queue
           </button>
           <div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-muted);">
@@ -98,7 +98,7 @@
           </div>
           <div style="display: flex; align-items: center; gap: 10px;">
             <span style="font-size: 11px; color: var(--text-muted);">Auto-launches into open parallel slots</span>
-            <button class="btn btn-primary" style="font-size: 11px; padding: 3px 10px; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue)); border: none;" onclick="fastTrackAgentQueue()">
+            <button title="Launch all queued agent tasks in parallel slots immediately" class="btn btn-primary" style="font-size: 11px; padding: 3px 10px; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue)); border: none;" onclick="fastTrackAgentQueue()">
               🚀 Launch All in Parallel
             </button>
           </div>
@@ -127,37 +127,42 @@
           <span style="font-size: 11px; color: var(--accent-green);">● Multi-Hyperscaler & Dev Tools Hub</span>
         </div>
 
-        <div class="ag-input-row" style="align-items: center;">
-          <!-- Paperclip image attach button -->
-          <button class="btn" type="button" onclick="document.getElementById('agImageFileInput').click()" title="Attach Images (or drag & drop / Ctrl+V)" style="padding: 10px 13px;">
-            <span style="font-size: 15px;">📎</span>
-          </button>
-          <input type="file" id="agImageFileInput" accept="image/*" multiple style="display: none;" onchange="handleImageFileSelect(event)">
+                <div class="ag-input-box">
+          <textarea id="agCommandInput" rows="2" placeholder="Ask Antigravity, paste image (Ctrl+V), /task, /sync, or type prompt..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); submitAgCommand();}"></textarea>
+          <div class="ag-input-footer">
+            <div class="ag-input-actions-left">
+              <!-- Paperclip image attach button -->
+              <button class="btn btn-icon-sm" type="button" onclick="document.getElementById('agImageFileInput').click()" title="Attach Images (or drag & drop / Ctrl+V)" style="padding: 6px 10px;">
+                <span style="font-size: 14px;">📎</span>
+              </button>
+              <input type="file" id="agImageFileInput" accept="image/*" multiple style="display: none;" onchange="handleImageFileSelect(event)">
 
-          <!-- Main Input Field -->
-          <input type="text" id="agCommandInput" placeholder="Ask Antigravity, paste image (Ctrl+V), /task, /sync, or type prompt..." onkeypress="if(event.key==='Enter') submitAgCommand()">
-
-          <!-- Model Selector Dropdown Popover (Exact match to VS Code screenshot) -->
-          <div style="position: relative;">
-            <button class="ag-model-select-btn" id="agModelDropdownBtn" type="button" onclick="toggleModelMenu(event)">
-              <span id="agActiveModelLabel">Gemini 3.8 Flash High</span>
-              <span style="font-size: 10px; margin-left: 4px;">⌃</span>
-            </button>
-            <div id="agModelMenu" class="ag-model-menu" style="display: none;">
-              <div class="ag-model-menu-title">Model</div>
-              <div id="agModelOptionsList"></div>
-              <div class="ag-model-divider"></div>
-              <div class="ag-model-menu-item" onclick="openUsageModal(); toggleModelMenu(event);">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span>⚡</span>
-                  <span>View Usage</span>
+              <!-- Model Selector Dropdown Popover (Exact match to VS Code screenshot) -->
+              <div style="position: relative;">
+                <button title="Select active model or inspect usage" class="ag-model-select-btn" id="agModelDropdownBtn" type="button" onclick="toggleModelMenu(event)">
+                  <span id="agActiveModelLabel">Gemini 3.8 Flash High</span>
+                  <span style="font-size: 10px; margin-left: 4px;">⌃</span>
+                </button>
+                <div id="agModelMenu" class="ag-model-menu" style="display: none;">
+                  <div class="ag-model-menu-title">Model</div>
+                  <div id="agModelOptionsList"></div>
+                  <div class="ag-model-divider"></div>
+                  <div class="ag-model-menu-item" onclick="openUsageModal(); toggleModelMenu(event);">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span>⚡</span>
+                      <span>View Usage</span>
+                    </div>
+                    <span style="color: var(--text-muted); font-size: 14px;">›</span>
+                  </div>
                 </div>
-                <span style="color: var(--text-muted); font-size: 14px;">›</span>
               </div>
             </div>
-          </div>
 
-          <button class="btn btn-primary" onclick="submitAgCommand()" id="agSendBtn" style="white-space: nowrap;">➤ Send</button>
+            <div class="ag-input-actions-right">
+              <span class="ag-key-hint">Shift+Enter for newline</span>
+              <button title="Send prompt or command to Antigravity (or press Enter)" class="btn btn-primary" onclick="submitAgCommand()" id="agSendBtn" style="white-space: nowrap; padding: 7px 16px; font-weight: 600;">➤ Send</button>
+            </div>
+          </div>
         </div>
         <div class="cmd-toast" id="cmdToast"></div>
       </div>

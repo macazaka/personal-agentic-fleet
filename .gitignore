@@ -30,6 +30,7 @@ fleet/data/*.sqlite3
 fleet/data/user/
 fleet/data/user/*
 !fleet/data/user/.gitkeep
+tests/test_custom_*.py
 fleet/data/test_user/
 fleet/data/test_user/*
 fleet/data/latest_security_scan.json

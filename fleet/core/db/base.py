@@ -64,10 +64,22 @@ class BaseDatabase:
         effective = get_effective_db_path(self._custom_db_path)
         self.db_path = effective
         conn = get_pooled_connection(self.db_path, timeout=10.0)
-        # Self-healing schema: auto-create tables if missing
+        # Self-healing schema: auto-create any missing core or Studio tables idempotently
         cursor = conn.cursor()
-        cursor.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='hydration_logs'")
-        if not cursor.fetchone():
+        cursor.execute(
+            """
+            SELECT COUNT(*) FROM sqlite_master
+            WHERE type='table' AND name IN (
+                'hydration_logs',
+                'auto_improvements',
+                'mind_soul_audits',
+                'custom_agent_records',
+                'custom_agent_checklists'
+            )
+            """
+        )
+        row = cursor.fetchone()
+        if int(row[0] if row else 0) < 5:
             self._create_schema(conn)
         return conn
 
@@ -506,6 +518,39 @@ class BaseDatabase:
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_mind_soul_created
                 ON mind_soul_audits(created_at)
+            """)
+
+            # Custom Agent Structured Records & Runs (Phase 1 Zero-Code Agent Studio)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS custom_agent_records (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    agent_id TEXT NOT NULL,
+                    record_type TEXT DEFAULT 'entry',
+                    title TEXT NOT NULL,
+                    data_json TEXT DEFAULT '{}',
+                    status TEXT DEFAULT 'ok',
+                    due_date TEXT DEFAULT '',
+                    numeric_value REAL DEFAULT 0.0,
+                    created_at TEXT NOT NULL
+                )
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_custom_agent_records_agent
+                ON custom_agent_records(agent_id, created_at DESC)
+            """)
+
+            # Custom Agent Persistent Daily Checklists & Streaks
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS custom_agent_checklists (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    agent_id TEXT NOT NULL,
+                    item_key TEXT NOT NULL,
+                    label TEXT NOT NULL,
+                    checked INTEGER DEFAULT 0,
+                    last_checked_date TEXT DEFAULT '',
+                    streak INTEGER DEFAULT 0,
+                    UNIQUE(agent_id, item_key)
+                )
             """)
 
             conn.commit()

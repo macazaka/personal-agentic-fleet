@@ -142,6 +142,15 @@ def _gather_live_fleet_snapshot(agent_registry: Optional[Any] = None, db: Option
 
     today_name = datetime.now().strftime("%A")
     today_workout = _DAY_WORKOUT_MAP.get(today_name, _DAY_WORKOUT_MAP["Monday"])
+    custom_rollup: Dict[str, Any] = {"total_alerts": 0, "alerts": []}
+    if db is not None and hasattr(db, "get_custom_agents_fleet_rollup"):
+        try:
+            custom_manifests = None
+            if agent_registry and hasattr(agent_registry, "get_manifests"):
+                custom_manifests = [m for m in agent_registry.get_manifests() if m.get("is_custom")]
+            custom_rollup = db.get_custom_agents_fleet_rollup(custom_manifests=custom_manifests)
+        except Exception:
+            pass
     return {
         "active_agents": active_agents,
         "pending_tasks": pending_tasks,
@@ -149,6 +158,7 @@ def _gather_live_fleet_snapshot(agent_registry: Optional[Any] = None, db: Option
         "hydration": hydration,
         "today_name": today_name,
         "today_workout": today_workout,
+        "custom_rollup": custom_rollup,
     }
 
 
@@ -223,20 +233,89 @@ def dispatch_omnibar_query(
             "tokens_used": 0,
         })
 
-    # 2. @studio or "create agent ..." -> UX-01 Zero-Code Agent Studio
+    # 2. @studio or "create agent ..." -> UX-01 & Phase 4 Zero-Code Agent Studio
     if lower.startswith("@studio") or lower.startswith("create agent"):
         prompt_body = re.sub(r"^(?:@studio|create\s+agent)\s*:?\s*", "", raw, flags=re.I).strip()
+        launch_now = False
+        if re.match(r"^(?:launch|create|build|activate)\b\s+", prompt_body, flags=re.I):
+            launch_now = True
+            prompt_body = re.sub(r"^(?:launch|create|build|activate)\b\s*:?\s*", "", prompt_body, flags=re.I).strip()
         if not prompt_body:
             prompt_body = "Monitor my daily deep work sessions and alert me at 6 PM"
         from fleet.core.agent_studio import synthesize_agent_from_prompt
         spec = synthesize_agent_from_prompt(prompt_body)
+
+        if launch_now and agent_registry is not None and hasattr(agent_registry, "create_custom_agent"):
+            base_id = spec["agent_id"]
+            cand_id = base_id
+            suffix = 2
+            existing_ids = set(getattr(agent_registry, "agents", {}).keys()) | set(getattr(agent_registry, "_all_discovered_agents", {}).keys())
+            while cand_id in existing_ids:
+                cand_id = f"{base_id}_{suffix}"
+                suffix += 1
+            raw_sched_obj = spec.get("schedule")
+            sched_obj: Dict[str, Any] = raw_sched_obj if isinstance(raw_sched_obj, dict) else {}
+            manifest = agent_registry.create_custom_agent(
+                agent_id=cand_id,
+                name=spec["name"],
+                icon=spec["icon"],
+                permissions=spec["permissions"],
+                description=spec["description"],
+                ui_blocks=spec["ui_blocks"],
+                routine_task=spec["routine_task"],
+                schedule_display=str(sched_obj.get("display") or "Daily at 09:00"),
+                category=spec["category"],
+                archetype=spec.get("archetype", "tracker"),
+                intelligence_mode=spec.get("intelligence_mode", "hybrid"),
+                model=spec.get("model"),
+                system_prompt=spec.get("system_prompt"),
+                fields=spec.get("fields"),
+                checklist_items=spec.get("checklist_items"),
+                event_triggers=spec.get("event_triggers"),
+                schedule_cadence=spec.get("schedule_cadence", "daily_morning"),
+                schedule=sched_obj,
+            )
+            try:
+                from fleet.api.settings_api import _sync_custom_agent_events, _sync_custom_agent_schedule
+                _sync_custom_agent_schedule(
+                    agent_id=manifest["id"],
+                    name=manifest["name"],
+                    icon=manifest["icon"],
+                    routine_task=str(manifest.get("routine_task") or "run_check"),
+                    schedule_cadence=str(manifest.get("schedule_cadence") or "daily_morning"),
+                    schedule_info=sched_obj,
+                )
+                _sync_custom_agent_events(
+                    agent_id=manifest["id"],
+                    name=manifest["name"],
+                    icon=manifest["icon"],
+                    routine_task=str(manifest.get("routine_task") or "run_check"),
+                    event_triggers=manifest.get("event_triggers"),
+                )
+            except Exception:
+                pass
+            return _record_turn(raw, {
+                "status": "ok",
+                "mode": "studio_created",
+                "agent_id": manifest["id"],
+                "manifest": manifest,
+                "spec": spec,
+                "title": f"🚀 Created & Activated: {manifest['icon']} {manifest['name']} ({manifest['id']})",
+                "message": (
+                    f"Live in your Fleet! Schedule: {sched_obj.get('display', 'Daily')} | "
+                    f"Widgets: {len(manifest.get('ui_blocks') or [])} | Try `@{manifest['id']} add <item>` or `@{manifest['id']} open`."
+                ),
+                "suggestions": [f"@{manifest['id']} open", f"@{manifest['id']} run", "@discover"],
+                "tokens_used": 0,
+            })
+
         return _record_turn(raw, {
             "status": "ok",
             "mode": "studio_synthesis",
             "title": f"✨ Synthesized: {spec['icon']} {spec['name']} ({spec['agent_id']})",
             "message": f"Schedule: {spec['schedule']['display']} | Permissions: {', '.join(spec['permissions'])} | Blocks: {len(spec['ui_blocks'])}",
             "spec": spec,
-            "suggestions": ["@discover", "Show Fleet status"],
+            "suggestions": [f"@studio launch {prompt_body[:60]}", "@discover", "Show Fleet status"],
             "tokens_used": 0,
         })
 
@@ -289,7 +368,7 @@ def dispatch_omnibar_query(
             "tokens_used": 0,
         })
 
-    # 5. Direct @<agent_id> [task] invocation
+    # 5. Direct @<agent_id> [task] invocation (including Phase 4 Custom Agent quick-add & AI briefing)
     if lower.startswith("@"):
         tokens = raw[1:].split(maxsplit=1)
         target_id = tokens[0].lower().strip()
@@ -297,7 +376,8 @@ def dispatch_omnibar_query(
         agents_map = getattr(agent_registry, "agents", {}) if agent_registry else {}
         agent = agents_map.get(target_id)
         if agent:
-            if task_arg in ("open", "open_tab", "view"):
+            task_lower = task_arg.lower()
+            if task_lower in ("open", "open_tab", "view"):
                 return _record_turn(raw, {
                     "status": "ok",
                     "mode": "navigate",
@@ -306,14 +386,92 @@ def dispatch_omnibar_query(
                     "message": f"Opened workspace for '{target_id}'.",
                     "tokens_used": 0,
                 })
-            res = agent.execute_task(task_arg)
+
+            # Phase 4: @<custom_agent> add <title [YYYY-MM-DD] [amount]> -> $0.00 SQLite Quick Capture
+            if re.match(r"^(?:add|log)\b", task_lower):
+                entry_raw = re.sub(r"^(?:add|log)\b\s*:?\s*", "", task_arg, flags=re.I).strip()
+                target_db = db or getattr(agent_registry, "db", None)
+                if not entry_raw:
+                    return _record_turn(raw, {
+                        "status": "ok",
+                        "mode": "conversation",
+                        "agent_id": target_id,
+                        "title": f"{agent.display_icon} Quick Capture Syntax",
+                        "message": f"Usage: `@{target_id} add <item title> [YYYY-MM-DD] [amount]`",
+                        "suggestions": [f"@{target_id} open", f"@{target_id} run"],
+                        "tokens_used": 0,
+                    })
+                if target_db is not None and hasattr(target_db, "add_custom_agent_record"):
+                    due_val = ""
+                    m_date = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", entry_raw)
+                    working = entry_raw
+                    if m_date:
+                        due_val = m_date.group(1)
+                        working = (working[:m_date.start()] + " " + working[m_date.end():]).strip()
+
+                    num_val = 0.0
+                    m_num = re.search(r"(?:^|\s)\$?(\d+(?:\.\d+)?)\s*$", working)
+                    if m_num:
+                        try:
+                            num_val = float(m_num.group(1))
+                            working = working[:m_num.start()].strip()
+                        except ValueError:
+                            num_val = 0.0
+
+                    clean_title = re.sub(r"\s+", " ", working).strip(" -|,") or entry_raw
+                    extra_data: Dict[str, Any] = {"source": "omnibar"}
+                    m_url = re.search(r"https?://[^\s]+", clean_title)
+                    if m_url:
+                        extra_data["target_url"] = m_url.group(0)
+
+                    rec_id = target_db.add_custom_agent_record(
+                        agent_id=agent.id,
+                        title=clean_title,
+                        record_type="entry",
+                        data=extra_data,
+                        due_date=due_val,
+                        numeric_value=num_val,
+                    )
+                    details = [f"**{clean_title}**"]
+                    if due_val:
+                        details.append(f"due `{due_val}`")
+                    if num_val:
+                        details.append(f"value `{num_val:,.2f}`")
+                    return _record_turn(raw, {
+                        "status": "ok",
+                        "mode": "agent_record_added",
+                        "agent_id": target_id,
+                        "record_id": rec_id,
+                        "title": f"{agent.display_icon} Logged Record #{rec_id} in {agent.display_name}",
+                        "message": "Saved " + " • ".join(details) + f" to `{target_id}` SQLite table ($0.00).",
+                        "suggestions": [f"@{target_id} run", f"@{target_id} open", f"@{target_id} ai"],
+                        "tokens_used": 0,
+                    })
+
+            # Phase 4: @<custom_agent> ai -> On-Demand Antigravity AI Executive Briefing
+            if task_lower in ("ai", "analyze", "ai_analyze", "briefing", "insight"):
+                eff_task = "ai_analyze"
+            elif getattr(agent, "is_custom", False) and task_lower in ("default", "run", "check"):
+                meta = getattr(agent, "manifest_meta", {}) or {}
+                eff_task = str(meta.get("routine_task") or "run_check")
+            else:
+                eff_task = task_arg
+
+            res = agent.execute_task(eff_task)
+            msg = (
+                res.get("ai_summary")
+                or res.get("message")
+                or res.get("summary")
+                or f"Executed task '{eff_task}' on {agent.display_name}."
+            )
             return _record_turn(raw, {
                 "status": "ok",
                 "mode": "agent_task",
                 "agent_id": target_id,
                 "title": res.get("title", f"{agent.display_icon} {agent.display_name}"),
-                "message": res.get("message", f"Executed task '{task_arg}' on {agent.display_name}."),
+                "message": msg,
                 "result": res,
+                "suggestions": [f"@{target_id} open", "Give me my daily briefing"],
                 "tokens_used": 0,
             })
 
@@ -444,6 +602,15 @@ def dispatch_omnibar_query(
     if any(p in lower for p in ("daily briefing", "morning briefing", "give me my briefing", "summarize my day", "fleet status", "how is my fleet", "system status")) or cleaned_words in ("briefing", "status"):
         snap = _gather_live_fleet_snapshot(agent_registry=agent_registry, db=db)
         hyd = snap["hydration"]
+        rollup = snap.get("custom_rollup") or {}
+        custom_alerts = rollup.get("alerts") or []
+        custom_line = ""
+        if custom_alerts:
+            preview = ", ".join(
+                f"{a.get('agent_icon', '✨')} {a.get('title')}"
+                for a in custom_alerts[:3]
+            )
+            custom_line = f"\n• **Custom Agent Alerts ({rollup.get('total_alerts', len(custom_alerts))})**: {preview}"
         return _record_turn(raw, {
             "status": "ok",
             "mode": "conversation",
@@ -455,7 +622,9 @@ def dispatch_omnibar_query(
                 f"• **Pending Tasks**: {snap['pending_count']} pending task(s)\n"
                 f"• **Hydration Progress**: {hyd.get('glasses', 0)} glasses ({hyd.get('amount_ml', 0)} / {hyd.get('goal_ml', 2500)} ml)\n"
                 f"• **Today's Training ({snap['today_name']})**: {snap['today_workout']}"
+                f"{custom_line}"
             ),
+            "custom_agent_alerts": custom_alerts,
             "suggestions": [
                 "What are my pending tasks?",
                 "Log +1 glass of water",

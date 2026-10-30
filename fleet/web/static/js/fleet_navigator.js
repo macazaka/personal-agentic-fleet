@@ -415,9 +415,12 @@ const FleetNavigator = {
           <span style="font-size: 14px; flex-shrink: 0;">${a.icon || '⚡'}</span>
           <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${a.name}</span>
         </div>
-        <button class="btn-pin-star ${a.is_pinned ? 'pinned' : ''}" style="font-size: 12px; padding: 0 3px;" onclick="FleetNavigator.togglePin('${a.id}', event)" title="${a.is_pinned ? 'Unpin' : 'Pin'}">
-          ${a.is_pinned ? '★' : '☆'}
-        </button>
+        <div style="display: flex; align-items: center; gap: 2px; flex-shrink: 0;">
+          ${a.is_custom ? `<button class="btn-pin-star" style="font-size: 11px; padding: 0 3px; color: #f87171; opacity: 0.75;" onclick="FleetNavigator.deleteAgent('${a.id}', event)" title="Delete custom agent '${a.name}'">🗑️</button>` : ''}
+          <button class="btn-pin-star ${a.is_pinned ? 'pinned' : ''}" style="font-size: 12px; padding: 0 3px;" onclick="FleetNavigator.togglePin('${a.id}', event)" title="${a.is_pinned ? 'Unpin' : 'Pin'}">
+            ${a.is_pinned ? '★' : '☆'}
+          </button>
+        </div>
       </div>
     `;
   },
@@ -515,6 +518,74 @@ const FleetNavigator = {
     this.renderLaunchpadMatrix();
     this.renderDrawerList();
     this.renderOperationsCenter();
+  },
+
+  async fetchAgents() {
+    return this.fetchFleetData();
+  },
+
+  async deleteAgent(agentId, e) {
+    if (e) e.stopPropagation();
+    if (!agentId) return;
+    const agent = this.agents.find(a => a.id === agentId);
+    const label = agent ? `${agent.name} (${agentId})` : agentId;
+    if (!confirm(`Permanently delete custom agent "${label}" from AFCC?\n\nThis removes the agent's custom package folder and unregisters it immediately.`)) {
+      return;
+    }
+    const clickedBtn = e && e.currentTarget && e.currentTarget.tagName === 'BUTTON' ? e.currentTarget : null;
+    const execDelete = async () => {
+      const res = await fetch('/api/settings/agents/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: agentId })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok && res.status !== 404) {
+        throw new Error(data.message || 'Failed to delete agent');
+      }
+      if (res.status !== 404 && data.status !== 'success') {
+        throw new Error(data.message || 'Failed to delete agent');
+      }
+      this.agents = this.agents.filter(a => a.id !== agentId);
+      this.pinnedIds.delete(agentId);
+      this.savePersistedState();
+      if (this.activeAgentId === agentId) {
+        this.switchAgent('antigravity');
+      }
+      await this.fetchFleetData();
+      if (typeof initDynamicAgentTabs === 'function') {
+        await initDynamicAgentTabs();
+      }
+      if (typeof loadSettingsData === 'function') {
+        loadSettingsData();
+      }
+      const msg = `🗑️ ${data.message || `Deleted '${label}'`}`;
+      if (typeof showFleetToast === 'function') {
+        showFleetToast(msg, false);
+      } else if (typeof showSettingsToast === 'function') {
+        showSettingsToast(msg);
+      }
+    };
+
+    if (typeof window.runFleetAsyncAction === 'function') {
+      await window.runFleetAsyncAction({
+        buttons: [clickedBtn, 'btnStageDeleteAgent'],
+        useStudioBanner: false,
+        busyLabel: '⏳ Deleting...',
+        startToast: `⏳ Deleting '${label}'...`,
+        errorPrefix: 'Could not delete agent',
+      }, execDelete);
+    } else {
+      try {
+        await execDelete();
+      } catch (err) {
+        if (typeof showFleetToast === 'function') {
+          showFleetToast(`✕ Could not delete agent: ${err.message}`, true);
+        } else {
+          alert('Could not delete agent: ' + err.message);
+        }
+      }
+    }
   },
 
   // --- Off-Canvas Fleet Drawer ---
@@ -951,8 +1022,16 @@ const FleetNavigator = {
     const bc = document.getElementById('stageBreadcrumbTitle');
     const bcCat = document.getElementById('stageBreadcrumbCategory');
     const bcStatus = document.getElementById('stageStatusBadge');
+    const btnClone = document.getElementById('btnStageCloneAgent');
+    const btnExport = document.getElementById('btnStageExportAgent');
+    const btnEvolve = document.getElementById('btnStageEvolveAgent');
+    const btnDel = document.getElementById('btnStageDeleteAgent');
     if (bc) bc.innerHTML = `<span style="font-size: 20px;">${agent.icon || '⚡'}</span> <strong>${agent.name}</strong> <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">(${agent.id})</span>`;
     if (bcCat) bcCat.textContent = agent.category;
+    if (btnClone) btnClone.style.display = 'inline-flex';
+    if (btnExport) btnExport.style.display = agent.is_custom ? 'inline-flex' : 'none';
+    if (btnEvolve) btnEvolve.style.display = agent.is_custom ? 'inline-flex' : 'none';
+    if (btnDel) btnDel.style.display = agent.is_custom ? 'inline-flex' : 'none';
     if (bcStatus) {
       const isWorking = agent.status === 'working';
       bcStatus.className = `badge ${isWorking ? 'badge-success' : 'badge-neutral'}`;
@@ -976,6 +1055,10 @@ const FleetNavigator = {
             duplicateTitle.remove();
           }
         }
+        // Hydrate Zero-Code Studio live SQLite runtime if present
+        if (window.CustomAgentRuntime && typeof window.CustomAgentRuntime.mount === 'function') {
+          window.CustomAgentRuntime.mount(agent.id);
+        }
       } else {
         panelContainer.innerHTML = `
           <div class="card" style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 24px;">
@@ -994,6 +1077,9 @@ const FleetNavigator = {
 
   formatOmnibarMarkdown(text) {
     if (!text) return '';
+    if (typeof window !== 'undefined' && typeof window.formatMarkdown === 'function') {
+      return window.formatMarkdown(text);
+    }
     const escaped = String(text)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -1088,6 +1174,23 @@ const FleetNavigator = {
             <button type="button" class="btn btn-sm btn-primary" style="white-space: nowrap; font-size: 11px; padding: 4px 10px;" onclick="FleetNavigator.spawnDiscoveredAgent('${r.recommendation_id}')">🚀 Spawn Agent</button>
           </div>
         `).join('');
+      } else if (data.mode === 'studio_synthesis' && data.spec) {
+        const sp = data.spec;
+        const fldCount = Array.isArray(sp.fields) ? sp.fields.length : 0;
+        const blkCount = Array.isArray(sp.ui_blocks) ? sp.ui_blocks.length : 0;
+        const esc = typeof escapeHtml === 'function' ? escapeHtml : (v => String(v == null ? '' : v));
+        extraContentHtml = `
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding: 9px 11px; margin-top: 8px; background: rgba(15, 23, 42, 0.82); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 8px;">
+            <div style="font-size: 11.5px; color: var(--text-muted);">
+              <strong style="color: #34d399;">${esc(sp.icon || '✨')} ${esc(sp.name || sp.agent_id)}</strong>
+              <span> • ${fldCount} typed SQLite fields • ${blkCount} live widgets</span>
+            </div>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px; border-color: rgba(56, 189, 248, 0.4); color: var(--accent-cyan);" onclick="FleetNavigator.openSynthesizedInStudio(${idx})">🎛️ Customize in Studio</button>
+              <button type="button" class="btn btn-sm btn-primary" style="font-size: 11px; padding: 4px 11px; font-weight: 700;" onclick="FleetNavigator.launchSynthesizedOmnibarAgent(${idx})">🚀 1-Click Create &amp; Launch</button>
+            </div>
+          </div>
+        `;
       }
 
       const suggestions = isLatest && Array.isArray(data.suggestions) ? data.suggestions : [];
@@ -1171,6 +1274,18 @@ const FleetNavigator = {
         }
       }
       this.renderOmnibarChatThread();
+      if (data.mode === 'studio_created') {
+        await this.fetchFleetData();
+        if (typeof fetchSchedules === 'function') fetchSchedules();
+      } else if (data.mode === 'navigate' && data.agent_id) {
+        this.closeCommandPalette();
+        this.switchAgent(data.agent_id);
+        return;
+      } else if ((data.mode === 'agent_record_added' || data.mode === 'agent_task') && data.agent_id && data.agent_id === this.activeAgentId) {
+        if (window.CustomAgentRuntime && typeof window.CustomAgentRuntime.mount === 'function') {
+          window.CustomAgentRuntime.mount(data.agent_id);
+        }
+      }
       if (input) {
         input.value = '';
         this.filterCommandPalette('');
@@ -1181,6 +1296,56 @@ const FleetNavigator = {
         outBox.style.display = 'block';
         outBox.innerHTML = `<span style="color: #ef4444;">⚠️ Omnibar error: ${e.message}</span>`;
       }
+    }
+  },
+
+  async launchSynthesizedOmnibarAgent(turnIdx) {
+    const turn = this.omnibarChatTurns[turnIdx];
+    const spec = turn?.data?.spec;
+    if (!spec) return;
+    try {
+      const payload = {
+        ...spec,
+        id: spec.agent_id || spec.id,
+        run_immediately: true,
+      };
+      const res = await fetch('/api/settings/agents/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || data.status === 'error') {
+        throw new Error(data.message || 'Could not launch synthesized agent.');
+      }
+      await this.fetchFleetData();
+      if (typeof fetchSchedules === 'function') fetchSchedules();
+      this.closeCommandPalette();
+      this.switchAgent(data.agent_id || payload.id);
+      if (typeof showFleetToast === 'function') {
+        showFleetToast(`🚀 Created & activated '${spec.name}' from Omnibar!`, false);
+      }
+    } catch (e) {
+      if (typeof showFleetToast === 'function') showFleetToast('Launch error: ' + e.message, true);
+      else alert('Launch error: ' + e.message);
+    }
+  },
+
+  openSynthesizedInStudio(turnIdx) {
+    const turn = this.omnibarChatTurns[turnIdx];
+    const spec = turn?.data?.spec;
+    if (!spec) return;
+    this.closeCommandPalette();
+    if (typeof openCreateAgentModal === 'function') {
+      openCreateAgentModal();
+      setTimeout(() => {
+        if (typeof populateWizardFromSpec === 'function') {
+          populateWizardFromSpec(spec);
+        }
+        if (typeof renderStudioSynthesisSummary === 'function') {
+          renderStudioSynthesisSummary(spec);
+        }
+      }, 60);
     }
   },
 
@@ -1337,6 +1502,11 @@ window.openAgentSettingsDrawer = function(agentId) {
       }
     });
   }
+};
+
+window.FleetNavigator = FleetNavigator;
+window.fetchAgents = function() {
+  return FleetNavigator.fetchFleetData();
 };
 
 // Initialize when DOM is ready

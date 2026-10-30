@@ -1,6 +1,6 @@
 # ⚡ Personal Agentic Fleet
 
-[![Release: v2.11.1](https://img.shields.io/badge/Release-v2.11.1-00b4d8.svg)](CHANGELOG.md)
+[![Release: v2.13.0](https://img.shields.io/badge/Release-v2.13.0-00b4d8.svg)](CHANGELOG.md)
 [![GitHub Wiki: 17 Deep-Dive Guides](https://img.shields.io/badge/GitHub%20Wiki-17%20Deep--Dive%20Guides-0284c7.svg?logo=github)](https://github.com/macazaka/personal-agentic-fleet/wiki)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -102,12 +102,28 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
 ## 🌟 Key Highlights
 
 <!-- AUTO-LATEST-RELEASE:START -->
-### 🆕 What's New in Release `v2.11.1` (Auto-Synchronized)
+### 🆕 What's New in Release `v2.13.0` (Auto-Synchronized)
 
-> **Live Telemetry**: `7` Core Agents • `109` REST API Endpoints • `31` Microkernel Engines • `19` Automation Tools • `428` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
+> **Live Telemetry**: `7` Core Agents • `123` REST API Endpoints • `33` Microkernel Engines • `19` Automation Tools • `475` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
+
+### Added
+- **Zero-Code Agent Studio Phases 1–6 & Multi-Document Guided Agent Creation (`fleet/core/agent_studio.py`, `fleet/core/document_extractor.py`, `fleet/core/studio_phase6.py`, `fleet/web/static/js/create_agent.js`)**:
+  - **Multi-Attachment Document-Guided Agent Creation**: Upload multiple attachments (`PDF`, `DOCX`, `XLSX`, `CSV`, `EML`, `ICS`, `PNG/JPG/WEBP`, `TXT/MD/JSON`) directly inside Step 1 of Zero-Code Agent Studio (`POST /api/studio/analyze_documents`). Connected LLMs (`HyperscalerGateway` / Antigravity Live / Gemini / OpenAI / Bedrock / Claude / Ollama) and deterministic `$0.00` domain extractors automatically synthesize the custom agent's blueprint, typed SQLite schema, declarative UI blocks, vaulted documents (`fleet/data/user/agent_docs/<id>/`), and pre-seeded SQLite tracking items on activation.
+  - **12 Declarative SQLite-Backed UI Widget Blocks**: Expanded custom agent dashboards with `document_vault` (multi-file upload, watched drop-folder `Scan Inbox`, and AI tracking extraction), `kanban_board` (`Active / Safe`, `Due Soon / Attention`, `Completed`), `sparkline_chart`, `countdown_cards`, and `agent_chat` (`Ask & Command Agent` Grounded RAG + natural-language `add` / `renew` / `complete` commands).
+  - **Smart Lifecycle Automation, Watched Drop-Folders & Multi-Agent Squads**: Added background drop-folder auto-ingestion (`fleet/data/user/inbox/<agent_id>/`), 1-click cyclic renewal roll-forward (`monthly`, `quarterly`, `semi_annual`, `annual`) with renewal audit logs, outbound action hooks (`auto_create_task`, `desktop_toast`, `markdown_report`, `emit_followup_event`), and 1-click Multi-Agent Squad blueprints (`POST /api/studio/deploy_squad`) wired across `DeterministicEventBus` playbooks.
+- **AI Evolution Advisor for `Evolve in Studio` (`POST /api/studio/evolve/suggestions`, `POST /api/studio/evolve/parse_custom`, `POST /api/settings/agents/evolve`)**:
+  - Clicking **Evolve in Studio** on any custom agent automatically queries AFCC's connected LLM (with instant deterministic domain-tailored fallback) to generate **10 non-redundant improvements** tailored to the agent's current manifest, fields, widgets, triggers, hooks, and tracked record count.
+  - Interactive checklist lets users pick-and-choose improvements (`Select All` / `Clear`, live preview of `+Widget`, `+Field`, `+Trigger`, `+Hook`, and `+Permission` capability pills), add custom free-text improvements parsed into structured manifest patches, hot-reload in place while preserving 100% of existing SQLite records, or launch **Apply & Deep-Build** directly into Antigravity Live.
 
 ### Fixed
-- **Tests**: Compute future version dynamically in updater tests so semantic version bumps past 2.10.0 never fail CI.
+- **Universal Async Button Progress Feedback & Guaranteed Failure Notifications (`fleet/web/static/js/core.js`, `fleet/web/static/js/create_agent.js`, `fleet/web/static/js/fleet_navigator.js`, `fleet/web/templates/dashboard.html`)**:
+  - Added global `runFleetAsyncAction()` with immediate disabled/spinner button state, live elapsed-seconds counter (`1s`, `2s`...), persistent `#studioGlobalActionBanner`, and upgraded high-visibility error toasts (`showFleetToast`) across all Agent Studio and Custom Agent runtime buttons so users always see active progress and explicit failure notifications.
+  - Fixed a post-fetch ReferenceError in `deepBuildInAntigravity` (`activeMode`), propagated `dispatch_status` errors from `/api/studio/deep_build`, and resolved lazy `srv.db` initialization (`_resolve_live_db()`) so `Extract Items` never fails with `Database unavailable`.
+- **Structured Markdown & Grounded RAG Response Formatting (`fleet/core/studio_phase6.py`, `fleet/web/static/js/core.js`, `fleet/web/static/js/create_agent.js`)**:
+  - Upgraded `answer_custom_agent_chat` to retrieve query-relevant clauses across full vaulted PDFs/documents, route synthesis through AFCC's active connected LLM (with structured multi-section Markdown fallback), strip internal vault timestamp/hash prefixes from filenames, and deduplicate aliased metadata keys (`policy_number` / `invoice_number` / `reference_code`).
+  - Upgraded global `formatMarkdown()` to render headings, bulleted/numbered lists, Markdown tables, blockquotes, fenced code blocks, and inline code pills, plus automatic legacy single-line RAG response reflow (`normalizeLegacyRagResponse`).
+- **Workspace Hygiene & Static Type Integrity (`fleet/core/playbook_engine.py`, `fleet/core/registry.py`, `fleet/core/document_extractor.py`)**:
+  - Fixed `PLAYBOOKS_PATH` in `playbook_engine.py` to resolve cleanly under `DATA_DIR / "user" / "playbooks.json"`, added automatic cleanup of local `tests/test_custom_<id>.py` files on custom agent deletion, and enforced strict zero-diagnostic Pyright/Pylance type narrowing across all new Studio modules.
 <!-- AUTO-LATEST-RELEASE:END -->
 
 - **🔌 Modular Plug-and-Play Agents**: Every dashboard view is a standalone, self-contained agent package inside `fleet/agents/` with least-privilege capability manifests (`manifest.json`) enforced by `ScopedDatabaseProxy`. See **[Wiki: 7 Built-in Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents)** and **[Wiki: Customizing Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Customizing-Agents)**.

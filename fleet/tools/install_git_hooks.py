@@ -32,7 +32,7 @@ if str(repo_root) not in sys.path:
 print("[Fleet Proactive Lifecycle] Running CodeQL/VS Code Auto-Fixer, Semantic Release Sync & Doc/Wiki Enhancer (pre-commit)...")
 try:
     from fleet.tools.proactive_lifecycle import run_proactive_lifecycle
-    lc_res = run_proactive_lifecycle(repo_root=repo_root, stage_changes=True, run_pyright_cli=True)
+    lc_res = run_proactive_lifecycle(repo_root=repo_root, stage_changes=True, run_pyright_cli=True, create_tag=False)
     touched_cnt = len(lc_res.get("touched_files", []))
     if touched_cnt > 0:
         print(f"=== Fleet Proactive Lifecycle Updated & Staged {{touched_cnt}} File(s) Automatically (v{{lc_res.get('active_version')}}) ===")
@@ -58,61 +58,22 @@ if report.get("total_findings", 0) > 0:
     print("==================================================================")
     sys.exit(1)
 
-# Proactive VS Code Workspace & Static Typing Verification Gate (HTML/CSS/Settings/Pyright)
-print("[Fleet VS Code & Type Gate] Running HTML/CSS/Settings & Pyright Diagnostics (pre-commit)...")
+# Proactive VS Code Workspace & Static Typing Verification Gate (HTML/CSS/JS/Settings/Pyright)
+print("[Fleet VS Code & Type Gate] Running HTML/CSS/JS/Settings & Pyright Diagnostics (pre-commit)...")
 try:
-    from fleet.tools.auto_fixer import audit_vscode_workspace_problems, run_auto_fixer
-    ws_audit = audit_vscode_workspace_problems(repo_root=repo_root)
-    if ws_audit.get("problems_count", 0) > 0:
-        print(f"[Fleet VS Code Gate] {{ws_audit['problems_count']}} HTML/CSS/VS Code problem(s) detected; running auto-fixer...")
-        run_auto_fixer(repo_root=repo_root, stage_changes=True, run_pyright_cli=False)
-        ws_audit = audit_vscode_workspace_problems(repo_root=repo_root)
-    if ws_audit.get("problems_count", 0) > 0:
-        for p in ws_audit.get("problems", [])[:20]:
-            print(f"  - {{p['file']}}:{{p['line']}} [{{p['source']}}({{p['code']}})] {{p['message']}}")
+    from fleet.tools.preflight_gate import verify_static_type_integrity
+    type_gate = verify_static_type_integrity(repo_root=repo_root)
+    if type_gate.get("status") != "PASS":
+        print(type_gate.get("detail", ""))
         print("==================================================================")
-        print("[BLOCKED] Fleet VS Code Gate: Unresolved HTML/CSS/VS Code diagnostics.")
+        print("[BLOCKED] Fleet VS Code & Pylance/Pyright Gate: Resolve static diagnostics before committing.")
         print("==================================================================")
         sys.exit(1)
-
-    import shutil
-    import subprocess
-    npx_cmd = (
-        shutil.which("npx.cmd") or shutil.which("npx") or "npx.cmd"
-        if os.name == "nt"
-        else shutil.which("npx") or "npx"
-    )
-    hidden_flags = {{"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}} if os.name == "nt" else {{}}
-    pyright_res = subprocess.run(
-        [npx_cmd, "pyright", "fleet", "tests", "conftest.py", "pong.py"],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-        check=False,
-        **hidden_flags,
-    )
-    if pyright_res.returncode != 0:
-        print("[Fleet Type Gate] Diagnostics detected; running automatic VS Code/Pyright auto-fixer...")
-        run_auto_fixer(repo_root=repo_root, stage_changes=True, run_pyright_cli=True)
-        pyright_res = subprocess.run(
-            [npx_cmd, "pyright", "fleet", "tests", "conftest.py", "pong.py"],
-            cwd=str(repo_root),
-            capture_output=True,
-            text=True,
-            check=False,
-            **hidden_flags,
-        )
-    if pyright_res.returncode != 0:
-        print(pyright_res.stdout)
-        print("==================================================================")
-        print("[BLOCKED] Fleet Type Gate: Type checking failed after auto-remediation.")
-        print("==================================================================")
-        sys.exit(1)
-    print("=== Fleet VS Code & Type Check [PASS] | 0 Pyright errors, 0 HTML/CSS/Settings problems ===")
+    print(f"=== Fleet VS Code & Type Check [PASS] | {{type_gate.get('detail')}} ===")
 except SystemExit:
     raise
-except Exception:
-    pass
+except Exception as gate_exc:
+    print(f"[Fleet Type Gate] Warning: unexpected error during static analysis check: {{gate_exc}}")
 
 sys.exit(0)
 """

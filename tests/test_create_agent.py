@@ -84,3 +84,73 @@ def test_scaffold_cli_main(tmp_path):
 
     assert (tmp_path / "cli_demo" / "manifest.json").exists()
 
+
+def test_delete_custom_agent_and_protect_builtin(tmp_path):
+    from fleet.core.registry import AgentRegistry
+
+    builtin_dir = tmp_path / "agents"
+    custom_dir = tmp_path / "custom_agents"
+    builtin_dir.mkdir()
+    custom_dir.mkdir()
+
+    scaffold_agent(agent_id="core_builtin", name="Core Builtin", target_dir=builtin_dir)
+    reg = AgentRegistry(agents_dir=builtin_dir, custom_agents_dir=custom_dir)
+    reg.discover_and_load()
+
+    manifest = reg.create_custom_agent(agent_id="temp_custom", name="Temp Custom", icon="🧪")
+    assert manifest["is_custom"] is True
+    assert "temp_custom" in reg.agents
+    assert (custom_dir / "temp_custom").is_dir()
+
+    # Built-in agent is protected from permanent disk deletion
+    with pytest.raises(ValueError, match="built-in core agent"):
+        reg.delete_custom_agent("core_builtin")
+
+    # Custom agent is permanently deleted and unregistered
+    del_res = reg.delete_custom_agent("temp_custom")
+    assert del_res["deleted"] is True
+    assert "temp_custom" not in reg.agents
+    assert not (custom_dir / "temp_custom").exists()
+
+    with pytest.raises(KeyError):
+        reg.delete_custom_agent("temp_custom")
+
+
+def test_agent_studio_llm_dict_response_and_afcc_rag():
+    from fleet.core.agent_studio import synthesize_agent_from_prompt
+    from fleet.core.token_optimizer import query_local_knowledge_base
+
+    fake_llm_json = json.dumps({
+        "name": "Latency Watcher",
+        "agent_id": "latency_watcher",
+        "icon": "📡",
+        "category": "Monitoring",
+        "preset": "observer",
+        "schedule_cadence": "every_30_min",
+        "sync_interval": 45,
+        "enable_alerts": True,
+        "routine_task": "probe_latency",
+        "system_prompt": "Monitor database latency continuously.",
+        "ui_blocks": ["alert_banner", "kpi_row"],
+    })
+    with patch("fleet.core.hyperscalers.HyperscalerGateway.complete", return_value={"status": "SUCCESS", "text": fake_llm_json}):
+        spec = synthesize_agent_from_prompt("Monitor postgres latency every 30 min")
+        assert spec["name"] == "Latency Watcher"
+        assert spec["agent_id"] == "latency_watcher"
+        assert spec["category"] == "Monitoring"
+        assert spec["sync_interval"] == 45
+
+    hit_del = query_local_knowledge_base("How can I delete an agent from AFCC?")
+    assert hit_del is not None
+    assert hit_del["doc_id"] == "afcc_delete_agent"
+
+    hit_route = query_local_knowledge_base(
+        "How does the Fleet Autonomous Intelligence decide which prompts to send to LLM or which ones to send to deterministic engine?"
+    )
+    assert hit_route is not None
+    assert hit_route["doc_id"] == "afcc_llm_vs_deterministic_routing"
+
+    # Normal coding prompt without required_any words must not false-match
+    assert query_local_knowledge_base("Write a python script for my custom agent") is None
+
+

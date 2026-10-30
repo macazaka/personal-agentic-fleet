@@ -1,4 +1,4 @@
-# Release Notes & Version History (Current: `v2.11.1`)
+# Release Notes & Version History (Current: `v2.13.0`)
 
 This page is **automatically synchronized** from [`CHANGELOG.md`](https://github.com/macazaka/personal-agentic-fleet/blob/main/CHANGELOG.md) by `fleet.tools.doc_wiki_enhancer` whenever release versions or release notes are updated.
 
@@ -8,6 +8,43 @@ All notable changes to the **Personal Agentic Fleet** project will be documented
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [2.13.0] - 2026-10-31
+
+### Added
+- **Zero-Code Agent Studio Phases 1–6 & Multi-Document Guided Agent Creation (`fleet/core/agent_studio.py`, `fleet/core/document_extractor.py`, `fleet/core/studio_phase6.py`, `fleet/web/static/js/create_agent.js`)**:
+  - **Multi-Attachment Document-Guided Agent Creation**: Upload multiple attachments (`PDF`, `DOCX`, `XLSX`, `CSV`, `EML`, `ICS`, `PNG/JPG/WEBP`, `TXT/MD/JSON`) directly inside Step 1 of Zero-Code Agent Studio (`POST /api/studio/analyze_documents`). Connected LLMs (`HyperscalerGateway` / Antigravity Live / Gemini / OpenAI / Bedrock / Claude / Ollama) and deterministic `$0.00` domain extractors automatically synthesize the custom agent's blueprint, typed SQLite schema, declarative UI blocks, vaulted documents (`fleet/data/user/agent_docs/<id>/`), and pre-seeded SQLite tracking items on activation.
+  - **12 Declarative SQLite-Backed UI Widget Blocks**: Expanded custom agent dashboards with `document_vault` (multi-file upload, watched drop-folder `Scan Inbox`, and AI tracking extraction), `kanban_board` (`Active / Safe`, `Due Soon / Attention`, `Completed`), `sparkline_chart`, `countdown_cards`, and `agent_chat` (`Ask & Command Agent` Grounded RAG + natural-language `add` / `renew` / `complete` commands).
+  - **Smart Lifecycle Automation, Watched Drop-Folders & Multi-Agent Squads**: Added background drop-folder auto-ingestion (`fleet/data/user/inbox/<agent_id>/`), 1-click cyclic renewal roll-forward (`monthly`, `quarterly`, `semi_annual`, `annual`) with renewal audit logs, outbound action hooks (`auto_create_task`, `desktop_toast`, `markdown_report`, `emit_followup_event`), and 1-click Multi-Agent Squad blueprints (`POST /api/studio/deploy_squad`) wired across `DeterministicEventBus` playbooks.
+- **AI Evolution Advisor for `Evolve in Studio` (`POST /api/studio/evolve/suggestions`, `POST /api/studio/evolve/parse_custom`, `POST /api/settings/agents/evolve`)**:
+  - Clicking **Evolve in Studio** on any custom agent automatically queries AFCC's connected LLM (with instant deterministic domain-tailored fallback) to generate **10 non-redundant improvements** tailored to the agent's current manifest, fields, widgets, triggers, hooks, and tracked record count.
+  - Interactive checklist lets users pick-and-choose improvements (`Select All` / `Clear`, live preview of `+Widget`, `+Field`, `+Trigger`, `+Hook`, and `+Permission` capability pills), add custom free-text improvements parsed into structured manifest patches, hot-reload in place while preserving 100% of existing SQLite records, or launch **Apply & Deep-Build** directly into Antigravity Live.
+
+### Fixed
+- **Universal Async Button Progress Feedback & Guaranteed Failure Notifications (`fleet/web/static/js/core.js`, `fleet/web/static/js/create_agent.js`, `fleet/web/static/js/fleet_navigator.js`, `fleet/web/templates/dashboard.html`)**:
+  - Added global `runFleetAsyncAction()` with immediate disabled/spinner button state, live elapsed-seconds counter (`1s`, `2s`...), persistent `#studioGlobalActionBanner`, and upgraded high-visibility error toasts (`showFleetToast`) across all Agent Studio and Custom Agent runtime buttons so users always see active progress and explicit failure notifications.
+  - Fixed a post-fetch ReferenceError in `deepBuildInAntigravity` (`activeMode`), propagated `dispatch_status` errors from `/api/studio/deep_build`, and resolved lazy `srv.db` initialization (`_resolve_live_db()`) so `Extract Items` never fails with `Database unavailable`.
+- **Structured Markdown & Grounded RAG Response Formatting (`fleet/core/studio_phase6.py`, `fleet/web/static/js/core.js`, `fleet/web/static/js/create_agent.js`)**:
+  - Upgraded `answer_custom_agent_chat` to retrieve query-relevant clauses across full vaulted PDFs/documents, route synthesis through AFCC's active connected LLM (with structured multi-section Markdown fallback), strip internal vault timestamp/hash prefixes from filenames, and deduplicate aliased metadata keys (`policy_number` / `invoice_number` / `reference_code`).
+  - Upgraded global `formatMarkdown()` to render headings, bulleted/numbered lists, Markdown tables, blockquotes, fenced code blocks, and inline code pills, plus automatic legacy single-line RAG response reflow (`normalizeLegacyRagResponse`).
+- **Workspace Hygiene & Static Type Integrity (`fleet/core/playbook_engine.py`, `fleet/core/registry.py`, `fleet/core/document_extractor.py`)**:
+  - Fixed `PLAYBOOKS_PATH` in `playbook_engine.py` to resolve cleanly under `DATA_DIR / "user" / "playbooks.json"`, added automatic cleanup of local `tests/test_custom_<id>.py` files on custom agent deletion, and enforced strict zero-diagnostic Pyright/Pylance type narrowing across all new Studio modules.
+
+---
+
+## [2.12.1] - 2026-10-28
+
+### Fixed
+- Proactive release synchronization, static type verification, and documentation maintenance.
+
+---
+
+## [2.12.0] - 2026-10-28
+
+### Added
+- **CI**: Add smart CI matrix throttling (93% quota reduction) and daily 21:30 GitHub release sync.
 
 ---
 

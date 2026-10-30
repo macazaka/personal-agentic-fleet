@@ -208,6 +208,37 @@ class HealthMixin(_DbBase):
             conn.commit()
             return cursor.rowcount > 0
 
+    def update_medication(self, medication_id: int, **kwargs) -> bool:
+        """Updates fields (frequency, dosage, schedule_time, instructions, name) of an existing medication."""
+        allowed = {"name", "dosage", "schedule_time", "frequency", "instructions"}
+        updates = {k: v for k, v in kwargs.items() if k in allowed and v is not None}
+        if not updates:
+            return False
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                UPDATE medications
+                SET name = COALESCE(?, name),
+                    dosage = COALESCE(?, dosage),
+                    schedule_time = COALESCE(?, schedule_time),
+                    frequency = COALESCE(?, frequency),
+                    instructions = COALESCE(?, instructions)
+                WHERE id = ?
+                """,
+                (
+                    updates.get("name"),
+                    updates.get("dosage"),
+                    updates.get("schedule_time"),
+                    updates.get("frequency"),
+                    updates.get("instructions"),
+                    medication_id,
+                ),
+            )
+            conn.commit()
+            self.log_activity("HealthManager", "medication_update", f"Updated medication #{medication_id}: {updates}")
+            return cursor.rowcount > 0
+
     def log_health_metric(self, metric_type: str, value: float, unit: str = "",
                           notes: str = "", target_date: Optional[str] = None) -> int:
         """Logs a vitals or health metric (sleep, steps, resting_hr, weight, etc.)."""
@@ -333,6 +364,7 @@ class HealthMixin(_DbBase):
         pp_glucose_trends = self.get_health_trends("pp_glucose", 14)
         weight_trends = self.get_health_trends("weight_kg", 14)
         bp_sys_trends = self.get_health_trends("blood_pressure_sys", 14)
+        bp_dia_trends = self.get_health_trends("blood_pressure_dia", 14)
 
         latest_sleep = sleep_trends[-1]["value"] if sleep_trends else 7.5
         latest_steps = int(steps_trends[-1]["value"]) if steps_trends else 8420
@@ -341,6 +373,7 @@ class HealthMixin(_DbBase):
         latest_pp = pp_glucose_trends[-1]["value"] if pp_glucose_trends else 261.0
         latest_weight = weight_trends[-1]["value"] if weight_trends else 98.0
         latest_bp = int(bp_sys_trends[-1]["value"]) if bp_sys_trends else 125
+        latest_bp_dia = int(bp_dia_trends[-1]["value"]) if bp_dia_trends else 80
 
         metabolic = self.get_metabolic_profile()
 
@@ -361,7 +394,9 @@ class HealthMixin(_DbBase):
                 "fasting_glucose": latest_fasting,
                 "pp_glucose": latest_pp,
                 "weight_kg": latest_weight,
-                "blood_pressure_sys": latest_bp
+                "blood_pressure_sys": latest_bp,
+                "blood_pressure_dia": latest_bp_dia,
+                "blood_pressure": f"{latest_bp}/{latest_bp_dia}"
             },
             "trends": {
                 "water_ml": water_trends,
@@ -371,7 +406,8 @@ class HealthMixin(_DbBase):
                 "fasting_glucose": fasting_glucose_trends,
                 "pp_glucose": pp_glucose_trends,
                 "weight_kg": weight_trends,
-                "blood_pressure_sys": bp_sys_trends
+                "blood_pressure_sys": bp_sys_trends,
+                "blood_pressure_dia": bp_dia_trends
             }
         }
 

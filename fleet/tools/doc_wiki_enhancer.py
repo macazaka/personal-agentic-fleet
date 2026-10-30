@@ -145,6 +145,8 @@ def introspect_repository_state(repo_root: Path = REPO_ROOT) -> Dict[str, Any]:
     tests_dir = repo_root / "tests"
     if tests_dir.is_dir():
         for tf in sorted(tests_dir.glob("test_*.py")):
+            if tf.name.startswith("test_custom_"):
+                continue
             test_files_count += 1
             try:
                 txt = tf.read_text(encoding="utf-8", errors="ignore")

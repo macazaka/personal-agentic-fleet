@@ -110,11 +110,14 @@ def verify_agent_package_isolation(repo_root: Path = _ROOT) -> Dict[str, Any]:
 
 
 def verify_static_type_integrity(repo_root: Path = _ROOT) -> Dict[str, Any]:
-    """Proactively verifies zero Pyright/Pylance typing errors and zero HTML/CSS VS Code diagnostics across the codebase."""
-    import shutil
-    from fleet.tools.auto_fixer import audit_vscode_workspace_problems, run_auto_fixer
+    """Proactively verifies zero Pyright/Pylance typing errors and zero HTML/CSS/JS VS Code diagnostics across the codebase."""
+    from fleet.tools.auto_fixer import (
+        audit_vscode_workspace_problems,
+        resolve_pyright_command,
+        run_auto_fixer,
+    )
 
-    # 1. Verify HTML/CSS & VS Code Workspace Diagnostics (0 problems)
+    # 1. Verify HTML/CSS/JS & VS Code Workspace Diagnostics (0 problems)
     ws_audit = audit_vscode_workspace_problems(repo_root=repo_root)
     if ws_audit.get("problems_count", 0) > 0:
         run_auto_fixer(repo_root=repo_root, stage_changes=True, run_pyright_cli=False)
@@ -131,20 +134,14 @@ def verify_static_type_integrity(repo_root: Path = _ROOT) -> Dict[str, Any]:
         }
 
     # 2. Verify Pyright / Pylance Static Type Integrity
-    npx_cmd = shutil.which("npx")
-    if not npx_cmd:
-        for candidate in ["npx.cmd", "npx"]:
-            c_path = shutil.which(candidate)
-            if c_path:
-                npx_cmd = c_path
-                break
-    if not npx_cmd:
-        return {"status": "PASS", "detail": "0 HTML/CSS/VS Code problems (npx not found for pyright CLI)"}
+    pyright_cmd = resolve_pyright_command()
+    if not pyright_cmd:
+        return {"status": "PASS", "detail": "0 HTML/CSS/JS/VS Code problems (pyright/npx not found for CLI check)"}
 
+    full_cmd = [*pyright_cmd, "fleet", "tests", "conftest.py", "pong.py"]
     if os.name == "nt":
-        npx_bin = shutil.which("npx.cmd") or shutil.which("npx") or "npx.cmd"
         res = subprocess.run(
-            [npx_bin, "pyright", "fleet", "tests", "conftest.py", "pong.py"],
+            full_cmd,
             cwd=str(repo_root),
             capture_output=True,
             text=True,
@@ -152,9 +149,8 @@ def verify_static_type_integrity(repo_root: Path = _ROOT) -> Dict[str, Any]:
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
         )
     else:
-        npx_bin = shutil.which("npx") or "npx"
         res = subprocess.run(
-            [npx_bin, "pyright", "fleet", "tests", "conftest.py", "pong.py"],
+            full_cmd,
             cwd=str(repo_root),
             capture_output=True,
             text=True,
@@ -162,24 +158,33 @@ def verify_static_type_integrity(repo_root: Path = _ROOT) -> Dict[str, Any]:
         )
     if res.returncode != 0:
         try:
-            run_auto_fixer(repo_root=repo_root, stage_changes=True, run_pyright_cli=True)
-            res = subprocess.run(  # type: ignore[reportCallIssue]
-                [npx_bin, "pyright", "fleet", "tests", "conftest.py", "pong.py"],
-                cwd=str(repo_root),
-                capture_output=True,
-                text=True,
-                check=False,
-                **({"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)} if os.name == "nt" else {}),  # type: ignore[reportArgumentType]
-            )
+            run_auto_fixer(repo_root=repo_root, stage_changes=True, run_pyright_cli=False)
+            if os.name == "nt":
+                res = subprocess.run(
+                    full_cmd,
+                    cwd=str(repo_root),
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
+                )
+            else:
+                res = subprocess.run(
+                    full_cmd,
+                    cwd=str(repo_root),
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
         except Exception:
             pass
     if res.returncode != 0:
         return {
             "status": "FAIL",
             "detail": res.stdout or res.stderr,
-            "errors": [l for l in (res.stdout or "").splitlines() if "error:" in l]
+            "errors": [line for line in (res.stdout or "").splitlines() if "error:" in line],
         }
-    return {"status": "PASS", "detail": "0 Pyright errors, 0 HTML/CSS/VS Code problems"}
+    return {"status": "PASS", "detail": "0 Pyright/Pylance errors, 0 HTML/CSS/JS/VS Code problems"}
 
 
 def verify_documentation_integrity(repo_root: Path = _ROOT) -> Dict[str, Any]:
@@ -258,7 +263,7 @@ def run_preflight_gate(repo_root: Path = _ROOT) -> int:
     # 0. Autonomous Proactive Lifecycle (CodeQL/VS Code Auto-Fixer + Release Sync + Doc/Wiki Enhancer + SBOM)
     try:
         from fleet.tools.proactive_lifecycle import run_proactive_lifecycle
-        run_proactive_lifecycle(repo_root=repo_root, stage_changes=True, run_pyright_cli=False)
+        run_proactive_lifecycle(repo_root=repo_root, stage_changes=True, run_pyright_cli=False, create_tag=False)
     except Exception:
         pass
 
