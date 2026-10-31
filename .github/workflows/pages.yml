@@ -50,7 +50,7 @@ jobs:
       - name: Setup Pages
         id: setup_pages
         if: steps.check_pages.outputs.enabled == 'true'
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
         continue-on-error: true
 
       - name: Build Documentation Site
