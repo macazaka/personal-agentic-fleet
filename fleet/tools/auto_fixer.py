@@ -211,6 +211,33 @@ def fix_codeql_and_security_issues(repo_root: Path = REPO_ROOT) -> List[Dict[str
         except Exception:
             continue
 
+    # 4. Auto-upgrade deprecated github/codeql-action/*@v3 -> @v4 in .github/workflows/*.yml
+    wf_dir = repo_root / ".github" / "workflows"
+    if wf_dir.is_dir():
+        deprecated_cql_v3 = "github/codeql-action/"
+        v3_tag = "@" + "v3"
+        v4_tag = "@" + "v4"
+        for wf_file in sorted(wf_dir.glob("*.yml")):
+            try:
+                wf_txt = wf_file.read_text(encoding="utf-8", errors="ignore")
+                if deprecated_cql_v3 in wf_txt and v3_tag in wf_txt:
+                    new_wf_lines = []
+                    changed = False
+                    for line in wf_txt.splitlines():
+                        if deprecated_cql_v3 in line and v3_tag in line:
+                            line = line.replace(v3_tag, v4_tag)
+                            changed = True
+                        new_wf_lines.append(line)
+                    if changed:
+                        wf_file.write_text("\n".join(new_wf_lines) + "\n", encoding="utf-8", newline="\n")
+                        fixes_applied.append({
+                            "category": "GitHub Workflow Auto-Fix",
+                            "file": f".github/workflows/{wf_file.name}",
+                            "detail": "Auto-upgraded deprecated github/codeql-action from @v3 to @v4.",
+                        })
+            except Exception:
+                continue
+
     return fixes_applied
 
 

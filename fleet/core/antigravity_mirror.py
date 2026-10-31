@@ -916,17 +916,29 @@ def extract_task_fingerprint(text: str) -> Dict[str, Any]:
     if not text:
         return {"agent_targets": set(), "files": set(), "domains": set(), "key_terms": set()}
 
-    lower = text.lower()
+    lower = text[:65536].lower()
 
     # 1. Agent Directives (@agent)
     agent_targets = set(re.findall(r"@([a-zA-Z0-9_-]+)", lower))
 
-    # 2. File and Path References
+    # 2. File and Path References (strictly O(N) non-backtracking token scan — immune to polynomial ReDoS)
     files = set()
-    file_matches = re.findall(r"[\w.-]+/(?:[\w.-]+/)*[\w.-]+\.[a-zA-Z0-9]+|[\w.-]+\.[a-zA-Z0-9]{2,5}", lower)
-    for fm in file_matches:
-        base = os.path.basename(fm)
-        if not re.fullmatch(r"\d+\.\d+", base) and "." in base:
+    delim_map = str.maketrans({c: " " for c in ",;:()[]{}<>\"'`"})
+    for raw_tok in lower.translate(delim_map).split():
+        tok = raw_tok.strip(".,;:!?").replace("\\", "/")
+        if not tok or "." not in tok:
+            continue
+        base = tok.rsplit("/", 1)[-1]
+        if "." not in base:
+            continue
+        stem, ext = base.rsplit(".", 1)
+        if not stem or not ext or not ext.isalnum():
+            continue
+        if "/" not in tok and not (2 <= len(ext) <= 5):
+            continue
+        if stem.isdigit() and ext.isdigit():
+            continue
+        if all(ch.isalnum() or ch in "_-." for ch in stem):
             files.add(base)
 
     # 3. Domain Taxonomy Mapping
@@ -1405,23 +1417,27 @@ def _execute_agy_or_fallback(prompt_text: str, images: Optional[List[str]] = Non
                     "--disable-slash-commands",
                     "--dangerously-skip-permissions",
                 ]
-                if conv_id:
+                if conv_id and all(ch.isalnum() or ch in "_-" for ch in conv_id):
                     base_flags.extend(["--conversation", conv_id])
-                direct_cmd = [str(agy_exe), "-p", full_prompt] + base_flags
-                use_stdin = os.name == "nt" and len(subprocess.list2cmdline(direct_cmd)) > 27000
-                run_kwargs: Dict[str, Any] = {
-                    "capture_output": True,
-                    "text": True,
-                    "encoding": "utf-8",
-                    "errors": "replace",
-                    "timeout": 600,
-                    "cwd": str(Path.cwd()),
-                    "creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0,
-                }
-                if use_stdin:
-                    stdin_cmd = [str(agy_exe), "-p", "", "--input-format", "text"] + base_flags
-                    return subprocess.run(stdin_cmd, input=full_prompt, **run_kwargs)
-                return subprocess.run(direct_cmd, stdin=subprocess.DEVNULL, **run_kwargs)
+                stdin_cmd = [
+                    str(agy_exe),
+                    "-p",
+                    "Follow all instructions and respond to the complete prompt piped via stdin.",
+                    "--input-format",
+                    "text",
+                ] + base_flags
+                return subprocess.run(
+                    stdin_cmd,
+                    input=full_prompt,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=600,
+                    cwd=str(Path.cwd()),
+                    shell=False,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0,
+                )
 
             res = _run_agy_cli_turn(_AFCC_CLI_CONVERSATION_ID)
             # If continuing a stale conversation failed, retry once as a fresh turn

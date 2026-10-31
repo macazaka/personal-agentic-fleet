@@ -2,7 +2,7 @@
 
 Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operations Wiki**!
 
-[![Release: v2.13.0](https://img.shields.io/badge/Release-v2.13.0-00b4d8.svg)](Release-Notes)
+[![Release: v2.13.1](https://img.shields.io/badge/Release-v2.13.1-00b4d8.svg)](Release-Notes)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%5B12%20Layers%5D-brightgreen.svg)](Security-Model)
@@ -52,26 +52,24 @@ Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operat
 | **[[Release-Notes]]** | Complete semantic version history and categorized changelog notes (synchronized with `CHANGELOG.md` at `v2.8.6`). |
 
 <!-- AUTO-LATEST-RELEASE:START -->
-## 🆕 Latest Release Highlights (`v2.13.0`)
+## 🆕 Latest Release Highlights (`v2.13.1`)
 
-> **Live Codebase Inventory**: `7` Built-In Agents • `123` REST API Endpoints • `33` Core Microkernel Modules • `19` Automation Tools • `475` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
+> **Live Codebase Inventory**: `7` Built-In Agents • `123` REST API Endpoints • `33` Core Microkernel Modules • `20` Automation Tools • `480` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
 
 ### Added
-- **Zero-Code Agent Studio Phases 1–6 & Multi-Document Guided Agent Creation (`fleet/core/agent_studio.py`, `fleet/core/document_extractor.py`, `fleet/core/studio_phase6.py`, `fleet/web/static/js/create_agent.js`)**:
-  - **Multi-Attachment Document-Guided Agent Creation**: Upload multiple attachments (`PDF`, `DOCX`, `XLSX`, `CSV`, `EML`, `ICS`, `PNG/JPG/WEBP`, `TXT/MD/JSON`) directly inside Step 1 of Zero-Code Agent Studio (`POST /api/studio/analyze_documents`). Connected LLMs (`HyperscalerGateway` / Antigravity Live / Gemini / OpenAI / Bedrock / Claude / Ollama) and deterministic `$0.00` domain extractors automatically synthesize the custom agent's blueprint, typed SQLite schema, declarative UI blocks, vaulted documents (`fleet/data/user/agent_docs/<id>/`), and pre-seeded SQLite tracking items on activation.
-  - **12 Declarative SQLite-Backed UI Widget Blocks**: Expanded custom agent dashboards with `document_vault` (multi-file upload, watched drop-folder `Scan Inbox`, and AI tracking extraction), `kanban_board` (`Active / Safe`, `Due Soon / Attention`, `Completed`), `sparkline_chart`, `countdown_cards`, and `agent_chat` (`Ask & Command Agent` Grounded RAG + natural-language `add` / `renew` / `complete` commands).
-  - **Smart Lifecycle Automation, Watched Drop-Folders & Multi-Agent Squads**: Added background drop-folder auto-ingestion (`fleet/data/user/inbox/<agent_id>/`), 1-click cyclic renewal roll-forward (`monthly`, `quarterly`, `semi_annual`, `annual`) with renewal audit logs, outbound action hooks (`auto_create_task`, `desktop_toast`, `markdown_report`, `emit_followup_event`), and 1-click Multi-Agent Squad blueprints (`POST /api/studio/deploy_squad`) wired across `DeterministicEventBus` playbooks.
-- **AI Evolution Advisor for `Evolve in Studio` (`POST /api/studio/evolve/suggestions`, `POST /api/studio/evolve/parse_custom`, `POST /api/settings/agents/evolve`)**:
-  - Clicking **Evolve in Studio** on any custom agent automatically queries AFCC's connected LLM (with instant deterministic domain-tailored fallback) to generate **10 non-redundant improvements** tailored to the agent's current manifest, fields, widgets, triggers, hooks, and tracked record count.
-  - Interactive checklist lets users pick-and-choose improvements (`Select All` / `Clear`, live preview of `+Widget`, `+Field`, `+Trigger`, `+Hook`, and `+Permission` capability pills), add custom free-text improvements parsed into structured manifest patches, hot-reload in place while preserving 100% of existing SQLite records, or launch **Apply & Deep-Build** directly into Antigravity Live.
+- **Autonomous Post-Commit GitHub Pipeline, Vulnerability & CodeQL Sentinel (`fleet/tools/github_pipeline_sentinel.py`, `fleet/tools/install_git_hooks.py`, `fleet/agents/pr_review/agent.py`)**:
+  - Automatically audits GitHub Actions check-runs, CodeQL SARIF annotations & `/code-scanning/alerts`, GitHub Dependabot & live zero-auth OSV.dev CVE/GHSA advisories (`https://api.osv.dev/v1/querybatch`), and Secret Scanning + local 12-layer SAST checks after every commit and push (`post-commit` & `pre-push` detached background sentinel) and every 30 minutes via `PRReviewAgent` (`GET` / `POST /api/pr_review/pipeline_audit`).
+  - Automatically applies deterministic fixes (`auto_fixer.py` + `pyproject.toml` vulnerable dependency floor auto-bumping) and logs/dispatches self-healing remediation tasks to Antigravity Live whenever a remote pipeline or security check fails.
+- **Expanded Pre-Commit CodeQL ReDoS & Workflow Deprecation Guards (`fleet/tools/security_scanner.py`, `fleet/tools/auto_fixer.py`)**:
+  - Added proactive SAST detection for overlapping polynomial ReDoS regex quantifiers (`CWE-1333`) and deprecated `github/codeql-action@v3` references (with automatic `@v3` -> `@v4` upgrade in `auto_fixer.py`).
+
+### Security
+- **Eliminated All GitHub CodeQL Alerts & Dependency Advisories (`fleet/core/antigravity_mirror.py`, `fleet/core/hyperscalers.py`, `pyproject.toml`)**:
+  - Replaced overlapping regex path extraction in `extract_task_fingerprint()` with a linear `O(N)` zero-regex token parser (`0` `py/polynomial-redos` alerts).
+  - Hardened `_normalize_agy_cli_model()` and `_call_antigravity_cli()` / `_run_agy_cli_turn()` so user prompts are piped strictly over `stdin` (`--input-format text`) with untainted constant/allowlisted `argv` flags (`0` `py/command-line-injection` alerts).
+  - Bumped dev dependency floor `pytest>=9.0.3` in `pyproject.toml` to remediate `GHSA-6w46-j5rx-g56g` / `PYSEC-2026-1845`.
 
 ### Fixed
-- **Universal Async Button Progress Feedback & Guaranteed Failure Notifications (`fleet/web/static/js/core.js`, `fleet/web/static/js/create_agent.js`, `fleet/web/static/js/fleet_navigator.js`, `fleet/web/templates/dashboard.html`)**:
-  - Added global `runFleetAsyncAction()` with immediate disabled/spinner button state, live elapsed-seconds counter (`1s`, `2s`...), persistent `#studioGlobalActionBanner`, and upgraded high-visibility error toasts (`showFleetToast`) across all Agent Studio and Custom Agent runtime buttons so users always see active progress and explicit failure notifications.
-  - Fixed a post-fetch ReferenceError in `deepBuildInAntigravity` (`activeMode`), propagated `dispatch_status` errors from `/api/studio/deep_build`, and resolved lazy `srv.db` initialization (`_resolve_live_db()`) so `Extract Items` never fails with `Database unavailable`.
-- **Structured Markdown & Grounded RAG Response Formatting (`fleet/core/studio_phase6.py`, `fleet/web/static/js/core.js`, `fleet/web/static/js/create_agent.js`)**:
-  - Upgraded `answer_custom_agent_chat` to retrieve query-relevant clauses across full vaulted PDFs/documents, route synthesis through AFCC's active connected LLM (with structured multi-section Markdown fallback), strip internal vault timestamp/hash prefixes from filenames, and deduplicate aliased metadata keys (`policy_number` / `invoice_number` / `reference_code`).
-  - Upgraded global `formatMarkdown()` to render headings, bulleted/numbered lists, Markdown tables, blockquotes, fenced code blocks, and inline code pills, plus automatic legacy single-line RAG response reflow (`normalizeLegacyRagResponse`).
-- **Workspace Hygiene & Static Type Integrity (`fleet/core/playbook_engine.py`, `fleet/core/registry.py`, `fleet/core/document_extractor.py`)**:
-  - Fixed `PLAYBOOKS_PATH` in `playbook_engine.py` to resolve cleanly under `DATA_DIR / "user" / "playbooks.json"`, added automatic cleanup of local `tests/test_custom_<id>.py` files on custom agent deletion, and enforced strict zero-diagnostic Pyright/Pylance type narrowing across all new Studio modules.
+- **GitHub Actions Workflow Hygiene (`.github/workflows/codeql.yml`, `.github/workflows/pages.yml`)**:
+  - Upgraded `github/codeql-action/init` and `github/codeql-action/analyze` from `@v3` to `@v4`, and added a Pages enablement API pre-check in `pages.yml` to prevent `configure-pages` failure annotations when GitHub Pages is not enabled.
 <!-- AUTO-LATEST-RELEASE:END -->

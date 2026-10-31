@@ -302,25 +302,30 @@ def _is_ollama_reachable() -> bool:
         return False
 
 
+_STATIC_AGY_CLI_MODELS = (
+    "gemini-4-argon-high", "gemini-4-argon-medium", "gemini-4-argon-low",
+    "gemini-3.8-flash-high", "gemini-3.8-flash-medium", "gemini-3.8-flash-low",
+    "claude-opus-5-5-high", "claude-opus-5-5-medium", "claude-opus-5-5-low",
+    "claude-sonnet-5-5-high", "claude-sonnet-5-5-medium", "claude-sonnet-5-5-low",
+    "gpt-oss-120b-medium",
+)
+
+
 def _normalize_agy_cli_model(model: Optional[str]) -> str:
-    """Maps generic or UI model identifiers to valid Antigravity CLI (`agy`) model IDs."""
-    valid_agy_models = {
-        "gemini-4-argon-high", "gemini-4-argon-medium", "gemini-4-argon-low",
-        "gemini-3.8-flash-high", "gemini-3.8-flash-medium", "gemini-3.8-flash-low",
-        "claude-opus-5-5-high", "claude-opus-5-5-medium", "claude-opus-5-5-low",
-        "claude-sonnet-5-5-high", "claude-sonnet-5-5-medium", "claude-sonnet-5-5-low",
-        "gpt-oss-120b-medium",
-    }
-    try:
-        from fleet.core.antigravity_mirror import _DYNAMIC_AGY_MODEL_IDS
-        valid_agy_models = valid_agy_models | {x.lower() for x in _DYNAMIC_AGY_MODEL_IDS}
-    except Exception:
-        pass
+    """Maps generic or UI model identifiers to untainted Antigravity CLI (`agy`) model IDs."""
     if not model:
         return "gemini-3.8-flash-high"
     m = model.strip().lower()
-    if m in valid_agy_models:
-        return m
+    for allowed_static in _STATIC_AGY_CLI_MODELS:
+        if m == allowed_static:
+            return allowed_static
+    try:
+        from fleet.core.antigravity_mirror import _DYNAMIC_AGY_MODEL_IDS
+        dyn_models = {str(x).strip().lower() for x in _DYNAMIC_AGY_MODEL_IDS}
+        if m in dyn_models and 2 <= len(m) <= 64 and all(ch.isalnum() or ch in "._-" for ch in m):
+            return _to_clean_utf8_bytes(m).decode("utf-8")
+    except Exception:
+        pass
     tier = "low" if "low" in m else ("medium" if "medium" in m else "high")
     if "argon" in m or "gemini-4" in m:
         return f"gemini-4-argon-{tier}"
@@ -494,70 +499,36 @@ class HyperscalerGateway:
         effort_level = "low" if "low" in agy_model else ("medium" if "medium" in agy_model else "high")
         agy_cwd = tempfile.gettempdir()
         creation_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
-        cmd = [
+
+        # Always pipe user prompt text via stdin rather than OS command-line argv:
+        # 1. Eliminates CodeQL py/command-line-injection taint on argv (only untainted constants & allowlisted model ID).
+        # 2. Eliminates Windows CreateProcessW 32,767-character command-line overflow ([WinError 206]).
+        stdin_cmd = [
             agy_path,
-            "-p", full_prompt,
-            "--model", agy_model,
-            "--effort", effort_level,
-            "--output-format", "json",
+            "-p",
+            "Follow all instructions and respond to the complete prompt piped via stdin.",
+            "--input-format",
+            "text",
+            "--model",
+            agy_model,
+            "--effort",
+            effort_level,
+            "--output-format",
+            "json",
             "--disable-slash-commands",
         ]
-
-        # Guard against Windows CreateProcessW 32,767-char command-line limit ([WinError 206])
-        cmdline_too_long = os.name == "nt" and len(subprocess.list2cmdline(cmd)) > 27000
-        res = None
-        if cmdline_too_long:
-            stdin_cmd = [
-                agy_path,
-                "-p", "Follow all instructions and analyze the complete document input piped via stdin.",
-                "--input-format", "text",
-                "--model", agy_model,
-                "--effort", effort_level,
-                "--output-format", "json",
-                "--disable-slash-commands",
-            ]
-            try:
-                cand_res = subprocess.run(
-                    stdin_cmd,
-                    input=full_prompt,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
-                    timeout=90,
-                    cwd=agy_cwd,
-                    creationflags=creation_flags,
-                )
-                if cand_res.returncode == 0 and (cand_res.stdout or "").strip():
-                    res = cand_res
-            except Exception:
-                res = None
-
-            if res is None:
-                safe_prompt = compress_prompt(full_prompt, max_chars=21000).get("text", full_prompt[:21000])
-                while safe_prompt.startswith("-"):
-                    safe_prompt = safe_prompt.lstrip("-").strip()
-                cmd = [
-                    agy_path,
-                    "-p", safe_prompt,
-                    "--model", agy_model,
-                    "--effort", effort_level,
-                    "--output-format", "json",
-                    "--disable-slash-commands",
-                ]
-
-        if res is None:
-            res = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=90,
-                cwd=agy_cwd,
-                stdin=subprocess.DEVNULL,
-                creationflags=creation_flags,
-            )
+        res = subprocess.run(
+            stdin_cmd,
+            input=full_prompt,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=90,
+            cwd=agy_cwd,
+            shell=False,
+            creationflags=creation_flags,
+        )
         raw_out = (res.stdout or "").strip()
         if not raw_out:
             err_msg = (res.stderr or "").strip() or f"exit code {res.returncode}"

@@ -1,6 +1,6 @@
 # 🧠 Cognitive Fleet Mind & Harmony Index Deep-Dive
 
-> **Release Version**: `v2.13.0` | **Package Root**: `fleet/core/mind/` (`gestalt.py`, `brain.py`, `consciousness.py`, `subconsciousness.py`, `soul.py`) | **CLI Tool**: `python -m fleet.tools.fleet_mind`
+> **Release Version**: `v2.13.1` | **Package Root**: `fleet/core/mind/` (`gestalt.py`, `brain.py`, `consciousness.py`, `subconsciousness.py`, `soul.py`) | **CLI Tool**: `python -m fleet.tools.fleet_mind`
 
 The **Cognitive Fleet Mind** (`CognitiveFleetMind` in `fleet/core/mind/gestalt.py`) is the self-regulating neurological and ethical architecture of Personal Agentic Fleet. Instead of treating background daemons, SQLite storage, and plug-and-play agents as disconnected scripts, Fleet unifies them into a **4-Layer Cognitive Gestalt**:
 

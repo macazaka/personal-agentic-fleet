@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "personal-agentic-fleet"
-version = "2.13.0"
+version = "2.13.1"
 description = "An open-source, local-first agentic operating system with a plug-and-play microkernel architecture."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -36,7 +36,7 @@ full = [
     "google-auth-oauthlib>=1.1.0",
 ]
 dev = [
-    "pytest>=7.4.0",
+    "pytest>=9.0.3",
     "coverage>=7.3.0",
     "pygame-ce>=2.5.0",
 ]

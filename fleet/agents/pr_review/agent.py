@@ -91,6 +91,24 @@ class PRReviewAgent(FleetAgent):
             ci = self.check_ci_status()
             handler._send_json({"status": "ok", "prs": prs, "ci": ci})
 
+        @router.get("/api/pr_review/pipeline_audit")
+        def get_github_pipeline_audit(handler: Any, parsed_url: Any):
+            """Returns the latest GitHub Actions pipeline, CodeQL scan, and dependency vulnerability audit."""
+            report = self.audit_github_pipelines(wait_for_completion=False, auto_remediate=True)
+            handler._send_json({"status": "ok", "audit": report})
+
+        @router.post("/api/pr_review/pipeline_audit")
+        def post_github_pipeline_audit(handler: Any, body: Dict[str, Any]):
+            """Triggers an on-demand GitHub pipeline, CodeQL SARIF, and OSV/Dependabot vulnerability audit & auto-fix."""
+            payload = body if isinstance(body, dict) else {}
+            report = self.audit_github_pipelines(
+                commit_sha=str(payload.get("sha") or ""),
+                wait_for_completion=bool(payload.get("wait", False)),
+                auto_remediate=bool(payload.get("auto_remediate", True)),
+                dispatch_to_antigravity=bool(payload.get("dispatch_antigravity", False)),
+            )
+            handler._send_json({"status": "ok", "audit": report})
+
     def audit_pull_requests(self) -> Dict[str, Any]:
         """
         Polls GitHub API for open PRs, audits status checks, and returns actionable recommendations.
@@ -172,14 +190,42 @@ class PRReviewAgent(FleetAgent):
         except Exception as e:
             return {"status": "ERROR", "error": str(e)}
 
+    def audit_github_pipelines(
+        self,
+        commit_sha: str = "",
+        wait_for_completion: bool = False,
+        auto_remediate: bool = True,
+        dispatch_to_antigravity: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Audits GitHub Actions check-runs, CodeQL SARIF annotations & code-scanning alerts,
+        and Dependabot + OSV.dev dependency vulnerabilities with automatic remediation.
+        """
+        from fleet.tools.github_pipeline_sentinel import run_github_pipeline_audit
+
+        return run_github_pipeline_audit(
+            repo=self.repo,
+            commit_sha=commit_sha,
+            wait_for_completion=wait_for_completion,
+            auto_remediate=auto_remediate,
+            dispatch_to_antigravity=dispatch_to_antigravity,
+        )
+
     def execute_task(self, task: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         task_lower = task.lower()
+        if "pipeline" in task_lower or "codeql" in task_lower or "vuln" in task_lower or "sentinel" in task_lower:
+            p = payload if isinstance(payload, dict) else {}
+            return self.audit_github_pipelines(
+                commit_sha=str(p.get("sha") or ""),
+                wait_for_completion=bool(p.get("wait", False)),
+                auto_remediate=bool(p.get("auto_remediate", True)),
+            )
         if "pr" in task_lower or "pull request" in task_lower:
             return self.audit_pull_requests()
         if "ci" in task_lower or "check" in task_lower or "status" in task_lower:
             return self.check_ci_status()
         return {
             "status": "UNKNOWN_TASK",
-            "supported_tasks": ["audit_pull_requests", "check_ci_status"],
+            "supported_tasks": ["audit_pull_requests", "check_ci_status", "audit_github_pipelines"],
         }
 

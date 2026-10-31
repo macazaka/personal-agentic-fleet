@@ -1,4 +1,4 @@
-# Unified Fleet CLI & Proactive Automation Tools (`v2.13.0`)
+# Unified Fleet CLI & Proactive Automation Tools (`v2.13.1`)
 
 Personal Agentic Fleet provides a complete zero-token (`$0.00`) command-line interface and proactive automation suite that keeps code quality, release versions, security invariants, documentation, and the GitHub Wiki continuously synchronized.
 
@@ -33,7 +33,7 @@ Run via `fleet <command>`, `python -m fleet <command>`, or `.\fleet.bat <command
 Personal Agentic Fleet enforces a strict **Two-Tier Progressive Disclosure Model** across `README.md`, `docs/*.md`, and `wiki/*.md`:
 - **Tier 1 (`README.md`)**: Executive summary, OS compatibility table, 60-second installation, auto-synchronized What's New release box, and direct deep-dive links into the live GitHub Wiki.
 - **Tier 2 (`wiki/*.md` — 21 Deep-Dive Guides)**: Exhaustive subsystem specifications, mathematical formulas, SQL schemas, live AST-introspected REST API inventories, and operational runbooks.
-- **Automated Version Parity (`release_manager.py` & `doc_wiki_enhancer.py`)**: On every commit and release tag, `run_proactive_release_check()` and `run_proactive_doc_wiki_enhancement()` synchronize the exact semantic version (`v2.13.0`) across `fleet/__init__.py`, `fleet/config.py`, `pyproject.toml`, `dashboard.html`, `README.md`, `CHANGELOG.md`, `wiki/Home.md`, `wiki/_Sidebar.md`, `wiki/_Footer.md`, `wiki/Release-Notes.md`, and all deep-dive Wiki headers.
+- **Automated Version Parity (`release_manager.py` & `doc_wiki_enhancer.py`)**: On every commit and release tag, `run_proactive_release_check()` and `run_proactive_doc_wiki_enhancement()` synchronize the exact semantic version (`v2.13.1`) across `fleet/__init__.py`, `fleet/config.py`, `pyproject.toml`, `dashboard.html`, `README.md`, `CHANGELOG.md`, `wiki/Home.md`, `wiki/_Sidebar.md`, `wiki/_Footer.md`, `wiki/Release-Notes.md`, and all deep-dive Wiki headers.
 
 ---
 
@@ -47,7 +47,7 @@ Executed automatically on every `git commit` before code is staged:
 
 ---
 
-## 4. Proactive Automation Modules (`19` Tools)
+## 4. Proactive Automation Modules (`20` Tools)
 
 | Python Module | Source File | Purpose |
 | :--- | :--- | :--- |
@@ -60,6 +60,7 @@ Executed automatically on every `git commit` before code is staged:
 | `fleet.tools.fleet_doctor` | [`fleet/tools/fleet_doctor.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/tools/fleet_doctor.py) | Fleet Doctor — End-to-End Runtime, Python Version (>=3.10), ACL & Security Health Verifier. |
 | `fleet.tools.fleet_mind` | [`fleet/tools/fleet_mind.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/tools/fleet_mind.py) | Fleet Mind CLI — Command-line introspection & trigger for the 4 cognitive layers. |
 | `fleet.tools.github_branch_protection` | [`fleet/tools/github_branch_protection.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/tools/github_branch_protection.py) | GitHub Rulesets & Local Main Branch Protection Verifier and Provisioner for Personal Agentic Fleet. |
+| `fleet.tools.github_pipeline_sentinel` | [`fleet/tools/github_pipeline_sentinel.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/tools/github_pipeline_sentinel.py) | Autonomous Post-Commit GitHub Pipeline, Vulnerability & Code-Scan Sentinel for Personal Agentic Fleet. |
 | `fleet.tools.install_git_hooks` | [`fleet/tools/install_git_hooks.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/tools/install_git_hooks.py) | Git Pre-Commit & Pre-Push Security & CI Quality Gate Installer for Personal Agentic Fleet. |
 | `fleet.tools.install_service` | [`fleet/tools/install_service.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/tools/install_service.py) | Workstation Service Daemonization Installer for Personal Agentic Fleet. |
 | `fleet.tools.preflight_gate` | [`fleet/tools/preflight_gate.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/tools/preflight_gate.py) | Pre-Push Quality Gate and Preflight Verifier for Personal Agentic Fleet. |

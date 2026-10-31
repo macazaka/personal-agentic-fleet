@@ -153,9 +153,18 @@ schedules:
   - id: pr_review_check_ci
     agent: pr_review
     task: check_ci_status
-    description: "Hourly audit of GitHub pull requests and main branch CI quality gates"
+    description: "Hourly audit of GitHub pull requests, Actions pipelines, CodeQL alerts, and dependency vulnerabilities"
     schedule_type: interval
     interval_hours: 1
-    enabled: false
+    enabled: true
+    notify: false
+
+  - id: pr_review_pipeline_sentinel
+    agent: pr_review
+    task: audit_github_pipelines
+    description: "Continuous post-commit GitHub Actions, CodeQL SARIF, and OSV/Dependabot vulnerability sentinel with auto-remediation"
+    schedule_type: interval
+    interval_minutes: 30
+    enabled: true
     notify: false
 

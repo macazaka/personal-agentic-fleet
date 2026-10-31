@@ -414,6 +414,19 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
                     sast_hits.append(hit)
                     findings.append(hit)
 
+                # Check for Polynomial ReDoS overlapping dot-quantifier regexes (CodeQL py/polynomial-redos)
+                if re.search(r'\bre\.(?:findall|search|match|fullmatch|sub|compile)\s*\(', stripped):
+                    if ("\\w.-]+" in stripped and "\\." in stripped) or re.search(r'\(\?:\.\+\)\+|\(\?:\.\*\)\+', stripped):
+                        hit = {
+                            "severity": "HIGH",
+                            "category": "SAST Polynomial ReDoS (CWE-1333)",
+                            "file": rel_path,
+                            "line": line_no,
+                            "detail": "Overlapping regex quantifier (py/polynomial-redos risk). Use linear O(N) string parsing or non-overlapping character classes.",
+                        }
+                        sast_hits.append(hit)
+                        findings.append(hit)
+
             # 2. AST parsing for SQL Injection f-strings (CWE-089)
             try:
                 tree = ast.parse(content, filename=str(fp))
@@ -434,6 +447,27 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
                 pass
         except Exception:
             continue
+
+    # 3. GitHub Actions Workflow Deprecation & CodeQL Action Hygiene
+    wf_dir = repo_root / ".github" / "workflows"
+    if wf_dir.is_dir():
+        for wf_file in sorted(wf_dir.glob("*.yml")):
+            try:
+                wf_lines = wf_file.read_text(encoding="utf-8", errors="ignore").splitlines()
+                rel_wf = f".github/workflows/{wf_file.name}"
+                for idx, wf_line in enumerate(wf_lines, 1):
+                    if "github/codeql-action/" in wf_line and "@v3" in wf_line:
+                        hit = {
+                            "severity": "MEDIUM",
+                            "category": "Deprecated GitHub CodeQL Action",
+                            "file": rel_wf,
+                            "line": idx,
+                            "detail": "Deprecated github/codeql-action@v3 detected; upgrade to @v4.",
+                        }
+                        sast_hits.append(hit)
+                        findings.append(hit)
+            except Exception:
+                continue
 
     checks.append({
         "id": "sast_audit",

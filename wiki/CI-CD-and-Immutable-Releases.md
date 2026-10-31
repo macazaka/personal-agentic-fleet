@@ -1,6 +1,6 @@
 # 🚀 CI/CD Pipelines, GitHub Actions & Immutable Releases Deep-Dive
 
-> **Release Version**: `v2.13.0` | **Workflows**: `.github/workflows/release.yml`, `.github/workflows/ci.yml`, `.github/workflows/security.yml`, `.github/workflows/codeql.yml` | **Local Tools**: `fleet/tools/release_manager.py`, `fleet/tools/auto_fixer.py`
+> **Release Version**: `v2.13.1` | **Workflows**: `.github/workflows/release.yml`, `.github/workflows/ci.yml`, `.github/workflows/security.yml`, `.github/workflows/codeql.yml` | **Local Tools**: `fleet/tools/release_manager.py`, `fleet/tools/auto_fixer.py`
 
 Personal Agentic Fleet enforces a zero-regression, cryptographically verifiable release and Continuous Integration architecture across both **local Git hooks** and **GitHub Actions cloud runners**.
 

@@ -1,6 +1,6 @@
 # 🚀 Installation, Multi-OS Prerequisites & Quick Start Deep-Dive
 
-> **Release Version**: `v2.13.0` | **Bootstrap Scripts**: `bootstrap.ps1`, `fleet.bat`, `fleet/tools/install_service.py`, `fleet/tools/install_git_hooks.py`
+> **Release Version**: `v2.13.1` | **Bootstrap Scripts**: `bootstrap.ps1`, `fleet.bat`, `fleet/tools/install_service.py`, `fleet/tools/install_git_hooks.py`
 
 This guide provides complete, step-by-step installation, cryptographic vault initialization, and background service configuration instructions across **Windows 10/11 (64-bit)**, **macOS (12+ Apple Silicon & Intel)**, and **Linux (Ubuntu, Debian, Fedora, Arch)**.
 

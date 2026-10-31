@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.13.1] - 2026-10-31
+
+### Added
+- **Autonomous Post-Commit GitHub Pipeline, Vulnerability & CodeQL Sentinel (`fleet/tools/github_pipeline_sentinel.py`, `fleet/tools/install_git_hooks.py`, `fleet/agents/pr_review/agent.py`)**:
+  - Automatically audits GitHub Actions check-runs, CodeQL SARIF annotations & `/code-scanning/alerts`, GitHub Dependabot & live zero-auth OSV.dev CVE/GHSA advisories (`https://api.osv.dev/v1/querybatch`), and Secret Scanning + local 12-layer SAST checks after every commit and push (`post-commit` & `pre-push` detached background sentinel) and every 30 minutes via `PRReviewAgent` (`GET` / `POST /api/pr_review/pipeline_audit`).
+  - Automatically applies deterministic fixes (`auto_fixer.py` + `pyproject.toml` vulnerable dependency floor auto-bumping) and logs/dispatches self-healing remediation tasks to Antigravity Live whenever a remote pipeline or security check fails.
+- **Expanded Pre-Commit CodeQL ReDoS & Workflow Deprecation Guards (`fleet/tools/security_scanner.py`, `fleet/tools/auto_fixer.py`)**:
+  - Added proactive SAST detection for overlapping polynomial ReDoS regex quantifiers (`CWE-1333`) and deprecated `github/codeql-action@v3` references (with automatic `@v3` -> `@v4` upgrade in `auto_fixer.py`).
+
+### Security
+- **Eliminated All GitHub CodeQL Alerts & Dependency Advisories (`fleet/core/antigravity_mirror.py`, `fleet/core/hyperscalers.py`, `pyproject.toml`)**:
+  - Replaced overlapping regex path extraction in `extract_task_fingerprint()` with a linear `O(N)` zero-regex token parser (`0` `py/polynomial-redos` alerts).
+  - Hardened `_normalize_agy_cli_model()` and `_call_antigravity_cli()` / `_run_agy_cli_turn()` so user prompts are piped strictly over `stdin` (`--input-format text`) with untainted constant/allowlisted `argv` flags (`0` `py/command-line-injection` alerts).
+  - Bumped dev dependency floor `pytest>=9.0.3` in `pyproject.toml` to remediate `GHSA-6w46-j5rx-g56g` / `PYSEC-2026-1845`.
+
+### Fixed
+- **GitHub Actions Workflow Hygiene (`.github/workflows/codeql.yml`, `.github/workflows/pages.yml`)**:
+  - Upgraded `github/codeql-action/init` and `github/codeql-action/analyze` from `@v3` to `@v4`, and added a Pages enablement API pre-check in `pages.yml` to prevent `configure-pages` failure annotations when GitHub Pages is not enabled.
+
+---
+
 ## [2.13.0] - 2026-10-31
 
 ### Added
