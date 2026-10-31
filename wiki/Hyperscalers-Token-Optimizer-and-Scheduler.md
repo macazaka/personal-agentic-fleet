@@ -1,6 +1,6 @@
 # 🌐 Hyperscalers, 8-Layer Zero-Token Optimizer & Scheduler Deep-Dive
 
-> **Release Version**: `v2.13.1` | **Subsystems**: `fleet/core/token_optimizer.py`, `fleet/core/hyperscalers.py`, `fleet/core/dev_tools.py`, `fleet/core/scheduler.py`, `fleet/core/yaml_helper.py`
+> **Release Version**: `v2.13.2` | **Subsystems**: `fleet/core/token_optimizer.py`, `fleet/core/hyperscalers.py`, `fleet/core/dev_tools.py`, `fleet/core/scheduler.py`, `fleet/core/yaml_helper.py`
 
 This guide provides an exhaustive architectural and algorithmic reference for Personal Agentic Fleet's **8-Layer Zero-Token & Cost Optimization Engine**, **Universal Hyperscaler Gateway (with pure-stdlib AWS SigV4 signing)**, **AI Developer Tools Bridge**, and **Deterministic Cron/Interval Scheduler**.
 

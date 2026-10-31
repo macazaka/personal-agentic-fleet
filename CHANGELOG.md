@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.13.2] - 2026-10-31
+
+### Security
+- **CodeQL TLSv1.2+ Protocol Floor & Clear-Text Secret Taint Hardening (`fleet/tools/github_pipeline_sentinel.py`, `fleet/tools/security_scanner.py`, `fleet/tools/auto_fixer.py`)**:
+  - Enforced explicit `ctx.minimum_version = ssl.TLSVersion.TLSv1_2` inside `_IPv4FirstHTTPSConnection` (`0` `py/insecure-protocol` alerts) and replaced `secret_type*` field extraction in repository leak-scanning alerts with untainted integer alert IDs (`0` `py/clear-text-logging-sensitive-data` alerts).
+  - Added proactive pre-commit SAST detection in `security_scanner.py` and automatic `ssl.TLSVersion.TLSv1_2` injection in `auto_fixer.py` to prevent future `py/insecure-protocol` and `py/clear-text-logging-sensitive-data` findings before commit.
+
+---
+
 ## [2.13.1] - 2026-10-31
 
 ### Added

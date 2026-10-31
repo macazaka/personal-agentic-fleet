@@ -427,6 +427,32 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
                         sast_hits.append(hit)
                         findings.append(hit)
 
+                # Check for SSL/TLS Context missing explicit TLSv1.2+ floor (CodeQL py/insecure-protocol)
+                if "ssl.create_default_context(" in stripped or "ssl.SSLContext(" in stripped:
+                    lookahead = "\n".join(lines[line_no - 1 : min(len(lines), line_no + 4)])
+                    if "minimum_version" not in lookahead or ("TLSv1_2" not in lookahead and "TLSv1_3" not in lookahead):
+                        hit = {
+                            "severity": "HIGH",
+                            "category": "SAST Insecure TLS Protocol Floor (CWE-327)",
+                            "file": rel_path,
+                            "line": line_no,
+                            "detail": "SSL context created without explicit minimum_version = ssl.TLSVersion.TLSv1_2 (CodeQL py/insecure-protocol).",
+                        }
+                        sast_hits.append(hit)
+                        findings.append(hit)
+
+                # Check for secret_* dict field extraction in modules that write stdout/logs (CodeQL py/clear-text-logging-sensitive-data)
+                if re.search(r'\.get\(\s*[\'"]secret_type', stripped):
+                    hit = {
+                        "severity": "HIGH",
+                        "category": "SAST Clear-Text Secret Taint Risk (CWE-312)",
+                        "file": rel_path,
+                        "line": line_no,
+                        "detail": "Extracting 'secret_type*' dictionary fields taints downstream reports/stdout under CodeQL py/clear-text-logging-sensitive-data.",
+                    }
+                    sast_hits.append(hit)
+                    findings.append(hit)
+
             # 2. AST parsing for SQL Injection f-strings (CWE-089)
             try:
                 tree = ast.parse(content, filename=str(fp))

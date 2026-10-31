@@ -1,6 +1,6 @@
 # 🖥️ Agentic Fleet Control Center (AFCC) & UI Architecture Deep-Dive
 
-> **Release Version**: `v2.13.1` | **Templates & Assets**: `fleet/web/templates/dashboard.html`, `fleet/agents/<agent_id>/ui/panel.html` | **Default Endpoint**: `http://127.0.0.1:7890`
+> **Release Version**: `v2.13.2` | **Templates & Assets**: `fleet/web/templates/dashboard.html`, `fleet/agents/<agent_id>/ui/panel.html` | **Default Endpoint**: `http://127.0.0.1:7890`
 
 The **Agentic Fleet Control Center (AFCC)** is the local desktop web console for Personal Agentic Fleet. Engineered in zero-dependency HTML5, modern CSS Grid/Flexbox, and vanilla ES6+ JavaScript, AFCC renders in `< 10ms` from local disk and scales cleanly from 7 built-in agents to **100+ concurrent modular agents** with **zero horizontal scrollbars**, **strict DOM view scoping**, and **instant keyboard navigation**.
 

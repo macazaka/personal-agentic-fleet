@@ -2,7 +2,7 @@
 
 Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operations Wiki**!
 
-[![Release: v2.13.1](https://img.shields.io/badge/Release-v2.13.1-00b4d8.svg)](Release-Notes)
+[![Release: v2.13.2](https://img.shields.io/badge/Release-v2.13.2-00b4d8.svg)](Release-Notes)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%5B12%20Layers%5D-brightgreen.svg)](Security-Model)
@@ -52,24 +52,12 @@ Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operat
 | **[[Release-Notes]]** | Complete semantic version history and categorized changelog notes (synchronized with `CHANGELOG.md` at `v2.8.6`). |
 
 <!-- AUTO-LATEST-RELEASE:START -->
-## 🆕 Latest Release Highlights (`v2.13.1`)
+## 🆕 Latest Release Highlights (`v2.13.2`)
 
 > **Live Codebase Inventory**: `7` Built-In Agents • `123` REST API Endpoints • `33` Core Microkernel Modules • `20` Automation Tools • `480` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
 
-### Added
-- **Autonomous Post-Commit GitHub Pipeline, Vulnerability & CodeQL Sentinel (`fleet/tools/github_pipeline_sentinel.py`, `fleet/tools/install_git_hooks.py`, `fleet/agents/pr_review/agent.py`)**:
-  - Automatically audits GitHub Actions check-runs, CodeQL SARIF annotations & `/code-scanning/alerts`, GitHub Dependabot & live zero-auth OSV.dev CVE/GHSA advisories (`https://api.osv.dev/v1/querybatch`), and Secret Scanning + local 12-layer SAST checks after every commit and push (`post-commit` & `pre-push` detached background sentinel) and every 30 minutes via `PRReviewAgent` (`GET` / `POST /api/pr_review/pipeline_audit`).
-  - Automatically applies deterministic fixes (`auto_fixer.py` + `pyproject.toml` vulnerable dependency floor auto-bumping) and logs/dispatches self-healing remediation tasks to Antigravity Live whenever a remote pipeline or security check fails.
-- **Expanded Pre-Commit CodeQL ReDoS & Workflow Deprecation Guards (`fleet/tools/security_scanner.py`, `fleet/tools/auto_fixer.py`)**:
-  - Added proactive SAST detection for overlapping polynomial ReDoS regex quantifiers (`CWE-1333`) and deprecated `github/codeql-action@v3` references (with automatic `@v3` -> `@v4` upgrade in `auto_fixer.py`).
-
 ### Security
-- **Eliminated All GitHub CodeQL Alerts & Dependency Advisories (`fleet/core/antigravity_mirror.py`, `fleet/core/hyperscalers.py`, `pyproject.toml`)**:
-  - Replaced overlapping regex path extraction in `extract_task_fingerprint()` with a linear `O(N)` zero-regex token parser (`0` `py/polynomial-redos` alerts).
-  - Hardened `_normalize_agy_cli_model()` and `_call_antigravity_cli()` / `_run_agy_cli_turn()` so user prompts are piped strictly over `stdin` (`--input-format text`) with untainted constant/allowlisted `argv` flags (`0` `py/command-line-injection` alerts).
-  - Bumped dev dependency floor `pytest>=9.0.3` in `pyproject.toml` to remediate `GHSA-6w46-j5rx-g56g` / `PYSEC-2026-1845`.
-
-### Fixed
-- **GitHub Actions Workflow Hygiene (`.github/workflows/codeql.yml`, `.github/workflows/pages.yml`)**:
-  - Upgraded `github/codeql-action/init` and `github/codeql-action/analyze` from `@v3` to `@v4`, and added a Pages enablement API pre-check in `pages.yml` to prevent `configure-pages` failure annotations when GitHub Pages is not enabled.
+- **CodeQL TLSv1.2+ Protocol Floor & Clear-Text Secret Taint Hardening (`fleet/tools/github_pipeline_sentinel.py`, `fleet/tools/security_scanner.py`, `fleet/tools/auto_fixer.py`)**:
+  - Enforced explicit `ctx.minimum_version = ssl.TLSVersion.TLSv1_2` inside `_IPv4FirstHTTPSConnection` (`0` `py/insecure-protocol` alerts) and replaced `secret_type*` field extraction in repository leak-scanning alerts with untainted integer alert IDs (`0` `py/clear-text-logging-sensitive-data` alerts).
+  - Added proactive pre-commit SAST detection in `security_scanner.py` and automatic `ssl.TLSVersion.TLSv1_2` injection in `auto_fixer.py` to prevent future `py/insecure-protocol` and `py/clear-text-logging-sensitive-data` findings before commit.
 <!-- AUTO-LATEST-RELEASE:END -->

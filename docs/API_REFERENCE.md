@@ -235,7 +235,7 @@ The Personal Agentic Fleet provides a comprehensive terminal interface accessibl
 | `fleet version` | None | Displays version, Python interpreter details, and operating system platform. |
 
 <!-- AUTO-API-ROUTES:START -->
-## 🔄 Complete Live REST API Route Inventory (`123` Endpoints — `v2.13.1`)
+## 🔄 Complete Live REST API Route Inventory (`123` Endpoints — `v2.13.2`)
 
 This table is **automatically introspected from `fleet/api/*.py` AST decorators** on every release by `fleet.tools.doc_wiki_enhancer`:
 

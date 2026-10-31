@@ -82,9 +82,15 @@ def test_auto_fixer_and_scanner_detect_codeql_v3_and_redos(tmp_path: Path):
     cql_file.write_text(f"steps:\n  - uses: {v3_action}\n", encoding="utf-8")
     (tmp_path / ".gitignore").write_text("fleet.yaml\n.env\nfleet/data/user/\n", encoding="utf-8")
 
+    fleet_pkg = tmp_path / "fleet" / "tools"
+    fleet_pkg.mkdir(parents=True)
+    sample_py = fleet_pkg / "sample_tls.py"
+    sample_py.write_text("import ssl\n\ndef open_tls():\n    ctx = ssl.create_default_context()\n    return ctx\n", encoding="utf-8")
+
     fixes = fix_codeql_and_security_issues(repo_root=tmp_path)
     assert any("Auto-upgraded deprecated github/codeql-action" in f["detail"] for f in fixes)
     assert "github/codeql-action/init@v4" in cql_file.read_text(encoding="utf-8")
+    assert "ctx.minimum_version = ssl.TLSVersion.TLSv1_2" in sample_py.read_text(encoding="utf-8")
 
 
 def test_parse_codeql_sarif_annotations_and_osv_audit(tmp_path: Path):

@@ -1,6 +1,6 @@
 # 🌟 UX & Agent-Simplicity Roadmap & Prioritized Feature Backlog
 
-> **Release Version**: `v2.13.1` | **Detailed Specifications**: [`docs/backlog/`](https://github.com/macazaka/personal-agentic-fleet/tree/main/docs/backlog) | **Live AFCC Tab**: `📋 Feature Backlog`
+> **Release Version**: `v2.13.2` | **Detailed Specifications**: [`docs/backlog/`](https://github.com/macazaka/personal-agentic-fleet/tree/main/docs/backlog) | **Live AFCC Tab**: `📋 Feature Backlog`
 
 This page documents the **10-Point UX & Agent-Simplicity Roadmap (`UX-01` – `UX-10`)** designed to make creating, discovering, chaining, and interacting with agents effortless for every user while maintaining Personal Agentic Fleet's **100% Local-First (`$0.00` Zero-Token)** architecture.
 

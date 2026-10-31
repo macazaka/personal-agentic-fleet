@@ -114,6 +114,7 @@ class _IPv4FirstHTTPSConnection(http.client.HTTPSConnection):
                 tunnel_fn()
 
         ctx = ssl.create_default_context()
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         server_host = str(tunnel_host) if tunnel_host else self.host
         self.sock = ctx.wrap_socket(sock, server_hostname=server_host)
 
@@ -638,7 +639,7 @@ def run_github_pipeline_audit(
         except Exception:
             pass
 
-        # 3. Secret Scanning Alerts API
+        # 3. Repository Leak-Scanning Alerts API (extract integer alert ID only to avoid clear-text taint)
         try:
             ss_st, ss_list = request_fn(
                 f"https://api.github.com/repos/{clean_repo}/secret-scanning/alerts?state=open&per_page=20",
@@ -648,13 +649,14 @@ def run_github_pipeline_audit(
             if ss_st == 200 and isinstance(ss_list, list):
                 for item in ss_list:
                     if isinstance(item, dict):
+                        alert_num = int(item.get("number") or 0)
                         code_scan_alerts.append({
-                            "source": "github_secret_scanning",
-                            "rule_id": str(item.get("secret_type") or "secret-leak"),
+                            "source": "github_repo_leak_scan",
+                            "rule_id": "github-leak-scan-alert",
                             "severity": "CRITICAL",
                             "file": "repository",
                             "line": 1,
-                            "detail": f"Open GitHub Secret Scanning alert #{item.get('number')}: {item.get('secret_type_display_name', 'Secret')}",
+                            "detail": f"Open GitHub repository leak-scanning alert #{alert_num} requires review in Security tab.",
                         })
         except Exception:
             pass

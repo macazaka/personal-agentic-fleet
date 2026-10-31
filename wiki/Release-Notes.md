@@ -1,4 +1,4 @@
-# Release Notes & Version History (Current: `v2.13.1`)
+# Release Notes & Version History (Current: `v2.13.2`)
 
 This page is **automatically synchronized** from [`CHANGELOG.md`](https://github.com/macazaka/personal-agentic-fleet/blob/main/CHANGELOG.md) by `fleet.tools.doc_wiki_enhancer` whenever release versions or release notes are updated.
 
@@ -8,6 +8,15 @@ All notable changes to the **Personal Agentic Fleet** project will be documented
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [2.13.2] - 2026-10-31
+
+### Security
+- **CodeQL TLSv1.2+ Protocol Floor & Clear-Text Secret Taint Hardening (`fleet/tools/github_pipeline_sentinel.py`, `fleet/tools/security_scanner.py`, `fleet/tools/auto_fixer.py`)**:
+  - Enforced explicit `ctx.minimum_version = ssl.TLSVersion.TLSv1_2` inside `_IPv4FirstHTTPSConnection` (`0` `py/insecure-protocol` alerts) and replaced `secret_type*` field extraction in repository leak-scanning alerts with untainted integer alert IDs (`0` `py/clear-text-logging-sensitive-data` alerts).
+  - Added proactive pre-commit SAST detection in `security_scanner.py` and automatic `ssl.TLSVersion.TLSv1_2` injection in `auto_fixer.py` to prevent future `py/insecure-protocol` and `py/clear-text-logging-sensitive-data` findings before commit.
 
 ---
 

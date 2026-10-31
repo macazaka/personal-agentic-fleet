@@ -195,6 +195,21 @@ def fix_codeql_and_security_issues(repo_root: Path = REPO_ROOT) -> List[Dict[str
 
                 text = weak_hash_re.sub(_fix_hash_call, text)
 
+            # 3e. Auto-fix ssl.create_default_context() missing explicit TLSv1.2 minimum_version (CodeQL py/insecure-protocol)
+            if "ssl.create_default_context()" in text:
+                src_lines = text.splitlines()
+                new_ssl_lines = []
+                for idx, s_line in enumerate(src_lines):
+                    new_ssl_lines.append(s_line)
+                    m_ssl = re.match(r"^(\s*)([A-Za-z_][A-Za-z0-9_]*)\s*=\s*ssl\.create_default_context\(\)\s*$", s_line)
+                    if m_ssl:
+                        lookahead = "\n".join(src_lines[idx : min(len(src_lines), idx + 4)])
+                        if "minimum_version" not in lookahead:
+                            indent_s, var_s = m_ssl.group(1), m_ssl.group(2)
+                            new_ssl_lines.append(f"{indent_s}{var_s}.minimum_version = ssl.TLSVersion.TLSv1_2")
+                            file_fixes.append("Enforced ssl.TLSVersion.TLSv1_2 minimum_version on SSLContext (CodeQL py/insecure-protocol)")
+                text = "\n".join(new_ssl_lines) + ("\n" if text.endswith("\n") else "")
+
             if text != original_text and file_fixes:
                 # Verify valid Python syntax before writing
                 try:
