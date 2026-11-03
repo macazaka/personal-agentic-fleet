@@ -1,32 +1,127 @@
 <div class="panel-section" id="prReviewSection">
-  <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
-    <button title="Run PR review audit and inspect CI status" class="btn btn-primary btn-sm" onclick="fetchPRReviewStatus()">
-      🔄 Audit PRs & CI Now
-    </button>
+  <!-- Top Action Toolbar -->
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
+    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+      <span class="badge" style="background: rgba(56, 189, 248, 0.14); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 11.5px; padding: 4px 10px;">
+        🛡️ Branch Governance, PR Triage &amp; CI Gate
+      </span>
+      <span id="prLastCheckedBadge" style="font-size: 11.5px; color: var(--text-muted);">Ready</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+      <button type="button" title="Create a new feature branch (or spin off uncommitted working tree changes)" class="btn btn-sm" style="border-color: rgba(16, 185, 129, 0.4); color: #34d399;" onclick="openCreatePRBranchModal(false)">
+        🌿 + New Branch
+      </button>
+      <button type="button" title="Fetch latest remote branches from origin" class="btn btn-sm" style="border-color: rgba(56, 189, 248, 0.35); color: #38bdf8;" onclick="runPRBranchAction('fetch_remote', '', {}, this)">
+        ☁️ Fetch Origin
+      </button>
+      <button type="button" title="Run GitHub Actions, CodeQL & Dependency Vulnerability Sentinel" class="btn btn-sm" style="border-color: rgba(168, 85, 247, 0.4); color: #c084fc;" onclick="runPRPipelineAudit(this)">
+        🛡️ Audit GitHub &amp; CodeQL
+      </button>
+      <button type="button" title="Refresh unmerged branches, open PRs, and CI status" class="btn btn-primary btn-sm" onclick="fetchPRReviewStatus(false, this)">
+        🔄 Refresh Branches &amp; CI
+      </button>
+    </div>
   </div>
 
-  <div class="metrics-grid" style="grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
-    <div class="metric-card">
+  <!-- 4-Card KPI Summary Row -->
+  <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px;">
+    <div class="metric-card" style="padding: 14px 16px;">
+      <div class="metric-label">Branches Waiting Merge</div>
+      <div class="metric-val" id="prBranchesWaitingCount" style="color: #f59e0b;">0</div>
+      <div class="metric-sub" id="prBranchesWaitingSub">Scanning local &amp; origin refs...</div>
+    </div>
+    <div class="metric-card" style="padding: 14px 16px;">
       <div class="metric-label">Open Pull Requests</div>
       <div class="metric-val" id="prOpenCount" style="color: #38bdf8;">0</div>
-      <div class="metric-sub" id="prTriageStatus">Audit pending</div>
+      <div class="metric-sub" id="prTriageStatus">GitHub PR queue</div>
     </div>
-    <div class="metric-card">
-      <div class="metric-label">CI Health Status</div>
+    <div class="metric-card" style="padding: 14px 16px;">
+      <div class="metric-label">CI &amp; CodeQL Gate</div>
       <div class="metric-val" id="ciHealthStatus" style="color: #4ade80;">PASSING</div>
-      <div class="metric-sub">9 Matrix Jobs Monitored</div>
+      <div class="metric-sub" id="ciHealthSub">GitHub Actions &amp; 12-Layer SAST</div>
     </div>
-    <div class="metric-card">
-      <div class="metric-label">Token Consumption</div>
-      <div class="metric-val" style="color: #fbbf24;">$0.00</div>
-      <div class="metric-sub">100% Deterministic Local Audit</div>
+    <div class="metric-card" style="padding: 14px 16px;">
+      <div class="metric-label">Main Branch &amp; Working Tree</div>
+      <div class="metric-val" id="prMainSyncVal" style="color: #a78bfa; font-size: 16px;">main</div>
+      <div class="metric-sub" id="prMainSyncSub">Checking HEAD &amp; local modifications...</div>
     </div>
   </div>
 
-  <div class="card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 20px;">
-    <h4 style="margin-bottom: 12px; font-size: 15px; color: #e2e8f0;">Active Pull Requests & Security Triage</h4>
+  <!-- Section 1: Unmerged Branches Waiting to Merge into main -->
+  <div class="card" style="background: rgba(15, 23, 42, 0.55); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 12px; padding: 18px; margin-bottom: 18px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 14px;">
+      <div>
+        <h4 style="margin: 0; font-size: 15px; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
+          <span>🌿 Branches Waiting Merging to <code style="color: #38bdf8;">main</code></span>
+          <span id="prUnmergedHeaderBadge" class="badge" style="background: rgba(245, 158, 11, 0.16); color: #fbbf24; font-size: 11px;">0 pending</span>
+        </h4>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px;">
+          Includes author attribution, commit breakdown, file diffstat, conflict detection, and 1-click governance actions.
+        </div>
+      </div>
+    </div>
+    <div id="prUnmergedBranchesContainer" style="color: #94a3b8; font-size: 13px;">
+      <div style="padding: 16px; text-align: center; color: var(--text-muted);">⏳ Loading branches waiting to merge into <code>main</code>...</div>
+    </div>
+  </div>
+
+  <!-- Section 2: Main Branch HEAD, Working Tree Changes & Synced Branches -->
+  <div class="card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 18px; margin-bottom: 18px;">
+    <h4 style="margin: 0 0 12px 0; font-size: 14.5px; color: #e2e8f0;">
+      🧭 <code style="color: #38bdf8;">main</code> Branch Telemetry, Working Tree &amp; Recent Commits
+    </h4>
+    <div id="prMainAndWorkingTreeContainer" style="color: #94a3b8; font-size: 13px;">
+      <div style="color: var(--text-muted);">Loading <code>main</code> branch telemetry...</div>
+    </div>
+  </div>
+
+  <!-- Section 3: Active GitHub Pull Requests & Pipeline Audit -->
+  <div class="card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 18px;">
+    <h4 style="margin: 0 0 12px 0; font-size: 14.5px; color: #e2e8f0;">
+      📬 Active GitHub Pull Requests &amp; Security Triage
+    </h4>
     <div id="prListContainer" style="color: #94a3b8; font-size: 13px;">
-      <p>No open pull requests currently pending review.</p>
+      <p style="margin: 0;">No open pull requests currently pending review.</p>
+    </div>
+    <div id="prPipelineAuditContainer" style="margin-top: 14px; display: none;"></div>
+  </div>
+
+  <!-- Diff & Commit Inspector Modal -->
+  <div id="prBranchDiffModal" style="display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(2, 6, 23, 0.82); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 24px;">
+    <div style="background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 12px; width: min(1060px, 96vw); max-height: 88vh; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.65);">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+        <div>
+          <strong id="prDiffModalTitle" style="color: #f8fafc; font-size: 15px;">🔍 Branch Diff Inspector</strong>
+          <div id="prDiffModalSub" style="font-size: 12px; color: var(--text-muted); margin-top: 2px;"></div>
+        </div>
+        <button type="button" class="btn btn-sm" onclick="closePRBranchDiffModal()">✕ Close</button>
+      </div>
+      <div id="prDiffModalBody" style="padding: 16px 18px; overflow-y: auto; font-family: monospace; font-size: 12px; line-height: 1.5; color: #e2e8f0;"></div>
+    </div>
+  </div>
+
+  <!-- Create Branch / Spin-off Working Tree Modal -->
+  <div id="prCreateBranchModal" style="display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(2, 6, 23, 0.82); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 24px;">
+    <div style="background: #0f172a; border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 12px; width: min(520px, 95vw); padding: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.65);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <strong style="color: #f8fafc; font-size: 15px;">🌿 Create Feature Branch</strong>
+        <button type="button" class="btn btn-sm" onclick="closeCreatePRBranchModal()">✕</button>
+      </div>
+      <p style="font-size: 12.5px; color: var(--text-muted); margin: 0 0 12px 0;">
+        Create a branch from current HEAD. If you provide a commit message, uncommitted working-tree changes will be committed onto the new branch so it appears in the merge queue for review.
+      </p>
+      <div style="margin-bottom: 10px;">
+        <label style="display: block; font-size: 12px; color: #cbd5e1; margin-bottom: 4px;">Branch Name (e.g. <code>feat/branch-governance</code>)</label>
+        <input id="prNewBranchNameInput" type="text" placeholder="feat/my-change" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(2,6,23,0.8); color: #f8fafc; font-family: monospace; font-size: 13px;">
+      </div>
+      <div style="margin-bottom: 14px;">
+        <label style="display: block; font-size: 12px; color: #cbd5e1; margin-bottom: 4px;">Commit Uncommitted Working-Tree Changes (Optional)</label>
+        <input id="prNewBranchCommitMsgInput" type="text" placeholder="Leave blank to only create branch without committing" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(2,6,23,0.8); color: #f8fafc; font-size: 13px;">
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn btn-sm" onclick="closeCreatePRBranchModal()">Cancel</button>
+        <button type="button" id="btnSubmitCreatePRBranch" class="btn btn-primary btn-sm" onclick="submitCreatePRBranch(this)">🌿 Create Branch</button>
+      </div>
     </div>
   </div>
 </div>

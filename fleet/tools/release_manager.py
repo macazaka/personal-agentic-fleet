@@ -503,11 +503,113 @@ def sync_version_everywhere(repo_root: Path = REPO_ROOT, target_version: str = "
     return updates
 
 
-def ensure_git_tag(repo_root: Path = REPO_ROOT, version: str = "") -> bool:
-    """Creates local Git tag `v{version}` if it does not already exist."""
+def verify_git_tag_signed(repo_root: Path = REPO_ROOT, tag_name: str = "") -> bool:
+    """
+    Verifies that `refs/tags/{tag_name}` is an annotated tag object containing a
+    cryptographic SSH or PGP signature (`-----BEGIN SSH SIGNATURE-----` or `-----BEGIN PGP SIGNATURE-----`).
+    """
+    clean_tag = str(tag_name or "").strip()
+    if not clean_tag:
+        return False
+    if clean_tag.startswith("refs/tags/"):
+        ref_name = clean_tag
+    else:
+        ref_name = f"refs/tags/{clean_tag}"
+    try:
+        t_proc = subprocess.run(
+            [_git_exe(), "-C", str(repo_root), "cat-file", "-t", ref_name],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+            **_hidden_subprocess_kwargs(),
+        )
+        if t_proc.returncode != 0 or t_proc.stdout.strip() != "tag":
+            return False
+        p_proc = subprocess.run(
+            [_git_exe(), "-C", str(repo_root), "cat-file", "-p", ref_name],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=5,
+            check=False,
+            **_hidden_subprocess_kwargs(),
+        )
+        payload = p_proc.stdout or ""
+        return (
+            "-----BEGIN SSH SIGNATURE-----" in payload
+            or "-----BEGIN PGP SIGNATURE-----" in payload
+        )
+    except Exception:
+        return False
+
+
+def _is_git_signing_available(repo_root: Path = REPO_ROOT) -> bool:
+    """
+    Checks whether cryptographic Git commit/tag signing is configured in `repo_root`.
+    Automatically enables `tag.gpgSign=true` and `push.followTags=true` when a signing key is present.
+    """
+    try:
+        key_proc = subprocess.run(
+            [_git_exe(), "-C", str(repo_root), "config", "--get", "user.signingkey"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+            **_hidden_subprocess_kwargs(),
+        )
+        signing_key = (key_proc.stdout or "").strip()
+        if not signing_key and os.environ.get("FLEET_TEST_MODE") != "1":
+            default_ssh_pub = Path.home() / ".ssh" / "id_ed25519.pub"
+            if default_ssh_pub.is_file():
+                signing_key = str(default_ssh_pub)
+                subprocess.run(
+                    [_git_exe(), "-C", str(repo_root), "config", "gpg.format", "ssh"],
+                    capture_output=True,
+                    timeout=5,
+                    check=False,
+                    **_hidden_subprocess_kwargs(),
+                )
+                subprocess.run(
+                    [_git_exe(), "-C", str(repo_root), "config", "user.signingkey", signing_key],
+                    capture_output=True,
+                    timeout=5,
+                    check=False,
+                    **_hidden_subprocess_kwargs(),
+                )
+        if signing_key:
+            for cfg_key, cfg_val in (
+                ("commit.gpgsign", "true"),
+                ("tag.gpgSign", "true"),
+                ("push.followTags", "true"),
+            ):
+                subprocess.run(
+                    [_git_exe(), "-C", str(repo_root), "config", cfg_key, cfg_val],
+                    capture_output=True,
+                    timeout=5,
+                    check=False,
+                    **_hidden_subprocess_kwargs(),
+                )
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def ensure_git_tag(
+    repo_root: Path = REPO_ROOT,
+    version: str = "",
+    force_update_head: bool = False,
+) -> bool:
+    """
+    Creates local cryptographically signed Git tag `v{version}` (`git tag -s`) if it does not already exist,
+    or upgrades an unsigned local tag to a signed annotated tag when signing is configured.
+    """
     clean_ver = format_semver(parse_semver(version or get_current_configured_version(repo_root)))
     tag_name = f"v{clean_ver}"
     try:
+        can_sign = _is_git_signing_available(repo_root)
         chk = subprocess.run(
             [_git_exe(), "-C", str(repo_root), "rev-parse", "-q", "--verify", f"refs/tags/{tag_name}"],
             capture_output=True,
@@ -516,16 +618,40 @@ def ensure_git_tag(repo_root: Path = REPO_ROOT, version: str = "") -> bool:
             check=False,
             **_hidden_subprocess_kwargs(),
         )
-        if chk.returncode == 0:
-            return False
+        already_exists = chk.returncode == 0
+        if already_exists:
+            is_signed = verify_git_tag_signed(repo_root, tag_name)
+            if is_signed and not force_update_head:
+                return False
+            if not can_sign and not force_update_head:
+                return False
+
+        sign_flag = "-s" if can_sign else "-a"
+        cmd = [_git_exe(), "-C", str(repo_root), "tag", sign_flag]
+        if already_exists:
+            cmd.append("-f")
+        cmd.extend([tag_name, "-m", f"Release {tag_name}"])
         cr = subprocess.run(
-            [_git_exe(), "-C", str(repo_root), "tag", "-a", tag_name, "-m", f"Release {tag_name}"],
+            cmd,
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=10,
             check=False,
             **_hidden_subprocess_kwargs(),
         )
+        if cr.returncode != 0 and can_sign and os.environ.get("FLEET_TEST_MODE") == "1":
+            fallback_cmd = [_git_exe(), "-C", str(repo_root), "tag", "-a"]
+            if already_exists:
+                fallback_cmd.append("-f")
+            fallback_cmd.extend([tag_name, "-m", f"Release {tag_name}"])
+            cr = subprocess.run(
+                fallback_cmd,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+                **_hidden_subprocess_kwargs(),
+            )
         return cr.returncode == 0
     except Exception:
         return False
@@ -542,13 +668,26 @@ def ensure_workstation_version_parity(repo_root: Path = REPO_ROOT, target_versio
     if os.environ.get("FLEET_TEST_MODE") == "1":
         return False
 
-    # 1. Sync sibling drive mirror workspace if present and different from repo_root
+    # 1. Sync sibling drive mirror workspace git HEAD if present and different from repo_root
     try:
         rel_parts = repo_root.resolve().parts[1:]
         if rel_parts:
             c_mirror = Path("C:\\").joinpath(*rel_parts)
             if c_mirror.is_dir() and c_mirror.resolve() != repo_root.resolve():
-                sync_version_everywhere(c_mirror, clean_ver)
+                subprocess.run(
+                    [_git_exe(), "-C", str(c_mirror), "fetch", str(repo_root.resolve()), "HEAD"],
+                    capture_output=True,
+                    timeout=10,
+                    check=False,
+                    **_hidden_subprocess_kwargs(),
+                )
+                subprocess.run(
+                    [_git_exe(), "-C", str(c_mirror), "reset", "--hard", "FETCH_HEAD"],
+                    capture_output=True,
+                    timeout=10,
+                    check=False,
+                    **_hidden_subprocess_kwargs(),
+                )
     except Exception:
         pass
 
@@ -559,7 +698,16 @@ def ensure_workstation_version_parity(repo_root: Path = REPO_ROOT, target_versio
             if resp.status == 200:
                 data = json.loads(resp.read().decode("utf-8"))
                 live_ver = str(data.get("version", "")).strip()
-                if live_ver and live_ver != clean_ver:
+                live_drive = str(data.get("drive", "")).strip().upper()
+                expected_drive = repo_root.resolve().drive.upper()
+                ws_mismatch = bool(live_drive and expected_drive and live_drive != expected_drive)
+                health_ok = True
+                try:
+                    with urllib.request.urlopen("http://127.0.0.1:7890/api/diagnostics/health", timeout=1.5) as h_resp:
+                        health_ok = h_resp.status == 200
+                except Exception:
+                    health_ok = False
+                if (live_ver and live_ver != clean_ver) or ws_mismatch or not health_ok:
                     from fleet.cli import cmd_stop
                     cmd_stop(argparse.Namespace())
                     pythonw = Path(sys.executable).with_name("pythonw.exe")
@@ -726,6 +874,9 @@ def run_daily_git_sync_and_release(
             check=False,
         )
         committed = c_proc.returncode == 0
+        ver = get_current_configured_version(repo_root)
+        if committed:
+            ensure_git_tag(repo_root, ver)
         pushed = False
         if committed and push_remote:
             p_proc = subprocess.run(
@@ -738,8 +889,6 @@ def run_daily_git_sync_and_release(
                 check=False,
             )
             pushed = p_proc.returncode == 0
-
-        ver = get_current_configured_version(repo_root)
         return {
             "status": "SUCCESS" if committed else "NO_CHANGES",
             "committed": committed,

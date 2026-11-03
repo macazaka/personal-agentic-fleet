@@ -404,7 +404,7 @@ Lists all `@agent` slash commands across active agents or executes a Unified `Ct
 ```
 
 <!-- AUTO-API-ROUTES:START -->
-## 🔄 Complete Live REST API Route Inventory (`123` Endpoints — `v2.13.2`)
+## 🔄 Complete Live REST API Route Inventory (`124` Endpoints — `v2.13.3`)
 
 This table is **automatically introspected from `fleet/api/*.py` AST decorators** on every release by `fleet.tools.doc_wiki_enhancer`:
 
@@ -506,6 +506,7 @@ This table is **automatically introspected from `fleet/api/*.py` AST decorators*
 | `GET` | `/api/logs` | `get_logs` ([`fleet/api/system_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/system_api.py)) | Handler `get_logs` in `fleet/api/system_api.py`. |
 | `GET` | `/api/status` | `get_status` ([`fleet/api/system_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/system_api.py)) | Handler `get_status` in `fleet/api/system_api.py`. |
 | `GET` | `/api/version` | `get_version` ([`fleet/api/system_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/system_api.py)) | Handler `get_version` in `fleet/api/system_api.py`. |
+| `GET` | `/api/diagnostics/health` | `get_diagnostics_health` ([`fleet/api/system_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/system_api.py)) | Deep runtime health & feature parity verification endpoint. |
 | `GET` | `/api/release_notes` | `get_release_notes` ([`fleet/api/system_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/system_api.py)) | Handler `get_release_notes` in `fleet/api/system_api.py`. |
 | `POST` | `/api/notify` | `post_notify` ([`fleet/api/system_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/system_api.py)) | Handler `post_notify` in `fleet/api/system_api.py`. |
 | `GET` | `/api/test_results` | `get_test_results` ([`fleet/api/system_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/system_api.py)) | Handler `get_test_results` in `fleet/api/system_api.py`. |

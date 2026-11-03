@@ -85,12 +85,33 @@ class BaseDatabase:
 
     def _init_db(self):
         with self._get_connection() as conn:
-            pass
+            if not is_test_environment():
+                self._purge_leaked_unit_test_rows(conn)
         try:
             from fleet.core.db.migrations import apply_migrations
             apply_migrations(self.db_path)
         except Exception as e:
             logger.warning("Database migration non-fatal warning on %s: %s", self.db_path, e, exc_info=True)
+
+    def _purge_leaked_unit_test_rows(self, conn: sqlite3.Connection) -> None:
+        """
+        Proactively purges any unit-test fixture rows (e.g. 'Discord Integration Bot',
+        'Zinc Sulfate 50mg', 'Test Task', 'E2E Deep Verification') if they ever leaked
+        into a non-test database.
+        """
+        try:
+            with conn:
+                conn.execute(
+                    "DELETE FROM feature_backlog WHERE LOWER(TRIM(title)) IN ('discord integration bot', 'test feature', 'unit test feature', 'sample backlog item', 'e2e test feature') OR LOWER(title) LIKE '%unit test%' OR LOWER(title) LIKE '%e2e test%'"
+                )
+                conn.execute(
+                    "DELETE FROM medications WHERE LOWER(TRIM(name)) IN ('zinc sulfate 50mg', 'test med', 'unit test med')"
+                )
+                conn.execute(
+                    "DELETE FROM tasks WHERE LOWER(source) IN ('test', 'unittest', 'pytest', 'testagent', 'e2e_test', 'test_runner') OR LOWER(title) LIKE '%test task%' OR LOWER(title) LIKE '%e2e deep verification%' OR LOWER(title) LIKE '%unauthorized task%'"
+                )
+        except Exception:
+            pass
     def _create_schema(self, conn: sqlite3.Connection):
         try:
             conn.execute("PRAGMA journal_mode = WAL")

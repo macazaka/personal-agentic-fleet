@@ -157,16 +157,20 @@ class HealthMixin(_DbBase):
     def add_medication(self, name: str, dosage: str = "", schedule_time: str = "09:00",
                        frequency: str = "Daily", instructions: str = "") -> int:
         """Adds a new medication or supplement to schedule."""
+        from fleet.core.db.base import is_test_environment
+        clean_name = (name or "").strip()
+        if not is_test_environment() and clean_name.lower() in ("zinc sulfate 50mg", "test med", "unit test med"):
+            return -1
         now_str = datetime.now().isoformat()
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO medications (name, dosage, schedule_time, frequency, instructions, active, created_at)
                 VALUES (?, ?, ?, ?, ?, 1, ?)
-            """, (name.strip(), dosage.strip(), schedule_time.strip(), frequency.strip(), instructions.strip(), now_str))
+            """, (clean_name, dosage.strip(), schedule_time.strip(), frequency.strip(), instructions.strip(), now_str))
             conn.commit()
             med_id = cursor.lastrowid or 0
-            self.log_activity("HealthManager", "add_medication", f"Added medication #{med_id}: {name.strip()} ({dosage.strip()} at {schedule_time})")
+            self.log_activity("HealthManager", "add_medication", f"Added medication #{med_id}: {clean_name} ({dosage.strip()} at {schedule_time})")
             return med_id
 
     def toggle_medication_today(self, medication_id: int, target_date: Optional[str] = None) -> bool:

@@ -2,6 +2,11 @@
 Set WshShell = CreateObject("WScript.Shell")
 Set FSO = CreateObject("Scripting.FileSystemObject")
 ScriptDir = FSO.GetParentFolderName(WScript.ScriptFullName)
+ZCandidate = Replace(ScriptDir, "C:\", "Z:\")
+If StrComp(Left(ScriptDir, 3), "C:\", 1) = 0 And FSO.FileExists(ZCandidate & "\fleet\app.py") Then
+    ScriptDir = ZCandidate
+End If
+WshShell.CurrentDirectory = ScriptDir
 AppScript = ScriptDir & "\fleet\app.py"
 
 Args = ""

@@ -102,7 +102,7 @@ jobs:
           cd ..
           sha256sum fleet/data/sbom.cdx.json >> checksums.sha256
 
-      - name: Publish GitHub Release (Immutable-Release Safe)
+      - name: Publish GitHub Release (Immutable-Release Safe & Signed-Tag Verified)
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -112,12 +112,33 @@ jobs:
             echo "[IMMUTABLE RELEASE GUARD] Release ${RELEASE_TAG} already exists on GitHub. Skipping asset overwrite to respect immutable release protection."
             exit 0
           fi
-          gh release create "${RELEASE_TAG}" \
-            dist/* \
-            fleet/data/sbom.cdx.json \
-            checksums.sha256 \
-            --repo "${GITHUB_REPOSITORY}" \
-            --target "${GITHUB_SHA}" \
-            --title "Personal Agentic Fleet ${RELEASE_TAG}" \
-            --notes-file release_body.md \
-            --generate-notes
+          # Wait briefly if a signed tag push (--follow-tags) is arriving alongside the branch push
+          for attempt in 1 2 3 4 5; do
+            if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+              echo "[SIGNED TAG VERIFIED] Found existing remote signed tag refs/tags/${RELEASE_TAG}."
+              break
+            fi
+            echo "[WAIT] Waiting for signed tag refs/tags/${RELEASE_TAG} to arrive on origin (attempt ${attempt}/5)..."
+            sleep 3
+          done
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release create "${RELEASE_TAG}" \
+              dist/* \
+              fleet/data/sbom.cdx.json \
+              checksums.sha256 \
+              --repo "${GITHUB_REPOSITORY}" \
+              --verify-tag \
+              --title "Personal Agentic Fleet ${RELEASE_TAG}" \
+              --notes-file release_body.md \
+              --generate-notes
+          else
+            gh release create "${RELEASE_TAG}" \
+              dist/* \
+              fleet/data/sbom.cdx.json \
+              checksums.sha256 \
+              --repo "${GITHUB_REPOSITORY}" \
+              --target "${GITHUB_SHA}" \
+              --title "Personal Agentic Fleet ${RELEASE_TAG}" \
+              --notes-file release_body.md \
+              --generate-notes
+          fi

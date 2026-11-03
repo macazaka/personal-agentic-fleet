@@ -14,6 +14,7 @@ from pathlib import Path
 import stat
 import subprocess
 import sys
+from typing import Any, Dict
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 GIT_HOOKS_DIR = ROOT_DIR / ".git" / "hooks"
@@ -155,6 +156,54 @@ for line in stdin_data.splitlines():
                 print("==================================================================")
                 sys.exit(1)
 
+    elif remote_ref.startswith("refs/tags/") and local_sha != zero_sha:
+        # 4. Verify cryptographic signature on all pushed tags when tag.gpgSign or commit.gpgsign is enabled
+        tag_gpg_chk = subprocess.run(
+            [git_exe, "-C", str(repo_root), "config", "--bool", "tag.gpgSign"],
+            capture_output=True,
+            text=True,
+            check=False,
+            **hidden_kw,
+        )
+        commit_gpg_chk = subprocess.run(
+            [git_exe, "-C", str(repo_root), "config", "--bool", "commit.gpgsign"],
+            capture_output=True,
+            text=True,
+            check=False,
+            **hidden_kw,
+        )
+        if tag_gpg_chk.stdout.strip().lower() == "true" or commit_gpg_chk.stdout.strip().lower() == "true":
+            tag_type_res = subprocess.run(
+                [git_exe, "-C", str(repo_root), "cat-file", "-t", local_sha],
+                capture_output=True,
+                text=True,
+                check=False,
+                **hidden_kw,
+            )
+            tag_cat_res = subprocess.run(
+                [git_exe, "-C", str(repo_root), "cat-file", "-p", local_sha],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="ignore",
+                check=False,
+                **hidden_kw,
+            )
+            tag_payload = tag_cat_res.stdout or ""
+            has_sig = (
+                tag_type_res.stdout.strip() == "tag"
+                and (
+                    "-----BEGIN SSH SIGNATURE-----" in tag_payload
+                    or "-----BEGIN PGP SIGNATURE-----" in tag_payload
+                )
+            )
+            if not has_sig:
+                print("==================================================================")
+                print(f"[BLOCKED] Tag Protection: Unsigned tag '{{remote_ref}}' is forbidden.")
+                print("All Git tags must be cryptographically signed annotated tags (git tag -s).")
+                print("==================================================================")
+                sys.exit(1)
+
 # ---------------------------------------------------------------------------
 # 2. Spawn Detached Post-Push GitHub Pipeline, CodeQL & Vulnerability Sentinel
 # ---------------------------------------------------------------------------
@@ -204,6 +253,15 @@ repo_root = Path(__file__).resolve().parent.parent.parent
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
+if os.environ.get("FLEET_TEST_MODE") != "1":
+    try:
+        from fleet.tools.release_manager import ensure_git_tag, get_current_configured_version
+        active_ver = get_current_configured_version(repo_root)
+        if ensure_git_tag(repo_root=repo_root, version=active_ver):
+            print(f"[Fleet Release Gate] Created cryptographically signed Git tag v{{active_ver}} on HEAD.")
+    except Exception:
+        pass
+
 if os.environ.get("FLEET_TEST_MODE") != "1" and os.environ.get("FLEET_DISABLE_BG_SENTINEL") != "1":
     try:
         from fleet.tools.github_pipeline_sentinel import spawn_detached_post_push_sentinel
@@ -216,37 +274,62 @@ sys.exit(0)
 
 
 def _configure_git_branch_protection(repo_root: Path) -> None:
-    """Applies local Git configuration settings that protect the main branch."""
+    """Applies local Git configuration settings that protect the main branch and enforce signed tags."""
     git_exe = "git"
     fallback_git = Path(os.path.expanduser(r"~\AppData\Local\Programs\Git\cmd\git.exe"))
     if fallback_git.is_file():
         git_exe = str(fallback_git)
+    hidden_kw: Dict[str, Any] = (
+        {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)} if os.name == "nt" else {}
+    )
     settings = [
         ("receive.denyDeletes", "true"),
         ("receive.denyNonFastForwards", "true"),
-        ("branch.main.mergeOptions", "--no-ff"),
         ("user.name", "macazaka"),
         ("user.email", "102894891+macazaka@users.noreply.github.com"),
+        ("push.followTags", "true"),
     ]
+    try:
+        subprocess.run(
+            [git_exe, "-C", str(repo_root), "config", "--unset-all", "branch.main.mergeOptions"],
+            capture_output=True,
+            timeout=5,
+            check=False,
+            **hidden_kw,
+        )
+    except Exception:
+        pass
+    try:
+        key_chk = subprocess.run(
+            [git_exe, "-C", str(repo_root), "config", "--get", "user.signingkey"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+            **hidden_kw,
+        )
+        has_signing_key = bool((key_chk.stdout or "").strip())
+        if not has_signing_key and os.environ.get("FLEET_TEST_MODE") != "1":
+            default_ssh_pub = Path.home() / ".ssh" / "id_ed25519.pub"
+            if default_ssh_pub.is_file():
+                settings.append(("gpg.format", "ssh"))
+                settings.append(("user.signingkey", str(default_ssh_pub)))
+                has_signing_key = True
+        if has_signing_key:
+            settings.append(("commit.gpgsign", "true"))
+            settings.append(("tag.gpgSign", "true"))
+    except Exception:
+        pass
     for key, val in settings:
         try:
-            if os.name == "nt":
-                subprocess.run(
-                    [git_exe, "-C", str(repo_root), "config", key, val],
-                    capture_output=True,
-                    timeout=5,
-                    check=False,
-                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
-                )
-            else:
-                subprocess.run(
-                    [git_exe, "-C", str(repo_root), "config", key, val],
-                    capture_output=True,
-                    timeout=5,
-                    check=False,
-                )
+            subprocess.run(
+                [git_exe, "-C", str(repo_root), "config", key, val],
+                capture_output=True,
+                timeout=5,
+                check=False,
+                **hidden_kw,
+            )
         except Exception:
-            pass
             pass
 
 

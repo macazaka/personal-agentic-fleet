@@ -1,6 +1,6 @@
 # ⚡ Personal Agentic Fleet
 
-[![Release: v2.13.2](https://img.shields.io/badge/Release-v2.13.2-00b4d8.svg)](CHANGELOG.md)
+[![Release: v2.13.3](https://img.shields.io/badge/Release-v2.13.3-00b4d8.svg)](CHANGELOG.md)
 [![GitHub Wiki: 17 Deep-Dive Guides](https://img.shields.io/badge/GitHub%20Wiki-17%20Deep--Dive%20Guides-0284c7.svg?logo=github)](https://github.com/macazaka/personal-agentic-fleet/wiki)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -102,14 +102,12 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
 ## 🌟 Key Highlights
 
 <!-- AUTO-LATEST-RELEASE:START -->
-### 🆕 What's New in Release `v2.13.2` (Auto-Synchronized)
+### 🆕 What's New in Release `v2.13.3` (Auto-Synchronized)
 
-> **Live Telemetry**: `7` Core Agents • `123` REST API Endpoints • `33` Microkernel Engines • `20` Automation Tools • `480` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
+> **Live Telemetry**: `7` Core Agents • `124` REST API Endpoints • `33` Microkernel Engines • `20` Automation Tools • `484` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
 
-### Security
-- **CodeQL TLSv1.2+ Protocol Floor & Clear-Text Secret Taint Hardening (`fleet/tools/github_pipeline_sentinel.py`, `fleet/tools/security_scanner.py`, `fleet/tools/auto_fixer.py`)**:
-  - Enforced explicit `ctx.minimum_version = ssl.TLSVersion.TLSv1_2` inside `_IPv4FirstHTTPSConnection` (`0` `py/insecure-protocol` alerts) and replaced `secret_type*` field extraction in repository leak-scanning alerts with untainted integer alert IDs (`0` `py/clear-text-logging-sensitive-data` alerts).
-  - Added proactive pre-commit SAST detection in `security_scanner.py` and automatic `ssl.TLSVersion.TLSv1_2` injection in `auto_fixer.py` to prevent future `py/insecure-protocol` and `py/clear-text-logging-sensitive-data` findings before commit.
+### Fixed
+- Proactive release synchronization, static type verification, and documentation maintenance.
 <!-- AUTO-LATEST-RELEASE:END -->
 
 - **🔌 Modular Plug-and-Play Agents**: Every dashboard view is a standalone, self-contained agent package inside `fleet/agents/` with least-privilege capability manifests (`manifest.json`) enforced by `ScopedDatabaseProxy`. See **[Wiki: 7 Built-in Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents)** and **[Wiki: Customizing Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Customizing-Agents)**.

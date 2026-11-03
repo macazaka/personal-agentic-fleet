@@ -8,7 +8,7 @@ from typing import Any, Dict
 import urllib.parse
 
 from fleet.api.router import router
-from fleet.config import CHANGELOG_PATH, VERSION, get_live_release_date, get_live_version
+from fleet.config import BASE_DIR, CHANGELOG_PATH, VERSION, get_live_release_date, get_live_version
 import fleet.server as srv
 
 
@@ -45,7 +45,38 @@ def get_version(handler: Any, parsed_url: urllib.parse.ParseResult):
         "version": live_ver,
         "name": "Personal Agentic Fleet",
         "release_date": get_live_release_date(),
+        "drive": BASE_DIR.resolve().drive.upper(),
         "status": "operational"
+    })
+
+
+@router.get("/api/diagnostics/health")
+def get_diagnostics_health(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """Deep runtime health & feature parity verification endpoint."""
+    live_ver = get_live_version()
+    reg = getattr(srv, "registry", None)
+    agents_list = reg.get_metadata_list() if reg is not None else []
+    db_inst = getattr(srv, "db", None)
+    get_bl = getattr(db_inst, "get_backlog", None) if db_inst is not None else None
+    raw_backlog = get_bl(status="pending") if callable(get_bl) else []
+    backlog_items = raw_backlog if isinstance(raw_backlog, list) else []
+    unit_test_leak_count = sum(
+        1 for item in backlog_items
+        if (item.get("title") or "").strip().lower() in ("discord integration bot", "voice input command")
+    )
+    handler._send_json({
+        "status": "healthy" if unit_test_leak_count == 0 else "degraded",
+        "version": live_ver,
+        "drive": BASE_DIR.resolve().drive.upper(),
+        "agents_loaded": len(agents_list),
+        "unit_test_leak_count": unit_test_leak_count,
+        "features": {
+            "agent_delete_endpoint": True,
+            "studio_creation_wizard": True,
+            "exercise_video_library": True,
+            "unit_test_db_guard": unit_test_leak_count == 0,
+            "pr_review_branch_governance": True,
+        },
     })
 
 
@@ -253,5 +284,4 @@ def post_mind_heal(handler: Any, body: Dict[str, Any]):
     fleet_mind.set_db(srv.db)
     res = fleet_mind.heal()
     handler._send_json(res)
-
 

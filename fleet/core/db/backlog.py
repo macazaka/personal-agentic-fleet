@@ -3,9 +3,20 @@ Feature Backlog domain repository mixin for FleetDatabase.
 """
 
 import json
+import os
 import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+from fleet.core.db.base import is_test_environment
+
+_UNIT_TEST_BACKLOG_TITLES = frozenset({
+    "discord integration bot",
+    "test feature",
+    "unit test feature",
+    "sample backlog item",
+    "e2e test feature",
+})
 
 if TYPE_CHECKING:
     from fleet.core.db.base import BaseDatabase
@@ -138,13 +149,20 @@ class BacklogMixin(_DbBase):
     def add_feature_backlog_item(self, title: str, description: str = "",
                                  category: str = "Core", priority: str = "P2",
                                  status: str = "Idea", target_version: str = "v1.4.0") -> int:
+        clean_title = (title or "").strip()
+        clean_desc = (description or "").strip()
+        if not is_test_environment() or os.environ.get("FLEET_PRODUCTION_SERVER") == "1":
+            t_low = clean_title.lower()
+            if t_low in _UNIT_TEST_BACKLOG_TITLES or "unit test" in t_low or "e2e test" in t_low or "pytest" in t_low:
+                return -1
+
         now = datetime.now().isoformat()
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO feature_backlog (title, description, category, priority, status, target_version, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (title.strip(), description.strip(), category, priority, status, target_version, now, now))
+            """, (clean_title, clean_desc, category, priority, status, target_version, now, now))
             conn.commit()
             return cursor.lastrowid or 0
 
@@ -153,6 +171,12 @@ class BacklogMixin(_DbBase):
                                    target_version: Optional[str] = None) -> List[Dict[str, Any]]:
         query = "SELECT * FROM feature_backlog WHERE 1=1"
         params: List[Any] = []
+        if not is_test_environment():
+            query += (
+                " AND LOWER(TRIM(title)) NOT IN ('discord integration bot', 'test feature', 'unit test feature', 'sample backlog item', 'e2e test feature')"
+                " AND LOWER(title) NOT LIKE '%unit test%'"
+                " AND LOWER(title) NOT LIKE '%e2e test%'"
+            )
         if status and status.lower() != "all":
             query += " AND status = ?"
             params.append(status)

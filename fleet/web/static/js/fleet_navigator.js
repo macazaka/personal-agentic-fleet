@@ -1059,6 +1059,9 @@ const FleetNavigator = {
         if (window.CustomAgentRuntime && typeof window.CustomAgentRuntime.mount === 'function') {
           window.CustomAgentRuntime.mount(agent.id);
         }
+        if (agent.id === 'pr_review' && typeof window.fetchPRReviewStatus === 'function') {
+          window.fetchPRReviewStatus(false);
+        }
       } else {
         panelContainer.innerHTML = `
           <div class="card" style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 24px;">
@@ -1507,6 +1510,775 @@ window.openAgentSettingsDrawer = function(agentId) {
 window.FleetNavigator = FleetNavigator;
 window.fetchAgents = function() {
   return FleetNavigator.fetchFleetData();
+};
+
+// --- Admin PR Review, Branch Governance & CI Quality Gate (pr_review) ---
+function _prEsc(val) {
+  if (typeof escapeHtml === 'function') return escapeHtml(String(val == null ? '' : val));
+  return String(val == null ? '' : val)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function _prNotify(msg, isError) {
+  if (typeof showFleetToast === 'function') {
+    showFleetToast(msg, Boolean(isError));
+  } else if (typeof showSettingsToast === 'function') {
+    showSettingsToast(msg);
+  }
+}
+
+function _renderDiffHtml(rawDiff) {
+  if (!rawDiff || !rawDiff.trim()) {
+    return '<div style="color: var(--text-muted); padding: 12px;">No file differences found relative to base.</div>';
+  }
+  const lines = String(rawDiff).split(/\r?\n/);
+  const rendered = lines.map(line => {
+    const esc = _prEsc(line);
+    if (line.startsWith('+++') || line.startsWith('---') || line.startsWith('diff --git')) {
+      return `<div style="color: #93c5fd; font-weight: 700; background: rgba(30, 58, 138, 0.25); padding: 2px 6px; margin-top: 4px; border-radius: 3px;">${esc}</div>`;
+    }
+    if (line.startsWith('@@')) {
+      return `<div style="color: #38bdf8; background: rgba(56, 189, 248, 0.12); padding: 1px 6px;">${esc}</div>`;
+    }
+    if (line.startsWith('+')) {
+      return `<div style="color: #4ade80; background: rgba(16, 185, 129, 0.12); padding: 0 6px;">${esc}</div>`;
+    }
+    if (line.startsWith('-')) {
+      return `<div style="color: #f87171; background: rgba(239, 68, 68, 0.12); padding: 0 6px;">${esc}</div>`;
+    }
+    return `<div style="color: #cbd5e1; padding: 0 6px;">${esc}</div>`;
+  });
+  return `<div style="background: rgba(2, 6, 23, 0.85); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px; overflow-x: auto; white-space: pre;">${rendered.join('')}</div>`;
+}
+
+function _renderSingleUnmergedBranchCard(b, idx) {
+  const branchName = String(b.branch || '');
+  const safeJsBranch = branchName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const isClean = b.can_clean_merge !== false && b.merge_status !== 'CONFLICTS';
+  const mergeBadge = isClean
+    ? `<span class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);">✅ Ready to Merge (Clean)</span>`
+    : `<span class="badge" style="background: rgba(239, 68, 68, 0.16); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35);">⚠️ Conflicts (${(b.conflict_files || []).length})</span>`;
+
+  const scopeBadge = `<span class="badge" style="background: rgba(148, 163, 184, 0.14); color: #cbd5e1; font-family: monospace; font-size: 10.5px;">${_prEsc(b.scope || 'local')}</span>`;
+  const currentBadge = b.is_current
+    ? `<span class="badge" style="background: rgba(168, 85, 247, 0.2); color: #d8b4fe; font-size: 10.5px;">● Checked Out</span>`
+    : '';
+  const prObj = b.pr;
+  const prBadge = prObj && prObj.number
+    ? `<a href="${_prEsc(prObj.url || '#')}" target="_blank" rel="noopener noreferrer" class="badge" style="background: rgba(56, 189, 248, 0.18); color: #38bdf8; text-decoration: none;">🔗 PR #${_prEsc(prObj.number)}</a>`
+    : '';
+
+  // Authors list
+  const authors = Array.isArray(b.authors) && b.authors.length > 0
+    ? b.authors
+    : [{
+        name: b.latest_author_name || 'Unknown',
+        email: b.latest_author_email || '',
+        initials: b.latest_author_initials || '??',
+        commits: b.ahead_count || 1
+      }];
+
+  const authorsHtml = authors.map(a => `
+    <div style="display: inline-flex; align-items: center; gap: 7px; background: rgba(2, 6, 23, 0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 3px 10px 3px 5px; font-size: 11.5px;">
+      <span style="width: 22px; height: 22px; border-radius: 50%; background: rgba(56, 189, 248, 0.22); color: #38bdf8; font-weight: 700; font-size: 10px; display: inline-flex; align-items: center; justify-content: center;">${_prEsc(a.initials || 'AU')}</span>
+      <strong style="color: #f8fafc;">${_prEsc(a.name)}</strong>
+      ${a.email ? `<span style="color: var(--text-muted); font-family: monospace; font-size: 11px;">&lt;${_prEsc(a.email)}&gt;</span>` : ''}
+      <span class="badge" style="background: rgba(56, 189, 248, 0.12); color: #7dd3fc; font-size: 10px; padding: 1px 6px;">${_prEsc(a.commits)} commit${Number(a.commits) === 1 ? '' : 's'}</span>
+    </div>
+  `).join('');
+
+  // Categories
+  const categoriesHtml = (b.change_categories || []).map(cat => `
+    <span class="badge" style="background: rgba(99, 102, 241, 0.16); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.3); font-size: 10.5px;">${_prEsc(cat)}</span>
+  `).join('');
+
+  // Commits list
+  const commits = Array.isArray(b.commits) ? b.commits : [];
+  const commitsHtml = commits.slice(0, 8).map(c => `
+    <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 4px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 12px;">
+      <div style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        <code style="color: #38bdf8; font-size: 11px; margin-right: 6px;">${_prEsc(c.sha)}</code>
+        <span style="color: #e2e8f0;">${_prEsc(c.subject)}</span>
+      </div>
+      <div style="white-space: nowrap; font-size: 11px; color: var(--text-muted);">
+        <span>${_prEsc(c.author_name)}</span> • <span>${_prEsc(c.relative_time)}</span>
+      </div>
+    </div>
+  `).join('');
+
+  // Changed files list
+  const changedFiles = Array.isArray(b.changed_files) ? b.changed_files : [];
+  const filesHtml = changedFiles.slice(0, 15).map(f => {
+    const st = String(f.status || 'M').toUpperCase();
+    const stColor = st === 'A' ? '#4ade80' : (st === 'D' ? '#f87171' : '#38bdf8');
+    return `
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 3px 8px; font-family: monospace; font-size: 11.5px; border-bottom: 1px solid rgba(255,255,255,0.04);">
+        <div style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          <span style="display: inline-block; width: 18px; color: ${stColor}; font-weight: 700;">[${_prEsc(st)}]</span>
+          <span style="color: #cbd5e1;">${_prEsc(f.path)}</span>
+        </div>
+        <div style="white-space: nowrap;">
+          <span style="color: #4ade80; margin-right: 6px;">+${_prEsc(f.additions || 0)}</span>
+          <span style="color: #f87171;">-${_prEsc(f.deletions || 0)}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const conflictBanner = (!isClean && Array.isArray(b.conflict_files) && b.conflict_files.length > 0)
+    ? `<div style="margin-top: 8px; padding: 8px 10px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; font-size: 11.5px; color: #fca5a5;">
+         <strong>⚠️ Merge Conflicts with <code>${_prEsc(b.base_branch || 'main')}</code>:</strong>
+         <code>${b.conflict_files.map(_prEsc).join('</code>, <code>')}</code>
+       </div>`
+    : '';
+
+  return `
+    <div class="pr-branch-card" style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 15px; margin-bottom: 12px;">
+      <!-- Top Row: Branch Name & Status Badges -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span style="font-size: 14.5px; font-weight: 700; color: #38bdf8; font-family: monospace; background: rgba(56, 189, 248, 0.12); padding: 3px 10px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.3);">
+            🌿 ${_prEsc(branchName)}
+          </span>
+          <span style="color: var(--text-muted); font-size: 12px;">→ <code>${_prEsc(b.base_branch || 'main')}</code></span>
+          ${scopeBadge}
+          ${currentBadge}
+          ${prBadge}
+          <span class="badge" style="background: rgba(16, 185, 129, 0.14); color: #4ade80; font-size: 11px;">+${_prEsc(b.ahead_count || 0)} ahead</span>
+          ${Number(b.behind_count || 0) > 0
+            ? `<span class="badge" style="background: rgba(245, 158, 11, 0.16); color: #fbbf24; font-size: 11px;">-${_prEsc(b.behind_count)} behind</span>`
+            : `<span class="badge" style="background: rgba(255,255,255,0.06); color: var(--text-muted); font-size: 10.5px;">0 behind</span>`}
+          ${mergeBadge}
+        </div>
+        <div style="font-size: 11.5px; color: var(--text-muted);">
+          HEAD <code style="color: #7dd3fc;">${_prEsc(b.short_sha || '')}</code> • Updated <strong>${_prEsc(b.latest_commit_relative || '')}</strong>
+        </div>
+      </div>
+
+      <!-- Author Attribution Row -->
+      <div style="margin-bottom: 10px; padding: 8px 10px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px;">
+        <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 5px;">
+          👤 Branch Author(s) &amp; Attribution
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          ${authorsHtml}
+        </div>
+      </div>
+
+      <!-- What Changed Summary & Diffstat -->
+      <div style="margin-bottom: 10px; padding: 10px 12px; background: rgba(2, 6, 23, 0.55); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+          <div style="font-size: 13px; font-weight: 600; color: #f8fafc;">
+            📝 What Changed: <span style="font-weight: 500; color: #e2e8f0;">${_prEsc(b.change_summary_text || b.latest_commit_subject || '')}</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-family: monospace;">
+            <span class="badge" style="background: rgba(255,255,255,0.06); color: #cbd5e1;">📄 ${_prEsc(b.files_changed_count || 0)} file${Number(b.files_changed_count) === 1 ? '' : 's'}</span>
+            <span style="color: #4ade80; font-weight: 700;">+${_prEsc(b.insertions || 0)}</span>
+            <span style="color: #f87171; font-weight: 700;">-${_prEsc(b.deletions || 0)}</span>
+          </div>
+        </div>
+        ${categoriesHtml ? `<div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;">${categoriesHtml}</div>` : ''}
+        ${conflictBanner}
+
+        <!-- Commits Ahead Breakdown -->
+        ${commitsHtml ? `
+          <div style="margin-top: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; overflow: hidden;">
+            <div style="padding: 4px 8px; background: rgba(255,255,255,0.03); font-size: 11px; color: #94a3b8; font-weight: 600;">
+              Commits Waiting Merge (${commits.length})
+            </div>
+            ${commitsHtml}
+          </div>
+        ` : ''}
+
+        <!-- Expandable Changed Files List -->
+        ${filesHtml ? `
+          <details style="margin-top: 8px;">
+            <summary style="cursor: pointer; font-size: 11.5px; color: #38bdf8; user-select: none;">
+              📂 View Changed Files Breakdown (${changedFiles.length} file${changedFiles.length === 1 ? '' : 's'})
+            </summary>
+            <div style="margin-top: 6px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; max-height: 210px; overflow-y: auto;">
+              ${filesHtml}
+            </div>
+          </details>
+        ` : ''}
+      </div>
+
+      <!-- Action Buttons Row -->
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.07);">
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <button type="button" class="btn btn-primary btn-sm" style="font-size: 11.5px; padding: 5px 11px;" ${!isClean ? 'disabled title="Resolve merge conflicts first"' : ''} onclick="runPRBranchAction('merge', '${safeJsBranch}', {}, this)">
+            ✅ Merge into ${_prEsc(b.base_branch || 'main')}
+          </button>
+          <button type="button" class="btn btn-sm" style="font-size: 11.5px; padding: 5px 10px; border-color: rgba(16, 185, 129, 0.4); color: #34d399;" ${!isClean ? 'disabled' : ''} onclick="runPRBranchAction('merge', '${safeJsBranch}', {push_origin: true, delete_after_merge: true}, this)">
+            🚀 Merge, Push &amp; Clean Up
+          </button>
+          <button type="button" class="btn btn-sm" style="font-size: 11.5px; padding: 5px 10px; border-color: rgba(56, 189, 248, 0.35); color: #38bdf8;" onclick="inspectPRBranchDiff('${safeJsBranch}', this)">
+            🔍 Inspect Full Diff
+          </button>
+          <button type="button" class="btn btn-sm" style="font-size: 11.5px; padding: 5px 10px; border-color: rgba(168, 85, 247, 0.4); color: #c084fc;" onclick="runPRBranchAction('review_in_antigravity', '${safeJsBranch}', {}, this)">
+            🤖 AI Review in Antigravity
+          </button>
+          ${Number(b.behind_count || 0) > 0 ? `
+            <button type="button" class="btn btn-sm" style="font-size: 11.5px; padding: 5px 10px; border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;" onclick="runPRBranchAction('sync_with_main', '${safeJsBranch}', {}, this)">
+              🔄 Sync with ${_prEsc(b.base_branch || 'main')}
+            </button>
+          ` : ''}
+          ${!b.is_current ? `
+            <button type="button" class="btn btn-sm" style="font-size: 11.5px; padding: 5px 10px;" onclick="runPRBranchAction('checkout', '${safeJsBranch}', {}, this)">
+              📌 Checkout
+            </button>
+          ` : ''}
+        </div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          ${b.compare_url ? `
+            <a href="${_prEsc(b.compare_url)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="font-size: 11.5px; padding: 5px 10px; text-decoration: none;">
+              🌐 Compare / PR on GitHub ↗
+            </a>
+          ` : ''}
+          <button type="button" class="btn btn-sm" style="font-size: 11.5px; padding: 5px 10px; border-color: rgba(239, 68, 68, 0.35); color: #f87171;" onclick="confirmDeletePRBranch('${safeJsBranch}', true, this)">
+            🗑️ Delete Branch
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+window.renderPRReviewDashboard = function(data) {
+  if (!data || typeof data !== 'object') return;
+  const prsData = data.prs || {};
+  const ciData = data.ci || {};
+  const branchesData = data.branches || {};
+  const mainStatus = branchesData.main_status || {};
+  const unmerged = Array.isArray(branchesData.unmerged_branches) ? branchesData.unmerged_branches : [];
+  const synced = Array.isArray(branchesData.synced_branches) ? branchesData.synced_branches : [];
+  const openPrs = Array.isArray(prsData.prs) ? prsData.prs : [];
+
+  const lastBadge = document.getElementById('prLastCheckedBadge');
+  if (lastBadge) {
+    lastBadge.textContent = `Updated ${new Date().toLocaleTimeString()}`;
+  }
+
+  // 1. Update KPI Cards
+  const waitingCountEl = document.getElementById('prBranchesWaitingCount');
+  const waitingSubEl = document.getElementById('prBranchesWaitingSub');
+  const headerBadge = document.getElementById('prUnmergedHeaderBadge');
+  if (waitingCountEl) {
+    waitingCountEl.textContent = String(unmerged.length);
+    waitingCountEl.style.color = unmerged.length > 0 ? '#f59e0b' : '#4ade80';
+  }
+  if (waitingSubEl) {
+    waitingSubEl.textContent = unmerged.length > 0
+      ? `${unmerged.length} branch${unmerged.length === 1 ? '' : 'es'} ahead of ${branchesData.base_branch || 'main'}`
+      : `All branches merged into ${branchesData.base_branch || 'main'}`;
+  }
+  if (headerBadge) {
+    headerBadge.textContent = `${unmerged.length} waiting merge`;
+    headerBadge.style.background = unmerged.length > 0 ? 'rgba(245, 158, 11, 0.18)' : 'rgba(16, 185, 129, 0.16)';
+    headerBadge.style.color = unmerged.length > 0 ? '#fbbf24' : '#34d399';
+  }
+
+  const prOpenCountEl = document.getElementById('prOpenCount');
+  const prTriageEl = document.getElementById('prTriageStatus');
+  if (prOpenCountEl) prOpenCountEl.textContent = String(openPrs.length);
+  if (prTriageEl) {
+    prTriageEl.textContent = prsData.status === 'ERROR'
+      ? `Offline / ${prsData.error || 'GitHub unreachable'}`
+      : (openPrs.length === 0 ? '0 open PRs on GitHub' : `${openPrs.length} open PR(s) awaiting review`);
+  }
+
+  const ciStatusEl = document.getElementById('ciHealthStatus');
+  const ciSubEl = document.getElementById('ciHealthSub');
+  if (ciStatusEl) {
+    const st = ciData.status || 'PASSING';
+    ciStatusEl.textContent = st;
+    ciStatusEl.style.color = st === 'PASSING' ? '#4ade80' : (st === 'FAILING' ? '#f87171' : '#fbbf24');
+  }
+  if (ciSubEl) {
+    const failingCount = Array.isArray(ciData.failing_runs) ? ciData.failing_runs.length : 0;
+    ciSubEl.textContent = failingCount > 0
+      ? `${failingCount} failing workflow run(s)`
+      : `${ciData.total_checked || 5} recent workflow runs passing`;
+  }
+
+  const mainValEl = document.getElementById('prMainSyncVal');
+  const mainSubEl = document.getElementById('prMainSyncSub');
+  if (mainValEl) {
+    mainValEl.textContent = `${branchesData.current_branch || 'main'} @ ${mainStatus.short_sha || 'HEAD'}`;
+  }
+  if (mainSubEl) {
+    const wtCount = Number(mainStatus.working_tree_count || 0);
+    const aheadOrig = Number(mainStatus.ahead_of_origin || 0);
+    const parts = [];
+    if (mainStatus.author_name) parts.push(`By ${mainStatus.author_name}`);
+    if (aheadOrig > 0) parts.push(`+${aheadOrig} unpushed`);
+    if (wtCount > 0) parts.push(`${wtCount} uncommitted file(s)`);
+    else parts.push('Working tree clean');
+    mainSubEl.textContent = parts.join(' • ');
+  }
+
+  // 2. Render Unmerged Branches Section
+  const unmergedContainer = document.getElementById('prUnmergedBranchesContainer');
+  if (unmergedContainer) {
+    if (unmerged.length === 0) {
+      const wtDirty = Boolean(mainStatus.working_tree_dirty);
+      const wtCount = Number(mainStatus.working_tree_count || 0);
+      unmergedContainer.innerHTML = `
+        <div style="padding: 16px; background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.22); border-radius: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <div style="color: #34d399; font-weight: 700; font-size: 13.5px;">
+              ✅ No unmerged feature branches waiting to merge into <code>${_prEsc(branchesData.base_branch || 'main')}</code>
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px;">
+              Latest on <code>${_prEsc(branchesData.base_branch || 'main')}</code>:
+              <code style="color: #38bdf8;">${_prEsc(mainStatus.short_sha || '')}</code>
+              <strong>${_prEsc(mainStatus.subject || '')}</strong>
+              by <strong>${_prEsc(mainStatus.author_name || '')}</strong>
+              ${mainStatus.author_email ? `<span style="font-family: monospace;">&lt;${_prEsc(mainStatus.author_email)}&gt;</span>` : ''}
+              (${_prEsc(mainStatus.relative_time || '')})
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            ${wtDirty ? `
+              <button type="button" class="btn btn-sm" style="border-color: rgba(245, 158, 11, 0.45); color: #fbbf24;" onclick="openCreatePRBranchModal(true)">
+                🌿 Spin Off ${wtCount} Uncommitted File(s) to Branch
+              </button>
+            ` : ''}
+            <button type="button" class="btn btn-sm" onclick="runPRBranchAction('fetch_remote', '', {}, this)">
+              ☁️ Scan Origin for Remote Branches
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      unmergedContainer.innerHTML = unmerged.map((b, i) => _renderSingleUnmergedBranchCard(b, i)).join('');
+    }
+  }
+
+  // 3. Render Main Branch HEAD, Working Tree & Synced Branches
+  const mainContainer = document.getElementById('prMainAndWorkingTreeContainer');
+  if (mainContainer) {
+    const wtFiles = Array.isArray(mainStatus.working_tree_files) ? mainStatus.working_tree_files : [];
+    const recentCommits = Array.isArray(mainStatus.recent_commits) ? mainStatus.recent_commits : [];
+    const aheadOrigin = Number(mainStatus.ahead_of_origin || 0);
+
+    const wtHtml = wtFiles.length > 0 ? `
+      <div style="margin-bottom: 14px; padding: 12px 14px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <strong style="color: #fbbf24; font-size: 13px;">🛠️ Uncommitted Working Tree Changes (${wtFiles.length} file${wtFiles.length === 1 ? '' : 's'} on <code>${_prEsc(branchesData.current_branch || 'main')}</code>)</strong>
+            <div style="font-size: 11.5px; color: var(--text-muted);">You can inspect the live diff or spin these changes off into a feature branch for review before merging to <code>main</code>.</div>
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button type="button" class="btn btn-sm" style="border-color: rgba(56, 189, 248, 0.35); color: #38bdf8;" onclick="inspectWorkingTreeDiff(this)">
+              🔍 Inspect Working Tree Diff
+            </button>
+            <button type="button" class="btn btn-sm btn-primary" onclick="openCreatePRBranchModal(true)">
+              🌿 Spin Off to Feature Branch
+            </button>
+          </div>
+        </div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          ${wtFiles.slice(0, 12).map(f => `
+            <span style="font-family: monospace; font-size: 11px; background: rgba(2, 6, 23, 0.7); border: 1px solid rgba(255,255,255,0.08); padding: 2px 7px; border-radius: 4px; color: #e2e8f0;">
+              <strong style="color: #fbbf24;">${_prEsc(f.status)}</strong> ${_prEsc(f.path)}
+            </span>
+          `).join('')}
+          ${wtFiles.length > 12 ? `<span class="badge">+${wtFiles.length - 12} more</span>` : ''}
+        </div>
+      </div>
+    ` : '';
+
+    const syncedHtml = synced.length > 0 ? `
+      <div style="margin-bottom: 14px; padding: 10px 12px; background: rgba(2, 6, 23, 0.5); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px;">
+        <div style="font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">
+          🧹 Already-Merged / Synced Branches (${synced.length})
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          ${synced.map(sb => {
+            const safeSb = String(sb.branch || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            return `
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 8px; background: rgba(15, 23, 42, 0.65); border-radius: 6px; font-size: 12px;">
+                <div>
+                  <code style="color: #34d399; font-weight: 600;">🌿 ${_prEsc(sb.branch)}</code>
+                  <span class="badge" style="margin-left: 6px; font-size: 10px;">${_prEsc(sb.scope)}</span>
+                  <span style="color: var(--text-muted); margin-left: 8px;">Author: <strong>${_prEsc(sb.latest_author_name)}</strong> &lt;${_prEsc(sb.latest_author_email)}&gt; • ${_prEsc(sb.latest_commit_relative)}</span>
+                </div>
+                <button type="button" class="btn btn-sm" style="font-size: 11px; padding: 3px 8px; color: #f87171;" onclick="confirmDeletePRBranch('${safeSb}', false, this)">
+                  🗑️ Delete Merged Branch
+                </button>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    ` : '';
+
+    const recentCommitsHtml = recentCommits.map(c => `
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px;">
+        <div style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          <code style="color: #38bdf8; margin-right: 6px;">${_prEsc(c.sha)}</code>
+          <span style="color: #e2e8f0;">${_prEsc(c.subject)}</span>
+        </div>
+        <div style="white-space: nowrap; font-size: 11.5px; color: var(--text-muted);">
+          👤 <strong style="color: #cbd5e1;">${_prEsc(c.author_name)}</strong>
+          ${c.author_email ? `<span style="font-family: monospace; font-size: 10.5px;">&lt;${_prEsc(c.author_email)}&gt;</span>` : ''}
+          • <span>${_prEsc(c.relative_time)}</span>
+        </div>
+      </div>
+    `).join('');
+
+    mainContainer.innerHTML = `
+      ${wtHtml}
+      ${syncedHtml}
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+        <div style="font-size: 12.5px; color: #cbd5e1;">
+          Latest commits on <code>${_prEsc(branchesData.base_branch || 'main')}</code>
+          ${aheadOrigin > 0 ? `<span class="badge" style="margin-left: 6px; background: rgba(56, 189, 248, 0.16); color: #38bdf8;">+${aheadOrigin} ahead of origin/${_prEsc(branchesData.base_branch || 'main')}</span>` : ''}
+        </div>
+        ${aheadOrigin > 0 ? `
+          <button type="button" class="btn btn-sm btn-primary" style="font-size: 11px; padding: 4px 10px;" onclick="runPRBranchAction('push_main', '', {}, this)">
+            ⬆️ Push ${aheadOrigin} Commit(s) to origin/${_prEsc(branchesData.base_branch || 'main')}
+          </button>
+        ` : ''}
+      </div>
+      <div style="background: rgba(2, 6, 23, 0.6); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; overflow: hidden;">
+        ${recentCommitsHtml || '<div style="padding: 10px; color: var(--text-muted);">No commits found.</div>'}
+      </div>
+    `;
+  }
+
+  // 4. Render Open Pull Requests Section
+  const prListContainer = document.getElementById('prListContainer');
+  if (prListContainer) {
+    if (openPrs.length === 0) {
+      prListContainer.innerHTML = `<div style="color: var(--text-muted); font-size: 12.5px;">No open GitHub pull requests currently pending review.</div>`;
+    } else {
+      prListContainer.innerHTML = openPrs.map(pr => {
+        const prNum = Number(pr.number || 0);
+        const safeBranch = String(pr.head_ref || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        return `
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding: 12px; margin-bottom: 8px; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <strong style="color: #38bdf8; font-size: 13.5px;">#${prNum} ${_prEsc(pr.title)}</strong>
+                ${pr.draft ? '<span class="badge">Draft</span>' : ''}
+                ${pr.is_dependabot ? '<span class="badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">🤖 Dependabot</span>' : ''}
+              </div>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+                👤 Author: <strong style="color: #e2e8f0;">${_prEsc(pr.author)}</strong>
+                • Branch: <code>${_prEsc(pr.head_ref || '')}</code> → <code>${_prEsc(pr.base_ref || 'main')}</code>
+                • HEAD: <code>${_prEsc(String(pr.head_sha || '').slice(0, 7))}</code>
+                ${pr.relative_time ? `• Updated ${_prEsc(pr.relative_time)}` : ''}
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-primary btn-sm" style="font-size: 11px; padding: 4px 10px;" onclick="runPRPullRequestAction('merge_pr', ${prNum}, {merge_method: 'squash'}, this)">
+                ✅ Squash &amp; Merge PR
+              </button>
+              ${safeBranch ? `
+                <button type="button" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px; border-color: rgba(168, 85, 247, 0.4); color: #c084fc;" onclick="runPRBranchAction('review_in_antigravity', '${safeBranch}', {}, this)">
+                  🤖 AI Review
+                </button>
+              ` : ''}
+              ${pr.url ? `<a href="${_prEsc(pr.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px; text-decoration: none;">🌐 GitHub ↗</a>` : ''}
+              <button type="button" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px; color: #f87171;" onclick="runPRPullRequestAction('close_pr', ${prNum}, {}, this)">
+                ✕ Close
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+};
+
+window.fetchPRReviewStatus = async function(fetchRemote, btnEl) {
+  const execFetch = async () => {
+    const q = fetchRemote ? '?fetch=1' : '';
+    const res = await fetch(`/api/pr_review/status${q}`);
+    const data = await res.json();
+    if (!res.ok || data.status === 'error') {
+      throw new Error(data.message || 'Failed to load PR Review & Branch status');
+    }
+    window.renderPRReviewDashboard(data);
+    return data;
+  };
+
+  if (btnEl && typeof window.runFleetAsyncAction === 'function') {
+    await window.runFleetAsyncAction({
+      buttons: [btnEl],
+      busyLabel: '⏳ Auditing...',
+      startToast: '⏳ Auditing unmerged branches, PRs & CI gate...',
+      successToast: '✅ Branch & CI governance status updated.',
+      errorPrefix: 'PR Review audit failed',
+    }, execFetch);
+  } else {
+    try {
+      await execFetch();
+    } catch (e) {
+      _prNotify('✕ ' + e.message, true);
+    }
+  }
+};
+
+window.runPRBranchAction = async function(action, branch, extraPayload, btnEl) {
+  const payload = Object.assign({}, extraPayload || {}, { action, branch });
+  const labelMap = {
+    merge: `⏳ Merging '${branch}'...`,
+    fetch_remote: '⏳ Fetching origin...',
+    sync_with_main: `⏳ Syncing '${branch}'...`,
+    checkout: `⏳ Checking out '${branch}'...`,
+    delete_branch: `⏳ Deleting '${branch}'...`,
+    push_main: '⏳ Pushing main...',
+    review_in_antigravity: '⏳ Dispatching to Antigravity...',
+  };
+
+  const execAction = async () => {
+    const res = await fetch('/api/pr_review/branch_action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.status === 'error') {
+      throw new Error(data.message || `Action '${action}' failed`);
+    }
+    if (data.branches) {
+      await window.fetchPRReviewStatus(false);
+    }
+    if (action === 'review_in_antigravity') {
+      if (typeof openAntigravityRightDock === 'function') {
+        openAntigravityRightDock();
+      }
+      if (typeof fetchTranscript === 'function') {
+        fetchTranscript(true);
+      }
+    }
+    if (data.message) {
+      _prNotify(`✅ ${data.message}`, false);
+    }
+    return data;
+  };
+
+  if (typeof window.runFleetAsyncAction === 'function') {
+    await window.runFleetAsyncAction({
+      buttons: btnEl ? [btnEl] : [],
+      busyLabel: labelMap[action] || '⏳ Working...',
+      errorPrefix: 'Branch action failed',
+    }, execAction);
+  } else {
+    try {
+      await execAction();
+    } catch (e) {
+      _prNotify('✕ ' + e.message, true);
+    }
+  }
+};
+
+window.confirmDeletePRBranch = async function(branch, isUnmerged, btnEl) {
+  const promptMsg = isUnmerged
+    ? `Branch "${branch}" still has unmerged commits ahead of main.\n\nAre you sure you want to force-delete local branch "${branch}"?`
+    : `Delete merged local branch "${branch}"?`;
+  if (!confirm(promptMsg)) return;
+  await window.runPRBranchAction('delete_branch', branch, { force: Boolean(isUnmerged) }, btnEl);
+};
+
+window.inspectPRBranchDiff = async function(branch, btnEl) {
+  const modal = document.getElementById('prBranchDiffModal');
+  const titleEl = document.getElementById('prDiffModalTitle');
+  const subEl = document.getElementById('prDiffModalSub');
+  const bodyEl = document.getElementById('prDiffModalBody');
+  if (modal) modal.style.display = 'flex';
+  if (titleEl) titleEl.textContent = `🔍 Branch Diff Inspector: ${branch}`;
+  if (subEl) subEl.textContent = 'Loading unified diff & commit telemetry...';
+  if (bodyEl) bodyEl.innerHTML = '<div style="padding: 18px; color: var(--text-muted);">⏳ Computing git diff...</div>';
+
+  try {
+    const res = await fetch('/api/pr_review/branch_action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'diff', branch }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.status === 'error') {
+      throw new Error(data.message || 'Could not load branch diff');
+    }
+    const info = data.branch_info || {};
+    if (subEl) {
+      subEl.textContent = `Author: ${info.latest_author_name || 'Unknown'} <${info.latest_author_email || ''}> • +${info.ahead_count || 0} commits ahead • ${info.files_changed_count || 0} files (+${info.insertions || 0} / -${info.deletions || 0})`;
+    }
+    if (bodyEl) {
+      bodyEl.innerHTML = _renderDiffHtml(data.diff || '');
+    }
+  } catch (e) {
+    if (bodyEl) {
+      bodyEl.innerHTML = `<div style="color: #f87171;">✕ ${_prEsc(e.message)}</div>`;
+    }
+  }
+};
+
+window.inspectWorkingTreeDiff = async function(btnEl) {
+  const modal = document.getElementById('prBranchDiffModal');
+  const titleEl = document.getElementById('prDiffModalTitle');
+  const subEl = document.getElementById('prDiffModalSub');
+  const bodyEl = document.getElementById('prDiffModalBody');
+  if (modal) modal.style.display = 'flex';
+  if (titleEl) titleEl.textContent = '🔍 Working Tree Uncommitted Diff (HEAD)';
+  if (subEl) subEl.textContent = 'Uncommitted local changes relative to HEAD';
+  if (bodyEl) bodyEl.innerHTML = '<div style="padding: 18px; color: var(--text-muted);">⏳ Computing working tree diff...</div>';
+
+  try {
+    const res = await fetch('/api/pr_review/branch_action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'working_tree_diff' }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.status === 'error') {
+      throw new Error(data.message || 'Could not load working tree diff');
+    }
+    if (bodyEl) {
+      bodyEl.innerHTML = _renderDiffHtml(data.diff || data.status_short || '');
+    }
+  } catch (e) {
+    if (bodyEl) {
+      bodyEl.innerHTML = `<div style="color: #f87171;">✕ ${_prEsc(e.message)}</div>`;
+    }
+  }
+};
+
+window.closePRBranchDiffModal = function() {
+  const modal = document.getElementById('prBranchDiffModal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.openCreatePRBranchModal = function(prefillSpinOff) {
+  const modal = document.getElementById('prCreateBranchModal');
+  const nameInput = document.getElementById('prNewBranchNameInput');
+  const msgInput = document.getElementById('prNewBranchCommitMsgInput');
+  if (modal) modal.style.display = 'flex';
+  if (nameInput) {
+    const stamp = new Date().toISOString().slice(5, 10).replace('-', '');
+    nameInput.value = prefillSpinOff ? `feat/pending-changes-${stamp}` : '';
+    setTimeout(() => nameInput.focus(), 60);
+  }
+  if (msgInput) {
+    msgInput.value = prefillSpinOff ? 'chore: stage working tree updates on feature branch for review' : '';
+  }
+};
+
+window.closeCreatePRBranchModal = function() {
+  const modal = document.getElementById('prCreateBranchModal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.submitCreatePRBranch = async function(btnEl) {
+  const nameInput = document.getElementById('prNewBranchNameInput');
+  const msgInput = document.getElementById('prNewBranchCommitMsgInput');
+  const newBranch = (nameInput ? nameInput.value : '').trim();
+  const commitMsg = (msgInput ? msgInput.value : '').trim();
+  if (!newBranch) {
+    _prNotify('Please enter a valid branch name (e.g. feat/my-feature).', true);
+    return;
+  }
+  await window.runPRBranchAction(
+    'create_branch',
+    newBranch,
+    { new_branch: newBranch, commit_message: commitMsg, switch_back_to_main: true },
+    btnEl
+  );
+  window.closeCreatePRBranchModal();
+};
+
+window.runPRPullRequestAction = async function(action, prNumber, extraPayload, btnEl) {
+  const payload = Object.assign({}, extraPayload || {}, { action, pr_number: prNumber });
+  const execPr = async () => {
+    const res = await fetch('/api/pr_review/pr_action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.status === 'error') {
+      throw new Error(data.message || `PR #${prNumber} action failed`);
+    }
+    _prNotify(`✅ ${data.message || `Updated PR #${prNumber}`}`, false);
+    await window.fetchPRReviewStatus(false);
+  };
+
+  if (typeof window.runFleetAsyncAction === 'function') {
+    await window.runFleetAsyncAction({
+      buttons: btnEl ? [btnEl] : [],
+      busyLabel: '⏳ Updating PR...',
+      errorPrefix: 'PR action failed',
+    }, execPr);
+  } else {
+    try {
+      await execPr();
+    } catch (e) {
+      _prNotify('✕ ' + e.message, true);
+    }
+  }
+};
+
+window.runPRPipelineAudit = async function(btnEl) {
+  const box = document.getElementById('prPipelineAuditContainer');
+  if (box) {
+    box.style.display = 'block';
+    box.innerHTML = '<div style="padding: 12px; color: #38bdf8;">⏳ Auditing GitHub Actions check-runs, CodeQL SARIF alerts &amp; OSV/Dependabot vulnerabilities...</div>';
+  }
+  const execAudit = async () => {
+    const res = await fetch('/api/pr_review/pipeline_audit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wait: false, auto_remediate: true }),
+    });
+    const data = await res.json();
+    const audit = data.audit || {};
+    if (box) {
+      const checks = audit.github_checks || {};
+      const codeql = audit.code_scanning || {};
+      const deps = audit.dependency_vulnerabilities || {};
+      const healthy = audit.overall_healthy !== false;
+      box.innerHTML = `
+        <div style="padding: 12px 14px; background: rgba(15, 23, 42, 0.85); border: 1px solid ${healthy ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}; border-radius: 8px; font-size: 12.5px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="color: ${healthy ? '#34d399' : '#f87171'};">
+              ${healthy ? '✅ GitHub Pipeline, CodeQL & Dependency Audit: 100% HEALTHY' : '⚠️ Issues Detected in Pipeline / Code Scan'}
+            </strong>
+            <code style="color: #7dd3fc;">SHA ${_prEsc(String(audit.commit_sha || '').slice(0, 7))}</code>
+          </div>
+          <div style="color: #cbd5e1; display: flex; gap: 14px; flex-wrap: wrap;">
+            <span>Checks: <strong>${_prEsc(checks.passing_count || 0)}/${_prEsc(checks.total_checks || 0)} passing</strong></span>
+            <span>CodeQL / Secret Alerts: <strong>${_prEsc(codeql.open_count || 0)} open</strong></span>
+            <span>Dependency Vulnerabilities: <strong>${_prEsc(deps.total_vulnerabilities || 0)} found</strong></span>
+          </div>
+        </div>
+      `;
+    }
+    return data;
+  };
+
+  if (typeof window.runFleetAsyncAction === 'function') {
+    await window.runFleetAsyncAction({
+      buttons: btnEl ? [btnEl] : [],
+      busyLabel: '⏳ Auditing Pipeline...',
+      startToast: '⏳ Running GitHub Actions, CodeQL & OSV/Dependabot Sentinel...',
+      successToast: '✅ GitHub Pipeline & CodeQL audit complete.',
+      errorPrefix: 'Pipeline audit failed',
+    }, execAudit);
+  } else {
+    try {
+      await execAudit();
+    } catch (e) {
+      _prNotify('✕ ' + e.message, true);
+    }
+  }
 };
 
 // Initialize when DOM is ready

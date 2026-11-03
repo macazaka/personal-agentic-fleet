@@ -2,7 +2,7 @@
 
 Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operations Wiki**!
 
-[![Release: v2.13.2](https://img.shields.io/badge/Release-v2.13.2-00b4d8.svg)](Release-Notes)
+[![Release: v2.13.3](https://img.shields.io/badge/Release-v2.13.3-00b4d8.svg)](Release-Notes)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%5B12%20Layers%5D-brightgreen.svg)](Security-Model)
@@ -52,12 +52,10 @@ Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operat
 | **[[Release-Notes]]** | Complete semantic version history and categorized changelog notes (synchronized with `CHANGELOG.md` at `v2.8.6`). |
 
 <!-- AUTO-LATEST-RELEASE:START -->
-## 🆕 Latest Release Highlights (`v2.13.2`)
+## 🆕 Latest Release Highlights (`v2.13.3`)
 
-> **Live Codebase Inventory**: `7` Built-In Agents • `123` REST API Endpoints • `33` Core Microkernel Modules • `20` Automation Tools • `480` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
+> **Live Codebase Inventory**: `7` Built-In Agents • `124` REST API Endpoints • `33` Core Microkernel Modules • `20` Automation Tools • `484` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
 
-### Security
-- **CodeQL TLSv1.2+ Protocol Floor & Clear-Text Secret Taint Hardening (`fleet/tools/github_pipeline_sentinel.py`, `fleet/tools/security_scanner.py`, `fleet/tools/auto_fixer.py`)**:
-  - Enforced explicit `ctx.minimum_version = ssl.TLSVersion.TLSv1_2` inside `_IPv4FirstHTTPSConnection` (`0` `py/insecure-protocol` alerts) and replaced `secret_type*` field extraction in repository leak-scanning alerts with untainted integer alert IDs (`0` `py/clear-text-logging-sensitive-data` alerts).
-  - Added proactive pre-commit SAST detection in `security_scanner.py` and automatic `ssl.TLSVersion.TLSv1_2` injection in `auto_fixer.py` to prevent future `py/insecure-protocol` and `py/clear-text-logging-sensitive-data` findings before commit.
+### Fixed
+- Proactive release synchronization, static type verification, and documentation maintenance.
 <!-- AUTO-LATEST-RELEASE:END -->
