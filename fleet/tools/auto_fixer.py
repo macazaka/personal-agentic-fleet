@@ -407,6 +407,16 @@ def fix_vscode_pyright_problems(
                 )
                 file_fixes.append("Converted RLock.locked() to Python 3.10-compatible check")
 
+            # Ensure typing.List is imported if List[...] annotation is used
+            if "List[" in text and re.search(r"^from typing import Any, Dict, Optional\r?$", text, re.M):
+                text = re.sub(
+                    r"^from typing import Any, Dict, Optional(\r?)$",
+                    r"from typing import Any, Dict, List, Optional\1",
+                    text,
+                    flags=re.M,
+                )
+                file_fixes.append("Added missing List import to typing header")
+
             if text != original_text and file_fixes:
                 try:
                     ast.parse(text, filename=str(fp))

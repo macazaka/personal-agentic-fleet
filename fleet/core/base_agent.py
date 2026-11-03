@@ -282,6 +282,54 @@ class FleetAgent(ABC):
                 })
         return cmds
 
+    def get_micro_widget(self) -> Dict[str, Any]:
+        """
+        UX-09: Returns a compact 1x1 or 2x1 Bento tile specification for the
+        Overview Executive Cockpit ($0.00 / 0 LLM tokens).
+        """
+        meta = getattr(self, "manifest_meta", {}) or {}
+        routine_task = str(meta.get("routine_task") or "default")
+        primary_metric = "Active" if self.enabled else "Paused"
+        secondary_label = str(meta.get("category") or "Agent Status")
+
+        if self._raw_db is not None:
+            try:
+                if self.id == "health" and hasattr(self._raw_db, "get_daily_water_total"):
+                    water_ml = int(self._raw_db.get_daily_water_total() or 0)
+                    primary_metric = f"{water_ml} ml"
+                    secondary_label = "Today's Hydration"
+                elif self.id == "backlog" and hasattr(self._raw_db, "get_feature_backlog_stats"):
+                    st = self._raw_db.get_feature_backlog_stats() or {}
+                    primary_metric = f"{st.get('completed', 0)}/{st.get('total', 0)}"
+                    secondary_label = "Features Completed"
+                elif self.id == "overview" and hasattr(self._raw_db, "get_all_tasks"):
+                    open_cnt = sum(
+                        1
+                        for t in (self._raw_db.get_all_tasks() or [])
+                        if str(t.get("status") or "").lower() != "completed"
+                    )
+                    primary_metric = f"{open_cnt} Open"
+                    secondary_label = "Priority Tasks"
+                elif self.is_custom and hasattr(self._raw_db, "list_custom_agent_records"):
+                    recs = self._raw_db.list_custom_agent_records(self.id, limit=50)
+                    primary_metric = f"{len(recs)} Records"
+                    secondary_label = str(meta.get("schedule_cadence") or "Studio Agent")
+            except Exception:
+                pass
+
+        return {
+            "agent_id": self.id,
+            "title": self.display_name,
+            "icon": self.display_icon,
+            "size": "1x1",
+            "primary_metric": primary_metric,
+            "secondary_label": secondary_label,
+            "quick_action": {
+                "label": f"▶ Run {self.display_name.split()[0]}",
+                "task": routine_task,
+            },
+        }
+
 
     # === UI Manifest & Template Customization ===
 

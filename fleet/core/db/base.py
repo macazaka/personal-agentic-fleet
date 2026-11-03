@@ -574,7 +574,177 @@ class BaseDatabase:
                 )
             """)
 
+            # UX-08: Agent Time-Machine & Transactional Undo Journal
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS agent_undo_journal (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    agent_id TEXT NOT NULL,
+                    operation TEXT NOT NULL,
+                    target_table TEXT NOT NULL,
+                    target_id TEXT DEFAULT '',
+                    prior_state_json TEXT DEFAULT '{}',
+                    new_state_json TEXT DEFAULT '{}',
+                    reverted INTEGER DEFAULT 0,
+                    created_at TEXT NOT NULL
+                )
+            """)
+
             conn.commit()
+
+    def record_agent_undo_entry(
+        self,
+        agent_id: str,
+        operation: str,
+        target_table: str,
+        target_id: str = "",
+        prior_state: Optional[Dict[str, Any]] = None,
+        new_state: Optional[Dict[str, Any]] = None,
+    ) -> int:
+        """Records a reversible mutation snapshot in `agent_undo_journal` (capped at 200 rows)."""
+        now_iso = datetime.now().isoformat()
+        with self._get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                INSERT INTO agent_undo_journal
+                    (agent_id, operation, target_table, target_id, prior_state_json, new_state_json, reverted, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, 0, ?)
+                """,
+                (
+                    agent_id,
+                    operation,
+                    target_table,
+                    str(target_id),
+                    json.dumps(prior_state or {}),
+                    json.dumps(new_state or {}),
+                    now_iso,
+                ),
+            )
+            rowid = int(cur.lastrowid or 0)
+            cur.execute(
+                """
+                DELETE FROM agent_undo_journal
+                WHERE id NOT IN (SELECT id FROM agent_undo_journal ORDER BY id DESC LIMIT 200)
+                """
+            )
+            conn.commit()
+            return rowid
+
+    def list_agent_undo_journal(self, limit: int = 30, include_reverted: bool = False) -> List[Dict[str, Any]]:
+        """Lists recent entries in `agent_undo_journal`."""
+        with self._get_connection() as conn:
+            cur = conn.cursor()
+            if include_reverted:
+                cur.execute(
+                    "SELECT * FROM agent_undo_journal ORDER BY id DESC LIMIT ?",
+                    (int(limit),),
+                )
+            else:
+                cur.execute(
+                    "SELECT * FROM agent_undo_journal WHERE reverted = 0 ORDER BY id DESC LIMIT ?",
+                    (int(limit),),
+                )
+            rows = []
+            for r in cur.fetchall():
+                d = dict(r)
+                try:
+                    d["prior_state"] = json.loads(d.get("prior_state_json") or "{}")
+                except Exception:
+                    d["prior_state"] = {}
+                try:
+                    d["new_state"] = json.loads(d.get("new_state_json") or "{}")
+                except Exception:
+                    d["new_state"] = {}
+                rows.append(d)
+            return rows
+
+    def undo_agent_mutation(self, journal_id: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Reverts a specific `journal_id` (or the latest unreverted entry if omitted)
+        in `agent_undo_journal` atomically ($0.00 / 0 tokens).
+        """
+        with self._get_connection() as conn:
+            cur = conn.cursor()
+            if journal_id is not None:
+                cur.execute("SELECT * FROM agent_undo_journal WHERE id = ?", (int(journal_id),))
+            else:
+                cur.execute("SELECT * FROM agent_undo_journal WHERE reverted = 0 ORDER BY id DESC LIMIT 1")
+            row = cur.fetchone()
+            if not row:
+                return {"status": "error", "message": "Undo journal entry not found."}
+            entry = dict(row)
+            if int(entry.get("reverted") or 0) == 1:
+                return {"status": "error", "message": f"Journal entry #{entry['id']} was already undone."}
+
+            op = str(entry.get("operation") or "")
+            tbl = str(entry.get("target_table") or "")
+            tid = str(entry.get("target_id") or "")
+            prior = json.loads(entry.get("prior_state_json") or "{}")
+
+            if tbl == "tasks":
+                if op == "add_task" and tid.isdigit():
+                    cur.execute("DELETE FROM tasks WHERE id = ?", (int(tid),))
+                elif op in ("complete_task", "update_task") and tid.isdigit() and prior:
+                    cur.execute(
+                        "UPDATE tasks SET status = ?, priority = ?, title = ?, description = ? WHERE id = ?",
+                        (
+                            prior.get("status", "pending"),
+                            prior.get("priority", "P2"),
+                            prior.get("title", ""),
+                            prior.get("description", ""),
+                            int(tid),
+                        ),
+                    )
+                elif op == "delete_task" and prior:
+                    cur.execute(
+                        """
+                        INSERT OR REPLACE INTO tasks (id, title, description, priority, status, due_date, assigned_agent, source, created_at, completed_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            prior.get("id"),
+                            prior.get("title", ""),
+                            prior.get("description", ""),
+                            prior.get("priority", "P2"),
+                            prior.get("status", "pending"),
+                            prior.get("due_date"),
+                            prior.get("assigned_agent", "system"),
+                            prior.get("source", "Manual"),
+                            prior.get("created_at", datetime.now().isoformat()),
+                            prior.get("completed_at"),
+                        ),
+                    )
+            elif tbl == "settings" and tid:
+                if prior.get("existed"):
+                    cur.execute(
+                        "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                        (tid, str(prior.get("value") or "")),
+                    )
+                else:
+                    cur.execute("DELETE FROM settings WHERE key = ?", (tid,))
+            elif tbl == "feature_backlog" and tid.isdigit() and prior:
+                cur.execute(
+                    "UPDATE feature_backlog SET status = ?, priority = ?, target_version = ?, updated_at = ? WHERE id = ?",
+                    (
+                        prior.get("status", "Planned"),
+                        prior.get("priority", "P2"),
+                        prior.get("target_version", "v2.0.0"),
+                        datetime.now().isoformat(),
+                        int(tid),
+                    ),
+                )
+
+            cur.execute("UPDATE agent_undo_journal SET reverted = 1 WHERE id = ?", (int(entry["id"]),))
+            conn.commit()
+            return {
+                "status": "ok",
+                "journal_id": int(entry["id"]),
+                "agent_id": entry.get("agent_id"),
+                "operation": op,
+                "target_table": tbl,
+                "target_id": tid,
+                "message": f"Reverted {entry.get('agent_id')}.{op} on {tbl} ({tid}).",
+            }
 
     def set_encrypted_setting(self, key: str, plaintext_value: str) -> None:
         """Encrypts a sensitive setting value at rest using the DPAPI Crypto Vault before saving to SQLite."""

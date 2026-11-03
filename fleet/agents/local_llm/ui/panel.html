@@ -1,0 +1,168 @@
+<!-- Local Ollama & LoRA Studio Agent Panel (Backlog #5) -->
+<div class="view-section" id="view-local_llm">
+    <div class="agent-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
+        <div>
+            <h2 style="margin:0; display:flex; align-items:center; gap:10px;">
+                <span>🦙</span> Local Ollama &amp; LoRA Fine-Tuning Studio
+                <span id="local-llm-daemon-badge" class="badge" style="font-size:12px; padding:4px 10px; border-radius:999px; background:rgba(16,185,129,0.15); color:#10b981;">Local Engine Ready ($0.00)</span>
+            </h2>
+            <p style="margin:4px 0 0 0; color:var(--text-secondary); font-size:13px;">
+                Manage local Ollama models, synthesize PII-scrubbed personal instruction datasets (JSONL), and build custom Modelfiles for 100% offline inference.
+            </p>
+        </div>
+        <div style="display:flex; gap:8px;">
+            <button class="btn btn-secondary" onclick="refreshLocalLLMStudio()" title="Refresh local Ollama daemon status and model catalog">
+                🔄 Refresh Models
+            </button>
+            <button class="btn btn-primary" onclick="buildPersonalLoRADataset()" title="Synthesize a PII-scrubbed Alpaca JSONL fine-tuning dataset from your local tasks and routines">
+                🧬 Synthesize Fine-Tuning Dataset
+            </button>
+        </div>
+    </div>
+
+    <div class="grid-2" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:16px; margin-bottom:20px;">
+        <!-- Model Catalog Card -->
+        <div class="card" style="padding:18px;">
+            <h3 style="margin-top:0; font-size:15px;">📦 Local Ollama Model Catalog</h3>
+            <div id="local-llm-models-list" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
+                <div style="color:var(--text-secondary); font-size:13px;">Loading local model profiles...</div>
+            </div>
+        </div>
+
+        <!-- Custom Modelfile & LoRA Builder -->
+        <div class="card" style="padding:18px;">
+            <h3 style="margin-top:0; font-size:15px;">🛠️ Custom Ollama Modelfile &amp; Persona Builder</h3>
+            <div style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
+                <label style="font-size:12px; color:var(--text-secondary);">
+                    Base Model
+                    <input id="local-llm-base-model" type="text" class="input" value="llama3.2:3b" style="width:100%; margin-top:4px;" />
+                </label>
+                <label style="font-size:12px; color:var(--text-secondary);">
+                    Custom Persona Tag
+                    <input id="local-llm-persona-name" type="text" class="input" value="fleet-executive-coach" style="width:100%; margin-top:4px;" />
+                </label>
+                <label style="font-size:12px; color:var(--text-secondary);">
+                    System Prompt (PII-Scrubbed Automatically)
+                    <textarea id="local-llm-system-prompt" class="input" rows="3" style="width:100%; margin-top:4px;">You are a concise, privacy-first personal chief of staff running 100% offline.</textarea>
+                </label>
+                <button class="btn btn-primary" onclick="generateCustomModelfile()" title="Generate an Ollama Modelfile for this custom offline persona">
+                    ⚡ Generate Modelfile
+                </button>
+                <pre id="local-llm-modelfile-output" style="display:none; margin-top:8px; padding:10px; border-radius:8px; background:rgba(0,0,0,0.25); font-size:12px; overflow-x:auto;"></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Offline Inference Sandbox & Dataset Status -->
+    <div class="grid-2" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:16px;">
+        <div class="card" style="padding:18px;">
+            <h3 style="margin-top:0; font-size:15px;">💬 $0.00 Offline Inference Playground</h3>
+            <div style="display:flex; gap:8px; margin-top:10px;">
+                <input id="local-llm-prompt-input" type="text" class="input" placeholder="Ask your local model anything (100% on-device)..." style="flex:1;" />
+                <button class="btn btn-primary" onclick="runLocalLLMInference()" title="Run local zero-cost inference on the selected model">
+                    ▶️ Run Local
+                </button>
+            </div>
+            <pre id="local-llm-inference-output" style="margin-top:12px; padding:12px; border-radius:8px; background:rgba(0,0,0,0.2); font-size:12px; white-space:pre-wrap; min-height:64px;">Ready for offline inference.</pre>
+        </div>
+
+        <div class="card" style="padding:18px;">
+            <h3 style="margin-top:0; font-size:15px;">🧬 Personal LoRA Dataset Export Status</h3>
+            <div id="local-llm-dataset-summary" style="font-size:13px; color:var(--text-secondary); margin-top:10px;">
+                Click "Synthesize Fine-Tuning Dataset" to extract PII-scrubbed Alpaca instruction pairs from your local fleet database.
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function refreshLocalLLMStudio() {
+    try {
+        const res = await fetch('/api/local_llm/status');
+        const data = await res.json();
+        const badge = document.getElementById('local-llm-daemon-badge');
+        if (badge) {
+            badge.textContent = data.daemon_online
+                ? `Ollama Online (${data.active_model})`
+                : `Offline Catalog Ready (${data.active_model})`;
+        }
+        const listEl = document.getElementById('local-llm-models-list');
+        if (listEl && Array.isArray(data.models)) {
+            listEl.innerHTML = data.models.map(m => `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-radius:8px; background:rgba(255,255,255,0.03); border:1px solid var(--border-color);">
+                    <div>
+                        <strong style="font-size:13px;">${m.name}</strong>
+                        <div style="font-size:11px; color:var(--text-secondary);">${m.role} • ${m.parameter_size} • ${m.quantization} (~${m.vram_gb} GB VRAM)</div>
+                    </div>
+                    <span class="badge" style="font-size:11px;">${m.installed ? 'Ready' : 'Catalog'}</span>
+                </div>
+            `).join('');
+        }
+        if (data.last_dataset && data.last_dataset.sample_count) {
+            renderLoRADatasetSummary(data.last_dataset);
+        }
+    } catch (err) {
+        console.error('Failed to load Local LLM Studio:', err);
+    }
+}
+
+function renderLoRADatasetSummary(ds) {
+    const el = document.getElementById('local-llm-dataset-summary');
+    if (!el) return;
+    el.innerHTML = `
+        <div style="margin-bottom:8px;">
+            <strong>Samples Synthesized:</strong> ${ds.sample_count} pairs (${ds.format || 'JSONL'})<br/>
+            <strong>Export Artifact:</strong> <code>${ds.export_filename || 'personal_fleet_instruct.jsonl'}</code><br/>
+            <strong>Generated At:</strong> ${ds.generated_at || 'Just now'}
+        </div>
+    `;
+}
+
+async function buildPersonalLoRADataset() {
+    const res = await fetch('/api/local_llm/dataset', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({max_samples: 50})
+    });
+    const data = await res.json();
+    renderLoRADatasetSummary(data);
+}
+
+async function generateCustomModelfile() {
+    const base_model = document.getElementById('local-llm-base-model')?.value || 'llama3.2:3b';
+    const persona_name = document.getElementById('local-llm-persona-name')?.value || 'fleet-executive-coach';
+    const system_prompt = document.getElementById('local-llm-system-prompt')?.value || '';
+    const res = await fetch('/api/local_llm/modelfile', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({base_model, persona_name, system_prompt})
+    });
+    const data = await res.json();
+    const out = document.getElementById('local-llm-modelfile-output');
+    if (out && data.modelfile_entry) {
+        out.style.display = 'block';
+        out.textContent = `${data.modelfile_entry.modelfile}\n# Build Command:\n# ${data.modelfile_entry.cli_command}`;
+    }
+}
+
+async function runLocalLLMInference() {
+    const prompt = document.getElementById('local-llm-prompt-input')?.value || '';
+    if (!prompt.trim()) return;
+    const out = document.getElementById('local-llm-inference-output');
+    if (out) out.textContent = 'Running local inference...';
+    const res = await fetch('/api/local_llm/generate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({prompt})
+    });
+    const data = await res.json();
+    if (out) {
+        out.textContent = data.response || data.error || 'No output.';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    refreshLocalLLMStudio();
+});
+</script>
+

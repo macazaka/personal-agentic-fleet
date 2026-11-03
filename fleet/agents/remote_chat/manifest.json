@@ -1,0 +1,17 @@
+{
+  "id": "remote_chat",
+  "name": "Telegram & WhatsApp Bot",
+  "version": "1.0.0",
+  "icon": "📱",
+  "order": 75,
+  "category": "Integration",
+  "description": "Bidirectional Telegram & WhatsApp Remote Bot Interface for controlling Personal Agentic Fleet from mobile at $0.00 token cost.",
+  "permissions": [
+    "db:read",
+    "db:write",
+    "event_bus:publish",
+    "network:outbound",
+    "ui:render"
+  ]
+}
+

@@ -1,6 +1,6 @@
 # 🏛️ System Architecture & Microkernel Internals
 
-> **Release Version**: `v2.13.9` | **Core Modules**: `fleet/server.py`, `fleet/api/router.py`, `fleet/core/database.py`, `fleet/core/registry.py`, `fleet/core/plugin_sandbox.py`, `fleet/core/event_bus.py`
+> **Release Version**: `v2.14.0` | **Core Modules**: `fleet/server.py`, `fleet/api/router.py`, `fleet/core/database.py`, `fleet/core/registry.py`, `fleet/core/plugin_sandbox.py`, `fleet/core/event_bus.py`
 
 The **Personal Agentic Fleet** is engineered as a local-first, zero-dependency Python microkernel operating system. It combines a multi-threaded HTTP/1.1 + RFC 7233 byte-range server (`fleet/server.py`), a modular REST & SSE router (`fleet/api/router.py`), a capability-enforced plugin sandbox (`fleet/core/plugin_sandbox.py`), a thread-pooled SQLite 3 WAL storage engine (`fleet/core/database.py`), and the **4-Layer Cognitive Fleet Mind** (`fleet/core/mind/`).
 
@@ -116,7 +116,7 @@ Every agent in `fleet/agents/<agent_id>/` declares its required permissions in `
 | **`auto_improvements`** | `id INTEGER PRIMARY KEY AUTOINCREMENT` | `timestamp TEXT`, `category TEXT`, `issue_detected TEXT`, `action_taken TEXT`, `status TEXT`, `impact_score INTEGER DEFAULT 5` | Autonomous self-healing actions recorded by `AutoHealer` and `FleetSoul`. |
 
 <!-- AUTO-CORE-MODULES:START -->
-## 🧩 Live Microkernel Core Modules Inventory (`33` Modules — `v2.13.9`)
+## 🧩 Live Microkernel Core Modules Inventory (`35` Modules — `v2.14.0`)
 
 Automatically introspected from `fleet/core/*.py` on every release:
 
@@ -134,15 +134,17 @@ Automatically introspected from `fleet/core/*.py` on every release:
 | `fleet.core.document_extractor` | [`fleet/core/document_extractor.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/document_extractor.py) | Phase 5: Intelligent Document Ingestion & LLM Tracking Extraction Engine. |
 | `fleet.core.event_bus` | [`fleet/core/event_bus.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/event_bus.py) | Core microkernel subsystem module. |
 | `fleet.core.exercise_manager` | [`fleet/core/exercise_manager.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/exercise_manager.py) | Exercise, Traditional Strength Training, and Video Management for Personal Agentic Fleet. |
+| `fleet.core.focus_guard` | [`fleet/core/focus_guard.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/focus_guard.py) | UX-07: Focus-Aware Smart Nudges & Actionable Notification Cards. |
 | `fleet.core.http_client` | [`fleet/core/http_client.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/http_client.py) | Resilient HTTP Client with 3-State Circuit Breaker & Exponential Backoff for Personal Agentic Fleet. |
 | `fleet.core.hyperscalers` | [`fleet/core/hyperscalers.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/hyperscalers.py) | Hyperscaler & Multi-Provider LLM Gateway for Personal Agentic Fleet. |
 | `fleet.core.lifecycle` | [`fleet/core/lifecycle.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/lifecycle.py) | Unified Lifecycle, Signal Trap & Clean Shutdown Coordinator for Personal Agentic Fleet. |
 | `fleet.core.logger` | [`fleet/core/logger.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/logger.py) | Structured JSON Logging Engine, Error Forensics & Ring Buffer for Personal Agentic Fleet. |
 | `fleet.core.network_spool` | [`fleet/core/network_spool.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/network_spool.py) | Offline Network Detection & Event Spooling Engine for Personal Agentic Fleet. |
 | `fleet.core.omnibar_dispatcher` | [`fleet/core/omnibar_dispatcher.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/omnibar_dispatcher.py) | UX-05: Unified "Ask Fleet Anything" Conversational Omnibar & Cross-Agent Dispatcher. |
+| `fleet.core.onboarding_engine` | [`fleet/core/onboarding_engine.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/onboarding_engine.py) | UX-06: Interactive First-Run Persona Onboarding & Goal-Driven Auto-Setup Engine. |
 | `fleet.core.optimizer` | [`fleet/core/optimizer.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/optimizer.py) | PC Performance Optimization Engine for Personal Agentic Fleet. |
 | `fleet.core.playbook_engine` | [`fleet/core/playbook_engine.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/playbook_engine.py) | UX-03: Visual Multi-Agent Playbook & Event-Chain Composer (fleet.core.playbook_engine). |
-| `fleet.core.plugin_sandbox` | [`fleet/core/plugin_sandbox.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/plugin_sandbox.py) | Plugin Capability Sandboxing & Permission Enforcement for Personal Agentic Fleet. |
+| `fleet.core.plugin_sandbox` | [`fleet/core/plugin_sandbox.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/plugin_sandbox.py) | Plugin Capability Sandboxing, Dry-Run Savepoint Simulation & Undo Journal (UX-08) |
 | `fleet.core.power` | [`fleet/core/power.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/power.py) | System Sleep, Wake & Resume Lifecycle Handler for Personal Agentic Fleet. |
 | `fleet.core.process_miner` | [`fleet/core/process_miner.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/process_miner.py) | UX-02 & Phase 3: Autonomous Process Discovery & Agent Recommendation Engine (fleet.core.process_miner). |
 | `fleet.core.rate_limiter` | [`fleet/core/rate_limiter.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/rate_limiter.py) | Localhost Token-Bucket Rate Limiter & DoS Shield for Personal Agentic Fleet. |

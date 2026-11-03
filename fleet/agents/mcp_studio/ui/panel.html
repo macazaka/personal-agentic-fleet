@@ -1,0 +1,31 @@
+<div class="agent-panel" id="panel-mcp_studio">
+    <div class="card" style="margin-bottom: 18px; border-left: 4px solid #a855f7;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <h2 style="margin: 0; font-size: 1.2rem;">🧰 Custom MCP Tool Creator &amp; Server Studio</h2>
+                <p style="margin: 4px 0 0 0; font-size: 0.84rem; color: var(--text-muted);">
+                    Define, AST-audit, test, and export custom Model Context Protocol (MCP) tools directly in the dashboard ($0.00).
+                </p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-sm" title="Refresh MCP Tool Catalog" onclick="if(window.loadMCPStudioPanel) loadMCPStudioPanel()">🔄 Refresh</button>
+                <button class="btn btn-sm btn-primary" title="Export MCP Server Config JSON" onclick="window.open('/api/mcp_studio/export', '_blank')">📦 Export MCP Bundle</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 18px;">
+        <div class="card-header">
+            <h3 style="margin: 0; font-size: 1rem;">➕ Define New MCP Tool</h3>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 10px;">
+            <input id="mcpToolNameInput" type="text" placeholder="Tool name (e.g. fleet_check_disk_space)" style="padding: 8px 12px; border-radius: 8px; background: rgba(15,23,42,0.8); color: var(--text-main); border: 1px solid var(--border);">
+            <input id="mcpToolDescInput" type="text" placeholder="Tool description for MCP clients..." style="padding: 8px 12px; border-radius: 8px; background: rgba(15,23,42,0.8); color: var(--text-main); border: 1px solid var(--border);">
+            <button class="btn btn-primary" title="Create and Register Custom MCP Tool" onclick="if(window.createCustomMCPToolUI) createCustomMCPToolUI()">➕ Register MCP Tool</button>
+        </div>
+        <div id="mcpStudioToolsList" style="margin-top: 14px; font-size: 0.85rem; color: var(--text-muted);">
+            Built-in &amp; custom MCP tools ready for inspection and sandbox testing.
+        </div>
+    </div>
+</div>
+

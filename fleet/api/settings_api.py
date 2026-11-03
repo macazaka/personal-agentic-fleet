@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 import re
 import shutil
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 import urllib.parse
 
 from fleet.api.router import router
@@ -1745,3 +1745,271 @@ def execute_omnibar_query_endpoint(handler: Any, body: Dict[str, Any]):
     except Exception as e:
         handler._send_json({"status": "error", "message": str(e)}, status=500)
 
+
+
+# =========================================================================
+# UX-06: Interactive First-Run Persona Onboarding & Goal-Driven Auto-Setup
+# =========================================================================
+
+@router.get("/api/settings/onboarding")
+def get_onboarding_state_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """UX-06: Returns persona profiles and current onboarding state."""
+    from fleet.core.onboarding_engine import get_onboarding_state
+
+    handler._send_json(get_onboarding_state(db=getattr(srv, "db", None)))
+
+
+@router.post("/api/settings/onboarding")
+def post_onboarding_apply_endpoint(handler: Any, body: Dict[str, Any]):
+    """UX-06: Atomically applies persona bundle, daily rhythm, layout, theme, and pinned tabs."""
+    from fleet.core.onboarding_engine import apply_persona_onboarding
+
+    payload = body if isinstance(body, dict) else {}
+    res = apply_persona_onboarding(payload=payload, db=getattr(srv, "db", None))
+    handler._send_json(res)
+
+
+# =========================================================================
+# UX-07: Focus-Aware Smart Nudges & Actionable Notification Cards
+# =========================================================================
+
+@router.get("/api/notifications/nudges")
+def get_smart_nudges_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """UX-07: Lists batched Smart Nudge Digest items and delivered actionable notification cards."""
+    from fleet.core.focus_guard import list_smart_nudges
+
+    handler._send_json(list_smart_nudges(db=getattr(srv, "db", None)))
+
+
+@router.post("/api/notifications/nudges")
+def post_smart_nudge_endpoint(handler: Any, body: Dict[str, Any]):
+    """UX-07: Dispatches or batches a notification card based on FocusGuard state."""
+    from fleet.core.focus_guard import dispatch_or_batch_nudge
+
+    payload = body if isinstance(body, dict) else {}
+    res = dispatch_or_batch_nudge(
+        title=str(payload.get("title") or "Fleet Nudge"),
+        message=str(payload.get("message") or ""),
+        agent_id=str(payload.get("agent_id") or "system"),
+        priority=str(payload.get("priority") or "P2"),
+        actions=payload.get("actions") if isinstance(payload.get("actions"), list) else None,
+        force_immediate=bool(payload.get("force_immediate", False)),
+        db=getattr(srv, "db", None),
+    )
+    handler._send_json(res)
+
+
+@router.post("/api/notifications/nudges/flush")
+def post_flush_nudges_endpoint(handler: Any, body: Dict[str, Any]):
+    """UX-07: Flushes all queued Smart Nudge Digest notifications."""
+    from fleet.core.focus_guard import flush_nudge_digest
+
+    handler._send_json(flush_nudge_digest(db=getattr(srv, "db", None)))
+
+
+@router.post("/api/notifications/nudges/action")
+def post_nudge_action_endpoint(handler: Any, body: Dict[str, Any]):
+    """UX-07: Executes a 1-click button action on a Smart Nudge notification card."""
+    from fleet.core.focus_guard import execute_nudge_action
+
+    payload = body if isinstance(body, dict) else {}
+    res = execute_nudge_action(
+        nudge_id=str(payload.get("nudge_id") or ""),
+        action_id=str(payload.get("action_id") or "dismiss"),
+        db=getattr(srv, "db", None),
+    )
+    handler._send_json(res)
+
+
+@router.post("/api/notifications/focus")
+def post_focus_mode_endpoint(handler: Any, body: Dict[str, Any]):
+    """UX-07: Toggles Focus Mode / Do-Not-Disturb for a specified duration."""
+    from fleet.core.focus_guard import set_focus_mode
+
+    payload = body if isinstance(body, dict) else {}
+    res = set_focus_mode(
+        enabled=bool(payload.get("enabled", True)),
+        duration_minutes=int(payload.get("duration_minutes") or 60),
+        db=getattr(srv, "db", None),
+    )
+    handler._send_json(res)
+
+
+# =========================================================================
+# UX-08: Agent Time-Machine, 1-Click Undo Rollback & Safe Dry-Run Sandbox
+# =========================================================================
+
+@router.post("/api/agents/dry_run")
+def post_agent_dry_run_endpoint(handler: Any, body: Dict[str, Any]):
+    """UX-08: Simulates an agent task in a dry-run savepoint sandbox without persisting DB writes."""
+    from fleet.core.plugin_sandbox import simulate_agent_task_dry_run
+
+    payload = body if isinstance(body, dict) else {}
+    agent_id = str(payload.get("agent_id") or "").strip()
+    task = str(payload.get("task") or "default").strip()
+    reg = getattr(srv, "agent_registry", None)
+    agent = reg.get_agent(agent_id) if reg and hasattr(reg, "get_agent") else None
+    if not agent and reg and hasattr(reg, "agents"):
+        agent = reg.agents.get(agent_id)
+    if not agent:
+        handler._send_json({"status": "error", "message": f"Agent '{agent_id}' not found"}, status=404)
+        return
+    res = simulate_agent_task_dry_run(agent=agent, task=task, payload=payload.get("payload") or {})
+    handler._send_json(res)
+
+
+@router.get("/api/agents/undo")
+def get_agent_undo_journal_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """UX-08: Lists recent reversible mutations in `agent_undo_journal`."""
+    db_inst = getattr(srv, "db", None)
+    entries = db_inst.list_agent_undo_journal(limit=30) if db_inst and hasattr(db_inst, "list_agent_undo_journal") else []
+    handler._send_json({"status": "ok", "entries": entries, "count": len(entries)})
+
+
+@router.post("/api/agents/undo")
+def post_agent_undo_endpoint(handler: Any, body: Dict[str, Any]):
+    """UX-08: Reverts a specific `journal_id` (or the latest unreverted mutation) in 1 click."""
+    payload = body if isinstance(body, dict) else {}
+    raw_jid = payload.get("journal_id")
+    jid = int(raw_jid) if raw_jid is not None and str(raw_jid).isdigit() else None
+    db_inst = getattr(srv, "db", None)
+    if not db_inst or not hasattr(db_inst, "undo_agent_mutation"):
+        handler._send_json({"status": "error", "message": "Undo journal unavailable"}, status=503)
+        return
+    res = db_inst.undo_agent_mutation(journal_id=jid)
+    status_code = 200 if res.get("status") == "ok" else 400
+    handler._send_json(res, status=status_code)
+
+
+# =========================================================================
+# UX-09: Pin-to-Overview Micro-Widgets & Customizable Executive Bento Grid
+# =========================================================================
+
+@router.get("/api/overview/widgets")
+def get_overview_micro_widgets_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """UX-09: Aggregates `get_micro_widget()` payloads for all user-pinned agents in <15ms."""
+    reg = getattr(srv, "agent_registry", None)
+    db_inst = getattr(srv, "db", None)
+    pinned_ids: List[str] = ["health", "overview", "optimizer", "gmail", "pr_review", "backlog"]
+    if db_inst and hasattr(db_inst, "get_setting"):
+        raw = db_inst.get_setting("pinned_widgets", "")
+        if raw:
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, list) and parsed:
+                    pinned_ids = [str(x) for x in parsed]
+            except Exception:
+                pass
+
+    widgets: List[Dict[str, Any]] = []
+    agents_map = getattr(reg, "agents", {}) if reg else {}
+    for aid in pinned_ids:
+        ag = agents_map.get(aid)
+        if ag and hasattr(ag, "get_micro_widget"):
+            w = ag.get_micro_widget()
+            w["pinned"] = True
+            widgets.append(w)
+
+    if not widgets:
+        for aid in pinned_ids[:6]:
+            widgets.append({
+                "agent_id": aid,
+                "title": aid.replace("_", " ").title(),
+                "icon": "⚡",
+                "size": "1x1",
+                "primary_metric": "Ready",
+                "secondary_label": "Pinned Tile",
+                "pinned": True,
+                "quick_action": {"label": "▶ Run", "task": "default"},
+            })
+
+    handler._send_json({
+        "status": "ok",
+        "pinned_ids": pinned_ids,
+        "widgets": widgets,
+        "count": len(widgets),
+    })
+
+
+@router.post("/api/overview/widgets/pin")
+def post_pin_overview_widget_endpoint(handler: Any, body: Dict[str, Any]):
+    """UX-09: Pins, unpins, or reorders agent micro-widgets on the Overview Executive Cockpit."""
+    payload = body if isinstance(body, dict) else {}
+    db_inst = getattr(srv, "db", None)
+    pinned_ids: List[str] = ["health", "overview", "optimizer", "gmail", "pr_review", "backlog"]
+    if db_inst and hasattr(db_inst, "get_setting"):
+        raw = db_inst.get_setting("pinned_widgets", "")
+        if raw:
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, list):
+                    pinned_ids = [str(x) for x in parsed]
+            except Exception:
+                pass
+
+    if isinstance(payload.get("pinned_ids"), list):
+        pinned_ids = [str(x).strip() for x in payload["pinned_ids"] if str(x).strip()]
+    else:
+        aid = str(payload.get("agent_id") or "").strip()
+        action = str(payload.get("action") or "toggle").lower()
+        if aid:
+            if action == "pin" and aid not in pinned_ids:
+                pinned_ids.append(aid)
+            elif action == "unpin" and aid in pinned_ids:
+                pinned_ids.remove(aid)
+            elif action == "toggle":
+                if aid in pinned_ids:
+                    pinned_ids.remove(aid)
+                else:
+                    pinned_ids.append(aid)
+
+    if db_inst and hasattr(db_inst, "set_setting"):
+        db_inst.set_setting("pinned_widgets", json.dumps(pinned_ids))
+
+    handler._send_json({
+        "status": "ok",
+        "pinned_ids": pinned_ids,
+        "count": len(pinned_ids),
+    })
+
+
+# =========================================================================
+# UX-10: Ambient System Tray Companion, Global Hotkey & Voice Capture
+# =========================================================================
+
+@router.post("/api/omnibar/voice")
+def post_omnibar_voice_endpoint(handler: Any, body: Dict[str, Any]):
+    """UX-10: Transcribes/normalizes spoken voice commands into the Tier-0 Omnibar router at $0.00."""
+    from fleet.core.omnibar_dispatcher import transcribe_and_dispatch_voice_command
+
+    payload = body if isinstance(body, dict) else {}
+    transcript = str(payload.get("transcript") or payload.get("query") or "").strip()
+    if not transcript:
+        handler._send_json({"status": "error", "message": "Field 'transcript' is required"}, status=400)
+        return
+    res = transcribe_and_dispatch_voice_command(
+        transcript=transcript,
+        agent_registry=getattr(srv, "agent_registry", None),
+        db=getattr(srv, "db", None),
+    )
+    handler._send_json(res)
+
+
+@router.get("/api/tray/status")
+def get_tray_status_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """UX-10: Returns System Tray Companion status, Harmony score, and hotkey bindings."""
+    from fleet.tools.tray_companion import get_tray_companion_status
+
+    handler._send_json(get_tray_companion_status(db=getattr(srv, "db", None)))
+
+
+@router.post("/api/tray/action")
+def post_tray_action_endpoint(handler: Any, body: Dict[str, Any]):
+    """UX-10: Executes a System Tray Companion quick-menu action."""
+    from fleet.tools.tray_companion import execute_tray_action
+
+    payload = body if isinstance(body, dict) else {}
+    action_id = str(payload.get("action_id") or payload.get("action") or "open_dashboard").strip()
+    res = execute_tray_action(action_id=action_id, payload=payload, db=getattr(srv, "db", None))
+    status_code = 200 if res.get("status") == "ok" else 400
+    handler._send_json(res, status=status_code)

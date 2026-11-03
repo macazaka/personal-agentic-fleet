@@ -6,8 +6,8 @@
 | **Priority** | 🟡 **P2 (Medium UX Enhancement — Rank #8)** |
 | **UX Impact Score** | **85 / 100** *(Impact: 34/40, Friction Reduction: 21/25, Zero-Token Leverage: 18/20, Speed: 12/15)* |
 | **Category** | `Security` & `Core` |
-| **Target Release** | `v3.0.0` |
-| **Status** | `Planned` |
+| **Target Release** | `v2.14.0` |
+| **Status** | `🟢 Completed` |
 | **Affected Subsystems** | `fleet/core/plugin_sandbox.py`, `fleet/core/db/base.py`, `fleet/api/router.py` |
 
 ---

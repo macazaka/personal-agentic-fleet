@@ -750,3 +750,52 @@ def dispatch_omnibar_query(
         ],
         "tokens_used": 0,
     })
+
+
+def transcribe_and_dispatch_voice_command(
+    transcript: str,
+    agent_registry: Optional[Any] = None,
+    db: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """
+    UX-10: Normalizes spoken natural-language voice commands (e.g., "add high priority task
+    review architecture", "log one glass of water", "free my ram") and routes them directly
+    into `dispatch_omnibar_query` at $0.00 token cost.
+    """
+    spoken = (transcript or "").strip()
+    if not spoken:
+        return {"status": "error", "message": "Empty voice transcript."}
+
+    lower = spoken.lower().strip()
+    normalized = spoken
+    if re.search(r"\b(?:log|drink|had|add)\b.*\b(?:glass|water|hydration)\b", lower):
+        normalized = "@health water +250"
+    elif re.search(r"\b(?:add|create|new)\s+(?:high\s+priority\s+|urgent\s+|p1\s+)?task\b", lower):
+        task_body = re.sub(
+            r"^.*?\b(?:add|create|new)\s+(?:high\s+priority\s+|urgent\s+|p1\s+)?task\b\s*:?\s*",
+            "",
+            spoken,
+            flags=re.I,
+        ).strip()
+        if task_body:
+            if db is not None and hasattr(db, "add_task"):
+                pri = "P1" if any(k in lower for k in ("high priority", "urgent", "p1")) else "P2"
+                tid = db.add_task(title=task_body, priority=pri, source="voice_capture")
+                return {
+                    "status": "ok",
+                    "mode": "voice_task_created",
+                    "task_id": tid,
+                    "transcript": spoken,
+                    "title": f"🎙️ Voice Task Captured ({pri}): {task_body}",
+                    "message": f"Added {pri} task '{task_body}' via UX-10 Voice Quick-Capture.",
+                    "tokens_used": 0,
+                    "cost_usd": "$0.00",
+                }
+            normalized = f"add task {task_body}"
+    elif re.search(r"\b(?:free|clean|optimize)\b.*\b(?:ram|memory)\b", lower):
+        normalized = "@optimizer run"
+
+    res = dispatch_omnibar_query(normalized, agent_registry=agent_registry, db=db)
+    res["voice_transcript"] = spoken
+    res["normalized_command"] = normalized
+    return res

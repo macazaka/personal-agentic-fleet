@@ -1,0 +1,52 @@
+<div class="agent-panel" id="panel-remote_chat">
+    <div class="card" style="margin-bottom: 18px; border-left: 4px solid #38bdf8;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <h2 style="margin: 0; font-size: 1.2rem;">📱 Telegram &amp; WhatsApp Remote Bot Bridge</h2>
+                <p style="margin: 4px 0 0 0; font-size: 0.84rem; color: var(--text-muted);">
+                    Bidirectional mobile command router for Telegram Bot API &amp; WhatsApp Cloud Bridge ($0.00 Zero-Token Tier-0 Dispatch).
+                </p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-sm" title="Refresh Mobile Bot Status" onclick="if(window.loadRemoteChatPanel) loadRemoteChatPanel()">🔄 Refresh</button>
+                <button class="btn btn-sm btn-primary" title="Simulate Mobile /status Command" onclick="if(window.simulateRemoteChatCmd) simulateRemoteChatCmd('/status')">▶ Test /status</button>
+            </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 14px;">
+            <div style="padding: 12px; border-radius: 10px; background: rgba(15,23,42,0.55); border: 1px solid var(--border);">
+                <div style="font-size: 0.75rem; color: var(--text-muted);">✈️ TELEGRAM BOT BRIDGE</div>
+                <div style="font-size: 1.05rem; font-weight: 700; color: #38bdf8; margin-top: 4px;">Active (@PersonalFleetBot)</div>
+                <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 4px;">Allowlist &amp; HMAC-SHA256 Guarded</div>
+            </div>
+            <div style="padding: 12px; border-radius: 10px; background: rgba(15,23,42,0.55); border: 1px solid var(--border);">
+                <div style="font-size: 0.75rem; color: var(--text-muted);">💬 WHATSAPP CLOUD BRIDGE</div>
+                <div style="font-size: 1.05rem; font-weight: 700; color: #10b981; margin-top: 4px;">Active (Webhook Ready)</div>
+                <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 4px;">Offline Spooling Enabled</div>
+            </div>
+            <div style="padding: 12px; border-radius: 10px; background: rgba(15,23,42,0.55); border: 1px solid var(--border);">
+                <div style="font-size: 0.75rem; color: var(--text-muted);">⚡ MOBILE COMMANDS</div>
+                <div style="font-size: 0.8rem; color: var(--text-main); margin-top: 4px;">
+                    <code>/status</code> • <code>/briefing</code> • <code>/tasks</code> • <code>/add</code> • <code>/water</code> • <code>/ram</code> • <code>/prs</code>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 18px;">
+        <div class="card-header">
+            <h3 style="margin: 0; font-size: 1rem;">🧪 Interactive Mobile Bot Command Simulator</h3>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
+            <select id="remoteChatChannelSelect" title="Select mobile channel" style="padding: 8px 10px; border-radius: 8px; background: rgba(15,23,42,0.8); color: var(--text-main); border: 1px solid var(--border);">
+                <option value="telegram">✈️ Telegram</option>
+                <option value="whatsapp">💬 WhatsApp</option>
+            </select>
+            <input id="remoteChatInput" type="text" placeholder="Type a mobile bot command (e.g. /briefing, /add Review PRs, /water)..." value="/briefing" style="flex: 1; min-width: 240px; padding: 8px 12px; border-radius: 8px; background: rgba(15,23,42,0.8); color: var(--text-main); border: 1px solid var(--border);">
+            <button class="btn btn-primary" title="Send Simulated Mobile Command" onclick="if(window.sendSimulatedRemoteChat) sendSimulatedRemoteChat()">📲 Send Command</button>
+        </div>
+        <div id="remoteChatHistoryContainer" style="margin-top: 14px; font-size: 0.85rem; color: var(--text-muted);">
+            Ready to process Telegram &amp; WhatsApp commands at $0.00 token cost.
+        </div>
+    </div>
+</div>
+

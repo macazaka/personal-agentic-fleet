@@ -6,8 +6,8 @@
 | **Priority** | 🟡 **P2 (Medium UX Enhancement — Rank #9)** |
 | **UX Impact Score** | **83 / 100** *(Impact: 33/40, Friction Reduction: 20/25, Zero-Token Leverage: 18/20, Speed: 12/15)* |
 | **Category** | `UI/UX` |
-| **Target Release** | `v3.0.0` |
-| **Status** | `Idea` |
+| **Target Release** | `v2.14.0` |
+| **Status** | `🟢 Completed` |
 | **Affected Subsystems** | `fleet/core/base_agent.py`, `fleet/agents/overview/ui/panel.html`, `fleet/web/templates/dashboard.html` |
 
 ---

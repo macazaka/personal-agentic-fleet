@@ -1,0 +1,17 @@
+{
+  "id": "mcp_studio",
+  "name": "MCP Tool Creator Studio",
+  "version": "1.0.0",
+  "icon": "🧰",
+  "order": 80,
+  "category": "Core",
+  "description": "Visual interface to define, AST-audit, test, and export custom Model Context Protocol (MCP) tool servers directly in the dashboard.",
+  "permissions": [
+    "db:read",
+    "db:write",
+    "event_bus:publish",
+    "system:diagnostics",
+    "ui:render"
+  ]
+}
+

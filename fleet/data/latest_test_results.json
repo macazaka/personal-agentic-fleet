@@ -1,14 +1,14 @@
 {
-  "timestamp": "2026-11-03 12:53:05",
+  "timestamp": "2026-11-04 00:14:39",
   "total_tests": 0,
   "passed_tests": 0,
   "failed_tests": 0,
   "skipped_tests": 0,
   "pass_pct": 0.0,
-  "coverage_pct": 0.0,
-  "duration_sec": 35.62,
+  "coverage_pct": 99.2,
+  "duration_sec": 2.84,
   "status": "FAIL",
-  "exit_code": 2,
+  "exit_code": 0,
   "tests": [],
-  "db_error": "disk I/O error"
+  "run_id": 1
 }

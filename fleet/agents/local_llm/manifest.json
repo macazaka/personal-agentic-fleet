@@ -1,0 +1,28 @@
+{
+  "id": "local_llm",
+  "name": "Local Ollama & LoRA Studio",
+  "icon": "🦙",
+  "category": "AI & Knowledge",
+  "description": "Local Ollama model hub, zero-PII personal instruction dataset synthesizer, custom Modelfile builder, and $0.00 offline inference engine.",
+  "order": 85,
+  "entry_point": "agent:LocalLLMAgent",
+  "ui_panel": "ui/panel.html",
+  "permissions": [
+    "db:read",
+    "db:write",
+    "filesystem:temp",
+    "network:outbound",
+    "ui:render"
+  ],
+  "schedules": [
+    {
+      "id": "local_llm_health_sync",
+      "name": "Local Ollama Daemon & Model Catalog Sync",
+      "cron_expression": "0 */4 * * *",
+      "interval_seconds": 14400,
+      "task_name": "sync_local_models",
+      "enabled": true
+    }
+  ]
+}
+

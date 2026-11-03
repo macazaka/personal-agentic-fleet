@@ -6,8 +6,8 @@
 | **Priority** | 🟡 **P2 (Medium-High UX Enhancement — Rank #7)** |
 | **UX Impact Score** | **87 / 100** *(Impact: 34/40, Friction Reduction: 21/25, Zero-Token Leverage: 19/20, Speed: 13/15)* |
 | **Category** | `UI/UX` & `Automation` |
-| **Target Release** | `v3.0.0` |
-| **Status** | `Planned` |
+| **Target Release** | `v2.14.0` |
+| **Status** | `🟢 Completed` |
 | **Affected Subsystems** | `fleet/core/notifier.py`, `fleet/core/scheduler.py`, `fleet/web/templates/dashboard.html` |
 
 ---

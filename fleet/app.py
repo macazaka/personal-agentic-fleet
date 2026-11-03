@@ -81,6 +81,7 @@ def main():
         os.environ.pop("FLEET_TEST_MODE", None)
         os.environ.pop("PYTEST_CURRENT_TEST", None)
     no_browser = "--no-browser" in sys.argv
+    enable_tray = "--tray" in sys.argv
 
     # 1. Automatically check if a newer version is available on GitHub / sibling workspace and sync before launch
     ver_sync = ensure_latest_version_before_launch(repo_root=PROJECT_ROOT, auto_apply=True)
@@ -165,6 +166,14 @@ def main():
     daemon = FleetDaemon()
     daemon_thread = threading.Thread(target=daemon.run_loop, kwargs={"poll_interval_sec": 30}, daemon=True)
     daemon_thread.start()
+
+    if enable_tray:
+        try:
+            from fleet.tools.tray_companion import launch_tray_companion_background
+
+            launch_tray_companion_background(f"http://127.0.0.1:{PORT}")
+        except Exception:
+            pass
 
     # Check for new version on GitHub and dispatch notification if available
     try:

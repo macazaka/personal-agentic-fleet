@@ -6,8 +6,8 @@
 | **Priority** | 🟢 **P3 (Delight & Ambient UX Enhancement — Rank #10)** |
 | **UX Impact Score** | **80 / 100** *(Impact: 32/40, Friction Reduction: 20/25, Zero-Token Leverage: 17/20, Speed: 11/15)* |
 | **Category** | `Integration` & `UI/UX` |
-| **Target Release** | `v3.1.0` |
-| **Status** | `Idea` |
+| **Target Release** | `v2.14.0` |
+| **Status** | `🟢 Completed` |
 | **Affected Subsystems** | `fleet/app.py`, `fleet/tools/tray_companion.py`, `fleet/web/templates/dashboard.html` |
 
 ---

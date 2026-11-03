@@ -404,7 +404,7 @@ Lists all `@agent` slash commands across active agents or executes a Unified `Ct
 ```
 
 <!-- AUTO-API-ROUTES:START -->
-## 🔄 Complete Live REST API Route Inventory (`124` Endpoints — `v2.13.9`)
+## 🔄 Complete Live REST API Route Inventory (`139` Endpoints — `v2.14.0`)
 
 This table is **automatically introspected from `fleet/api/*.py` AST decorators** on every release by `fleet.tools.doc_wiki_enhancer`:
 
@@ -502,6 +502,21 @@ This table is **automatically introspected from `fleet/api/*.py` AST decorators*
 | `POST` | `/api/agents/import` | `import_agent_pack_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-04: Audits and imports a .fleetagent JSON bundle into custom_agents, syncing schedule & triggers. |
 | `GET` | `/api/omnibar/commands` | `get_omnibar_commands_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-05: Lists all @agent slash commands and omnibar shortcuts across active agents. |
 | `POST` | `/api/omnibar/execute` | `execute_omnibar_query_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-05: Executes an Omnibar @agent command or Tier-0 query and returns an inline card. |
+| `GET` | `/api/settings/onboarding` | `get_onboarding_state_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-06: Returns persona profiles and current onboarding state. |
+| `POST` | `/api/settings/onboarding` | `post_onboarding_apply_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-06: Atomically applies persona bundle, daily rhythm, layout, theme, and pinned tabs. |
+| `GET` | `/api/notifications/nudges` | `get_smart_nudges_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-07: Lists batched Smart Nudge Digest items and delivered actionable notification cards. |
+| `POST` | `/api/notifications/nudges` | `post_smart_nudge_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-07: Dispatches or batches a notification card based on FocusGuard state. |
+| `POST` | `/api/notifications/nudges/flush` | `post_flush_nudges_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-07: Flushes all queued Smart Nudge Digest notifications. |
+| `POST` | `/api/notifications/nudges/action` | `post_nudge_action_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-07: Executes a 1-click button action on a Smart Nudge notification card. |
+| `POST` | `/api/notifications/focus` | `post_focus_mode_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-07: Toggles Focus Mode / Do-Not-Disturb for a specified duration. |
+| `POST` | `/api/agents/dry_run` | `post_agent_dry_run_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-08: Simulates an agent task in a dry-run savepoint sandbox without persisting DB writes. |
+| `GET` | `/api/agents/undo` | `get_agent_undo_journal_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-08: Lists recent reversible mutations in `agent_undo_journal`. |
+| `POST` | `/api/agents/undo` | `post_agent_undo_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-08: Reverts a specific `journal_id` (or the latest unreverted mutation) in 1 click. |
+| `GET` | `/api/overview/widgets` | `get_overview_micro_widgets_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-09: Aggregates `get_micro_widget()` payloads for all user-pinned agents in <15ms. |
+| `POST` | `/api/overview/widgets/pin` | `post_pin_overview_widget_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-09: Pins, unpins, or reorders agent micro-widgets on the Overview Executive Cockpit. |
+| `POST` | `/api/omnibar/voice` | `post_omnibar_voice_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-10: Transcribes/normalizes spoken voice commands into the Tier-0 Omnibar router at $0.00. |
+| `GET` | `/api/tray/status` | `get_tray_status_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-10: Returns System Tray Companion status, Harmony score, and hotkey bindings. |
+| `POST` | `/api/tray/action` | `post_tray_action_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-10: Executes a System Tray Companion quick-menu action. |
 | `GET` | `/api/briefing` | `get_briefing` ([`fleet/api/system_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/system_api.py)) | Handler `get_briefing` in `fleet/api/system_api.py`. |
 | `GET` | `/api/logs` | `get_logs` ([`fleet/api/system_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/system_api.py)) | Handler `get_logs` in `fleet/api/system_api.py`. |
 | `GET` | `/api/status` | `get_status` ([`fleet/api/system_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/system_api.py)) | Handler `get_status` in `fleet/api/system_api.py`. |

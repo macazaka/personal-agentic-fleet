@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 # Fleet Version & Minimum Runtime Requirement
-VERSION = "2.13.9"
+VERSION = "2.14.0"
 MIN_PYTHON_VERSION = (3, 10)
 PORT = 7890
 
@@ -204,3 +204,30 @@ def load_fleet_config() -> dict:
             "gmail": {"enabled": False}
         }
     }
+
+
+def save_fleet_config(cfg: dict) -> None:
+    """Persists fleet configuration to fleet.yaml."""
+    from fleet.core.yaml_helper import dump_yaml
+
+    yaml_path = BASE_DIR.parent / "fleet.yaml"
+    yaml_path.write_text(dump_yaml(cfg), encoding="utf-8")
+
+
+def load_schedules_config() -> dict:
+    """Loads schedules.yaml configuration."""
+    from fleet.core.yaml_helper import safe_load_yaml
+
+    sched_path = BASE_DIR.parent / "schedules.yaml"
+    if sched_path.is_file():
+        return safe_load_yaml(sched_path.read_text(encoding="utf-8")) or {}
+    return {}
+
+
+def save_schedules_config(sched_cfg: dict) -> None:
+    """Persists schedules.yaml configuration."""
+    from fleet.core.yaml_helper import dump_yaml
+
+    sched_path = BASE_DIR.parent / "schedules.yaml"
+    sched_path.write_text(dump_yaml(sched_cfg), encoding="utf-8")
+

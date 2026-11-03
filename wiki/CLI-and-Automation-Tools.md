@@ -1,4 +1,4 @@
-# Unified Fleet CLI & Proactive Automation Tools (`v2.13.9`)
+# Unified Fleet CLI & Proactive Automation Tools (`v2.14.0`)
 
 Personal Agentic Fleet provides a complete zero-token (`$0.00`) command-line interface and proactive automation suite that keeps code quality, release versions, security invariants, documentation, and the GitHub Wiki continuously synchronized.
 
@@ -33,7 +33,7 @@ Run via `fleet <command>`, `python -m fleet <command>`, or `.\fleet.bat <command
 Personal Agentic Fleet enforces a strict **Two-Tier Progressive Disclosure Model** across `README.md`, `docs/*.md`, and `wiki/*.md`:
 - **Tier 1 (`README.md`)**: Executive summary, OS compatibility table, 60-second installation, auto-synchronized What's New release box, and direct deep-dive links into the live GitHub Wiki.
 - **Tier 2 (`wiki/*.md` — 21 Deep-Dive Guides)**: Exhaustive subsystem specifications, mathematical formulas, SQL schemas, live AST-introspected REST API inventories, and operational runbooks.
-- **Automated Version Parity (`release_manager.py` & `doc_wiki_enhancer.py`)**: On every commit and release tag, `run_proactive_release_check()` and `run_proactive_doc_wiki_enhancement()` synchronize the exact semantic version (`v2.13.9`) across `fleet/__init__.py`, `fleet/config.py`, `pyproject.toml`, `dashboard.html`, `README.md`, `CHANGELOG.md`, `wiki/Home.md`, `wiki/_Sidebar.md`, `wiki/_Footer.md`, `wiki/Release-Notes.md`, and all deep-dive Wiki headers.
+- **Automated Version Parity (`release_manager.py` & `doc_wiki_enhancer.py`)**: On every commit and release tag, `run_proactive_release_check()` and `run_proactive_doc_wiki_enhancement()` synchronize the exact semantic version (`v2.14.0`) across `fleet/__init__.py`, `fleet/config.py`, `pyproject.toml`, `dashboard.html`, `README.md`, `CHANGELOG.md`, `wiki/Home.md`, `wiki/_Sidebar.md`, `wiki/_Footer.md`, `wiki/Release-Notes.md`, and all deep-dive Wiki headers.
 
 ---
 
@@ -47,7 +47,7 @@ Executed automatically on every `git commit` before code is staged:
 
 ---
 
-## 4. Proactive Automation Modules (`20` Tools)
+## 4. Proactive Automation Modules (`21` Tools)
 
 | Python Module | Source File | Purpose |
 | :--- | :--- | :--- |
@@ -71,10 +71,11 @@ Executed automatically on every `git commit` before code is staged:
 | `fleet.tools.sync_wiki` | [`fleet/tools/sync_wiki.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/tools/sync_wiki.py) | GitHub Wiki Synchronization Utility for Personal Agentic Fleet. |
 | `fleet.tools.system_tools` | [`fleet/tools/system_tools.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/tools/system_tools.py) | System and OS integration tools for Windows, macOS, and Linux. |
 | `fleet.tools.test_runner` | [`fleet/tools/test_runner.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/tools/test_runner.py) | Automated Test Runner & Coverage Engine for Personal Agentic Fleet. |
+| `fleet.tools.tray_companion` | [`fleet/tools/tray_companion.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/tools/tray_companion.py) | UX-10: Ambient System Tray Companion, Global Hotkey (`Alt+Space`) & Voice Capture. |
 
 ---
 
-## 5. Isolated Agent Packages (`7` Built-In Agents)
+## 5. Isolated Agent Packages (`10` Built-In Agents)
 
 | Agent ID | Display Name & Version | Capability Permissions | Description |
 | :--- | :--- | :--- | :--- |
@@ -82,6 +83,9 @@ Executed automatically on every `git commit` before code is staged:
 | `backlog` | **Feature Backlog** (`v1.8.0`) | `db:read, db:write, ui:render` | Product roadmap and feature backlog management. |
 | `gmail` | **Gmail Intelligence** (`v1.8.0`) | `db:read, db:write, network:gmail_oauth, event_bus:publish, event_bus:subscribe, ui:render` | 5-folder deterministic email classifier and 1-click unsubscribe engine. |
 | `health` | **Health & Wellness** (`v1.8.0`) | `db:read, db:write, filesystem:videos, event_bus:publish, ui:render` | FFD Diabetes Reversal, 6-Day Mudgal/Samtola/Bhim Gadha Strength Split, and Video Vault. |
+| `local_llm` | **Local Ollama & LoRA Studio** (`v1.0.0`) | `db:read, db:write, filesystem:temp, network:outbound, ui:render` | Local Ollama model hub, zero-PII personal instruction dataset synthesizer, custom Modelfile builder, and $0.00 offline inference engine. |
+| `mcp_studio` | **MCP Tool Creator Studio** (`v1.0.0`) | `db:read, db:write, event_bus:publish, system:diagnostics, ui:render` | Visual interface to define, AST-audit, test, and export custom Model Context Protocol (MCP) tool servers directly in the dashboard. |
 | `optimizer` | **PC Optimizer** (`v1.8.0`) | `db:read, db:write, filesystem:temp, system:diagnostics, ui:render` | Windows PC diagnostics, temp file cleanup, DNS flush, and RAM working-set optimization. |
 | `overview` | **Overview** (`v1.8.0`) | `db:read, db:write, event_bus:publish, event_bus:subscribe, ui:render` | Daily Morning Briefing, Task & Goal Board, Routine Checklist, and Automated Test Suite. |
 | `pr_review` | **Admin PR Review & CI Quality Gate** (`v1.0.0`) | `db:read, db:write, event_bus:publish, event_bus:subscribe, network:github_api, ui:render` | Admin-only GitHub Pull Request auditor, CI health monitor, and Dependabot automation. |
+| `remote_chat` | **Telegram & WhatsApp Bot** (`v1.0.0`) | `db:read, db:write, event_bus:publish, network:outbound, ui:render` | Bidirectional Telegram & WhatsApp Remote Bot Interface for controlling Personal Agentic Fleet from mobile at $0.00 token cost. |
