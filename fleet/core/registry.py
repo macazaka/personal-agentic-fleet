@@ -683,7 +683,12 @@ class AgentRegistry:
             rev_dir = agent_dir / "revisions"
             rev_dir.mkdir(parents=True, exist_ok=True)
             now = datetime.now()
-            rev_id = now.strftime("rev_%Y%m%d_%H%M%S_%f")
+            base_rev_id = now.strftime("rev_%Y%m%d_%H%M%S_%f")
+            rev_id = base_rev_id
+            seq = 1
+            while (rev_dir / f"{rev_id}.json").exists():
+                rev_id = f"{base_rev_id}_{seq:02d}"
+                seq += 1
             blocks = manifest_data.get("ui_blocks") or []
             fields = manifest_data.get("fields") or []
             raw_sched = manifest_data.get("schedule")
