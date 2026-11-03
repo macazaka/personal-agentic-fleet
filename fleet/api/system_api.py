@@ -41,8 +41,20 @@ def get_status(handler: Any, parsed_url: urllib.parse.ParseResult):
 @router.get("/api/version")
 def get_version(handler: Any, parsed_url: urllib.parse.ParseResult):
     live_ver = get_live_version()
+    update_meta: Dict[str, Any] = {}
+    try:
+        from fleet.core.updater import get_cached_version_check
+        update_meta = get_cached_version_check()
+    except Exception:
+        pass
+    latest_ver = str(update_meta.get("latest_version") or live_ver)
+    update_avail = bool(update_meta.get("update_available", False))
     handler._send_json({
         "version": live_ver,
+        "latest_version": latest_ver,
+        "update_available": update_avail,
+        "up_to_date": not update_avail,
+        "checked_at": update_meta.get("checked_at", datetime.now().isoformat()),
         "name": "Personal Agentic Fleet",
         "release_date": get_live_release_date(),
         "drive": BASE_DIR.resolve().drive.upper(),

@@ -233,3 +233,22 @@ def test_signed_git_tag_creation_and_hook_verification(tmp_path: Path):
     assert "ensure_git_tag" in post_commit_txt
 
 
+def test_startup_latest_version_verification_and_cache():
+    from fleet.core.updater import (
+        ensure_latest_version_before_launch,
+        get_cached_version_check,
+        parse_version_tuple,
+    )
+
+    assert parse_version_tuple("v2.13.4") > parse_version_tuple("2.13.3")
+    sync_res = ensure_latest_version_before_launch(auto_apply=False)
+    assert "version_after" in sync_res
+    assert "up_to_date" in sync_res
+
+    cached = get_cached_version_check()
+    assert "current_version" in cached
+    assert "latest_version" in cached
+    assert "up_to_date" in cached
+
+
+

@@ -51,10 +51,11 @@ def setup_streams():
 
 setup_streams()
 
-from fleet.config import VERSION
+from fleet.config import VERSION, get_live_version
 from fleet.core.lifecycle import install_lifecycle_guards, register_shutdown_callback
 from fleet.core.logger import configure_logging
 from fleet.core.power import power_manager
+from fleet.core.updater import ensure_latest_version_before_launch, parse_version_tuple
 from fleet.daemon import FleetDaemon
 from fleet.server import PORT, start_server
 from fleet.tools.crash_reporter import install_crash_reporter
@@ -81,12 +82,51 @@ def main():
         os.environ.pop("PYTEST_CURRENT_TEST", None)
     no_browser = "--no-browser" in sys.argv
 
-    # If already running, simply focus/open browser and exit
+    # 1. Automatically check if a newer version is available on GitHub / sibling workspace and sync before launch
+    ver_sync = ensure_latest_version_before_launch(repo_root=PROJECT_ROOT, auto_apply=True)
+    target_ver = str(ver_sync.get("version_after") or get_live_version() or VERSION)
+    if ver_sync.get("upgraded"):
+        print(
+            f"[Auto-Update] Upgraded Personal Agentic Fleet from v{ver_sync.get('version_before')} "
+            f"-> v{target_ver} ({ver_sync.get('upgrade_source')})."
+        )
+
+    # 2. If already running, verify the running instance is on the latest version (and restart if stale)
     if is_port_in_use(PORT):
-        print(f"Personal Agentic Fleet is already active at http://127.0.0.1:{PORT}")
-        if not no_browser:
-            webbrowser.open(f"http://127.0.0.1:{PORT}")
-        return
+        needs_restart = False
+        running_ver = target_ver
+        try:
+            import json
+            import urllib.request
+            with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/api/version", timeout=1.5) as resp:
+                v_data = json.loads(resp.read().decode("utf-8"))
+                running_ver = str(v_data.get("version") or "").strip()
+                running_drive = str(v_data.get("drive") or "").strip().upper()
+                expected_drive = PROJECT_ROOT.resolve().drive.upper()
+                if running_ver and parse_version_tuple(running_ver) < parse_version_tuple(target_ver):
+                    needs_restart = True
+                elif running_drive and expected_drive and running_drive != expected_drive:
+                    needs_restart = True
+        except Exception:
+            pass
+
+        if needs_restart and "pytest" not in sys.modules and not os.environ.get("FLEET_TEST_MODE"):
+            print(
+                f"[Auto-Upgrade] Running AFCC instance (v{running_ver}) is older than latest v{target_ver}. "
+                f"Restarting with latest version..."
+            )
+            try:
+                import argparse
+                from fleet.cli import cmd_stop
+                cmd_stop(argparse.Namespace())
+                time.sleep(0.5)
+            except Exception:
+                pass
+        else:
+            print(f"[Verified] Personal Agentic Fleet is already active on latest v{running_ver} at http://127.0.0.1:{PORT}")
+            if not no_browser:
+                webbrowser.open(f"http://127.0.0.1:{PORT}")
+            return
 
     # Write PID file for process management
     try:

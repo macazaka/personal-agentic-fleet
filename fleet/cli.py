@@ -92,12 +92,47 @@ def cmd_start(args: argparse.Namespace) -> int:
     no_browser = getattr(args, "no_browser", False)
     daemon = getattr(args, "daemon", False)
 
+    # Automatically verify if a newer version is available on GitHub / sibling workspace before starting
+    try:
+        from fleet.config import get_live_version
+        from fleet.core.updater import ensure_latest_version_before_launch, parse_version_tuple
+        ver_sync = ensure_latest_version_before_launch(repo_root=_ROOT, auto_apply=True)
+        target_ver = str(ver_sync.get("version_after") or get_live_version() or VERSION)
+        if ver_sync.get("upgraded"):
+            print(
+                f"[Auto-Update] Upgraded Personal Agentic Fleet from v{ver_sync.get('version_before')} "
+                f"-> v{target_ver} ({ver_sync.get('upgrade_source')})."
+            )
+    except Exception:
+        target_ver = VERSION
+
     if is_port_in_use(port, host):
-        print(f"[ACTIVE] Personal Agentic Fleet is already running at http://{host}:{port}")
-        if not no_browser:
-            import webbrowser
-            webbrowser.open(f"http://{host}:{port}")
-        return 0
+        needs_restart = False
+        running_ver = target_ver
+        try:
+            from fleet.core.updater import parse_version_tuple
+            with urllib.request.urlopen(f"http://{host}:{port}/api/version", timeout=1.5) as resp:
+                v_data = json.loads(resp.read().decode("utf-8"))
+                running_ver = str(v_data.get("version") or "").strip()
+                running_drive = str(v_data.get("drive") or "").strip().upper()
+                expected_drive = _ROOT.resolve().drive.upper()
+                if running_ver and parse_version_tuple(running_ver) < parse_version_tuple(target_ver):
+                    needs_restart = True
+                elif running_drive and expected_drive and running_drive != expected_drive:
+                    needs_restart = True
+        except Exception:
+            pass
+
+        if needs_restart and "pytest" not in sys.modules and not os.environ.get("FLEET_TEST_MODE"):
+            print(f"[*] Running AFCC instance (v{running_ver}) is older than latest v{target_ver}. Restarting...")
+            cmd_stop(argparse.Namespace())
+            time.sleep(0.5)
+        else:
+            print(f"[ACTIVE] Personal Agentic Fleet is already running latest v{running_ver} at http://{host}:{port}")
+            if not no_browser:
+                import webbrowser
+                webbrowser.open(f"http://{host}:{port}")
+            return 0
 
     if daemon:
         print(f"[*] Launching Personal Agentic Fleet in background daemon mode on http://{host}:{port}...")

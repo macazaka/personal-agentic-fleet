@@ -28,7 +28,7 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from fleet.config import CHANGELOG_PATH, VERSION
+from fleet.config import BASE_DIR, CHANGELOG_PATH, VERSION, get_live_release_date, get_live_version
 from fleet.core.briefing import BriefingEngine
 from fleet.core.database import FleetDatabase
 from fleet.core.event_bus import FleetEvent, bus
@@ -294,26 +294,42 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             self._send_json(logs)
 
         elif path == "/api/status":
+            live_ver = get_live_version()
             disk = get_disk_usage("C:")
             self._send_json({
                 "status": "online",
-                "version": VERSION,
+                "version": live_ver,
                 "time": datetime.now().isoformat(),
                 "disk": disk
             })
 
         elif path == "/api/version":
+            live_ver = get_live_version()
+            update_meta: Dict[str, Any] = {}
+            try:
+                from fleet.core.updater import get_cached_version_check
+                update_meta = get_cached_version_check()
+            except Exception:
+                pass
+            latest_ver = str(update_meta.get("latest_version") or live_ver)
+            update_avail = bool(update_meta.get("update_available", False))
             self._send_json({
-                "version": VERSION,
+                "version": live_ver,
+                "latest_version": latest_ver,
+                "update_available": update_avail,
+                "up_to_date": not update_avail,
+                "checked_at": update_meta.get("checked_at", datetime.now().isoformat()),
                 "name": "Personal Agentic Fleet",
-                "release_date": "2026-10-14",
+                "release_date": get_live_release_date(),
+                "drive": BASE_DIR.resolve().drive.upper(),
                 "status": "operational"
             })
 
         elif path == "/api/release_notes":
+            live_ver = get_live_version()
             notes = CHANGELOG_PATH.read_text(encoding="utf-8") if CHANGELOG_PATH.exists() else "No release notes available."
             self._send_json({
-                "version": VERSION,
+                "version": live_ver,
                 "changelog_markdown": notes
             })
 
@@ -472,7 +488,6 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             return
 
         elif path == "/api/diagnostics/health":
-            from fleet.config import get_live_version
             harmony_score = 100.0
             try:
                 from fleet.core.mind import fleet_mind
