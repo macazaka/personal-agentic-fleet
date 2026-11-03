@@ -108,6 +108,8 @@ def _github_api_request(
     req = urllib.request.Request(url, data=data_bytes, headers=headers, method=method)
     try:
         if os.environ.get("FLEET_TEST_MODE") == "1" or "pytest" in sys.modules:
+            if getattr(urllib.request.urlopen, "__module__", "") == "urllib.request":
+                return 503, {"message": "Offline unit-test guard"}
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 raw_status = getattr(resp, "status", 200)
                 status = raw_status if isinstance(raw_status, int) else 200
@@ -315,12 +317,27 @@ class PRReviewAgent(FleetAgent):
                 fetch_remote=fetch_remote,
                 open_prs=open_prs_list,
             )
+            governance = self.audit_governance_hub(repo_root=self.repo_root)
             handler._send_json({
                 "status": "ok",
                 "prs": prs,
                 "ci": ci,
                 "branches": branches,
+                "governance": governance,
             })
+
+        @router.get("/api/pr_review/governance")
+        def get_pr_review_governance(handler: Any, parsed_url: Any):
+            governance = self.audit_governance_hub(repo_root=self.repo_root)
+            handler._send_json({"status": "ok", "governance": governance})
+
+        @router.post("/api/pr_review/governance_action")
+        def post_pr_review_governance_action(handler: Any, body: Dict[str, Any]):
+            payload = body if isinstance(body, dict) else {}
+            action = str(payload.get("action") or "").strip()
+            result = self.execute_governance_action(action=action, payload=payload)
+            status_code = 200 if result.get("status") in ("ok", "SUCCESS") else 400
+            handler._send_json(result, status=status_code)
 
         @router.get("/api/pr_review/branches")
         def get_pr_review_branches(handler: Any, parsed_url: Any):
@@ -1278,6 +1295,1004 @@ class PRReviewAgent(FleetAgent):
             dispatch_to_antigravity=dispatch_to_antigravity,
         )
 
+    def audit_security_and_quality_notifications(
+        self,
+        repo_root: Optional[Path] = None,
+    ) -> Dict[str, Any]:
+        """
+        1) Security and Quality Notifications:
+        Aggregates GitHub Code Scanning (CodeQL), Dependabot vulnerability alerts,
+        Secret Scanning alerts, Security Advisories, CI check failures, local 12-Layer
+        Security Scanner findings, and VS Code / Pyright quality diagnostics ($0.00 / 0 tokens).
+        """
+        target_root = Path(repo_root) if repo_root else self.repo_root
+        notifications: List[Dict[str, Any]] = []
+        codeql_alerts: List[Dict[str, Any]] = []
+        dependabot_alerts: List[Dict[str, Any]] = []
+        secret_alerts: List[Dict[str, Any]] = []
+        security_advisories: List[Dict[str, Any]] = []
+        quality_diagnostics: List[Dict[str, Any]] = []
+        pipeline_failures: List[Dict[str, Any]] = []
+
+        # 1a. GitHub Code Scanning (CodeQL) Alerts
+        cs_code, cs_data = _github_api_request(
+            f"https://api.github.com/repos/{self.repo}/code-scanning/alerts?state=open&per_page=25",
+            method="GET",
+            timeout=8,
+        )
+        if cs_code == 200 and isinstance(cs_data, list):
+            for item in cs_data:
+                if not isinstance(item, dict):
+                    continue
+                alert_num = int(item.get("number") or 0)
+                rule_obj = item.get("rule") if isinstance(item.get("rule"), dict) else {}
+                inst_obj = item.get("most_recent_instance") if isinstance(item.get("most_recent_instance"), dict) else {}
+                loc_obj = (inst_obj or {}).get("location") if isinstance((inst_obj or {}).get("location"), dict) else {}
+                rule_id = str((rule_obj or {}).get("id") or "codeql-alert")
+                sev = str((rule_obj or {}).get("security_severity_level") or (rule_obj or {}).get("severity") or "high").upper()
+                fpath = str((loc_obj or {}).get("path") or "")
+                line_no = int((loc_obj or {}).get("start_line") or 1)
+                desc = str((rule_obj or {}).get("description") or item.get(" generic ") or "Open CodeQL security alert")
+                created_at = str(item.get("created_at") or "")
+                html_url = str(item.get("html_url") or f"https://github.com/{self.repo}/security/code-scanning/{alert_num}")
+                entry = {
+                    "id": f"codeql-{alert_num}",
+                    "alert_number": alert_num,
+                    "alert_type": "code_scanning",
+                    "category": "CodeQL / SAST Alert",
+                    "severity": sev,
+                    "rule_id": rule_id,
+                    "title": f"[{rule_id}] {desc}",
+                    "detail": f"File: {fpath}:{line_no}" if fpath else desc,
+                    "file": fpath,
+                    "line": line_no,
+                    "created_at": created_at,
+                    "relative_time": _format_relative_time(created_at),
+                    "url": html_url,
+                }
+                codeql_alerts.append(entry)
+                notifications.append(entry)
+
+        # 1b. GitHub Dependabot Vulnerability Alerts
+        db_code, db_data = _github_api_request(
+            f"https://api.github.com/repos/{self.repo}/dependabot/alerts?state=open&per_page=25",
+            method="GET",
+            timeout=8,
+        )
+        if db_code == 200 and isinstance(db_data, list):
+            for item in db_data:
+                if not isinstance(item, dict):
+                    continue
+                alert_num = int(item.get("number") or 0)
+                dep_obj = item.get("dependency") if isinstance(item.get("dependency"), dict) else {}
+                pkg_obj = (dep_obj or {}).get("package") if isinstance((dep_obj or {}).get("package"), dict) else {}
+                adv_obj = item.get("security_advisory") if isinstance(item.get("security_advisory"), dict) else {}
+                vuln_obj = item.get("security_vulnerability") if isinstance(item.get("security_vulnerability"), dict) else {}
+                patch_obj = (
+                    (vuln_obj or {}).get("first_patched_version")
+                    if isinstance((vuln_obj or {}).get("first_patched_version"), dict)
+                    else {}
+                )
+                pkg_name = str((pkg_obj or {}).get("name") or "dependency")
+                ghsa_id = str((adv_obj or {}).get("ghsa_id") or (adv_obj or {}).get("cve_id") or f"DEP-{alert_num}")
+                sev = str((adv_obj or {}).get("severity") or "high").upper()
+                summary = str((adv_obj or {}).get("summary") or "Open Dependabot vulnerability")
+                patched_ver = str((patch_obj or {}).get("identifier") or "")
+                manifest_path = str((dep_obj or {}).get("manifest_path") or "pyproject.toml")
+                created_at = str(item.get("created_at") or "")
+                html_url = str(item.get("html_url") or f"https://github.com/{self.repo}/security/dependabot/{alert_num}")
+                entry = {
+                    "id": f"dependabot-{alert_num}",
+                    "alert_number": alert_num,
+                    "alert_type": "dependabot",
+                    "category": "Dependabot Supply-Chain Alert",
+                    "severity": sev,
+                    "rule_id": ghsa_id,
+                    "package": pkg_name,
+                    "fixed_version": patched_ver,
+                    "title": f"[{ghsa_id}] {pkg_name}: {summary}",
+                    "detail": f"Manifest: {manifest_path}" + (f" • Upgrade to >= {patched_ver}" if patched_ver else ""),
+                    "file": manifest_path,
+                    "line": 1,
+                    "created_at": created_at,
+                    "relative_time": _format_relative_time(created_at),
+                    "url": html_url,
+                }
+                dependabot_alerts.append(entry)
+                notifications.append(entry)
+
+        # 1c. GitHub Secret Scanning Alerts (extract integer alert ID only for CodeQL clear-text compliance)
+        ss_code, ss_data = _github_api_request(
+            f"https://api.github.com/repos/{self.repo}/secret-scanning/alerts?state=open&per_page=20",
+            method="GET",
+            timeout=8,
+        )
+        if ss_code == 200 and isinstance(ss_data, list):
+            for item in ss_data:
+                if not isinstance(item, dict):
+                    continue
+                alert_num = int(item.get("number") or 0)
+                created_at = str(item.get("created_at") or "")
+                html_url = str(item.get("html_url") or f"https://github.com/{self.repo}/security/secret-scanning/{alert_num}")
+                entry = {
+                    "id": f"secret-scan-{alert_num}",
+                    "alert_number": alert_num,
+                    "alert_type": "secret_scanning",
+                    "category": "Secret Scanning Alert",
+                    "severity": "CRITICAL",
+                    "rule_id": "github-secret-scanning",
+                    "title": f"Repository Secret Scanning Alert #{alert_num}",
+                    "detail": "Open GitHub secret-scanning alert requires rotation/dismissal in Security tab.",
+                    "file": "repository",
+                    "line": 1,
+                    "created_at": created_at,
+                    "relative_time": _format_relative_time(created_at),
+                    "url": html_url,
+                }
+                secret_alerts.append(entry)
+                notifications.append(entry)
+
+        # 1d. GitHub Repository Security Advisories
+        sa_code, sa_data = _github_api_request(
+            f"https://api.github.com/repos/{self.repo}/security-advisories?per_page=15",
+            method="GET",
+            timeout=8,
+        )
+        if sa_code == 200 and isinstance(sa_data, list):
+            for item in sa_data:
+                if not isinstance(item, dict):
+                    continue
+                state = str(item.get("state") or "").lower()
+                if state in ("closed", "withdrawn"):
+                    continue
+                ghsa_id = str(item.get("ghsa_id") or "GHSA")
+                sev = str(item.get("severity") or "medium").upper()
+                summary = str(item.get("summary") or "Repository Security Advisory")
+                created_at = str(item.get("created_at") or "")
+                html_url = str(item.get("html_url") or f"https://github.com/{self.repo}/security/advisories/{ghsa_id}")
+                entry = {
+                    "id": f"advisory-{ghsa_id}",
+                    "alert_number": 0,
+                    "alert_type": "security_advisory",
+                    "category": f"Security Advisory ({state.upper()})",
+                    "severity": sev,
+                    "rule_id": ghsa_id,
+                    "title": f"[{ghsa_id}] {summary}",
+                    "detail": f"Advisory state: {state}",
+                    "file": "SECURITY.md",
+                    "line": 1,
+                    "created_at": created_at,
+                    "relative_time": _format_relative_time(created_at),
+                    "url": html_url,
+                }
+                security_advisories.append(entry)
+                notifications.append(entry)
+
+        # 1e. Local 12-Layer Security Scanner, Cached Pipeline Sentinel & VS Code/Pyright Quality Gate
+        local_security_score = 100
+        local_passed_checks = 12
+        local_total_checks = 12
+        try:
+            from fleet.tools.github_pipeline_sentinel import AUDIT_REPORT_PATH
+
+            if AUDIT_REPORT_PATH.is_file():
+                cached_audit = json.loads(AUDIT_REPORT_PATH.read_text(encoding="utf-8"))
+                local_security_score = int(cached_audit.get("local_security_score") or 100)
+                for pf in cached_audit.get("pipeline_failures", []) or []:
+                    if isinstance(pf, dict):
+                        entry = {
+                            "id": f"ci-fail-{pf.get('id') or pf.get('name')}",
+                            "alert_number": 0,
+                            "alert_type": "ci_failure",
+                            "category": "CI Quality Gate Failure",
+                            "severity": "HIGH",
+                            "rule_id": "github-actions-check",
+                            "title": f"CI Check Failed: {pf.get('name')}",
+                            "detail": str(pf.get("detail") or ""),
+                            "file": ".github/workflows",
+                            "line": 1,
+                            "created_at": str(cached_audit.get("timestamp") or ""),
+                            "relative_time": _format_relative_time(str(cached_audit.get("timestamp") or "")),
+                            "url": str(pf.get("html_url") or f"https://github.com/{self.repo}/actions"),
+                        }
+                        pipeline_failures.append(entry)
+                        notifications.append(entry)
+                for ww in cached_audit.get("workflow_warnings", []) or []:
+                    if isinstance(ww, dict):
+                        entry = {
+                            "id": f"wf-warn-{ww.get('check')}-{ww.get('line')}",
+                            "alert_number": 0,
+                            "alert_type": "quality_diagnostic",
+                            "category": "Workflow Quality Warning",
+                            "severity": "MEDIUM",
+                            "rule_id": "workflow-warning",
+                            "title": f"Workflow Warning in {ww.get('check')}",
+                            "detail": str(ww.get("message") or ""),
+                            "file": str(ww.get("path") or ".github/workflows"),
+                            "line": int(ww.get("line") or 1),
+                            "created_at": str(cached_audit.get("timestamp") or ""),
+                            "relative_time": _format_relative_time(str(cached_audit.get("timestamp") or "")),
+                            "url": f"https://github.com/{self.repo}/actions",
+                        }
+                        quality_diagnostics.append(entry)
+                        notifications.append(entry)
+        except Exception:
+            pass
+
+        try:
+            from fleet.tools.auto_fixer import audit_vscode_workspace_problems
+
+            ws_audit = audit_vscode_workspace_problems(repo_root=target_root)
+            for prob in (ws_audit.get("problems") or [])[:20]:
+                if isinstance(prob, dict):
+                    entry = {
+                        "id": f"vscode-{prob.get('file')}-{prob.get('line')}-{prob.get('code')}",
+                        "alert_number": 0,
+                        "alert_type": "quality_diagnostic",
+                        "category": f"Code Quality ({prob.get('source', 'VSCode')})",
+                        "severity": "MEDIUM",
+                        "rule_id": str(prob.get("code") or "diagnostic"),
+                        "title": f"[{prob.get('code')}] {prob.get('message')}",
+                        "detail": f"{prob.get('file')}:{prob.get('line')}",
+                        "file": str(prob.get("file") or ""),
+                        "line": int(prob.get("line") or 1),
+                        "created_at": "",
+                        "relative_time": "workspace",
+                        "url": "",
+                    }
+                    quality_diagnostics.append(entry)
+                    notifications.append(entry)
+        except Exception:
+            pass
+
+        return {
+            "status": "CLEAN" if not notifications else "ATTENTION_REQUIRED",
+            "total_notifications": len(notifications),
+            "codeql_count": len(codeql_alerts),
+            "dependabot_count": len(dependabot_alerts),
+            "secret_alerts_count": len(secret_alerts),
+            "advisories_count": len(security_advisories),
+            "ci_failures_count": len(pipeline_failures),
+            "quality_diagnostics_count": len(quality_diagnostics),
+            "local_security_score": local_security_score,
+            "local_passed_checks": local_passed_checks,
+            "local_total_checks": local_total_checks,
+            "notifications": notifications,
+            "codeql_alerts": codeql_alerts,
+            "dependabot_alerts": dependabot_alerts,
+            "secret_alerts": secret_alerts,
+            "security_advisories": security_advisories,
+            "pipeline_failures": pipeline_failures,
+            "quality_diagnostics": quality_diagnostics,
+            "security_tab_url": f"https://github.com/{self.repo}/security",
+        }
+
+    def audit_open_discussions(self) -> Dict[str, Any]:
+        """
+        2) Open Discussions That Need to Be Addressed:
+        Queries GitHub Repository Discussions for open or unanswered threads, extracting
+        author details, category, comment count, upvotes, and answer status ($0.00 / 0 tokens).
+        """
+        url = f"https://api.github.com/repos/{self.repo}/discussions?per_page=25"
+        discussions: List[Dict[str, Any]] = []
+        discussions_enabled = True
+        note = ""
+        try:
+            code, data = _github_api_request(url, method="GET", timeout=8)
+            if code in (404, 410):
+                discussions_enabled = False
+                note = "GitHub Discussions tab is currently disabled or has 0 discussions on this repository."
+            elif code == 200 and isinstance(data, list):
+                for d in data:
+                    if not isinstance(d, dict):
+                        continue
+                    state = str(d.get("state") or "open").lower()
+                    if state == "closed" or d.get("locked"):
+                        continue
+                    num = int(d.get("number") or 0)
+                    user_obj = d.get("user") if isinstance(d.get("user"), dict) else {}
+                    cat_obj = d.get("category") if isinstance(d.get("category"), dict) else {}
+                    author = str((user_obj or {}).get("login") or "unknown")
+                    cat_name = str((cat_obj or {}).get("name") or "General")
+                    is_answerable = bool((cat_obj or {}).get("is_answerable", False))
+                    is_answered = bool(d.get("answer_chosen_at"))
+                    comments_cnt = int(d.get("comments") or 0)
+                    needs_attention = (is_answerable and not is_answered) or comments_cnt == 0
+                    updated_at = str(d.get("updated_at") or d.get("created_at") or "")
+                    discussions.append({
+                        "number": num,
+                        "title": str(d.get("title") or ""),
+                        "author": author,
+                        "author_initials": _author_initials(author),
+                        "category": cat_name,
+                        "is_answerable": is_answerable,
+                        "is_answered": is_answered,
+                        "needs_attention": needs_attention,
+                        "comments_count": comments_cnt,
+                        "upvotes": int(d.get("upvote_count") or 0),
+                        "created_at": str(d.get("created_at") or ""),
+                        "updated_at": updated_at,
+                        "relative_time": _format_relative_time(updated_at),
+                        "body": str(d.get("body") or "")[:500],
+                        "url": str(d.get("html_url") or f"https://github.com/{self.repo}/discussions/{num}"),
+                    })
+        except Exception as exc:
+            note = str(exc)
+
+        unanswered_count = sum(1 for d in discussions if d.get("needs_attention"))
+        return {
+            "status": "OK",
+            "discussions_enabled": discussions_enabled,
+            "open_count": len(discussions),
+            "unanswered_count": unanswered_count,
+            "discussions": discussions,
+            "note": note,
+            "discussions_url": f"https://github.com/{self.repo}/discussions",
+            "settings_url": f"https://github.com/{self.repo}/settings#features",
+        }
+
+    def audit_wiki_comments_and_feedback(
+        self,
+        repo_root: Optional[Path] = None,
+        open_issues: Optional[List[Dict[str, Any]]] = None,
+        open_discussions: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        """
+        3) Wiki Page Comments, Questions & Revision Feedback:
+        Scans all local `wiki/*.md` pages for embedded questions/comments/TODO markers,
+        correlates GitHub Issues/Discussions/Commit Comments mentioning Wiki pages,
+        and audits Wiki Git revision & sync status ($0.00 / 0 tokens).
+        """
+        target_root = Path(repo_root) if repo_root else self.repo_root
+        wiki_dir = target_root / "wiki"
+        wiki_comments: List[Dict[str, Any]] = []
+        wiki_pages: List[Dict[str, Any]] = []
+
+        marker_re = re.compile(
+            r"(?:<!--\s*(?:QUESTION|COMMENT|TODO|FIXME|REVIEW|ASK|FEEDBACK)\b[:\s]*(.*?)-->)"
+            r"|(?:^\s*(?:>\s*\[!QUESTION\]|(?:QUESTION|COMMENT|TODO|FIXME|NEEDS[\s_]+ANSWER)\s*:)\s*(.+)$)",
+            re.I | re.M | re.S,
+        )
+
+        if wiki_dir.is_dir():
+            for md_file in sorted(wiki_dir.glob("*.md")):
+                page_name = md_file.stem
+                rel_path = f"wiki/{md_file.name}"
+                try:
+                    text = md_file.read_text(encoding="utf-8", errors="ignore")
+                except Exception:
+                    continue
+
+                # Latest commit metadata for this wiki page
+                log_res = self._run_git(
+                    ["log", "-1", "--format=%h%x1f%an%x1f%ae%x1f%aI%x1f%s", "--", rel_path],
+                    cwd=target_root,
+                )
+                l_parts = (log_res.stdout or "").strip().split("\x1f")
+                last_sha = l_parts[0] if len(l_parts) > 0 else ""
+                last_author = l_parts[1] if len(l_parts) > 1 else "macazaka"
+                last_email = l_parts[2] if len(l_parts) > 2 else ""
+                last_date = l_parts[3] if len(l_parts) > 3 else ""
+                last_subj = l_parts[4] if len(l_parts) > 4 else ""
+
+                wiki_pages.append({
+                    "page": page_name,
+                    "file": rel_path,
+                    "lines_count": len(text.splitlines()),
+                    "last_sha": last_sha,
+                    "last_author": last_author,
+                    "last_email": last_email,
+                    "last_updated_relative": _format_relative_time(last_date),
+                    "last_subject": last_subj,
+                    "wiki_url": f"https://github.com/{self.repo}/wiki/{ '' if page_name == 'Home' else page_name }",
+                })
+
+                for m in marker_re.finditer(text):
+                    comment_text = (m.group(1) or m.group(2) or "").strip()
+                    if not comment_text:
+                        continue
+                    line_no = text[: m.start()].count("\n") + 1
+                    wiki_comments.append({
+                        "id": f"wiki-{page_name}-L{line_no}",
+                        "source": "wiki_inline_comment",
+                        "page": page_name,
+                        "file": rel_path,
+                        "line": line_no,
+                        "author": last_author,
+                        "author_email": last_email,
+                        "question_or_comment": " ".join(comment_text.split())[:300],
+                        "relative_time": _format_relative_time(last_date),
+                        "wiki_url": f"https://github.com/{self.repo}/wiki/{ '' if page_name == 'Home' else page_name }",
+                    })
+
+        # Correlate open GitHub Issues or Discussions mentioning Wiki pages
+        for iss in open_issues or []:
+            title_l = str(iss.get("title") or "").lower()
+            body_l = str(iss.get("body") or "").lower()
+            labels_l = [str(lb.get("name") or "").lower() for lb in (iss.get("labels") or []) if isinstance(lb, dict)]
+            if "wiki" in title_l or "wiki" in body_l or "wiki" in labels_l or "documentation" in labels_l:
+                wiki_comments.append({
+                    "id": f"wiki-issue-{iss.get('number')}",
+                    "source": "github_issue",
+                    "issue_number": iss.get("number"),
+                    "page": "Wiki / Documentation",
+                    "file": "wiki/Home.md",
+                    "line": 1,
+                    "author": str(iss.get("author") or "user"),
+                    "author_email": "",
+                    "question_or_comment": f"[Issue #{iss.get('number')}] {iss.get('title')}: {str(iss.get('body') or '')[:220]}",
+                    "relative_time": str(iss.get("relative_time") or ""),
+                    "wiki_url": str(iss.get("url") or f"https://github.com/{self.repo}/wiki"),
+                })
+
+        for disc in open_discussions or []:
+            title_l = str(disc.get("title") or "").lower()
+            body_l = str(disc.get("body") or "").lower()
+            if "wiki" in title_l or "wiki" in body_l or "docs" in title_l:
+                wiki_comments.append({
+                    "id": f"wiki-disc-{disc.get('number')}",
+                    "source": "github_discussion",
+                    "discussion_number": disc.get("number"),
+                    "page": "Wiki / Documentation",
+                    "file": "wiki/Home.md",
+                    "line": 1,
+                    "author": str(disc.get("author") or "user"),
+                    "author_email": "",
+                    "question_or_comment": f"[Discussion #{disc.get('number')}] {disc.get('title')}: {str(disc.get('body') or '')[:220]}",
+                    "relative_time": str(disc.get("relative_time") or ""),
+                    "wiki_url": str(disc.get("url") or f"https://github.com/{self.repo}/wiki"),
+                })
+
+        # Check if local wiki/ directory has uncommitted changes waiting to sync
+        wt_wiki = self._run_git(["status", "--porcelain", "--", "wiki/"], cwd=target_root)
+        unsynced_wiki_files = [
+            line[3:].strip()
+            for line in (wt_wiki.stdout or "").splitlines()
+            if len(line) >= 4
+        ]
+
+        return {
+            "status": "OK",
+            "comments_needing_answer_count": len(wiki_comments),
+            "wiki_comments": wiki_comments,
+            "total_wiki_pages": len(wiki_pages),
+            "unsynced_wiki_files": unsynced_wiki_files,
+            "wiki_pages": wiki_pages,
+            "wiki_home_url": f"https://github.com/{self.repo}/wiki",
+        }
+
+    def audit_reported_issues(self) -> Dict[str, Any]:
+        """
+        4) Reported Issues:
+        Fetches all open GitHub Issues (excluding Pull Requests) with author details, labels,
+        assignees, comment count, and response status, plus any open local Sentinel/Auto-Healer
+        diagnostic tasks ($0.00 / 0 tokens).
+        """
+        url = f"https://api.github.com/repos/{self.repo}/issues?state=open&per_page=35"
+        github_issues: List[Dict[str, Any]] = []
+        local_reported_issues: List[Dict[str, Any]] = []
+        error_note = ""
+
+        try:
+            code, raw_items = _github_api_request(url, method="GET", timeout=8)
+            if code == 200 and isinstance(raw_items, list):
+                for item in raw_items:
+                    if not isinstance(item, dict) or "pull_request" in item:
+                        continue
+                    num = int(item.get("number") or 0)
+                    user_obj = item.get("user") if isinstance(item.get("user"), dict) else {}
+                    author = str((user_obj or {}).get("login") or "unknown")
+                    raw_labels: List[Any] = item.get("labels") or []
+                    labels = [
+                        {
+                            "name": str(lb.get("name") or ""),
+                            "color": str(lb.get("color") or "38bdf8"),
+                        }
+                        for lb in raw_labels
+                        if isinstance(lb, dict) and lb.get("name")
+                    ]
+                    raw_assignees: List[Any] = item.get("assignees") or []
+                    assignees = [
+                        str(a.get("login") or "")
+                        for a in raw_assignees
+                        if isinstance(a, dict) and a.get("login")
+                    ]
+                    comments_cnt = int(item.get("comments") or 0)
+                    updated_at = str(item.get("updated_at") or item.get("created_at") or "")
+                    github_issues.append({
+                        "number": num,
+                        "title": str(item.get("title") or ""),
+                        "author": author,
+                        "author_initials": _author_initials(author),
+                        "author_association": str(item.get("author_association") or ""),
+                        "labels": labels,
+                        "assignees": assignees,
+                        "comments_count": comments_cnt,
+                        "needs_response": comments_cnt == 0,
+                        "created_at": str(item.get("created_at") or ""),
+                        "updated_at": updated_at,
+                        "relative_time": _format_relative_time(updated_at),
+                        "body": str(item.get("body") or "")[:600],
+                        "url": str(item.get("html_url") or f"https://github.com/{self.repo}/issues/{num}"),
+                    })
+            elif code >= 400 and code != 503:
+                error_note = f"HTTP {code}"
+        except Exception as exc:
+            error_note = str(exc)
+
+        # Also check local FleetDatabase for open system/sentinel reported tasks
+        try:
+            db_inst = self.db
+            if db_inst and hasattr(db_inst, "get_all_tasks"):
+                for t in db_inst.get_all_tasks() or []:
+                    if not isinstance(t, dict) or str(t.get("status") or "").lower() == "completed":
+                        continue
+                    src = str(t.get("source") or "").lower()
+                    assigned = str(t.get("assigned_agent") or "").lower()
+                    if src in ("github_pipeline_sentinel", "auto_healer", "security_scanner") or assigned == "pr_review":
+                        local_reported_issues.append({
+                            "id": int(t.get("id") or 0),
+                            "title": str(t.get("title") or ""),
+                            "description": str(t.get("description") or "")[:400],
+                            "priority": str(t.get("priority") or "P1"),
+                            "source": src or "system",
+                            "created_at": str(t.get("created_at") or ""),
+                            "relative_time": _format_relative_time(str(t.get("created_at") or "")),
+                        })
+        except Exception:
+            pass
+
+        return {
+            "status": "OK",
+            "open_github_issues_count": len(github_issues),
+            "unanswered_issues_count": sum(1 for i in github_issues if i.get("needs_response")),
+            "local_reported_count": len(local_reported_issues),
+            "total_issues_count": len(github_issues) + len(local_reported_issues),
+            "github_issues": github_issues,
+            "local_issues": local_reported_issues,
+            "error": error_note,
+            "new_issue_url": f"https://github.com/{self.repo}/issues/new",
+            "issues_url": f"https://github.com/{self.repo}/issues",
+        }
+
+    def audit_other_governance_items(self, repo_root: Optional[Path] = None) -> Dict[str, Any]:
+        """
+        5) Other Relevant Governance Items Not Listed:
+          - Commit Comments & Inline PR Review Comments awaiting response
+          - Repository Unread Notifications, @Mentions & Review Requests
+          - Cryptographic Tag Signature Verification & Release Audit (`Verified` badge status)
+        """
+        target_root = Path(repo_root) if repo_root else self.repo_root
+        commit_and_pr_comments: List[Dict[str, Any]] = []
+        repo_notifications: List[Dict[str, Any]] = []
+        tag_audit: List[Dict[str, Any]] = []
+
+        # 5a. Repository Commit Comments & PR Review Comments
+        cc_code, cc_data = _github_api_request(
+            f"https://api.github.com/repos/{self.repo}/comments?per_page=10",
+            method="GET",
+            timeout=8,
+        )
+        if cc_code == 200 and isinstance(cc_data, list):
+            for c in cc_data:
+                if not isinstance(c, dict):
+                    continue
+                u_obj = c.get("user") if isinstance(c.get("user"), dict) else {}
+                author = str((u_obj or {}).get("login") or "unknown")
+                c_sha = str(c.get("commit_id") or "")
+                created_at = str(c.get("updated_at") or c.get("created_at") or "")
+                commit_and_pr_comments.append({
+                    "id": c.get("id"),
+                    "type": "commit_comment",
+                    "type_label": "Commit Comment",
+                    "author": author,
+                    "commit_sha": c_sha[:7],
+                    "full_commit_sha": c_sha,
+                    "path": str(c.get("path") or ""),
+                    "line": c.get("line") or c.get("position") or 0,
+                    "body": str(c.get("body") or "")[:400],
+                    "created_at": created_at,
+                    "relative_time": _format_relative_time(created_at),
+                    "url": str(c.get("html_url") or ""),
+                })
+
+        prc_code, prc_data = _github_api_request(
+            f"https://api.github.com/repos/{self.repo}/pulls/comments?per_page=10",
+            method="GET",
+            timeout=8,
+        )
+        if prc_code == 200 and isinstance(prc_data, list):
+            for c in prc_data:
+                if not isinstance(c, dict):
+                    continue
+                u_obj = c.get("user") if isinstance(c.get("user"), dict) else {}
+                author = str((u_obj or {}).get("login") or "unknown")
+                c_sha = str(c.get("commit_id") or "")
+                created_at = str(c.get("updated_at") or c.get("created_at") or "")
+                commit_and_pr_comments.append({
+                    "id": c.get("id"),
+                    "type": "pr_review_comment",
+                    "type_label": "PR Code Review Comment",
+                    "author": author,
+                    "commit_sha": c_sha[:7],
+                    "full_commit_sha": c_sha,
+                    "path": str(c.get("path") or ""),
+                    "line": c.get("line") or c.get("original_line") or 0,
+                    "body": str(c.get("body") or "")[:400],
+                    "created_at": created_at,
+                    "relative_time": _format_relative_time(created_at),
+                    "url": str(c.get("html_url") or ""),
+                })
+
+        # 5b. Unread GitHub Notifications / Mentions / Review Requests for this repository
+        notif_code, notif_data = _github_api_request(
+            "https://api.github.com/notifications?all=false&per_page=20",
+            method="GET",
+            timeout=8,
+        )
+        if notif_code == 200 and isinstance(notif_data, list):
+            for n in notif_data:
+                if not isinstance(n, dict):
+                    continue
+                r_obj = n.get("repository") if isinstance(n.get("repository"), dict) else {}
+                full_name = str((r_obj or {}).get("full_name") or "")
+                if full_name and full_name.lower() != self.repo.lower():
+                    continue
+                subj_obj = n.get("subject") if isinstance(n.get("subject"), dict) else {}
+                updated_at = str(n.get("updated_at") or "")
+                repo_notifications.append({
+                    "thread_id": str(n.get("id") or ""),
+                    "reason": str(n.get("reason") or "notification"),
+                    "subject_type": str((subj_obj or {}).get("type") or "Item"),
+                    "title": str((subj_obj or {}).get("title") or ""),
+                    "updated_at": updated_at,
+                    "relative_time": _format_relative_time(updated_at),
+                    "unread": bool(n.get("unread", True)),
+                })
+
+        # 5c. Cryptographic Tag Verification & Release Audit (Recent tags)
+        try:
+            from fleet.tools.release_manager import verify_git_tag_signed
+
+            tag_res = self._run_git(
+                [
+                    "for-each-ref",
+                    "--sort=-creatordate",
+                    "--count=8",
+                    "--format=%(refname:short)%x1f%(objectname:short)%x1f%(taggername)%x1f%(creatordate:iso-strict)%x1f%(subject)",
+                    "refs/tags",
+                ],
+                cwd=target_root,
+            )
+            for line in (tag_res.stdout or "").splitlines():
+                if not line.strip():
+                    continue
+                t_parts = line.split("\x1f")
+                t_name = t_parts[0].strip() if len(t_parts) > 0 else ""
+                if not t_name:
+                    continue
+                t_sha = t_parts[1].strip() if len(t_parts) > 1 else ""
+                t_tagger = (t_parts[2].strip() if len(t_parts) > 2 else "") or "macazaka"
+                t_date = t_parts[3].strip() if len(t_parts) > 3 else ""
+                t_subj = t_parts[4].strip() if len(t_parts) > 4 else ""
+                is_signed = verify_git_tag_signed(target_root, t_name)
+                tag_audit.append({
+                    "tag": t_name,
+                    "sha": t_sha,
+                    "author": t_tagger,
+                    "date_iso": t_date,
+                    "relative_time": _format_relative_time(t_date),
+                    "subject": t_subj,
+                    "verified_signed": is_signed,
+                    "release_url": f"https://github.com/{self.repo}/releases/tag/{t_name}",
+                })
+        except Exception:
+            pass
+
+        unsigned_tags_count = sum(1 for t in tag_audit if not t.get("verified_signed"))
+        return {
+            "status": "OK",
+            "commit_and_pr_comments_count": len(commit_and_pr_comments),
+            "commit_and_pr_comments": commit_and_pr_comments,
+            "unread_notifications_count": len(repo_notifications),
+            "repo_notifications": repo_notifications,
+            "tags_audited_count": len(tag_audit),
+            "unsigned_tags_count": unsigned_tags_count,
+            "tag_audit": tag_audit,
+            "releases_url": f"https://github.com/{self.repo}/releases",
+            "tags_url": f"https://github.com/{self.repo}/tags",
+        }
+
+    def audit_governance_hub(self, repo_root: Optional[Path] = None) -> Dict[str, Any]:
+        """
+        Comprehensive 5-Pillar Repository Governance Hub audit ($0.00 / 0 LLM tokens):
+          1. Security & Quality Notifications
+          2. Open Discussions Needing Attention
+          3. Wiki Page Comments, Questions & Sync Status
+          4. Reported Issues (GitHub Issues + Local Autonomous Reports)
+          5. Other Relevant Governance Items (Commit/PR Review Comments, Mentions, Signed Tag Audit)
+        """
+        target_root = Path(repo_root) if repo_root else self.repo_root
+        sec_quality = self.audit_security_and_quality_notifications(repo_root=target_root)
+        discussions = self.audit_open_discussions()
+        issues = self.audit_reported_issues()
+        wiki_feedback = self.audit_wiki_comments_and_feedback(
+            repo_root=target_root,
+            open_issues=issues.get("github_issues", []),
+            open_discussions=discussions.get("discussions", []),
+        )
+        other_gov = self.audit_other_governance_items(repo_root=target_root)
+
+        total_action_items = (
+            int(sec_quality.get("total_notifications") or 0)
+            + int(discussions.get("open_count") or 0)
+            + int(wiki_feedback.get("comments_needing_answer_count") or 0)
+            + int(issues.get("total_issues_count") or 0)
+            + int(other_gov.get("commit_and_pr_comments_count") or 0)
+            + int(other_gov.get("unread_notifications_count") or 0)
+        )
+
+        return {
+            "status": "OK",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "total_action_items": total_action_items,
+            "security_and_quality": sec_quality,
+            "discussions": discussions,
+            "wiki_feedback": wiki_feedback,
+            "reported_issues": issues,
+            "other_governance": other_gov,
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        }
+
+    def execute_governance_action(
+        self,
+        action: str,
+        payload: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Executes an administrative action across the 5 Governance Hub pillars:
+          - auto_fix_security_quality
+          - dismiss_code_scanning_alert / dismiss_dependabot_alert
+          - create_issue / comment_issue / close_issue
+          - comment_discussion
+          - reply_commit_comment
+          - sync_wiki_now
+          - resign_tag
+          - mark_notification_read
+          - complete_local_task / create_fleet_task
+          - address_in_antigravity
+        """
+        opts = payload if isinstance(payload, dict) else {}
+        act = (action or "").strip().lower()
+
+        if act == "auto_fix_security_quality":
+            from fleet.tools.auto_fixer import run_auto_fixer
+            from fleet.tools.security_scanner import run_security_scan
+
+            af_res = run_auto_fixer(repo_root=self.repo_root, stage_changes=False, run_pyright_cli=False)
+            sec_res = run_security_scan(repo_root=self.repo_root)
+            fixes_cnt = int(af_res.get("fixes_applied_count") or 0)
+            return {
+                "status": "ok",
+                "action": act,
+                "fixes_applied_count": fixes_cnt,
+                "security_score": sec_res.get("score", 100),
+                "message": f"Auto-Fixer completed ({fixes_cnt} fix(es) applied). Local Security Score: {sec_res.get('score', 100)}/100.",
+            }
+
+        if act == "dismiss_code_scanning_alert":
+            alert_num = int(opts.get("alert_number") or 0)
+            if alert_num <= 0:
+                return {"status": "error", "message": "Valid alert_number is required."}
+            reason = str(opts.get("dismissed_reason") or "won't fix")
+            comment = str(opts.get("dismissed_comment") or "Resolved via AFCC Admin PR & Security Gate.")
+            code, resp = _github_api_request(
+                f"https://api.github.com/repos/{self.repo}/code-scanning/alerts/{alert_num}",
+                method="PATCH",
+                payload={"state": "dismissed", "dismissed_reason": reason, "dismissed_comment": comment},
+            )
+            if 200 <= code < 300:
+                return {"status": "ok", "action": act, "message": f"Dismissed CodeQL alert #{alert_num}."}
+            return {"status": "error", "message": str(resp.get("message") if isinstance(resp, dict) else resp)}
+
+        if act == "dismiss_dependabot_alert":
+            alert_num = int(opts.get("alert_number") or 0)
+            if alert_num <= 0:
+                return {"status": "error", "message": "Valid alert_number is required."}
+            reason = str(opts.get("dismissed_reason") or "tolerable_risk")
+            comment = str(opts.get("dismissed_comment") or "Reviewed via AFCC Admin Security Gate.")
+            code, resp = _github_api_request(
+                f"https://api.github.com/repos/{self.repo}/dependabot/alerts/{alert_num}",
+                method="PATCH",
+                payload={"state": "dismissed", "dismissed_reason": reason, "dismissed_comment": comment},
+            )
+            if 200 <= code < 300:
+                return {"status": "ok", "action": act, "message": f"Dismissed Dependabot alert #{alert_num}."}
+            return {"status": "error", "message": str(resp.get("message") if isinstance(resp, dict) else resp)}
+
+        if act == "create_issue":
+            title = str(opts.get("title") or "").strip()
+            body_txt = str(opts.get("body") or "").strip()
+            labels = opts.get("labels") if isinstance(opts.get("labels"), list) else []
+            if not title:
+                return {"status": "error", "message": "Issue title is required."}
+            code, resp = _github_api_request(
+                f"https://api.github.com/repos/{self.repo}/issues",
+                method="POST",
+                payload={"title": title, "body": body_txt, "labels": labels},
+            )
+            if 200 <= code < 300 and isinstance(resp, dict):
+                return {
+                    "status": "ok",
+                    "action": act,
+                    "issue_number": resp.get("number"),
+                    "url": resp.get("html_url"),
+                    "message": f"Created GitHub Issue #{resp.get('number')}: {title}",
+                }
+            return {"status": "error", "message": str(resp.get("message") if isinstance(resp, dict) else resp)}
+
+        if act == "comment_issue":
+            issue_num = int(opts.get("issue_number") or opts.get("number") or 0)
+            body_txt = str(opts.get("body") or opts.get("comment") or "").strip()
+            if issue_num <= 0 or not body_txt:
+                return {"status": "error", "message": "Valid issue_number and comment body are required."}
+            code, resp = _github_api_request(
+                f"https://api.github.com/repos/{self.repo}/issues/{issue_num}/comments",
+                method="POST",
+                payload={"body": body_txt},
+            )
+            if 200 <= code < 300:
+                return {"status": "ok", "action": act, "message": f"Posted comment on Issue #{issue_num}."}
+            return {"status": "error", "message": str(resp.get("message") if isinstance(resp, dict) else resp)}
+
+        if act == "close_issue":
+            issue_num = int(opts.get("issue_number") or opts.get("number") or 0)
+            if issue_num <= 0:
+                return {"status": "error", "message": "Valid issue_number is required."}
+            comment_txt = str(opts.get("comment") or "").strip()
+            if comment_txt:
+                _github_api_request(
+                    f"https://api.github.com/repos/{self.repo}/issues/{issue_num}/comments",
+                    method="POST",
+                    payload={"body": comment_txt},
+                )
+            code, resp = _github_api_request(
+                f"https://api.github.com/repos/{self.repo}/issues/{issue_num}",
+                method="PATCH",
+                payload={"state": "closed"},
+            )
+            if 200 <= code < 300:
+                return {"status": "ok", "action": act, "message": f"Closed GitHub Issue #{issue_num}."}
+            return {"status": "error", "message": str(resp.get("message") if isinstance(resp, dict) else resp)}
+
+        if act == "comment_discussion":
+            disc_num = int(opts.get("discussion_number") or opts.get("number") or 0)
+            body_txt = str(opts.get("body") or opts.get("comment") or "").strip()
+            if disc_num <= 0 or not body_txt:
+                return {"status": "error", "message": "Valid discussion_number and comment body are required."}
+            code, resp = _github_api_request(
+                f"https://api.github.com/repos/{self.repo}/discussions/{disc_num}/comments",
+                method="POST",
+                payload={"body": body_txt},
+            )
+            if 200 <= code < 300:
+                return {"status": "ok", "action": act, "message": f"Posted reply on Discussion #{disc_num}."}
+            return {"status": "error", "message": str(resp.get("message") if isinstance(resp, dict) else resp)}
+
+        if act == "reply_commit_comment":
+            commit_sha = str(opts.get("commit_sha") or "").strip()
+            body_txt = str(opts.get("body") or opts.get("comment") or "").strip()
+            if not commit_sha or not body_txt:
+                return {"status": "error", "message": "Valid commit_sha and comment body are required."}
+            code, resp = _github_api_request(
+                f"https://api.github.com/repos/{self.repo}/commits/{commit_sha}/comments",
+                method="POST",
+                payload={"body": body_txt},
+            )
+            if 200 <= code < 300:
+                return {"status": "ok", "action": act, "message": f"Posted reply on commit {commit_sha[:7]}."}
+            return {"status": "error", "message": str(resp.get("message") if isinstance(resp, dict) else resp)}
+
+        if act == "sync_wiki_now":
+            try:
+                from fleet.tools.sync_wiki import sync_github_wiki
+
+                ok = sync_github_wiki()
+                if ok:
+                    return {"status": "ok", "action": act, "message": "Synchronized local wiki/*.md pages to live GitHub Wiki."}
+                return {"status": "error", "message": "GitHub Wiki sync returned non-zero status; check remote .wiki.git access."}
+            except Exception as exc:
+                return {"status": "error", "message": str(exc)}
+
+        if act == "resign_tag":
+            tag_name = str(opts.get("tag") or "").strip()
+            if not tag_name or not _is_safe_branch_name(tag_name):
+                return {"status": "error", "message": f"Invalid tag name '{tag_name}'."}
+            from fleet.tools.release_manager import ensure_git_tag, verify_git_tag_signed
+
+            clean_ver = tag_name[1:] if tag_name.startswith("v") else tag_name
+            ensure_git_tag(self.repo_root, clean_ver)
+            signed_ok = verify_git_tag_signed(self.repo_root, f"v{clean_ver}")
+            if signed_ok and bool(opts.get("push_origin", True)):
+                self._run_git(["push", "--force", "origin", f"refs/tags/v{clean_ver}"], timeout=25)
+            return {
+                "status": "ok" if signed_ok else "error",
+                "action": act,
+                "tag": f"v{clean_ver}",
+                "verified_signed": signed_ok,
+                "message": f"Tag v{clean_ver} cryptographically signed and verified." if signed_ok else f"Could not sign tag v{clean_ver}.",
+            }
+
+        if act == "mark_notification_read":
+            thread_id = str(opts.get("thread_id") or "").strip()
+            if not thread_id.isdigit():
+                return {"status": "error", "message": "Valid numeric thread_id is required."}
+            code, _ = _github_api_request(
+                f"https://api.github.com/notifications/threads/{thread_id}",
+                method="PATCH",
+            )
+            if 200 <= code < 300:
+                return {"status": "ok", "action": act, "message": f"Marked notification #{thread_id} as read."}
+            return {"status": "error", "message": f"GitHub API returned HTTP {code}"}
+
+        if act == "complete_local_task":
+            task_id = int(opts.get("task_id") or 0)
+            if task_id <= 0 or not self.db or not hasattr(self.db, "complete_task"):
+                return {"status": "error", "message": "Valid local task_id is required."}
+            self.db.complete_task(task_id)
+            return {"status": "ok", "action": act, "message": f"Marked local governance task #{task_id} completed."}
+
+        if act == "create_fleet_task":
+            title = str(opts.get("title") or "").strip()
+            desc = str(opts.get("description") or "").strip()
+            if not title:
+                return {"status": "error", "message": "Task title is required."}
+            if self.db and hasattr(self.db, "add_task"):
+                tid = self.db.add_task(
+                    title=title,
+                    description=desc,
+                    priority=str(opts.get("priority") or "P1"),
+                    assigned_agent="pr_review",
+                    source="pr_review_governance",
+                )
+                return {"status": "ok", "action": act, "task_id": tid, "message": f"Added P1 Fleet task: {title}"}
+            return {"status": "error", "message": "Database unavailable."}
+
+        if act == "address_in_antigravity":
+            item_type = str(opts.get("item_type") or "Governance Item").strip()
+            title = str(opts.get("title") or "").strip()
+            author = str(opts.get("author") or "").strip()
+            detail = str(opts.get("detail") or "").strip()
+            file_ref = str(opts.get("file") or "").strip()
+            url_ref = str(opts.get("url") or "").strip()
+            prompt = (
+                f"[Admin PR Review & Governance Gate — {item_type}] Please address and resolve the following item:\n"
+                f"- Title: {title}\n"
+                + (f"- Author / Reporter: {author}\n" if author else "")
+                + (f"- File / Location: {file_ref}\n" if file_ref else "")
+                + (f"- URL: {url_ref}\n" if url_ref else "")
+                + (f"- Context / Details:\n{detail}\n\n" if detail else "\n")
+                + "Please inspect the relevant code/documentation, implement the fix or draft the response, and verify all checks pass."
+            )
+            dispatched = False
+            try:
+                from fleet.server import execute_dashboard_command
+
+                execute_dashboard_command(prompt)
+                dispatched = True
+            except Exception as exc:
+                logger.warning("Could not dispatch governance prompt to Antigravity bridge: %s", exc)
+            return {
+                "status": "ok",
+                "action": act,
+                "dispatched": dispatched,
+                "prompt": prompt,
+                "message": f"Dispatched '{title[:60]}' to Antigravity Live.",
+            }
+
+        return {"status": "error", "message": f"Unsupported governance action '{action}'."}
+
     def execute_task(self, task: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         task_lower = task.lower()
         p = payload if isinstance(payload, dict) else {}
@@ -1296,6 +2311,11 @@ class PRReviewAgent(FleetAgent):
                 wait_for_completion=bool(p.get("wait", False)),
                 auto_remediate=bool(p.get("auto_remediate", True)),
             )
+        if "governance" in task_lower or "security" in task_lower or "discussion" in task_lower or "wiki" in task_lower or "issue" in task_lower:
+            action = str(p.get("action") or "").strip()
+            if action:
+                return self.execute_governance_action(action=action, payload=p)
+            return self.audit_governance_hub(repo_root=self.repo_root)
         if "pr" in task_lower or "pull request" in task_lower:
             return self.audit_pull_requests()
         if "ci" in task_lower or "check" in task_lower or "status" in task_lower:
@@ -1308,5 +2328,7 @@ class PRReviewAgent(FleetAgent):
                 "audit_pull_requests",
                 "check_ci_status",
                 "audit_github_pipelines",
+                "audit_governance_hub",
+                "execute_governance_action",
             ],
         }

@@ -8,6 +8,9 @@
       <span id="prLastCheckedBadge" style="font-size: 11.5px; color: var(--text-muted);">Ready</span>
     </div>
     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+      <button type="button" title="Report and file a new GitHub Issue on the repository" class="btn btn-sm" style="border-color: rgba(244, 63, 94, 0.4); color: #fb7185;" onclick="openCreatePRIssueModal()">
+        🐛 + Report Issue
+      </button>
       <button type="button" title="Create a new feature branch (or spin off uncommitted working tree changes)" class="btn btn-sm" style="border-color: rgba(16, 185, 129, 0.4); color: #34d399;" onclick="openCreatePRBranchModal(false)">
         🌿 + New Branch
       </button>
@@ -17,33 +20,53 @@
       <button type="button" title="Run GitHub Actions, CodeQL & Dependency Vulnerability Sentinel" class="btn btn-sm" style="border-color: rgba(168, 85, 247, 0.4); color: #c084fc;" onclick="runPRPipelineAudit(this)">
         🛡️ Audit GitHub &amp; CodeQL
       </button>
-      <button type="button" title="Refresh unmerged branches, open PRs, and CI status" class="btn btn-primary btn-sm" onclick="fetchPRReviewStatus(false, this)">
-        🔄 Refresh Branches &amp; CI
+      <button type="button" title="Refresh branches, PRs, CI gate, security notifications, discussions, wiki comments, and issues" class="btn btn-primary btn-sm" onclick="fetchPRReviewStatus(false, this)">
+        🔄 Refresh All Governance
       </button>
     </div>
   </div>
 
-  <!-- 4-Card KPI Summary Row -->
-  <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px;">
-    <div class="metric-card" style="padding: 14px 16px;">
+  <!-- 8-Card KPI Summary Grid -->
+  <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 12px; margin-bottom: 20px;">
+    <div class="metric-card" style="padding: 12px 14px;">
       <div class="metric-label">Branches Waiting Merge</div>
       <div class="metric-val" id="prBranchesWaitingCount" style="color: #f59e0b;">0</div>
       <div class="metric-sub" id="prBranchesWaitingSub">Scanning local &amp; origin refs...</div>
     </div>
-    <div class="metric-card" style="padding: 14px 16px;">
+    <div class="metric-card" style="padding: 12px 14px;">
       <div class="metric-label">Open Pull Requests</div>
       <div class="metric-val" id="prOpenCount" style="color: #38bdf8;">0</div>
       <div class="metric-sub" id="prTriageStatus">GitHub PR queue</div>
     </div>
-    <div class="metric-card" style="padding: 14px 16px;">
+    <div class="metric-card" style="padding: 12px 14px;">
       <div class="metric-label">CI &amp; CodeQL Gate</div>
       <div class="metric-val" id="ciHealthStatus" style="color: #4ade80;">PASSING</div>
       <div class="metric-sub" id="ciHealthSub">GitHub Actions &amp; 12-Layer SAST</div>
     </div>
-    <div class="metric-card" style="padding: 14px 16px;">
-      <div class="metric-label">Main Branch &amp; Working Tree</div>
-      <div class="metric-val" id="prMainSyncVal" style="color: #a78bfa; font-size: 16px;">main</div>
-      <div class="metric-sub" id="prMainSyncSub">Checking HEAD &amp; local modifications...</div>
+    <div class="metric-card" style="padding: 12px 14px;">
+      <div class="metric-label">Security &amp; Quality Alerts</div>
+      <div class="metric-val" id="prSecQualityCount" style="color: #34d399;">0</div>
+      <div class="metric-sub" id="prSecQualitySub">Score: 100/100 (12/12 checks)</div>
+    </div>
+    <div class="metric-card" style="padding: 12px 14px;">
+      <div class="metric-label">Open Discussions</div>
+      <div class="metric-val" id="prDiscussionsCount" style="color: #60a5fa;">0</div>
+      <div class="metric-sub" id="prDiscussionsSub">Community Q&amp;A &amp; RFCs</div>
+    </div>
+    <div class="metric-card" style="padding: 12px 14px;">
+      <div class="metric-label">Wiki Comments &amp; Sync</div>
+      <div class="metric-val" id="prWikiCommentsCount" style="color: #c084fc;">0</div>
+      <div class="metric-sub" id="prWikiCommentsSub">Questions &amp; Wiki pages</div>
+    </div>
+    <div class="metric-card" style="padding: 12px 14px;">
+      <div class="metric-label">Reported Issues</div>
+      <div class="metric-val" id="prIssuesCount" style="color: #fb7185;">0</div>
+      <div class="metric-sub" id="prIssuesSub">GitHub &amp; Sentinel issues</div>
+    </div>
+    <div class="metric-card" style="padding: 12px 14px;">
+      <div class="metric-label">Main &amp; Signed Tags</div>
+      <div class="metric-val" id="prMainSyncVal" style="color: #a78bfa; font-size: 15px;">main</div>
+      <div class="metric-sub" id="prMainSyncSub">Checking HEAD &amp; tag signatures...</div>
     </div>
   </div>
 
@@ -76,7 +99,7 @@
   </div>
 
   <!-- Section 3: Active GitHub Pull Requests & Pipeline Audit -->
-  <div class="card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 18px;">
+  <div class="card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 18px; margin-bottom: 18px;">
     <h4 style="margin: 0 0 12px 0; font-size: 14.5px; color: #e2e8f0;">
       📬 Active GitHub Pull Requests &amp; Security Triage
     </h4>
@@ -84,6 +107,133 @@
       <p style="margin: 0;">No open pull requests currently pending review.</p>
     </div>
     <div id="prPipelineAuditContainer" style="margin-top: 14px; display: none;"></div>
+  </div>
+
+  <!-- Section 4: (1) Security & Quality Notifications -->
+  <div class="card" style="background: rgba(15, 23, 42, 0.55); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 18px; margin-bottom: 18px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+      <div>
+        <h4 style="margin: 0; font-size: 15px; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
+          <span>🛡️ 1. Security &amp; Quality Notifications</span>
+          <span id="prSecurityQualityBadge" class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; font-size: 11px;">100/100 Clean</span>
+        </h4>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px;">
+          GitHub CodeQL SAST, Dependabot CVE alerts, Secret Scanning, Security Advisories, CI check failures &amp; VS Code/Pyright quality diagnostics.
+        </div>
+      </div>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+        <button type="button" class="btn btn-sm" style="border-color: rgba(16, 185, 129, 0.4); color: #34d399;" title="Run deterministic CodeQL, SAST, HTML/CSS & Pyright Auto-Fixer" onclick="runPRGovernanceAction('auto_fix_security_quality', {}, this)">
+          🛠️ Run Auto-Fixer
+        </button>
+        <a href="https://github.com/macazaka/personal-agentic-fleet/security" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="text-decoration: none;" title="Open GitHub Security & CodeQL tab">
+          🌐 GitHub Security Tab ↗
+        </a>
+      </div>
+    </div>
+    <div id="prSecurityQualityContainer" style="color: #94a3b8; font-size: 13px;">
+      <div style="color: var(--text-muted);">Auditing security &amp; quality notifications...</div>
+    </div>
+  </div>
+
+  <!-- Section 5: (2) Open Discussions to Address -->
+  <div class="card" style="background: rgba(15, 23, 42, 0.55); border: 1px solid rgba(56, 189, 248, 0.22); border-radius: 12px; padding: 18px; margin-bottom: 18px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+      <div>
+        <h4 style="margin: 0; font-size: 15px; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
+          <span>💬 2. Open Discussions Needing Attention</span>
+          <span id="prDiscussionsBadge" class="badge" style="background: rgba(56, 189, 248, 0.16); color: #38bdf8; font-size: 11px;">0 open</span>
+        </h4>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px;">
+          Unanswered community questions, architecture RFCs, and open GitHub Discussions with author details and 1-click reply/Antigravity actions.
+        </div>
+      </div>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+        <a href="https://github.com/macazaka/personal-agentic-fleet/discussions" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="text-decoration: none;" title="Open GitHub Discussions">
+          🌐 GitHub Discussions ↗
+        </a>
+      </div>
+    </div>
+    <div id="prDiscussionsContainer" style="color: #94a3b8; font-size: 13px;">
+      <div style="color: var(--text-muted);">Checking open repository discussions...</div>
+    </div>
+  </div>
+
+  <!-- Section 6: (3) Wiki Page Comments, Questions & Sync Status -->
+  <div class="card" style="background: rgba(15, 23, 42, 0.55); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 12px; padding: 18px; margin-bottom: 18px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+      <div>
+        <h4 style="margin: 0; font-size: 15px; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
+          <span>📖 3. Wiki Page Comments, Questions &amp; Revision Sync</span>
+          <span id="prWikiFeedbackBadge" class="badge" style="background: rgba(168, 85, 247, 0.16); color: #c084fc; font-size: 11px;">0 pending</span>
+        </h4>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px;">
+          Inline Wiki comments/questions, documentation issues/discussions, per-page author revisions, and 1-click GitHub Wiki publishing.
+        </div>
+      </div>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+        <button type="button" class="btn btn-sm" style="border-color: rgba(168, 85, 247, 0.4); color: #c084fc;" title="Synchronize and publish local wiki/*.md pages to live GitHub Wiki" onclick="runPRGovernanceAction('sync_wiki_now', {}, this)">
+          ☁️ Sync &amp; Publish Wiki Now
+        </button>
+        <a href="https://github.com/macazaka/personal-agentic-fleet/wiki" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="text-decoration: none;" title="Open live GitHub Wiki">
+          🌐 Live GitHub Wiki ↗
+        </a>
+      </div>
+    </div>
+    <div id="prWikiFeedbackContainer" style="color: #94a3b8; font-size: 13px;">
+      <div style="color: var(--text-muted);">Scanning Wiki pages for comments, questions &amp; sync state...</div>
+    </div>
+  </div>
+
+  <!-- Section 7: (4) Reported Issues (GitHub Issues & Autonomous Sentinel Issues) -->
+  <div class="card" style="background: rgba(15, 23, 42, 0.55); border: 1px solid rgba(244, 63, 94, 0.25); border-radius: 12px; padding: 18px; margin-bottom: 18px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+      <div>
+        <h4 style="margin: 0; font-size: 15px; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
+          <span>🐛 4. Reported Issues (GitHub Issues &amp; Sentinel Diagnostics)</span>
+          <span id="prReportedIssuesBadge" class="badge" style="background: rgba(244, 63, 94, 0.16); color: #fb7185; font-size: 11px;">0 open</span>
+        </h4>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px;">
+          Open GitHub Issues and local autonomous Sentinel/Auto-Healer bug reports with reporter attribution, labels, and 1-click Antigravity resolution.
+        </div>
+      </div>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+        <button type="button" class="btn btn-sm" style="border-color: rgba(244, 63, 94, 0.4); color: #fb7185;" title="Report and create a new GitHub Issue" onclick="openCreatePRIssueModal()">
+          ➕ Report New Issue
+        </button>
+        <a href="https://github.com/macazaka/personal-agentic-fleet/issues" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="text-decoration: none;" title="Open GitHub Issues">
+          🌐 GitHub Issues ↗
+        </a>
+      </div>
+    </div>
+    <div id="prReportedIssuesContainer" style="color: #94a3b8; font-size: 13px;">
+      <div style="color: var(--text-muted);">Checking reported GitHub &amp; local issues...</div>
+    </div>
+  </div>
+
+  <!-- Section 8: (5) Other Relevant Governance Items (Commit/PR Review Comments, Mentions & Signed Tag Audit) -->
+  <div class="card" style="background: rgba(15, 23, 42, 0.55); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 12px; padding: 18px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+      <div>
+        <h4 style="margin: 0; font-size: 15px; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
+          <span>🧭 5. Commit &amp; Review Comments, Mentions &amp; Cryptographic Tag Audit</span>
+          <span id="prOtherGovernanceBadge" class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; font-size: 11px;">Verified</span>
+        </h4>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px;">
+          Inline PR/Commit code review comments awaiting response, unread repository @mentions, and SSH/GPG cryptographic release tag verification.
+        </div>
+      </div>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+        <a href="https://github.com/macazaka/personal-agentic-fleet/tags" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="text-decoration: none;" title="Open GitHub Tags verification page">
+          🏷️ Verified Tags ↗
+        </a>
+        <a href="https://github.com/macazaka/personal-agentic-fleet/releases" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="text-decoration: none;" title="Open GitHub Releases">
+          🚀 Releases ↗
+        </a>
+      </div>
+    </div>
+    <div id="prOtherGovernanceContainer" style="color: #94a3b8; font-size: 13px;">
+      <div style="color: var(--text-muted);">Auditing commit comments, notifications, and tag signatures...</div>
+    </div>
   </div>
 
   <!-- Diff & Commit Inspector Modal -->
@@ -121,6 +271,44 @@
       <div style="display: flex; justify-content: flex-end; gap: 8px;">
         <button type="button" class="btn btn-sm" onclick="closeCreatePRBranchModal()" title="Cancel creating feature branch">Cancel</button>
         <button type="button" id="btnSubmitCreatePRBranch" class="btn btn-primary btn-sm" onclick="submitCreatePRBranch(this)" title="Create new feature branch and optionally commit working-tree changes">🌿 Create Branch</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reply / Comment Modal (for Issues, Discussions, and Commit Comments) -->
+  <div id="prGovernanceReplyModal" style="display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(2, 6, 23, 0.82); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 24px;">
+    <div style="background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 12px; width: min(560px, 95vw); padding: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.65);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <strong id="prReplyModalTitle" style="color: #f8fafc; font-size: 15px;">💬 Post Reply / Comment</strong>
+        <button type="button" class="btn btn-sm" onclick="closePRGovernanceReplyModal()" title="Close reply modal">✕</button>
+      </div>
+      <div id="prReplyModalSub" style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;"></div>
+      <textarea id="prReplyModalBodyInput" rows="4" placeholder="Write your response or resolution note..." style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(2,6,23,0.85); color: #f8fafc; font-size: 13px; margin-bottom: 14px;"></textarea>
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn btn-sm" onclick="closePRGovernanceReplyModal()" title="Cancel reply">Cancel</button>
+        <button type="button" id="btnSubmitPRGovernanceReply" class="btn btn-primary btn-sm" onclick="submitPRGovernanceReply(this)" title="Submit reply to GitHub">💬 Post Reply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report / Create New GitHub Issue Modal -->
+  <div id="prCreateIssueModal" style="display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(2, 6, 23, 0.82); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 24px;">
+    <div style="background: #0f172a; border: 1px solid rgba(244, 63, 94, 0.4); border-radius: 12px; width: min(560px, 95vw); padding: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.65);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <strong style="color: #f8fafc; font-size: 15px;">🐛 Report New GitHub Issue</strong>
+        <button type="button" class="btn btn-sm" onclick="closeCreatePRIssueModal()" title="Close create issue modal">✕</button>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label style="display: block; font-size: 12px; color: #cbd5e1; margin-bottom: 4px;">Issue Title</label>
+        <input id="prNewIssueTitleInput" type="text" placeholder="e.g. Bug: Describe the issue concisely" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(2,6,23,0.85); color: #f8fafc; font-size: 13px;">
+      </div>
+      <div style="margin-bottom: 14px;">
+        <label style="display: block; font-size: 12px; color: #cbd5e1; margin-bottom: 4px;">Description &amp; Reproduction Details</label>
+        <textarea id="prNewIssueBodyInput" rows="4" placeholder="Steps to reproduce, expected behavior, and context..." style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(2,6,23,0.85); color: #f8fafc; font-size: 13px;"></textarea>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn btn-sm" onclick="closeCreatePRIssueModal()" title="Cancel creating GitHub issue">Cancel</button>
+        <button type="button" id="btnSubmitCreatePRIssue" class="btn btn-primary btn-sm" onclick="submitCreatePRIssue(this)" title="Create and publish issue on GitHub">🐛 Create Issue</button>
       </div>
     </div>
   </div>

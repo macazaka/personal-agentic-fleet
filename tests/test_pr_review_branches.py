@@ -307,5 +307,143 @@ def test_proactive_auto_fixer_and_post_commit_timeout_sentinel(tmp_path: Path):
             assert daemon.last_sentinel_triggered_sha == "abcdef1234567890"
 
 
+def test_pr_review_5_pillar_governance_hub_and_actions(tmp_path: Path):
+    repo = _init_temp_git_repo(tmp_path)
+    wiki_dir = repo / "wiki"
+    wiki_dir.mkdir(parents=True, exist_ok=True)
+    (wiki_dir / "Home.md").write_text(
+        "# Home\n"
+        "QUESTION: How should contributors configure SSH tag signing on Windows?\n",
+        encoding="utf-8",
+    )
+    _git(repo, ["add", "."])
+    _git(repo, ["commit", "-m", "docs: add wiki page with question"])
+
+    agent = PRReviewAgent(repo_root=repo)
+
+    def _fake_gh_api(url: str, method: str = "GET", payload=None, timeout: int = 8):
+        if "/code-scanning/alerts" in url and method == "GET":
+            return 200, [
+                {
+                    "number": 7,
+                    "rule": {"id": "py/sql-injection", "security_severity_level": "high", "description": "SQL query built from user input"},
+                    "most_recent_instance": {"location": {"path": "fleet/demo.py", "start_line": 42}},
+                    "created_at": "2026-11-03T10:00:00Z",
+                    "html_url": "https://github.com/macazaka/personal-agentic-fleet/security/code-scanning/7",
+                }
+            ]
+        if "/dependabot/alerts" in url and method == "GET":
+            return 200, [
+                {
+                    "number": 3,
+                    "dependency": {"package": {"name": "urllib3"}, "manifest_path": "pyproject.toml"},
+                    "security_advisory": {"ghsa_id": "GHSA-1234", "severity": "medium", "summary": "Redirect header issue"},
+                    "security_vulnerability": {"first_patched_version": {"identifier": "2.2.2"}},
+                    "created_at": "2026-11-03T11:00:00Z",
+                }
+            ]
+        if "/discussions" in url and method == "GET":
+            return 200, [
+                {
+                    "number": 12,
+                    "title": "RFC: Multi-workspace agent sync",
+                    "state": "open",
+                    "user": {"login": "alice-dev"},
+                    "category": {"name": "Ideas", "is_answerable": True},
+                    "answer_chosen_at": None,
+                    "comments": 0,
+                    "upvote_count": 4,
+                    "updated_at": "2026-11-03T12:00:00Z",
+                    "body": "Should we support syncing custom agents across two drives?",
+                }
+            ]
+        if "/issues" in url and method == "GET":
+            return 200, [
+                {
+                    "number": 19,
+                    "title": "Bug: Wiki sidebar link formatting",
+                    "user": {"login": "bob-qa"},
+                    "labels": [{"name": "bug", "color": "d73a4a"}, {"name": "wiki", "color": "a2eeef"}],
+                    "assignees": [],
+                    "comments": 0,
+                    "updated_at": "2026-11-03T13:00:00Z",
+                    "body": "In the Wiki page _Sidebar.md, check anchor links.",
+                },
+                {
+                    "number": 20,
+                    "title": "PR disguised as issue in GitHub API",
+                    "pull_request": {"url": "https://api.github.com/..."},
+                },
+            ]
+        if "/comments" in url and method == "GET":
+            return 200, [
+                {
+                    "id": 501,
+                    "user": {"login": "reviewer1"},
+                    "commit_id": "4af49935efa6407e",
+                    "path": "fleet/server.py",
+                    "line": 88,
+                    "body": "Great CSP header addition!",
+                    "created_at": "2026-11-03T14:00:00Z",
+                }
+            ]
+        if "/notifications" in url and method == "GET":
+            return 200, [
+                {
+                    "id": "9901",
+                    "reason": "mention",
+                    "unread": True,
+                    "repository": {"full_name": "macazaka/personal-agentic-fleet"},
+                    "subject": {"type": "Issue", "title": "Bug: Wiki sidebar link formatting"},
+                    "updated_at": "2026-11-03T14:30:00Z",
+                }
+            ]
+        return 200, {"number": 25, "html_url": "https://github.com/macazaka/personal-agentic-fleet/issues/25"}
+
+    with patch.dict(PRReviewAgent.audit_governance_hub.__globals__, {"_github_api_request": _fake_gh_api}):
+        hub = agent.audit_governance_hub(repo_root=repo)
+        assert hub["status"] == "OK"
+        # 1. Security & Quality
+        assert hub["security_and_quality"]["codeql_count"] == 1
+        assert hub["security_and_quality"]["dependabot_count"] == 1
+        # 2. Open Discussions
+        assert hub["discussions"]["open_count"] == 1
+        assert hub["discussions"]["unanswered_count"] == 1
+        assert hub["discussions"]["discussions"][0]["author"] == "alice-dev"
+        # 3. Wiki Page Comments (1 inline QUESTION + 1 Wiki-labeled GitHub Issue)
+        assert hub["wiki_feedback"]["comments_needing_answer_count"] == 2
+        assert hub["wiki_feedback"]["total_wiki_pages"] == 1
+        # 4. Reported Issues (excludes PR #20, includes Issue #19)
+        assert hub["reported_issues"]["open_github_issues_count"] == 1
+        assert hub["reported_issues"]["github_issues"][0]["number"] == 19
+        # 5. Other Governance (Commit comments, PR review comments, unread mentions)
+        assert hub["other_governance"]["commit_and_pr_comments_count"] == 2
+        assert hub["other_governance"]["unread_notifications_count"] == 1
+
+        # Verify governance actions (create_issue, comment_issue, comment_discussion, address_in_antigravity)
+        c_iss = agent.execute_governance_action("create_issue", {"title": "New Bug", "body": "Details"})
+        assert c_iss["status"] == "ok"
+        assert c_iss["issue_number"] == 25
+
+        c_disc = agent.execute_governance_action("comment_discussion", {"discussion_number": 12, "body": "Answered!"})
+        assert c_disc["status"] == "ok"
+
+        with patch("fleet.server.execute_dashboard_command") as mock_ag:
+            ag_res = agent.execute_governance_action(
+                "address_in_antigravity",
+                {
+                    "item_type": "Wiki Question",
+                    "title": "SSH tag signing on Windows",
+                    "author": "alice-dev",
+                    "detail": "Explain gpg.format=ssh",
+                    "file": "wiki/Home.md",
+                },
+            )
+            assert ag_res["status"] == "ok"
+            assert ag_res["dispatched"] is True
+            assert mock_ag.called
+
+
+
 
 

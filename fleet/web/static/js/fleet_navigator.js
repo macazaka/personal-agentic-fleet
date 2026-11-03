@@ -1995,6 +1995,502 @@ window.renderPRReviewDashboard = function(data) {
       }).join('');
     }
   }
+
+  // 5. Render 5-Pillar Governance Hub (Security/Quality, Discussions, Wiki Comments, Reported Issues, Other Governance)
+  const gov = data.governance || {};
+  const secQ = gov.security_and_quality || {};
+  const discObj = gov.discussions || {};
+  const wikiObj = gov.wiki_feedback || {};
+  const issObj = gov.reported_issues || {};
+  const otherObj = gov.other_governance || {};
+
+  // Update the 4 additional KPI cards
+  const secCountEl = document.getElementById('prSecQualityCount');
+  const secSubEl = document.getElementById('prSecQualitySub');
+  const secBadgeEl = document.getElementById('prSecurityQualityBadge');
+  const secTotal = Number(secQ.total_notifications || 0);
+  const secScore = Number(secQ.local_security_score != null ? secQ.local_security_score : 100);
+  if (secCountEl) {
+    secCountEl.textContent = String(secTotal);
+    secCountEl.style.color = secTotal === 0 ? '#34d399' : '#f87171';
+  }
+  if (secSubEl) {
+    secSubEl.textContent = `Score: ${secScore}/100 • CodeQL: ${secQ.codeql_count || 0} • Deps: ${secQ.dependabot_count || 0}`;
+  }
+  if (secBadgeEl) {
+    secBadgeEl.textContent = secTotal === 0 ? `${secScore}/100 Clean` : `${secTotal} alert(s)`;
+    secBadgeEl.style.background = secTotal === 0 ? 'rgba(16, 185, 129, 0.16)' : 'rgba(239, 68, 68, 0.2)';
+    secBadgeEl.style.color = secTotal === 0 ? '#34d399' : '#f87171';
+  }
+
+  const discCountEl = document.getElementById('prDiscussionsCount');
+  const discSubEl = document.getElementById('prDiscussionsSub');
+  const discBadgeEl = document.getElementById('prDiscussionsBadge');
+  const discOpen = Number(discObj.open_count || 0);
+  const discUnans = Number(discObj.unanswered_count || 0);
+  if (discCountEl) {
+    discCountEl.textContent = String(discOpen);
+    discCountEl.style.color = discUnans > 0 ? '#fbbf24' : '#60a5fa';
+  }
+  if (discSubEl) {
+    discSubEl.textContent = discObj.discussions_enabled === false
+      ? 'Discussions tab ready to enable'
+      : (discOpen === 0 ? '0 unanswered threads' : `${discUnans} needing response`);
+  }
+  if (discBadgeEl) {
+    discBadgeEl.textContent = `${discOpen} open (${discUnans} unanswered)`;
+  }
+
+  const wikiCountEl = document.getElementById('prWikiCommentsCount');
+  const wikiSubEl = document.getElementById('prWikiCommentsSub');
+  const wikiBadgeEl = document.getElementById('prWikiFeedbackBadge');
+  const wikiCommentsCnt = Number(wikiObj.comments_needing_answer_count || 0);
+  const wikiPagesCnt = Number(wikiObj.total_wiki_pages || 0);
+  const unsyncedWikiCnt = Array.isArray(wikiObj.unsynced_wiki_files) ? wikiObj.unsynced_wiki_files.length : 0;
+  if (wikiCountEl) {
+    wikiCountEl.textContent = String(wikiCommentsCnt);
+    wikiCountEl.style.color = wikiCommentsCnt > 0 ? '#fbbf24' : '#c084fc';
+  }
+  if (wikiSubEl) {
+    wikiSubEl.textContent = `${wikiPagesCnt} Wiki pages • ${unsyncedWikiCnt > 0 ? `${unsyncedWikiCnt} unsynced` : 'Synced with GitHub'}`;
+  }
+  if (wikiBadgeEl) {
+    wikiBadgeEl.textContent = wikiCommentsCnt > 0 ? `${wikiCommentsCnt} to answer` : `${wikiPagesCnt} pages synced`;
+  }
+
+  const issCountEl = document.getElementById('prIssuesCount');
+  const issSubEl = document.getElementById('prIssuesSub');
+  const issBadgeEl = document.getElementById('prReportedIssuesBadge');
+  const totalIssues = Number(issObj.total_issues_count || 0);
+  const ghIssuesCnt = Number(issObj.open_github_issues_count || 0);
+  const localIssuesCnt = Number(issObj.local_reported_count || 0);
+  if (issCountEl) {
+    issCountEl.textContent = String(totalIssues);
+    issCountEl.style.color = totalIssues > 0 ? '#fb7185' : '#34d399';
+  }
+  if (issSubEl) {
+    issSubEl.textContent = `${ghIssuesCnt} GitHub • ${localIssuesCnt} Sentinel/Local`;
+  }
+  if (issBadgeEl) {
+    issBadgeEl.textContent = `${totalIssues} open`;
+    issBadgeEl.style.background = totalIssues > 0 ? 'rgba(244, 63, 94, 0.18)' : 'rgba(16, 185, 129, 0.16)';
+    issBadgeEl.style.color = totalIssues > 0 ? '#fb7185' : '#34d399';
+  }
+
+  // 5a. Render Section 4: (1) Security & Quality Notifications
+  const secContainer = document.getElementById('prSecurityQualityContainer');
+  if (secContainer) {
+    const notifs = Array.isArray(secQ.notifications) ? secQ.notifications : [];
+    if (notifs.length === 0) {
+      secContainer.innerHTML = `
+        <div style="padding: 14px 16px; background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.22); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <strong style="color: #34d399; font-size: 13px;">✅ Zero Open Security or Quality Alerts</strong>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+              CodeQL SAST: <strong>0 alerts</strong> • Dependabot: <strong>0 CVEs</strong> • Secret Scanning: <strong>0 leaks</strong> • Local 12-Layer Security: <strong>${secScore}/100</strong> • Pyright/VS Code: <strong>0 diagnostics</strong>
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm" style="font-size: 11px;" title="Run on-demand GitHub Pipeline & CodeQL audit" onclick="runPRPipelineAudit(this)">
+            🛡️ Re-Verify Pipeline &amp; CodeQL
+          </button>
+        </div>
+      `;
+    } else {
+      secContainer.innerHTML = notifs.map(n => {
+        const sev = String(n.severity || 'HIGH').toUpperCase();
+        const sevColor = (sev === 'CRITICAL' || sev === 'HIGH') ? '#f87171' : '#fbbf24';
+        const safeTitle = String(n.title || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const safeDetail = String(n.detail || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const safeFile = String(n.file || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const safeUrl = String(n.url || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const alertNum = Number(n.alert_number || 0);
+        const alertType = String(n.alert_type || '');
+        return `
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; padding: 12px; margin-bottom: 8px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(239, 68, 68, 0.28); border-radius: 8px;">
+            <div style="flex: 1; min-width: 240px;">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span class="badge" style="background: rgba(239, 68, 68, 0.16); color: ${sevColor}; font-size: 10.5px;">${_prEsc(sev)}</span>
+                <span class="badge" style="font-size: 10.5px;">${_prEsc(n.category || 'Security/Quality')}</span>
+                <strong style="color: #f8fafc; font-size: 13px;">${_prEsc(n.title)}</strong>
+              </div>
+              <div style="font-size: 12px; color: #cbd5e1; margin-top: 4px;">
+                ${_prEsc(n.detail)}
+                ${n.file ? ` • <code>${_prEsc(n.file)}${n.line ? ':' + _prEsc(n.line) : ''}</code>` : ''}
+                ${n.relative_time ? ` • <span style="color: var(--text-muted);">${_prEsc(n.relative_time)}</span>` : ''}
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px; border-color: rgba(168, 85, 247, 0.4); color: #c084fc;" title="Remediate this security/quality finding in Antigravity Live" onclick="dispatchPRItemToAntigravity('Security/Quality Alert', '${safeTitle}', '', '${safeDetail}', '${safeFile}', '${safeUrl}', this)">
+                🤖 Fix in Antigravity
+              </button>
+              <button type="button" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px; border-color: rgba(16, 185, 129, 0.4); color: #34d399;" title="Run deterministic Auto-Fixer" onclick="runPRGovernanceAction('auto_fix_security_quality', {}, this)">
+                🛠️ Auto-Fix
+              </button>
+              ${alertType === 'code_scanning' && alertNum > 0 ? `
+                <button type="button" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px;" title="Dismiss CodeQL alert on GitHub" onclick="runPRGovernanceAction('dismiss_code_scanning_alert', {alert_number: ${alertNum}}, this)">
+                  ✓ Dismiss
+                </button>
+              ` : ''}
+              ${alertType === 'dependabot' && alertNum > 0 ? `
+                <button type="button" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px;" title="Dismiss Dependabot alert on GitHub" onclick="runPRGovernanceAction('dismiss_dependabot_alert', {alert_number: ${alertNum}}, this)">
+                  ✓ Dismiss
+                </button>
+              ` : ''}
+              ${n.url ? `<a href="${_prEsc(n.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px; text-decoration: none;" title="Open alert on GitHub">🌐 GitHub ↗</a>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // 5b. Render Section 5: (2) Open Discussions Needing Attention
+  const discContainer = document.getElementById('prDiscussionsContainer');
+  if (discContainer) {
+    const discussions = Array.isArray(discObj.discussions) ? discObj.discussions : [];
+    if (discussions.length === 0) {
+      discContainer.innerHTML = `
+        <div style="padding: 14px 16px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <strong style="color: #38bdf8; font-size: 13px;">✅ No Unaddressed Open Discussions</strong>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+              ${_prEsc(discObj.note || 'All GitHub Discussions are answered and up to date.')}
+            </div>
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            ${discObj.discussions_enabled === false && discObj.settings_url ? `
+              <a href="${_prEsc(discObj.settings_url)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="font-size: 11px; text-decoration: none;" title="Enable GitHub Discussions in Repository Settings">
+                ⚙️ Enable Discussions Feature ↗
+              </a>
+            ` : ''}
+            <a href="${_prEsc(discObj.discussions_url || 'https://github.com/macazaka/personal-agentic-fleet/discussions')}" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="font-size: 11px; text-decoration: none;" title="View GitHub Discussions">
+              💬 Open Discussions ↗
+            </a>
+          </div>
+        </div>
+      `;
+    } else {
+      discContainer.innerHTML = discussions.map(d => {
+        const dNum = Number(d.number || 0);
+        const safeTitle = String(d.title || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const safeAuthor = String(d.author || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const safeBody = String(d.body || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' ');
+        const safeUrl = String(d.url || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        return `
+          <div style="padding: 12px 14px; margin-bottom: 8px; background: rgba(15, 23, 42, 0.78); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+              <div style="flex: 1; min-width: 240px;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  <strong style="color: #38bdf8; font-size: 13.5px;">#${dNum} ${_prEsc(d.title)}</strong>
+                  <span class="badge" style="font-size: 10.5px;">${_prEsc(d.category || 'General')}</span>
+                  ${d.needs_attention ? '<span class="badge" style="background: rgba(245, 158, 11, 0.18); color: #fbbf24; font-size: 10.5px;">⏳ Needs Answer</span>' : '<span class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; font-size: 10.5px;">✓ Answered</span>'}
+                </div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+                  👤 Author: <strong style="color: #e2e8f0;">${_prEsc(d.author)}</strong>
+                  • 💬 ${_prEsc(d.comments_count || 0)} comment(s)
+                  • 👍 ${_prEsc(d.upvotes || 0)}
+                  ${d.relative_time ? `• Updated ${_prEsc(d.relative_time)}` : ''}
+                </div>
+                ${d.body ? `<div style="font-size: 12px; color: #cbd5e1; margin-top: 6px; background: rgba(2,6,23,0.55); padding: 6px 10px; border-radius: 6px;">${_prEsc(d.body)}</div>` : ''}
+              </div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-primary btn-sm" style="font-size: 11px; padding: 4px 10px;" title="Post a reply to this discussion" onclick="openPRGovernanceReplyModal('comment_discussion', ${dNum}, 'Discussion #${dNum}: ${safeTitle}', '')">
+                  💬 Reply / Answer
+                </button>
+                <button type="button" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px; border-color: rgba(168, 85, 247, 0.4); color: #c084fc;" title="Draft answer or implement RFC in Antigravity Live" onclick="dispatchPRItemToAntigravity('GitHub Discussion #${dNum}', '${safeTitle}', '${safeAuthor}', '${safeBody}', '', '${safeUrl}', this)">
+                  🤖 Address in Antigravity
+                </button>
+                <button type="button" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px;" title="Track this discussion in the P1 Fleet Task Queue" onclick="runPRGovernanceAction('create_fleet_task', {title: '[Discussion #${dNum}] ${safeTitle}', description: '${safeBody}'}, this)">
+                  📌 + P1 Task
+                </button>
+                ${d.url ? `<a href="${_prEsc(d.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px; text-decoration: none;" title="Open discussion on GitHub">🌐 GitHub ↗</a>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // 5c. Render Section 6: (3) Wiki Page Comments, Questions & Revision Sync
+  const wikiContainer = document.getElementById('prWikiFeedbackContainer');
+  if (wikiContainer) {
+    const wikiComments = Array.isArray(wikiObj.wiki_comments) ? wikiObj.wiki_comments : [];
+    const wikiPages = Array.isArray(wikiObj.wiki_pages) ? wikiObj.wiki_pages : [];
+    const unsyncedFiles = Array.isArray(wikiObj.unsynced_wiki_files) ? wikiObj.unsynced_wiki_files : [];
+
+    const commentsHtml = wikiComments.length === 0 ? `
+      <div style="padding: 12px 14px; background: rgba(168, 85, 247, 0.06); border: 1px solid rgba(168, 85, 247, 0.22); border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <strong style="color: #c084fc; font-size: 13px;">✅ 0 Unanswered Wiki Page Comments or Questions</strong>
+          <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+            All ${wikiPages.length} Wiki documentation pages are clean${unsyncedFiles.length > 0 ? ` (${unsyncedFiles.length} local Wiki file(s) modified — click Sync & Publish Wiki Now)` : ' and synchronized with GitHub Wiki'}.
+          </div>
+        </div>
+      </div>
+    ` : wikiComments.map(wc => {
+      const safePage = String(wc.page || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const safeAuthor = String(wc.author || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const safeQ = String(wc.question_or_comment || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' ');
+      const safeFile = String(wc.file || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const safeUrl = String(wc.wiki_url || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      return `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; padding: 12px; margin-bottom: 8px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px;">
+          <div style="flex: 1; min-width: 240px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <strong style="color: #c084fc; font-size: 13px;">📖 ${_prEsc(wc.page)}</strong>
+              <code style="font-size: 11px; color: #38bdf8;">${_prEsc(wc.file)}:${_prEsc(wc.line || 1)}</code>
+              <span class="badge" style="font-size: 10px;">${_prEsc(wc.source)}</span>
+            </div>
+            <div style="font-size: 12.5px; color: #f8fafc; margin-top: 5px;">${_prEsc(wc.question_or_comment)}</div>
+            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px;">
+              👤 Author: <strong>${_prEsc(wc.author)}</strong> ${wc.relative_time ? `• ${_prEsc(wc.relative_time)}` : ''}
+            </div>
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button type="button" class="btn btn-primary btn-sm" style="font-size: 11px; padding: 4px 10px;" title="Answer question and update Wiki page in Antigravity Live" onclick="dispatchPRItemToAntigravity('Wiki Page Question/Comment (${safePage})', '${safeQ}', '${safeAuthor}', '${safeQ}', '${safeFile}', '${safeUrl}', this)">
+              🤖 Answer &amp; Update Wiki in Antigravity
+            </button>
+            ${wc.issue_number ? `
+              <button type="button" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px;" title="Post reply comment on Wiki issue" onclick="openPRGovernanceReplyModal('comment_issue', ${Number(wc.issue_number)}, 'Wiki Issue #${Number(wc.issue_number)}', '')">
+                💬 Reply
+              </button>
+            ` : ''}
+            ${wc.wiki_url ? `<a href="${_prEsc(wc.wiki_url)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px; text-decoration: none;" title="Open Wiki page on GitHub">🌐 Wiki Page ↗</a>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    const pagesRollupHtml = wikiPages.length > 0 ? `
+      <details style="margin-top: 6px;">
+        <summary style="cursor: pointer; font-size: 12px; color: #c084fc; user-select: none;">
+          📚 Inspect All ${wikiPages.length} Wiki Pages &amp; Latest Author Revisions
+        </summary>
+        <div style="margin-top: 8px; display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 8px;">
+          ${wikiPages.map(wp => `
+            <div style="padding: 8px 10px; background: rgba(2, 6, 23, 0.65); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; font-size: 11.5px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <div style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <strong style="color: #e2e8f0;">${_prEsc(wp.page)}</strong>
+                <div style="color: var(--text-muted); font-size: 11px;">
+                  <code>${_prEsc(wp.last_sha)}</code> by ${_prEsc(wp.last_author)} • ${_prEsc(wp.last_updated_relative)}
+                </div>
+              </div>
+              <a href="${_prEsc(wp.wiki_url)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="font-size: 10.5px; padding: 2px 7px; text-decoration: none;" title="View ${_prEsc(wp.page)} on GitHub Wiki">↗</a>
+            </div>
+          `).join('')}
+        </div>
+      </details>
+    ` : '';
+
+    wikiContainer.innerHTML = commentsHtml + pagesRollupHtml;
+  }
+
+  // 5d. Render Section 7: (4) Reported Issues (GitHub Issues & Local Sentinel Reports)
+  const issContainer = document.getElementById('prReportedIssuesContainer');
+  if (issContainer) {
+    const ghIssues = Array.isArray(issObj.github_issues) ? issObj.github_issues : [];
+    const localIssues = Array.isArray(issObj.local_issues) ? issObj.local_issues : [];
+    if (ghIssues.length === 0 && localIssues.length === 0) {
+      issContainer.innerHTML = `
+        <div style="padding: 14px 16px; background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.22); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <strong style="color: #34d399; font-size: 13px;">✅ 0 Open Reported Issues</strong>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+              Both the GitHub Issues tracker and the local Sentinel/Auto-Healer diagnostic queue have 0 open issues.
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm" style="font-size: 11px;" title="Report a new issue on GitHub" onclick="openCreatePRIssueModal()">
+            ➕ Report New Issue
+          </button>
+        </div>
+      `;
+    } else {
+      const ghHtml = ghIssues.map(iss => {
+        const iNum = Number(iss.number || 0);
+        const safeTitle = String(iss.title || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const safeAuthor = String(iss.author || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const safeBody = String(iss.body || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' ');
+        const safeUrl = String(iss.url || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const labelsHtml = (Array.isArray(iss.labels) ? iss.labels : []).map(lb => `
+          <span class="badge" style="font-size: 10px; background: rgba(244, 63, 94, 0.15); color: #fda4af;">${_prEsc(lb.name)}</span>
+        `).join('');
+        return `
+          <div style="padding: 12px 14px; margin-bottom: 8px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(244, 63, 94, 0.28); border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+              <div style="flex: 1; min-width: 240px;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  <strong style="color: #fb7185; font-size: 13.5px;">#${iNum} ${_prEsc(iss.title)}</strong>
+                  ${labelsHtml}
+                  ${iss.needs_response ? '<span class="badge" style="background: rgba(245, 158, 11, 0.18); color: #fbbf24; font-size: 10px;">Needs Response</span>' : ''}
+                </div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+                  👤 Reporter: <strong style="color: #e2e8f0;">${_prEsc(iss.author)}</strong>
+                  • 💬 ${_prEsc(iss.comments_count || 0)} comment(s)
+                  ${iss.relative_time ? `• Updated ${_prEsc(iss.relative_time)}` : ''}
+                </div>
+                ${iss.body ? `<div style="font-size: 12px; color: #cbd5e1; margin-top: 6px; background: rgba(2,6,23,0.55); padding: 6px 10px; border-radius: 6px;">${_prEsc(iss.body)}</div>` : ''}
+              </div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-primary btn-sm" style="font-size: 11px; padding: 4px 10px;" title="Investigate and fix this reported issue in Antigravity Live" onclick="dispatchPRItemToAntigravity('GitHub Issue #${iNum}', '${safeTitle}', '${safeAuthor}', '${safeBody}', '', '${safeUrl}', this)">
+                  🤖 Fix in Antigravity
+                </button>
+                <button type="button" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px;" title="Post a comment on this GitHub issue" onclick="openPRGovernanceReplyModal('comment_issue', ${iNum}, 'Issue #${iNum}: ${safeTitle}', '')">
+                  💬 Comment
+                </button>
+                <button type="button" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px; color: #34d399;" title="Close this GitHub issue" onclick="runPRGovernanceAction('close_issue', {issue_number: ${iNum}}, this)">
+                  ✅ Close Issue
+                </button>
+                ${iss.url ? `<a href="${_prEsc(iss.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px; text-decoration: none;" title="Open issue on GitHub">🌐 GitHub ↗</a>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const localHtml = localIssues.map(li => {
+        const tId = Number(li.id || 0);
+        const safeTitle = String(li.title || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const safeDesc = String(li.description || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' ');
+        return `
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 12px; margin-bottom: 8px; background: rgba(15, 23, 42, 0.72); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="badge" style="background: rgba(245, 158, 11, 0.16); color: #fbbf24; font-size: 10px;">${_prEsc(li.priority || 'P1')} • ${_prEsc(li.source)}</span>
+                <strong style="color: #f8fafc; font-size: 13px;">${_prEsc(li.title)}</strong>
+              </div>
+              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px;">${_prEsc(li.description)}</div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button type="button" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px; border-color: rgba(168, 85, 247, 0.4); color: #c084fc;" title="Resolve local diagnostic issue in Antigravity Live" onclick="dispatchPRItemToAntigravity('Local Sentinel Issue #${tId}', '${safeTitle}', '${_prEsc(li.source)}', '${safeDesc}', '', '', this)">
+                🤖 Fix in Antigravity
+              </button>
+              <button type="button" class="btn btn-sm" style="font-size: 11px; padding: 4px 10px; color: #34d399;" title="Mark local issue completed" onclick="runPRGovernanceAction('complete_local_task', {task_id: ${tId}}, this)">
+                ✓ Complete
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      issContainer.innerHTML = ghHtml + localHtml;
+    }
+  }
+
+  // 5e. Render Section 8: (5) Other Relevant Governance Items (Commit/PR Review Comments, Mentions, Signed Tag Audit)
+  const otherContainer = document.getElementById('prOtherGovernanceContainer');
+  const otherBadgeEl = document.getElementById('prOtherGovernanceBadge');
+  if (otherContainer) {
+    const revComments = Array.isArray(otherObj.commit_and_pr_comments) ? otherObj.commit_and_pr_comments : [];
+    const repoNotifs = Array.isArray(otherObj.repo_notifications) ? otherObj.repo_notifications : [];
+    const tagAudit = Array.isArray(otherObj.tag_audit) ? otherObj.tag_audit : [];
+    const unsignedTagsCnt = Number(otherObj.unsigned_tags_count || 0);
+
+    if (otherBadgeEl) {
+      const pendingOther = revComments.length + repoNotifs.length + unsignedTagsCnt;
+      otherBadgeEl.textContent = pendingOther === 0 ? 'All Tags & Reviews Verified' : `${pendingOther} item(s)`;
+      otherBadgeEl.style.background = pendingOther === 0 ? 'rgba(16, 185, 129, 0.16)' : 'rgba(245, 158, 11, 0.18)';
+      otherBadgeEl.style.color = pendingOther === 0 ? '#34d399' : '#fbbf24';
+    }
+
+    const commentsBlock = revComments.length > 0 ? `
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 12px; font-weight: 600; color: #38bdf8; margin-bottom: 6px;">
+          💬 Recent Commit &amp; Inline PR Code Review Comments (${revComments.length})
+        </div>
+        ${revComments.map(rc => {
+          const safeAuthor = String(rc.author || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          const safeBody = String(rc.body || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' ');
+          const safePath = String(rc.path || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          const safeSha = String(rc.full_commit_sha || rc.commit_sha || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          return `
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; padding: 10px 12px; margin-bottom: 6px; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.22); border-radius: 8px;">
+              <div style="flex: 1; min-width: 220px;">
+                <div style="font-size: 12px; color: #e2e8f0;">
+                  <span class="badge" style="font-size: 10px;">${_prEsc(rc.type_label)}</span>
+                  👤 <strong>${_prEsc(rc.author)}</strong> on <code>${_prEsc(rc.commit_sha)}</code>
+                  ${rc.path ? `• <code>${_prEsc(rc.path)}${rc.line ? ':' + _prEsc(rc.line) : ''}</code>` : ''}
+                  • <span style="color: var(--text-muted);">${_prEsc(rc.relative_time)}</span>
+                </div>
+                <div style="font-size: 12px; color: #cbd5e1; margin-top: 4px;">${_prEsc(rc.body)}</div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                ${safeSha ? `
+                  <button type="button" class="btn btn-sm" style="font-size: 11px; padding: 3px 9px;" title="Reply to commit comment" onclick="openPRGovernanceReplyModal('reply_commit_comment', 0, 'Reply on Commit ${_prEsc(rc.commit_sha)}', '${safeSha}')">
+                    💬 Reply
+                  </button>
+                ` : ''}
+                <button type="button" class="btn btn-sm" style="font-size: 11px; padding: 3px 9px; border-color: rgba(168, 85, 247, 0.4); color: #c084fc;" title="Address code review comment in Antigravity Live" onclick="dispatchPRItemToAntigravity('${_prEsc(rc.type_label)}', 'Comment on ${_prEsc(rc.commit_sha)}', '${safeAuthor}', '${safeBody}', '${safePath}', '', this)">
+                  🤖 Address in Antigravity
+                </button>
+                ${rc.url ? `<a href="${_prEsc(rc.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="font-size: 11px; padding: 3px 8px; text-decoration: none;" title="View comment on GitHub">↗</a>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    ` : '';
+
+    const notifsBlock = repoNotifs.length > 0 ? `
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 12px; font-weight: 600; color: #fbbf24; margin-bottom: 6px;">
+          🔔 Unread Repository Mentions &amp; Review Requests (${repoNotifs.length})
+        </div>
+        ${repoNotifs.map(rn => `
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 6px; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 6px; font-size: 12px;">
+            <div>
+              <span class="badge" style="font-size: 10px;">${_prEsc(rn.reason)}</span>
+              <span class="badge" style="font-size: 10px;">${_prEsc(rn.subject_type)}</span>
+              <strong style="color: #f8fafc; margin-left: 6px;">${_prEsc(rn.title)}</strong>
+              <span style="color: var(--text-muted); margin-left: 6px;">• ${_prEsc(rn.relative_time)}</span>
+            </div>
+            <button type="button" class="btn btn-sm" style="font-size: 11px; padding: 3px 8px;" title="Mark GitHub notification thread as read" onclick="runPRGovernanceAction('mark_notification_read', {thread_id: '${_prEsc(rn.thread_id)}'}, this)">
+              ✓ Mark Read
+            </button>
+          </div>
+        `).join('')}
+      </div>
+    ` : '';
+
+    const tagsBlock = `
+      <div>
+        <div style="font-size: 12px; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">
+          🏷️ Cryptographic Release Tag Verification Audit (${tagAudit.length} recent tags • 0 commit/ review comments pending: ${revComments.length === 0 ? 'Yes' : 'No'})
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px;">
+          ${tagAudit.map(t => {
+            const safeTag = String(t.tag || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            return `
+              <div style="padding: 8px 10px; background: rgba(2, 6, 23, 0.65); border: 1px solid ${t.verified_signed ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.35)'}; border-radius: 6px; font-size: 11.5px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <strong style="color: #f8fafc;">${_prEsc(t.tag)}</strong>
+                    <code>${_prEsc(t.sha)}</code>
+                    ${t.verified_signed
+                      ? '<span class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; font-size: 10px;">✓ Verified</span>'
+                      : '<span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; font-size: 10px;">⚠️ Unverified</span>'}
+                  </div>
+                  <div style="color: var(--text-muted); font-size: 10.5px; margin-top: 2px;">
+                    By ${_prEsc(t.author)} • ${_prEsc(t.relative_time)}
+                  </div>
+                </div>
+                <div style="display: flex; gap: 4px;">
+                  ${!t.verified_signed ? `
+                    <button type="button" class="btn btn-sm" style="font-size: 10.5px; padding: 2px 7px; color: #fbbf24;" title="Cryptographically sign and push this tag" onclick="runPRGovernanceAction('resign_tag', {tag: '${safeTag}', push_origin: true}, this)">
+                      ✍️ Sign
+                    </button>
+                  ` : ''}
+                  <a href="${_prEsc(t.release_url)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="font-size: 10.5px; padding: 2px 6px; text-decoration: none;" title="Open tag release on GitHub">↗</a>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+
+    otherContainer.innerHTML = commentsBlock + notifsBlock + tagsBlock;
+  }
 };
 
 window.fetchPRReviewStatus = async function(fetchRemote, btnEl) {
@@ -2279,6 +2775,132 @@ window.runPRPipelineAudit = async function(btnEl) {
       _prNotify('✕ ' + e.message, true);
     }
   }
+};
+
+window._prReplyContext = { action: '', targetNumber: 0, commitSha: '' };
+
+window.runPRGovernanceAction = async function(action, extraPayload, btnEl) {
+  const payload = Object.assign({}, extraPayload || {}, { action });
+  const execGov = async () => {
+    const res = await fetch('/api/pr_review/governance_action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.status === 'error') {
+      throw new Error(data.message || `Governance action '${action}' failed`);
+    }
+    if (action === 'address_in_antigravity') {
+      if (typeof openAntigravityRightDock === 'function') {
+        openAntigravityRightDock();
+      }
+      if (typeof fetchTranscript === 'function') {
+        fetchTranscript(true);
+      }
+    }
+    if (data.message) {
+      _prNotify(`✅ ${data.message}`, false);
+    }
+    await window.fetchPRReviewStatus(false);
+    return data;
+  };
+
+  if (typeof window.runFleetAsyncAction === 'function') {
+    await window.runFleetAsyncAction({
+      buttons: btnEl ? [btnEl] : [],
+      busyLabel: '⏳ Working...',
+      errorPrefix: 'Governance action failed',
+    }, execGov);
+  } else {
+    try {
+      await execGov();
+    } catch (e) {
+      _prNotify('✕ ' + e.message, true);
+    }
+  }
+};
+
+window.dispatchPRItemToAntigravity = async function(itemType, title, author, detail, file, url, btnEl) {
+  await window.runPRGovernanceAction(
+    'address_in_antigravity',
+    { item_type: itemType, title, author, detail, file, url },
+    btnEl
+  );
+};
+
+window.openPRGovernanceReplyModal = function(action, targetNumber, subtitle, commitSha) {
+  window._prReplyContext = {
+    action: action || 'comment_issue',
+    targetNumber: Number(targetNumber || 0),
+    commitSha: String(commitSha || ''),
+  };
+  const modal = document.getElementById('prGovernanceReplyModal');
+  const subEl = document.getElementById('prReplyModalSub');
+  const bodyEl = document.getElementById('prReplyModalBodyInput');
+  if (modal) modal.style.display = 'flex';
+  if (subEl) subEl.textContent = subtitle || '';
+  if (bodyEl) {
+    bodyEl.value = '';
+    setTimeout(() => bodyEl.focus(), 60);
+  }
+};
+
+window.closePRGovernanceReplyModal = function() {
+  const modal = document.getElementById('prGovernanceReplyModal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.submitPRGovernanceReply = async function(btnEl) {
+  const bodyEl = document.getElementById('prReplyModalBodyInput');
+  const commentTxt = (bodyEl ? bodyEl.value : '').trim();
+  if (!commentTxt) {
+    _prNotify('Please enter a reply message.', true);
+    return;
+  }
+  const ctx = window._prReplyContext || {};
+  await window.runPRGovernanceAction(
+    ctx.action || 'comment_issue',
+    {
+      number: ctx.targetNumber,
+      issue_number: ctx.targetNumber,
+      discussion_number: ctx.targetNumber,
+      commit_sha: ctx.commitSha,
+      body: commentTxt,
+    },
+    btnEl
+  );
+  window.closePRGovernanceReplyModal();
+};
+
+window.openCreatePRIssueModal = function() {
+  const modal = document.getElementById('prCreateIssueModal');
+  const titleEl = document.getElementById('prNewIssueTitleInput');
+  const bodyEl = document.getElementById('prNewIssueBodyInput');
+  if (modal) modal.style.display = 'flex';
+  if (titleEl) {
+    titleEl.value = '';
+    setTimeout(() => titleEl.focus(), 60);
+  }
+  if (bodyEl) bodyEl.value = '';
+};
+
+window.closeCreatePRIssueModal = function() {
+  const modal = document.getElementById('prCreateIssueModal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.submitCreatePRIssue = async function(btnEl) {
+  const titleEl = document.getElementById('prNewIssueTitleInput');
+  const bodyEl = document.getElementById('prNewIssueBodyInput');
+  const title = (titleEl ? titleEl.value : '').trim();
+  const body = (bodyEl ? bodyEl.value : '').trim();
+  if (!title) {
+    _prNotify('Please enter an issue title.', true);
+    return;
+  }
+  await window.runPRGovernanceAction('create_issue', { title, body }, btnEl);
+  window.closeCreatePRIssueModal();
 };
 
 // Initialize when DOM is ready

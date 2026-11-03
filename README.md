@@ -1,6 +1,6 @@
 # ⚡ Personal Agentic Fleet
 
-[![Release: v2.13.6](https://img.shields.io/badge/Release-v2.13.6-00b4d8.svg)](CHANGELOG.md)
+[![Release: v2.13.8](https://img.shields.io/badge/Release-v2.13.8-00b4d8.svg)](CHANGELOG.md)
 [![GitHub Wiki: 17 Deep-Dive Guides](https://img.shields.io/badge/GitHub%20Wiki-17%20Deep--Dive%20Guides-0284c7.svg?logo=github)](https://github.com/macazaka/personal-agentic-fleet/wiki)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -102,9 +102,9 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
 ## 🌟 Key Highlights
 
 <!-- AUTO-LATEST-RELEASE:START -->
-### 🆕 What's New in Release `v2.13.6` (Auto-Synchronized)
+### 🆕 What's New in Release `v2.13.8` (Auto-Synchronized)
 
-> **Live Telemetry**: `7` Core Agents • `124` REST API Endpoints • `33` Microkernel Engines • `20` Automation Tools • `486` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
+> **Live Telemetry**: `7` Core Agents • `124` REST API Endpoints • `33` Microkernel Engines • `20` Automation Tools • `487` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
 
 ### Fixed
 - Proactive release synchronization, static type verification, and documentation maintenance.
