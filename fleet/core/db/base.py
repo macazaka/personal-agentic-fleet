@@ -74,12 +74,13 @@ class BaseDatabase:
                 'auto_improvements',
                 'mind_soul_audits',
                 'custom_agent_records',
-                'custom_agent_checklists'
+                'custom_agent_checklists',
+                'agent_undo_journal'
             )
             """
         )
         row = cursor.fetchone()
-        if int(row[0] if row else 0) < 5:
+        if int(row[0] if row else 0) < 6:
             self._create_schema(conn)
         return conn
 
