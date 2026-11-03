@@ -21,6 +21,7 @@ import socket
 import ssl
 import subprocess
 import sys
+import time
 from typing import Any, Dict, List, Optional, Tuple
 import urllib.error
 import urllib.parse
@@ -255,6 +256,8 @@ class PRReviewAgent(FleetAgent):
         self.auto_merge_dependabot = bool(self.config.get("auto_merge_dependabot", False))
         self.last_check_time: Optional[datetime] = None
         self.repo_root: Path = Path(repo_root) if repo_root else _REPO_ROOT
+        self._vscode_audit_cache: Tuple[float, Dict[str, Any]] = (0.0, {})
+        self._governance_cache: Tuple[float, Dict[str, Any]] = (0.0, {})
 
     @property
     def id(self) -> str:
@@ -310,14 +313,18 @@ class PRReviewAgent(FleetAgent):
         def get_pr_review_status(handler: Any, parsed_url: Any):
             query = urllib.parse.parse_qs(getattr(parsed_url, "query", "") or "")
             fetch_remote = str((query.get("fetch") or ["0"])[0]).lower() in ("1", "true", "yes")
-            prs = self.audit_pull_requests()
-            ci = self.check_ci_status()
-            open_prs_list = prs.get("prs", []) if isinstance(prs, dict) else []
-            branches = self.audit_unmerged_branches(
-                fetch_remote=fetch_remote,
-                open_prs=open_prs_list,
-            )
-            governance = self.audit_governance_hub(repo_root=self.repo_root)
+            with ThreadPoolExecutor(max_workers=3) as pool:
+                fut_prs = pool.submit(self.audit_pull_requests)
+                fut_ci = pool.submit(self.check_ci_status)
+                fut_gov = pool.submit(self.audit_governance_hub, self.repo_root, fetch_remote)
+                prs = fut_prs.result()
+                ci = fut_ci.result()
+                open_prs_list = prs.get("prs", []) if isinstance(prs, dict) else []
+                branches = self.audit_unmerged_branches(
+                    fetch_remote=fetch_remote,
+                    open_prs=open_prs_list,
+                )
+                governance = fut_gov.result()
             handler._send_json({
                 "status": "ok",
                 "prs": prs,
@@ -328,7 +335,9 @@ class PRReviewAgent(FleetAgent):
 
         @router.get("/api/pr_review/governance")
         def get_pr_review_governance(handler: Any, parsed_url: Any):
-            governance = self.audit_governance_hub(repo_root=self.repo_root)
+            query = urllib.parse.parse_qs(getattr(parsed_url, "query", "") or "")
+            force_refresh = str((query.get("refresh") or ["0"])[0]).lower() in ("1", "true", "yes")
+            governance = self.audit_governance_hub(repo_root=self.repo_root, force_refresh=force_refresh)
             handler._send_json({"status": "ok", "governance": governance})
 
         @router.post("/api/pr_review/governance_action")
@@ -336,6 +345,7 @@ class PRReviewAgent(FleetAgent):
             payload = body if isinstance(body, dict) else {}
             action = str(payload.get("action") or "").strip()
             result = self.execute_governance_action(action=action, payload=payload)
+            self._governance_cache = (0.0, {})
             status_code = 200 if result.get("status") in ("ok", "SUCCESS") else 400
             handler._send_json(result, status=status_code)
 
@@ -1314,12 +1324,24 @@ class PRReviewAgent(FleetAgent):
         quality_diagnostics: List[Dict[str, Any]] = []
         pipeline_failures: List[Dict[str, Any]] = []
 
+        # 1a-1d. Fetch GitHub Security endpoints concurrently (CodeQL, Dependabot, Secret Scanning, Advisories)
+        sec_urls = {
+            "cs": f"https://api.github.com/repos/{self.repo}/code-scanning/alerts?state=open&per_page=25",
+            "db": f"https://api.github.com/repos/{self.repo}/dependabot/alerts?state=open&per_page=25",
+            "ss": f"https://api.github.com/repos/{self.repo}/secret-scanning/alerts?state=open&per_page=20",
+            "sa": f"https://api.github.com/repos/{self.repo}/security-advisories?per_page=15",
+        }
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            futs = {
+                k: pool.submit(_github_api_request, u, "GET", None, 4)
+                for k, u in sec_urls.items()
+            }
+            cs_code, cs_data = futs["cs"].result()
+            db_code, db_data = futs["db"].result()
+            ss_code, ss_data = futs["ss"].result()
+            sa_code, sa_data = futs["sa"].result()
+
         # 1a. GitHub Code Scanning (CodeQL) Alerts
-        cs_code, cs_data = _github_api_request(
-            f"https://api.github.com/repos/{self.repo}/code-scanning/alerts?state=open&per_page=25",
-            method="GET",
-            timeout=8,
-        )
         if cs_code == 200 and isinstance(cs_data, list):
             for item in cs_data:
                 if not isinstance(item, dict):
@@ -1354,11 +1376,6 @@ class PRReviewAgent(FleetAgent):
                 notifications.append(entry)
 
         # 1b. GitHub Dependabot Vulnerability Alerts
-        db_code, db_data = _github_api_request(
-            f"https://api.github.com/repos/{self.repo}/dependabot/alerts?state=open&per_page=25",
-            method="GET",
-            timeout=8,
-        )
         if db_code == 200 and isinstance(db_data, list):
             for item in db_data:
                 if not isinstance(item, dict):
@@ -1402,11 +1419,6 @@ class PRReviewAgent(FleetAgent):
                 notifications.append(entry)
 
         # 1c. GitHub Secret Scanning Alerts (extract integer alert ID only for CodeQL clear-text compliance)
-        ss_code, ss_data = _github_api_request(
-            f"https://api.github.com/repos/{self.repo}/secret-scanning/alerts?state=open&per_page=20",
-            method="GET",
-            timeout=8,
-        )
         if ss_code == 200 and isinstance(ss_data, list):
             for item in ss_data:
                 if not isinstance(item, dict):
@@ -1433,11 +1445,6 @@ class PRReviewAgent(FleetAgent):
                 notifications.append(entry)
 
         # 1d. GitHub Repository Security Advisories
-        sa_code, sa_data = _github_api_request(
-            f"https://api.github.com/repos/{self.repo}/security-advisories?per_page=15",
-            method="GET",
-            timeout=8,
-        )
         if sa_code == 200 and isinstance(sa_data, list):
             for item in sa_data:
                 if not isinstance(item, dict):
@@ -1522,7 +1529,14 @@ class PRReviewAgent(FleetAgent):
         try:
             from fleet.tools.auto_fixer import audit_vscode_workspace_problems
 
-            ws_audit = audit_vscode_workspace_problems(repo_root=target_root)
+            now_ts = time.monotonic()
+            cached_ts, cached_ws = self._vscode_audit_cache
+            if now_ts - cached_ts < 60.0 and cached_ws and target_root == self.repo_root:
+                ws_audit = cached_ws
+            else:
+                ws_audit = audit_vscode_workspace_problems(repo_root=target_root)
+                if target_root == self.repo_root:
+                    self._vscode_audit_cache = (now_ts, ws_audit)
             for prob in (ws_audit.get("problems") or [])[:20]:
                 if isinstance(prob, dict):
                     entry = {
@@ -1578,7 +1592,7 @@ class PRReviewAgent(FleetAgent):
         discussions_enabled = True
         note = ""
         try:
-            code, data = _github_api_request(url, method="GET", timeout=8)
+            code, data = _github_api_request(url, method="GET", timeout=4)
             if code in (404, 410):
                 discussions_enabled = False
                 note = "GitHub Discussions tab is currently disabled or has 0 discussions on this repository."
@@ -1655,6 +1669,35 @@ class PRReviewAgent(FleetAgent):
         )
 
         if wiki_dir.is_dir():
+            # Batch-fetch latest commit metadata for all wiki/*.md files in a single git log invocation
+            file_commit_map: Dict[str, Tuple[str, str, str, str, str]] = {}
+            default_commit: Tuple[str, str, str, str, str] = ("", "macazaka", "", "", "")
+            batch_log = self._run_git(
+                ["log", "-n", "35", "--format=COMMIT%x1f%h%x1f%an%x1f%ae%x1f%aI%x1f%s", "--name-only", "--", "wiki/"],
+                cwd=target_root,
+            )
+            current_meta: Optional[Tuple[str, str, str, str, str]] = None
+            for raw_line in (batch_log.stdout or "").splitlines():
+                line_s = raw_line.strip()
+                if not line_s:
+                    continue
+                if line_s.startswith("COMMIT\x1f"):
+                    c_parts = line_s.split("\x1f")
+                    c_meta = (
+                        c_parts[1] if len(c_parts) > 1 else "",
+                        c_parts[2] if len(c_parts) > 2 else "macazaka",
+                        c_parts[3] if len(c_parts) > 3 else "",
+                        c_parts[4] if len(c_parts) > 4 else "",
+                        c_parts[5] if len(c_parts) > 5 else "",
+                    )
+                    current_meta = c_meta
+                    if not default_commit[0]:
+                        default_commit = c_meta
+                elif current_meta is not None:
+                    norm_p = line_s.replace("\\", "/")
+                    if norm_p not in file_commit_map:
+                        file_commit_map[norm_p] = current_meta
+
             for md_file in sorted(wiki_dir.glob("*.md")):
                 page_name = md_file.stem
                 rel_path = f"wiki/{md_file.name}"
@@ -1663,17 +1706,7 @@ class PRReviewAgent(FleetAgent):
                 except Exception:
                     continue
 
-                # Latest commit metadata for this wiki page
-                log_res = self._run_git(
-                    ["log", "-1", "--format=%h%x1f%an%x1f%ae%x1f%aI%x1f%s", "--", rel_path],
-                    cwd=target_root,
-                )
-                l_parts = (log_res.stdout or "").strip().split("\x1f")
-                last_sha = l_parts[0] if len(l_parts) > 0 else ""
-                last_author = l_parts[1] if len(l_parts) > 1 else "macazaka"
-                last_email = l_parts[2] if len(l_parts) > 2 else ""
-                last_date = l_parts[3] if len(l_parts) > 3 else ""
-                last_subj = l_parts[4] if len(l_parts) > 4 else ""
+                last_sha, last_author, last_email, last_date, last_subj = file_commit_map.get(rel_path, default_commit)
 
                 wiki_pages.append({
                     "page": page_name,
@@ -1774,7 +1807,7 @@ class PRReviewAgent(FleetAgent):
         error_note = ""
 
         try:
-            code, raw_items = _github_api_request(url, method="GET", timeout=8)
+            code, raw_items = _github_api_request(url, method="GET", timeout=4)
             if code == 200 and isinstance(raw_items, list):
                 for item in raw_items:
                     if not isinstance(item, dict) or "pull_request" in item:
@@ -1867,12 +1900,33 @@ class PRReviewAgent(FleetAgent):
         repo_notifications: List[Dict[str, Any]] = []
         tag_audit: List[Dict[str, Any]] = []
 
-        # 5a. Repository Commit Comments & PR Review Comments
-        cc_code, cc_data = _github_api_request(
-            f"https://api.github.com/repos/{self.repo}/comments?per_page=10",
-            method="GET",
-            timeout=8,
-        )
+        # 5a & 5b. Fetch Commit Comments, PR Review Comments, and Unread Notifications concurrently
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            fut_cc = pool.submit(
+                _github_api_request,
+                f"https://api.github.com/repos/{self.repo}/comments?per_page=10",
+                "GET",
+                None,
+                4,
+            )
+            fut_prc = pool.submit(
+                _github_api_request,
+                f"https://api.github.com/repos/{self.repo}/pulls/comments?per_page=10",
+                "GET",
+                None,
+                4,
+            )
+            fut_notif = pool.submit(
+                _github_api_request,
+                "https://api.github.com/notifications?all=false&per_page=20",
+                "GET",
+                None,
+                4,
+            )
+            cc_code, cc_data = fut_cc.result()
+            prc_code, prc_data = fut_prc.result()
+            notif_code, notif_data = fut_notif.result()
+
         if cc_code == 200 and isinstance(cc_data, list):
             for c in cc_data:
                 if not isinstance(c, dict):
@@ -1896,11 +1950,6 @@ class PRReviewAgent(FleetAgent):
                     "url": str(c.get("html_url") or ""),
                 })
 
-        prc_code, prc_data = _github_api_request(
-            f"https://api.github.com/repos/{self.repo}/pulls/comments?per_page=10",
-            method="GET",
-            timeout=8,
-        )
         if prc_code == 200 and isinstance(prc_data, list):
             for c in prc_data:
                 if not isinstance(c, dict):
@@ -1925,11 +1974,6 @@ class PRReviewAgent(FleetAgent):
                 })
 
         # 5b. Unread GitHub Notifications / Mentions / Review Requests for this repository
-        notif_code, notif_data = _github_api_request(
-            "https://api.github.com/notifications?all=false&per_page=20",
-            method="GET",
-            timeout=8,
-        )
         if notif_code == 200 and isinstance(notif_data, list):
             for n in notif_data:
                 if not isinstance(n, dict):
@@ -1950,7 +1994,7 @@ class PRReviewAgent(FleetAgent):
                     "unread": bool(n.get("unread", True)),
                 })
 
-        # 5c. Cryptographic Tag Verification & Release Audit (Recent tags)
+        # 5c. Cryptographic Tag Verification & Release Audit (Recent tags in a single git command)
         try:
             from fleet.tools.release_manager import verify_git_tag_signed
 
@@ -1959,15 +2003,16 @@ class PRReviewAgent(FleetAgent):
                     "for-each-ref",
                     "--sort=-creatordate",
                     "--count=8",
-                    "--format=%(refname:short)%x1f%(objectname:short)%x1f%(taggername)%x1f%(creatordate:iso-strict)%x1f%(subject)",
+                    "--format=@@TAGENTRY@@%(refname:short)@@SEP@@%(objectname:short)@@SEP@@%(taggername)@@SEP@@%(creatordate:iso-strict)@@SEP@@%(subject)@@SEP@@%(objecttype)@@SEP@@%(contents:signature)",
                     "refs/tags",
                 ],
                 cwd=target_root,
             )
-            for line in (tag_res.stdout or "").splitlines():
-                if not line.strip():
+            for record in (tag_res.stdout or "").split("@@TAGENTRY@@"):
+                rec = record.strip()
+                if not rec:
                     continue
-                t_parts = line.split("\x1f")
+                t_parts = rec.split("@@SEP@@")
                 t_name = t_parts[0].strip() if len(t_parts) > 0 else ""
                 if not t_name:
                     continue
@@ -1975,7 +2020,12 @@ class PRReviewAgent(FleetAgent):
                 t_tagger = (t_parts[2].strip() if len(t_parts) > 2 else "") or "macazaka"
                 t_date = t_parts[3].strip() if len(t_parts) > 3 else ""
                 t_subj = t_parts[4].strip() if len(t_parts) > 4 else ""
-                is_signed = verify_git_tag_signed(target_root, t_name)
+                t_objtype = t_parts[5].strip() if len(t_parts) > 5 else ""
+                t_sig = t_parts[6].strip() if len(t_parts) > 6 else ""
+                if t_objtype == "tag":
+                    is_signed = ("-----BEGIN SSH SIGNATURE-----" in t_sig) or ("-----BEGIN PGP SIGNATURE-----" in t_sig)
+                else:
+                    is_signed = verify_git_tag_signed(target_root, t_name)
                 tag_audit.append({
                     "tag": t_name,
                     "sha": t_sha,
@@ -2003,7 +2053,11 @@ class PRReviewAgent(FleetAgent):
             "tags_url": f"https://github.com/{self.repo}/tags",
         }
 
-    def audit_governance_hub(self, repo_root: Optional[Path] = None) -> Dict[str, Any]:
+    def audit_governance_hub(
+        self,
+        repo_root: Optional[Path] = None,
+        force_refresh: bool = False,
+    ) -> Dict[str, Any]:
         """
         Comprehensive 5-Pillar Repository Governance Hub audit ($0.00 / 0 LLM tokens):
           1. Security & Quality Notifications
@@ -2013,15 +2067,27 @@ class PRReviewAgent(FleetAgent):
           5. Other Relevant Governance Items (Commit/PR Review Comments, Mentions, Signed Tag Audit)
         """
         target_root = Path(repo_root) if repo_root else self.repo_root
-        sec_quality = self.audit_security_and_quality_notifications(repo_root=target_root)
-        discussions = self.audit_open_discussions()
-        issues = self.audit_reported_issues()
+        is_test_run = "pytest" in sys.modules or os.environ.get("FLEET_TEST_MODE") == "1"
+        if not force_refresh and not is_test_run and target_root == self.repo_root:
+            cached_ts, cached_payload = self._governance_cache
+            if time.monotonic() - cached_ts < 45.0 and cached_payload:
+                return cached_payload
+
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            fut_sec = pool.submit(self.audit_security_and_quality_notifications, target_root)
+            fut_disc = pool.submit(self.audit_open_discussions)
+            fut_iss = pool.submit(self.audit_reported_issues)
+            fut_other = pool.submit(self.audit_other_governance_items, target_root)
+            sec_quality = fut_sec.result()
+            discussions = fut_disc.result()
+            issues = fut_iss.result()
+            other_gov = fut_other.result()
+
         wiki_feedback = self.audit_wiki_comments_and_feedback(
             repo_root=target_root,
             open_issues=issues.get("github_issues", []),
             open_discussions=discussions.get("discussions", []),
         )
-        other_gov = self.audit_other_governance_items(repo_root=target_root)
 
         total_action_items = (
             int(sec_quality.get("total_notifications") or 0)
@@ -2032,7 +2098,7 @@ class PRReviewAgent(FleetAgent):
             + int(other_gov.get("unread_notifications_count") or 0)
         )
 
-        return {
+        result = {
             "status": "OK",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "total_action_items": total_action_items,
@@ -2044,6 +2110,9 @@ class PRReviewAgent(FleetAgent):
             "tokens_used": 0,
             "cost_usd": "$0.00",
         }
+        if not is_test_run and target_root == self.repo_root:
+            self._governance_cache = (time.monotonic(), result)
+        return result
 
     def execute_governance_action(
         self,
