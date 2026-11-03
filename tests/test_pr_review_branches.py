@@ -251,4 +251,61 @@ def test_startup_latest_version_verification_and_cache():
     assert "up_to_date" in cached
 
 
+def test_proactive_auto_fixer_and_post_commit_timeout_sentinel(tmp_path: Path):
+    from fleet.daemon import FleetDaemon
+    from fleet.tools.auto_fixer import (
+        audit_vscode_workspace_problems,
+        fix_codeql_and_security_issues,
+        fix_html_and_template_problems,
+    )
+
+    repo = _init_temp_git_repo(tmp_path)
+    py_dir = repo / "fleet" / "agents" / "demo"
+    ui_dir = py_dir / "ui"
+    ui_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1. Create a Python file with .netloc.endswith('github.com') and an HTML panel with a button missing title=""
+    py_fp = py_dir / "agent.py"
+    py_fp.write_text(
+        "import urllib.parse\n"
+        "def check(url: str) -> bool:\n"
+        "    parsed = urllib.parse.urlparse(url)\n"
+        "    if not parsed.netloc.endswith('github.com'):\n"
+        "        return False\n"
+        "    return True\n",
+        encoding="utf-8",
+    )
+    html_fp = ui_dir / "panel.html"
+    html_fp.write_text(
+        '<div><button class="btn-secondary" onclick="doWork()">Run Action</button></div>\n',
+        encoding="utf-8",
+    )
+    _git(repo, ["add", "."])
+    _git(repo, ["commit", "-m", "chore: test fixtures"])
+
+    # Audit detects missing button tooltip before fix
+    pre_audit = audit_vscode_workspace_problems(repo_root=repo)
+    assert any(p.get("code") == "missing-button-tooltip" for p in pre_audit.get("problems", []))
+
+    # Auto-fixer repairs both CodeQL URL check and HTML button tooltip
+    sec_fixes = fix_codeql_and_security_issues(repo_root=repo)
+    html_fixes = fix_html_and_template_problems(repo_root=repo)
+    assert len(sec_fixes) >= 1
+    assert len(html_fixes) >= 1
+    assert 'parsed.hostname not in ("api.github.com", "github.com")' in py_fp.read_text(encoding="utf-8")
+    assert 'title="Run Action"' in html_fp.read_text(encoding="utf-8")
+
+    post_audit = audit_vscode_workspace_problems(repo_root=repo)
+    assert not any(p.get("code") == "missing-button-tooltip" for p in post_audit.get("problems", []))
+
+    # 2. Verify FleetDaemon.run_post_commit_timeout_sentinel_check triggers background sentinel when HEAD is unaudited
+    daemon = FleetDaemon()
+    with patch("fleet.tools.github_pipeline_sentinel.get_local_head_sha", return_value="abcdef1234567890"):
+        with patch("fleet.tools.github_pipeline_sentinel.spawn_detached_post_push_sentinel", return_value=True) as mock_spawn:
+            daemon.run_post_commit_timeout_sentinel_check()
+            assert mock_spawn.called
+            assert daemon.last_sentinel_triggered_sha == "abcdef1234567890"
+
+
+
 

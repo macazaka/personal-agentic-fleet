@@ -55,6 +55,9 @@ class FleetDaemon:
         self.last_dream_date = ""
         self.last_soul_audit_time = time.time()
         self.soul_audit_interval_sec = 7200  # 2 hours
+        self.last_pipeline_timeout_check = time.time() - 60
+        self.pipeline_timeout_check_interval_sec = 90
+        self.last_sentinel_triggered_sha = ""
 
     def check_and_trigger(self):
         now = datetime.now()
@@ -179,6 +182,9 @@ class FleetDaemon:
         if (now_ts - self.last_pr_review_time) >= self.pr_review_interval_sec:
             self.run_scheduled_pr_review(now)
             self.last_pr_review_time = now_ts
+        if (now_ts - getattr(self, "last_pipeline_timeout_check", 0.0)) >= getattr(self, "pipeline_timeout_check_interval_sec", 90):
+            self.run_post_commit_timeout_sentinel_check(now)
+            self.last_pipeline_timeout_check = now_ts
 
         # 7. Automated Daily Database Snapshot Backup (ROB-04)
         if current_time >= "03:00" and getattr(self, "last_backup_date", "") != today_date:
@@ -254,6 +260,45 @@ class FleetDaemon:
             logger.error("Proactive log scan error in FleetDaemon: %s", e, exc_info=True)
             return {"status": "ERROR", "message": str(e)}
 
+
+    def run_post_commit_timeout_sentinel_check(self, now: Optional[datetime] = None):
+        """
+        Proactively checks if the latest local HEAD commit has passed the post-push timeout (120s)
+        without a complete GitHub Pipeline & CodeQL audit, and triggers a background sentinel scan.
+        """
+        if now is None:
+            now = datetime.now()
+        try:
+            import json
+            from fleet.tools.github_pipeline_sentinel import (
+                AUDIT_REPORT_PATH,
+                REPO_ROOT,
+                get_local_head_sha,
+                spawn_detached_post_push_sentinel,
+            )
+
+            head_sha = get_local_head_sha(REPO_ROOT)
+            if not head_sha or head_sha == getattr(self, "last_sentinel_triggered_sha", ""):
+                return
+
+            needs_audit = True
+            if AUDIT_REPORT_PATH.is_file():
+                try:
+                    rep = json.loads(AUDIT_REPORT_PATH.read_text(encoding="utf-8"))
+                    rep_sha = str(rep.get("commit_sha") or "").strip().lower()
+                    in_prog = int(rep.get("checks_in_progress") or 0)
+                    total_chk = int(rep.get("checks_total") or 0)
+                    if rep_sha.startswith(head_sha[:7]) and in_prog == 0 and total_chk >= 8:
+                        needs_audit = False
+                except Exception:
+                    needs_audit = True
+
+            if needs_audit:
+                if spawn_detached_post_push_sentinel(repo_root=REPO_ROOT, commit_sha=head_sha, initial_delay_sec=15):
+                    self.last_sentinel_triggered_sha = head_sha
+                    logger.info("Triggered proactive post-commit timeout GitHub Sentinel audit for %s", head_sha[:7])
+        except Exception as exc:
+            logger.debug("Post-commit timeout sentinel check note: %s", exc)
 
     def run_scheduled_pr_review(self, now: Optional[datetime] = None):
         """Audits open PRs and CI status deterministically (Admin Only, 0 tokens)."""

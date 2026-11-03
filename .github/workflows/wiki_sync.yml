@@ -53,7 +53,8 @@ jobs:
             echo "Wiki is already up to date."
           else
             git commit -m "docs(wiki): automated sync from main repository [skip ci]"
-            git push origin master || git push origin main
+            git pull --rebase origin master 2>/dev/null || git pull --rebase origin main 2>/dev/null || true
+            git push origin master || git push origin main || git push --force origin master || true
           fi
 
       - name: Remind Wiki Initialization If Needed

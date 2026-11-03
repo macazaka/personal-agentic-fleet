@@ -481,7 +481,9 @@ def run_github_pipeline_audit(
     check_runs: List[Dict[str, Any]] = []
     network_error = ""
 
-    deadline = time.time() + max(5, wait_timeout_sec)
+    wait_start_ts = time.time()
+    deadline = wait_start_ts + max(5, wait_timeout_sec)
+    is_live_api = request_fn is _http_json_request
     while True:
         try:
             st, cr_data = request_fn(
@@ -506,9 +508,14 @@ def run_github_pipeline_audit(
             network_error = str(exc)
 
         in_prog = [c for c in check_runs if c.get("status") != "completed"]
-        if not wait_for_completion or not in_prog or time.time() >= deadline or network_error:
+        awaiting_registration = (
+            is_live_api
+            and len(check_runs) < 8
+            and (time.time() - wait_start_ts) < min(90, max(5, wait_timeout_sec))
+        )
+        if not wait_for_completion or (not in_prog and not awaiting_registration) or time.time() >= deadline or network_error:
             break
-        # Wait only while checks exist and are still running (or within initial 45s startup window if 0 checks registered yet)
+        # Wait while checks are still queued/running or within initial registration timeout window
         time.sleep(max(2, poll_interval_sec))
 
     # Deduplicate check-runs by name (keep latest id per check name)
@@ -571,6 +578,19 @@ def run_github_pipeline_audit(
                 pass
 
         if c_status == "completed" and c_conc not in ("success", "neutral", "skipped", None):
+            if not ann_details and is_live_api and cr.get("id"):
+                try:
+                    j_st, j_data = request_fn(
+                        f"https://api.github.com/repos/{clean_repo}/actions/jobs/{cr.get('id')}",
+                        headers=gh_headers,
+                        timeout=8.0,
+                    )
+                    if j_st == 200 and isinstance(j_data, dict):
+                        for step in j_data.get("steps", []) or []:
+                            if isinstance(step, dict) and step.get("conclusion") == "failure":
+                                ann_details.append(f"Failed step: {step.get('name', 'unknown')}")
+                except Exception:
+                    pass
             pipeline_failures.append({
                 "id": cr.get("id"),
                 "name": c_name,
@@ -783,7 +803,7 @@ def run_github_pipeline_audit(
 def spawn_detached_post_push_sentinel(
     repo_root: Path = REPO_ROOT,
     commit_sha: str = "",
-    initial_delay_sec: int = 35,
+    initial_delay_sec: int = 60,
 ) -> bool:
     """
     Launches a non-blocking detached background sentinel process after `git commit` / `git push`

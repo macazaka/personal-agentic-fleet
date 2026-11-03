@@ -210,7 +210,7 @@ for line in stdin_data.splitlines():
 try:
     if os.environ.get("FLEET_TEST_MODE") != "1":
         from fleet.tools.github_pipeline_sentinel import spawn_detached_post_push_sentinel
-        spawn_detached_post_push_sentinel(repo_root=repo_root, initial_delay_sec=45)
+        spawn_detached_post_push_sentinel(repo_root=repo_root, initial_delay_sec=60)
 except Exception:
     pass
 
@@ -265,7 +265,7 @@ if os.environ.get("FLEET_TEST_MODE") != "1":
 if os.environ.get("FLEET_TEST_MODE") != "1" and os.environ.get("FLEET_DISABLE_BG_SENTINEL") != "1":
     try:
         from fleet.tools.github_pipeline_sentinel import spawn_detached_post_push_sentinel
-        spawn_detached_post_push_sentinel(repo_root=repo_root, initial_delay_sec=40)
+        spawn_detached_post_push_sentinel(repo_root=repo_root, initial_delay_sec=60)
     except Exception:
         pass
 

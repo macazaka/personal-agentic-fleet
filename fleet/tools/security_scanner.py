@@ -352,6 +352,7 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
     # -------------------------------------------------------------------------
     sast_hits = []
     domain_in_re = re.compile(r'["\'](?:https?://)?([a-zA-Z0-9.-]+\.(?:com|org|net|us|io|ai|co|gov|edu))["\']\s+in\s+([a-zA-Z0-9_]+)', re.I)
+    domain_endswith_re = re.compile(r'\.(?:netloc|hostname)\.endswith\(\s*["\']([a-zA-Z0-9][a-zA-Z0-9.-]*\.(?:com|org|net|us|io|ai|co|gov|edu))["\']\s*\)', re.I)
 
     for rel_path in tracked_files:
         if not rel_path.startswith("fleet/") or not rel_path.endswith(".py"):
@@ -389,7 +390,7 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
                     sast_hits.append(hit)
                     findings.append(hit)
 
-                # Check for Incomplete URL Substring Sanitization (CWE-020)
+                # Check for Incomplete URL Substring Sanitization (CWE-020 / CodeQL py/incomplete-url-substring-sanitization)
                 m_url = domain_in_re.search(stripped)
                 if m_url and "test" not in rel_path.lower():
                     hit = {
@@ -398,6 +399,21 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
                         "file": rel_path,
                         "line": line_no,
                         "detail": f"Checking '{m_url.group(1)}' in '{m_url.group(2)}' without full URL boundary parsing.",
+                    }
+                    sast_hits.append(hit)
+                    findings.append(hit)
+
+                m_ew = domain_endswith_re.search(stripped)
+                if m_ew and "test" not in rel_path.lower():
+                    hit = {
+                        "severity": "HIGH",
+                        "category": "SAST Incomplete URL Sanitization (CWE-020)",
+                        "file": rel_path,
+                        "line": line_no,
+                        "detail": (
+                            f"Using .netloc/.hostname.endswith('{m_ew.group(1)}') without leading dot or exact host tuple "
+                            "(CodeQL py/incomplete-url-substring-sanitization)."
+                        ),
                     }
                     sast_hits.append(hit)
                     findings.append(hit)
