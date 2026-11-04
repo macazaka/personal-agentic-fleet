@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.14.3] - 2026-11-04
+
+### Added
+- **Universal "✨ 10 Ways to Improve" & Manual Self-Improvement Engine**: Every built-in core agent (`health`, `overview`, `antigravity`, `backlog`, `optimizer`, `gmail`, `pr_review`, `remote_chat`, `mcp_studio`, `local_llm`) and custom Studio agent now surfaces a **"✨ 10 Ways to Improve"** button across all AFCC views, matrix cards, dense table rows, sidebars, launchpad chips, and Settings cards, auto-generating 10 domain-authentic feature improvements with multi-select checkboxes plus manual user improvement entry and live self-improvement undertaking.
+
+---
+
 ## [2.14.2] - 2026-11-04
 
 ### Fixed

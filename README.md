@@ -1,6 +1,6 @@
 # ⚡ Personal Agentic Fleet
 
-[![Release: v2.14.2](https://img.shields.io/badge/Release-v2.14.2-00b4d8.svg)](CHANGELOG.md)
+[![Release: v2.14.3](https://img.shields.io/badge/Release-v2.14.3-00b4d8.svg)](CHANGELOG.md)
 [![GitHub Wiki: 17 Deep-Dive Guides](https://img.shields.io/badge/GitHub%20Wiki-17%20Deep--Dive%20Guides-0284c7.svg?logo=github)](https://github.com/macazaka/personal-agentic-fleet/wiki)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -102,12 +102,12 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
 ## 🌟 Key Highlights
 
 <!-- AUTO-LATEST-RELEASE:START -->
-### 🆕 What's New in Release `v2.14.2` (Auto-Synchronized)
+### 🆕 What's New in Release `v2.14.3` (Auto-Synchronized)
 
-> **Live Telemetry**: `10` Core Agents • `139` REST API Endpoints • `35` Microkernel Engines • `21` Automation Tools • `494` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
+> **Live Telemetry**: `10` Core Agents • `139` REST API Endpoints • `35` Microkernel Engines • `21` Automation Tools • `495` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
 
-### Fixed
-- Proactive release synchronization, static type verification, and documentation maintenance.
+### Added
+- **Universal "✨ 10 Ways to Improve" & Manual Self-Improvement Engine**: Every built-in core agent (`health`, `overview`, `antigravity`, `backlog`, `optimizer`, `gmail`, `pr_review`, `remote_chat`, `mcp_studio`, `local_llm`) and custom Studio agent now surfaces a **"✨ 10 Ways to Improve"** button across all AFCC views, matrix cards, dense table rows, sidebars, launchpad chips, and Settings cards, auto-generating 10 domain-authentic feature improvements with multi-select checkboxes plus manual user improvement entry and live self-improvement undertaking.
 <!-- AUTO-LATEST-RELEASE:END -->
 
 - **🔌 Modular Plug-and-Play Agents**: Every dashboard view is a standalone, self-contained agent package inside `fleet/agents/` with least-privilege capability manifests (`manifest.json`) enforced by `ScopedDatabaseProxy`. See **[Wiki: 7 Built-in Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents)** and **[Wiki: Customizing Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Customizing-Agents)**.

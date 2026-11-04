@@ -395,7 +395,43 @@ class FleetAgent(ABC):
         )
 
         is_custom = "custom_agents" in self.agent_dir.as_posix()
-        meta = getattr(self, "manifest_meta", {}) or {}
+        meta = dict(getattr(self, "manifest_meta", {}) or {})
+
+        # Merge any persisted self-improvement / evolution state from DB or config
+        if self._raw_db is not None and hasattr(self._raw_db, "get_setting"):
+            try:
+                import json
+                raw_evo = self._raw_db.get_setting(f"agent_evolution_{self.id}")
+                if raw_evo:
+                    evo_payload = json.loads(raw_evo) if isinstance(raw_evo, str) else raw_evo
+                    if isinstance(evo_payload, dict):
+                        for k in (
+                            "evolution_improvements",
+                            "ui_blocks",
+                            "event_triggers",
+                            "outbound_actions",
+                            "routine_task",
+                            "schedule",
+                            "schedule_cadence",
+                            "checklist_items",
+                            "fields",
+                        ):
+                            if k in evo_payload and evo_payload[k]:
+                                meta[k] = evo_payload[k]
+                        if evo_payload.get("system_prompt") and not self.config.get("system_prompt"):
+                            self.config["system_prompt"] = evo_payload["system_prompt"]
+                        self.manifest_meta.update(
+                            {k: v for k, v in evo_payload.items() if v is not None}
+                        )
+            except Exception:
+                pass
+        if isinstance(self.config.get("evolution_improvements"), list) and self.config.get("evolution_improvements"):
+            meta["evolution_improvements"] = self.config["evolution_improvements"]
+
+        is_customized = bool(
+            is_customized
+            or bool(meta.get("evolution_improvements"))
+        )
 
         return {
             "id": self.id,

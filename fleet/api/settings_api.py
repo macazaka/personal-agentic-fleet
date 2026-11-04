@@ -1131,7 +1131,7 @@ def evolve_custom_agent_endpoint(handler: Any, body: Dict[str, Any]):
         return
 
     try:
-        manifest = srv.agent_registry.evolve_custom_agent(agent_id, body)
+        manifest = srv.agent_registry.evolve_custom_agent(agent_id, body, allow_builtin=True)
         raw_sched = manifest.get("schedule")
         sched_info: Dict[str, Any] = raw_sched if isinstance(raw_sched, dict) else {}
         registered_schedule = _sync_custom_agent_schedule(
@@ -1150,12 +1150,13 @@ def evolve_custom_agent_endpoint(handler: Any, body: Dict[str, Any]):
             event_triggers=manifest.get("event_triggers"),
         )
         if hasattr(srv, "db") and srv.db:
-            srv.db.log_activity("FleetAgentCreator", "agent_evolved", f"Evolved custom agent '{manifest['id']}' in Studio")
+            srv.db.log_activity("FleetAgentCreator", "agent_evolved", f"Evolved agent '{manifest['id']}' with self-improvements")
         handler._send_json({
             "status": "success",
-            "message": f"Agent '{manifest['name']}' evolved and hot-reloaded while preserving existing data.",
+            "message": f"Agent '{manifest['name']}' undertook selected improvements and hot-reloaded while preserving existing data.",
             "agent_id": manifest["id"],
             "manifest": manifest,
+            "undertaken_summary": manifest.get("undertaken_summary", {}),
             "schedule": registered_schedule,
             "event_playbooks": synced_playbooks,
         })
@@ -1353,9 +1354,10 @@ def deep_build_agent_studio_endpoint(handler: Any, body: Dict[str, Any]):
         seeded_records_count = 0
         if scaffold_first and hasattr(srv, "agent_registry") and srv.agent_registry:
             existing = srv.agent_registry.agents.get(clean_id)
-            if existing and getattr(existing, "is_custom", False):
-                manifest = srv.agent_registry.evolve_custom_agent(clean_id, spec)
-            elif not existing:
+            if existing:
+                spec["is_builtin"] = not bool(getattr(existing, "is_custom", False))
+                manifest = srv.agent_registry.evolve_custom_agent(clean_id, spec, allow_builtin=True)
+            else:
                 raw_sched_obj = spec.get("schedule")
                 sched_obj: Dict[str, Any] = raw_sched_obj if isinstance(raw_sched_obj, dict) else {}
                 def_rec = str(spec.get("default_recurrence") or body.get("default_recurrence") or "none").strip().lower()
@@ -1388,8 +1390,6 @@ def deep_build_agent_studio_endpoint(handler: Any, body: Dict[str, Any]):
                     payload_source=seed_source,
                     default_recurrence=def_rec,
                 )
-            elif is_evolve:
-                raise ValueError(f"Built-in agent '{clean_id}' cannot be overwritten by Deep-Build.")
 
             if manifest:
                 raw_sched_info = manifest.get("schedule")

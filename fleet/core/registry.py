@@ -430,16 +430,32 @@ class AgentRegistry:
 
         raise RuntimeError(f"Failed to load newly created agent '{clean_id}'")
 
-    def evolve_custom_agent(self, agent_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
+    def evolve_agent(self, agent_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Universal Agent Self-Improvement & Evolution (Built-In + Custom Agents):
+        Applies selected 10-way AI improvements and/or manual custom improvements to any agent,
+        undertaking self-improvement actions and hot-reloading runtime state.
+        """
+        return self.evolve_custom_agent(agent_id, updates, allow_builtin=True)
+
+    def evolve_custom_agent(
+        self,
+        agent_id: str,
+        updates: Dict[str, Any],
+        allow_builtin: bool = False,
+    ) -> Dict[str, Any]:
         """
         Phase 2 In-Place Agent Evolution:
         Updates a custom agent's manifest, typed domain fields, declarative UI blocks,
         intelligence mode, and Python runtime in-place while preserving 100% of existing SQLite records.
+        When allow_builtin=True, also evolves built-in core agents safely via config/DB overrides
+        and undertakes selected self-improvements without overwriting git-tracked core agent files.
         """
         from fleet.core.agent_studio import (
             generate_custom_agent_code,
             render_declarative_ui_blocks,
             synthesize_agent_from_prompt,
+            undertake_agent_self_improvements,
         )
         from fleet.core.plugin_sandbox import ALLOWED_AGENT_PERMISSIONS
 
@@ -453,7 +469,8 @@ class AgentRegistry:
 
         agent_dir_resolved = agent.agent_dir.resolve()
         custom_root_resolved = self.custom_agents_dir.resolve()
-        if custom_root_resolved not in agent_dir_resolved.parents:
+        is_builtin = custom_root_resolved not in agent_dir_resolved.parents
+        if is_builtin and not allow_builtin:
             raise ValueError(
                 f"Agent '{clean_id}' is a built-in core agent and cannot be rewritten via Studio Evolution. "
                 "Use Settings -> Agents to customize its prompt, model, or settings."
@@ -466,6 +483,15 @@ class AgentRegistry:
                 existing_meta = json.loads(manifest_path.read_text(encoding="utf-8"))
             except Exception:
                 existing_meta = {}
+        if is_builtin and self.db is not None and hasattr(self.db, "get_setting"):
+            try:
+                raw_db_evo = self.db.get_setting(f"agent_evolution_{clean_id}")
+                if raw_db_evo:
+                    parsed_db_evo = json.loads(raw_db_evo) if isinstance(raw_db_evo, str) else raw_db_evo
+                    if isinstance(parsed_db_evo, dict):
+                        existing_meta.update(parsed_db_evo)
+            except Exception:
+                pass
 
         # Optional natural-language evolution prompt synthesis
         evo_prompt = str(updates.get("evolution_prompt") or updates.get("nl_prompt") or "").strip()
@@ -584,6 +610,79 @@ class AgentRegistry:
         if merged_evo:
             new_manifest["evolution_improvements"] = merged_evo[-30:]
 
+        # Sync overrides & in-memory config
+        merged_cfg = dict(agent.config)
+        merged_cfg["name"] = name
+        merged_cfg["icon"] = icon
+        merged_cfg["order"] = order_val
+        if model is not None:
+            merged_cfg["model"] = str(model) if model else ""
+        if system_prompt is not None:
+            merged_cfg["system_prompt"] = str(system_prompt)
+        if merged_evo:
+            merged_cfg["evolution_improvements"] = new_manifest["evolution_improvements"]
+        if isinstance(updates.get("settings"), dict):
+            cur_settings = dict(merged_cfg.get("settings") or {})
+            cur_settings.update(updates["settings"])
+            merged_cfg["settings"] = cur_settings
+
+        overrides = self.load_overrides()
+        overrides[clean_id] = {
+            k: v for k, v in merged_cfg.items()
+            if k in {"name", "icon", "order", "enabled", "provider", "model", "system_prompt", "settings"}
+        }
+        self.save_overrides(overrides)
+
+        if is_builtin:
+            agent.config.update(merged_cfg)
+            if not hasattr(agent, "manifest_meta") or not isinstance(agent.manifest_meta, dict):
+                agent.manifest_meta = {}
+            for k in (
+                "evolution_improvements",
+                "ui_blocks",
+                "event_triggers",
+                "outbound_actions",
+                "routine_task",
+                "schedule",
+                "schedule_cadence",
+                "checklist_items",
+                "fields",
+                "system_prompt",
+                "model",
+            ):
+                if k in new_manifest:
+                    agent.manifest_meta[k] = new_manifest[k]
+
+            if self.db is not None and hasattr(self.db, "set_setting"):
+                try:
+                    evo_persist = {
+                        k: new_manifest[k]
+                        for k in (
+                            "evolution_improvements",
+                            "ui_blocks",
+                            "event_triggers",
+                            "outbound_actions",
+                            "routine_task",
+                            "schedule",
+                            "schedule_cadence",
+                            "checklist_items",
+                            "fields",
+                            "system_prompt",
+                            "model",
+                        )
+                        if k in new_manifest
+                    }
+                    self.db.set_setting(f"agent_evolution_{clean_id}", json.dumps(evo_persist))
+                except Exception as e:
+                    logger.warning(f"Could not persist built-in evolution state for '{clean_id}': {e}")
+
+            undertaken = {}
+            if merged_evo:
+                undertaken = undertake_agent_self_improvements(agent, new_manifest["evolution_improvements"], db=self.db)
+            out_mf = agent.get_ui_manifest()
+            out_mf["undertaken_summary"] = undertaken
+            return out_mf
+
         # Phase 4: Snapshot current blueprint revision before overwriting files on disk
         self._save_agent_revision_snapshot(agent.agent_dir, reason="evolve")
 
@@ -618,27 +717,6 @@ class AgentRegistry:
         )
         (ui_folder / "panel.html").write_text(panel_html, encoding="utf-8")
 
-        # Sync overrides & hot-reload live agent instance
-        merged_cfg = dict(agent.config)
-        merged_cfg["name"] = name
-        merged_cfg["icon"] = icon
-        merged_cfg["order"] = order_val
-        if model is not None:
-            merged_cfg["model"] = str(model) if model else ""
-        if system_prompt is not None:
-            merged_cfg["system_prompt"] = str(system_prompt)
-        if isinstance(updates.get("settings"), dict):
-            cur_settings = dict(merged_cfg.get("settings") or {})
-            cur_settings.update(updates["settings"])
-            merged_cfg["settings"] = cur_settings
-
-        overrides = self.load_overrides()
-        overrides[clean_id] = {
-            k: v for k, v in merged_cfg.items()
-            if k in {"name", "icon", "order", "enabled", "provider", "model", "system_prompt", "settings"}
-        }
-        self.save_overrides(overrides)
-
         reloaded = self._load_agent_from_file(
             file_path=agent.agent_dir / "agent.py",
             agent_dir=agent.agent_dir,
@@ -655,7 +733,12 @@ class AgentRegistry:
             self.disabled_agents[clean_id] = reloaded
             self.agents.pop(clean_id, None)
         self._all_discovered_agents[clean_id] = reloaded
-        return reloaded.get_ui_manifest()
+        undertaken = {}
+        if merged_evo:
+            undertaken = undertake_agent_self_improvements(reloaded, new_manifest["evolution_improvements"], db=self.db)
+        out_mf = reloaded.get_ui_manifest()
+        out_mf["undertaken_summary"] = undertaken
+        return out_mf
 
     def _save_agent_revision_snapshot(self, agent_dir: Path, reason: str = "evolve") -> Optional[str]:
         """

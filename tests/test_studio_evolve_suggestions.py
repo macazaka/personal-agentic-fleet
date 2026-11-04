@@ -571,3 +571,117 @@ def test_ui_async_action_feedback_and_failure_notification_wiring():
     assert "fetchAntigravityStatus" not in create_agent_js
 
 
+def test_all_10_builtin_agents_generate_10_ways_to_improve_and_undertake_manual_items(evolve_advisor_env):
+    db: FleetDatabase = evolve_advisor_env["db"]
+    registry: AgentRegistry = evolve_advisor_env["registry"]
+
+    builtin_ids = [
+        "health",
+        "overview",
+        "antigravity",
+        "backlog",
+        "optimizer",
+        "gmail",
+        "pr_review",
+        "remote_chat",
+        "mcp_studio",
+        "local_llm",
+    ]
+
+    for aid in builtin_ids:
+        h_sug = _MockJsonHandler()
+        generate_studio_evolve_suggestions_endpoint(
+            h_sug,
+            {"id": aid, "provider": "deterministic", "force_refresh": True},
+        )
+        assert h_sug.last_status == 200, f"Failed for {aid}: {h_sug.last_payload}"
+        assert h_sug.last_payload["status"] == "ok"
+        assert h_sug.last_payload["count"] == 10
+        sugs = h_sug.last_payload["suggestions"]
+        assert len(sugs) == 10
+        assert len({s["title"].lower() for s in sugs}) == 10
+
+    # Select 2 of the 10 AI suggestions + 1 manual user improvement for a built-in agent ('health')
+    h_health_sug = _MockJsonHandler()
+    generate_studio_evolve_suggestions_endpoint(
+        h_health_sug,
+        {"id": "health", "provider": "deterministic"},
+    )
+    health_sugs = h_health_sug.last_payload["suggestions"]
+
+    h_manual = _MockJsonHandler()
+    parse_custom_evolve_improvement_endpoint(
+        h_manual,
+        {
+            "id": "health",
+            "text": "Track post-dinner 15-minute walk adherence and alert if fasting sugar exceeds 105 mg/dL",
+        },
+    )
+    assert h_manual.last_status == 200
+    manual_sug = h_manual.last_payload["suggestion"]
+    assert manual_sug["is_custom"] is True
+
+    selected_items = [
+        {
+            "id": health_sugs[0]["id"],
+            "title": health_sugs[0]["title"],
+            "description": health_sugs[0]["description"],
+            "code_enhancement_brief": health_sugs[0]["patch"].get("code_enhancement_brief", ""),
+            "is_custom": False,
+        },
+        {
+            "id": health_sugs[1]["id"],
+            "title": health_sugs[1]["title"],
+            "description": health_sugs[1]["description"],
+            "code_enhancement_brief": health_sugs[1]["patch"].get("code_enhancement_brief", ""),
+            "is_custom": False,
+        },
+        {
+            "id": manual_sug["id"],
+            "title": manual_sug["title"],
+            "description": manual_sug["description"],
+            "code_enhancement_brief": manual_sug["patch"].get("code_enhancement_brief", ""),
+            "is_custom": True,
+        },
+    ]
+
+    h_evolve = _MockJsonHandler()
+    evolve_custom_agent_endpoint(
+        h_evolve,
+        {
+            "id": "health",
+            "evolution_improvements": selected_items,
+            "system_prompt": "Prioritize FFD Phase 1.1 glycemic reversal and post-dinner walk tracking.",
+        },
+    )
+    assert h_evolve.last_status == 200
+    assert h_evolve.last_payload["status"] == "success"
+    manifest = h_evolve.last_payload["manifest"]
+    assert len(manifest["evolution_improvements"]) == 3
+    undertaken = h_evolve.last_payload.get("undertaken_summary") or {}
+    assert undertaken.get("status") == "ok"
+    assert undertaken.get("undertaken_count") == 3
+
+    # Verify undertaken self-improvement records were persisted in SQLite
+    recs = db.list_custom_agent_records("health", record_type="self_improvement")
+    assert len(recs) == 3
+
+    # Verify get_ui_manifest() returns the persisted evolution_improvements
+    health_agent = registry.get_agent("health")
+    assert health_agent is not None
+    fresh_mf = health_agent.get_ui_manifest()
+    assert len(fresh_mf["evolution_improvements"]) == 3
+
+    # Verify UI buttons & self-improvement banner hooks exist across dashboard.html & fleet_navigator.js
+    repo_root = Path(__file__).parent.parent
+    dashboard_html = (repo_root / "fleet" / "web" / "templates" / "dashboard.html").read_text(encoding="utf-8")
+    fleet_nav_js = (repo_root / "fleet" / "web" / "static" / "js" / "fleet_navigator.js").read_text(encoding="utf-8")
+    for core_id in ("overview", "health", "antigravity", "backlog", "optimizer"):
+        assert f"openEvolveAgentModal('{core_id}')" in dashboard_html
+        assert f'id="coreSelfImproveBanner_{core_id}"' in dashboard_html
+    assert 'id="stageSelfImproveBanner"' in dashboard_html
+    assert "renderActiveAgentSelfImprovementsBanner" in fleet_nav_js
+    assert "quickAddManualImprovementInline" in fleet_nav_js
+
+
+

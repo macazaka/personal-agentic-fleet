@@ -22,7 +22,7 @@
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
               <h1 style="margin: 0; white-space: nowrap;">Personal Agentic Fleet</h1>
               <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.35); font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;" onclick="openReleaseNotesModal()" title="View Release Notes & Versions">
-                <span id="fleetHeaderVerBadge">v2.14.2</span>
+                <span id="fleetHeaderVerBadge">v2.14.3</span>
                 <span style="font-size: 9px; opacity: 0.8;">📜</span>
               </span>
             </div>
@@ -176,11 +176,13 @@
           <span style="font-size: 12px; font-weight: 600; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 1px;" id="greetingText">Good Morning</span>
           <div class="briefing-headline" id="briefingHeadline">Loading today's briefing...</div>
         </div>
-        <div style="display: flex; gap: 8px;">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button title="Auto-generate 10 ways to improve Overview &amp; Briefing features or add manual self-improvements" class="btn" style="font-size: 12px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.12);" onclick="openEvolveAgentModal('overview')">✨ 10 Ways to Improve</button>
           <button class="btn" style="font-size: 12px;" onclick="speakBriefing()" title="Listen to spoken audio briefing">🔊 Speak</button>
           <button title="Refresh today's morning briefing" class="btn" style="font-size: 12px;" onclick="fetchBriefing()">🔄 Refresh</button>
         </div>
       </div>
+      <div id="coreSelfImproveBanner_overview" style="margin-top: 10px;"></div>
       <div class="briefing-stats" id="statsContainer">
         <!-- Rendered via JS -->
       </div>
@@ -423,11 +425,12 @@
           <button title="⚙️ Agent Settings" class="btn" style="font-size: 12px; padding: 6px 12px;" onclick="openAgentSettingsDrawer(FleetNavigator.activeAgentId)">⚙️ Agent Settings</button>
           <button id="btnStageCloneAgent" title="Duplicate Agent Blueprint into a Fresh Custom Agent" class="btn" style="font-size: 12px; padding: 6px 11px; border-color: rgba(56, 189, 248, 0.4); color: var(--accent-cyan);" onclick="cloneCustomAgentFromUI(FleetNavigator.activeAgentId)">📋 Clone</button>
           <button id="btnStageExportAgent" title="Export Portable SHA-256 Verified .fleetagent Pack" class="btn" style="font-size: 12px; padding: 6px 11px; border-color: rgba(16, 185, 129, 0.4); color: #34d399;" onclick="exportAgentPackFromUI(FleetNavigator.activeAgentId)">📤 Export</button>
-          <button id="btnStageEvolveAgent" title="Evolve Custom Agent UI, Fields &amp; Logic in Zero-Code Studio" class="btn" style="display: none; font-size: 12px; padding: 6px 12px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.12);" onclick="openEvolveAgentModal(FleetNavigator.activeAgentId)">✨ Evolve in Studio</button>
+          <button id="btnStageEvolveAgent" title="Auto-generate 10 ways to improve this agent's features or add manual self-improvements" class="btn" style="display: inline-flex; font-size: 12px; padding: 6px 12px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.12);" onclick="openEvolveAgentModal(FleetNavigator.activeAgentId)">✨ 10 Ways to Improve</button>
           <button id="btnStageDeleteAgent" title="Permanently Delete Custom Agent" class="btn" style="display: none; font-size: 12px; padding: 6px 12px; border-color: rgba(239, 68, 68, 0.45); color: #f87171; background: rgba(239, 68, 68, 0.1);" onclick="FleetNavigator.deleteAgent(FleetNavigator.activeAgentId, event)">🗑️ Delete Agent</button>
           <button title="← Return to Overview" class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;" onclick="FleetNavigator.switchAgent('overview')">← Return to Overview</button>
         </div>
       </div>
+      <div id="stageSelfImproveBanner" style="margin-bottom: 12px;"></div>
       <div id="stagePanelContainer">
         <!-- Dynamic agent UI mounted here on demand -->
       </div>
@@ -452,6 +455,9 @@
         </div>
       </div>
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <button title="Auto-generate 10 ways to improve Health &amp; Wellness features or add manual self-improvements" class="btn" onclick="openEvolveAgentModal('health')" style="font-size: 12px; padding: 7px 12px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.12);">
+          ✨ 10 Ways to Improve
+        </button>
         <button title="Open Diagnostic Lab Report" class="btn" onclick="openApolloModal()" style="font-size: 12px; padding: 7px 12px; border-color: rgba(0, 242, 254, 0.4);">
           🔬 Diagnostic Lab Report
         </button>
@@ -469,6 +475,7 @@
         </button>
       </div>
     </div>
+    <div id="coreSelfImproveBanner_health"></div>
 
     <!-- FFD Metabolic Health Goal & Diagnostic Baseline Banner -->
     <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(0, 242, 254, 0.06)); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius); padding: 18px 22px;">
@@ -1048,10 +1055,16 @@
           Manage and prioritize fleet capabilities, system integrations, roadmap versions, and backlog tasks.
         </div>
       </div>
-      <button title="Toggle Add New Feature form" class="btn btn-primary" onclick="toggleAddBacklogCard()" id="btnToggleAddBacklog" style="font-size: 12px;">
-        + Add New Feature
-      </button>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <button title="Auto-generate 10 ways to improve Feature Backlog capabilities or add manual self-improvements" class="btn" onclick="openEvolveAgentModal('backlog')" style="font-size: 12px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.12);">
+          ✨ 10 Ways to Improve
+        </button>
+        <button title="Toggle Add New Feature form" class="btn btn-primary" onclick="toggleAddBacklogCard()" id="btnToggleAddBacklog" style="font-size: 12px;">
+          + Add New Feature
+        </button>
+      </div>
     </div>
+    <div id="coreSelfImproveBanner_backlog"></div>
 
     <!-- Backlog Statistics Metrics Grid -->
     <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;" id="backlogStatsGrid">
@@ -1180,6 +1193,9 @@
         </div>
       </div>
       <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <button title="Auto-generate 10 ways to improve PC Optimizer features or add manual self-improvements" class="btn" onclick="openEvolveAgentModal('optimizer')" style="font-size: 12px; padding: 8px 14px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.12);">
+          ✨ 10 Ways to Improve
+        </button>
         <button title="Run 1-click complete workstation performance tuning" class="btn btn-primary" onclick="runCompleteOptimization()" id="btnAutoTune" style="font-size: 12px; padding: 8px 16px;">
           ⚡ 1-Click Complete Tuning
         </button>
@@ -1188,6 +1204,7 @@
         </button>
       </div>
     </div>
+    <div id="coreSelfImproveBanner_optimizer"></div>
 
     <!-- Optimization Status Toast / Banner -->
     <div id="optimizerActionBanner" style="display: none; padding: 12px 16px; border-radius: 10px; font-size: 13px; font-weight: 500; align-items: center; justify-content: space-between;">
@@ -1357,6 +1374,7 @@
                 </div>
                 <span id="agTokenCountLabel" style="font-size: 11px; color: var(--accent-cyan); font-family: monospace;">0%</span>
               </div>
+              <button title="Auto-generate 10 ways to improve Antigravity Live features or add manual self-improvements" class="btn" style="font-size: 11.5px; padding: 5px 9px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.12);" onclick="openEvolveAgentModal('antigravity')">✨ 10 Ways to Improve</button>
               <button title="View LLM model details and token quota metrics" class="btn" id="btnAgLlmDetails" style="font-size: 11.5px; padding: 5px 8px;" onclick="openUsageModal()">⚡ LLM</button>
               <button class="btn" style="font-size: 11.5px; padding: 5px 8px;" onclick="fetchTranscript(true)" title="Refresh stream">🔄</button>
               <button class="btn btn-primary" id="btnToggleAgRightDock" style="font-size: 11.5px; padding: 5px 10px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(6, 182, 212, 0.22)); border: 1px solid var(--accent-cyan); color: var(--accent-cyan);" onclick="toggleAntigravityFullPageOrDock()" title="Expand chatbot to full page tab">
@@ -1368,6 +1386,7 @@
               </label>
             </div>
           </div>
+          <div id="coreSelfImproveBanner_antigravity"></div>
 
           <!-- Unified Chat Engine Switcher: Antigravity Live (LLM) <-> Chat with Fleet ($0.00 Zero-Token) -->
           <div id="agChatEngineToggleBar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; padding: 7px 10px; border-radius: 10px; background: rgba(15, 23, 42, 0.72); border: 1px solid var(--card-border);">
@@ -1576,7 +1595,7 @@
           <span style="font-size: 22px;">📜</span>
           <div>
             <strong style="font-size: 16px; color: var(--text);">Fleet Release Notes & Version History</strong>
-            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.14.2</div>
+            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.14.3</div>
           </div>
         </div>
         <button title="Close Release Notes modal" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeReleaseNotesModal()">✕</button>

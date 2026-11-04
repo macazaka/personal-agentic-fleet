@@ -1,4 +1,4 @@
-# Release Notes & Version History (Current: `v2.14.2`)
+# Release Notes & Version History (Current: `v2.14.3`)
 
 This page is **automatically synchronized** from [`CHANGELOG.md`](https://github.com/macazaka/personal-agentic-fleet/blob/main/CHANGELOG.md) by `fleet.tools.doc_wiki_enhancer` whenever release versions or release notes are updated.
 
@@ -8,6 +8,13 @@ All notable changes to the **Personal Agentic Fleet** project will be documented
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [2.14.3] - 2026-11-04
+
+### Added
+- **Universal "✨ 10 Ways to Improve" & Manual Self-Improvement Engine**: Every built-in core agent (`health`, `overview`, `antigravity`, `backlog`, `optimizer`, `gmail`, `pr_review`, `remote_chat`, `mcp_studio`, `local_llm`) and custom Studio agent now surfaces a **"✨ 10 Ways to Improve"** button across all AFCC views, matrix cards, dense table rows, sidebars, launchpad chips, and Settings cards, auto-generating 10 domain-authentic feature improvements with multi-select checkboxes plus manual user improvement entry and live self-improvement undertaking.
 
 ---
 

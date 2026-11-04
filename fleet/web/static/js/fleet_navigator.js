@@ -219,6 +219,7 @@ const FleetNavigator = {
         this.renderLaunchpadMatrix();
         this.renderDrawerList();
         this.renderOperationsCenter();
+        this.renderActiveAgentSelfImprovementsBanner(this.activeAgentId);
       }
     } catch (e) {
       console.warn('Error fetching fleet agents:', e);
@@ -416,6 +417,7 @@ const FleetNavigator = {
           <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${a.name}</span>
         </div>
         <div style="display: flex; align-items: center; gap: 2px; flex-shrink: 0;">
+          <button class="btn-pin-star" style="font-size: 11px; padding: 0 3px; color: #d8b4fe;" onclick="event.stopPropagation(); openEvolveAgentModal('${a.id}')" title="Auto-generate 10 ways to improve '${a.name}' features or add manual self-improvements">✨</button>
           ${a.is_custom ? `<button class="btn-pin-star" style="font-size: 11px; padding: 0 3px; color: #f87171; opacity: 0.75;" onclick="FleetNavigator.deleteAgent('${a.id}', event)" title="Delete custom agent '${a.name}'">🗑️</button>` : ''}
           <button class="btn-pin-star ${a.is_pinned ? 'pinned' : ''}" style="font-size: 12px; padding: 0 3px;" onclick="FleetNavigator.togglePin('${a.id}', event)" title="${a.is_pinned ? 'Unpin' : 'Pin'}">
             ${a.is_pinned ? '★' : '☆'}
@@ -487,9 +489,12 @@ const FleetNavigator = {
               <div style="font-size: 10px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${a.category}</div>
             </div>
           </div>
-          <button class="btn-pin-star ${a.is_pinned ? 'pinned' : ''}" style="font-size: 12px;" onclick="FleetNavigator.togglePin('${a.id}', event)">
-            ${a.is_pinned ? '★' : '☆'}
-          </button>
+          <div style="display: flex; align-items: center; gap: 3px; flex-shrink: 0;">
+            <button class="btn-pin-star" style="font-size: 11.5px; color: #d8b4fe;" title="Auto-generate 10 ways to improve '${a.name}' features or add manual self-improvements" onclick="event.stopPropagation(); openEvolveAgentModal('${a.id}')">✨</button>
+            <button class="btn-pin-star ${a.is_pinned ? 'pinned' : ''}" title="${a.is_pinned ? 'Unpin' : 'Pin'}" style="font-size: 12px;" onclick="FleetNavigator.togglePin('${a.id}', event)">
+              ${a.is_pinned ? '★' : '☆'}
+            </button>
+          </div>
         </div>
       `;
     }).join('');
@@ -710,6 +715,7 @@ const FleetNavigator = {
           </div>
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
+          <button class="btn" style="padding: 2px 7px; font-size: 10.5px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.12);" title="Auto-generate 10 ways to improve '${a.name}' features or add manual self-improvements" onclick="event.stopPropagation(); FleetNavigator.closeFleetDrawer(); openEvolveAgentModal('${a.id}')">✨ 10 Ways</button>
           <button class="btn-pin-star ${a.is_pinned ? 'pinned' : ''}" title="${a.is_pinned ? 'Unpin from bar' : 'Pin to bar'}" onclick="FleetNavigator.togglePin('${a.id}', event)">
             ${a.is_pinned ? '★' : '☆'}
           </button>
@@ -883,6 +889,7 @@ const FleetNavigator = {
     const badgeColor = isWorking ? 'var(--accent-green)' : (isDisabled ? '#fca5a5' : 'var(--accent-cyan)');
     const badgeBg = isWorking ? 'rgba(16,185,129,0.12)' : (isDisabled ? 'rgba(239,68,68,0.12)' : 'rgba(56,189,248,0.12)');
     const statusLabel = isWorking ? '● Working' : (isDisabled ? '○ Disabled' : '● Standby');
+    const evoCount = Array.isArray(a.evolution_improvements) ? a.evolution_improvements.length : 0;
 
     return `
       <div class="fleet-matrix-card ${a.enabled ? '' : 'card-disabled'}" onclick="FleetNavigator.switchAgent('${a.id}')">
@@ -894,18 +901,23 @@ const FleetNavigator = {
               <div class="matrix-card-slug">${a.id}</div>
             </div>
           </div>
-          <button class="btn-pin-star ${a.is_pinned ? 'pinned' : ''}" onclick="FleetNavigator.togglePin('${a.id}', event)">
+          <button class="btn-pin-star ${a.is_pinned ? 'pinned' : ''}" title="${a.is_pinned ? 'Unpin' : 'Pin'}" onclick="FleetNavigator.togglePin('${a.id}', event)">
             ${a.is_pinned ? '★' : '☆'}
           </button>
         </div>
 
         <p class="matrix-card-desc">${a.description || 'Fleet automated agent module.'}</p>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 11.5px;">
-          <span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeColor}33;">
-            ${statusLabel}
-          </span>
-          <span style="color: var(--text-muted);">${a.category}</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 11.5px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeColor}33;">
+              ${statusLabel}
+            </span>
+            ${evoCount > 0 ? `<span class="badge" style="background: rgba(16, 185, 129, 0.16); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 10px;">✨ ${evoCount} Improved</span>` : ''}
+          </div>
+          <button class="btn" style="padding: 3px 9px; font-size: 11px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.12);" title="Auto-generate 10 ways to improve '${a.name}' features or add manual self-improvements" onclick="event.stopPropagation(); openEvolveAgentModal('${a.id}')">
+            ✨ 10 Ways to Improve
+          </button>
         </div>
       </div>`;
   },
@@ -934,8 +946,9 @@ const FleetNavigator = {
         </td>
         <td style="color: var(--text-muted); font-size: 12px;">${a.last_active}</td>
         <td style="text-align: right;" onclick="event.stopPropagation()">
-          <button class="btn" style="padding: 3px 8px; font-size: 11px;" onclick="FleetNavigator.switchAgent('${a.id}')">Open Pane</button>
-          <button class="btn" style="padding: 3px 8px; font-size: 11px;" onclick="openAgentSettingsDrawer('${a.id}')">⚙️</button>
+          <button title="Auto-generate 10 ways to improve '${a.name}' features or add manual self-improvements" class="btn" style="padding: 3px 8px; font-size: 11px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.12);" onclick="openEvolveAgentModal('${a.id}')">✨ 10 Ways</button>
+          <button title="Open '${a.name}' agent pane" class="btn" style="padding: 3px 8px; font-size: 11px;" onclick="FleetNavigator.switchAgent('${a.id}')">Open Pane</button>
+          <button title="Configure '${a.name}' settings" class="btn" style="padding: 3px 8px; font-size: 11px;" onclick="openAgentSettingsDrawer('${a.id}')">⚙️</button>
         </td>
       </tr>`;
   },
@@ -957,9 +970,9 @@ const FleetNavigator = {
       <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; font-size: 12px; color: var(--text-muted);">
         <div>Showing <strong>${start}–${end}</strong> of <strong>${total}</strong> agents</div>
         <div style="display: flex; gap: 6px; align-items: center;">
-          <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="FleetNavigator.changePage(${this.currentPage - 1})" ${this.currentPage <= 1 ? 'disabled' : ''}>← Prev</button>
+          <button title="Previous page" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="FleetNavigator.changePage(${this.currentPage - 1})" ${this.currentPage <= 1 ? 'disabled' : ''}>← Prev</button>
           <span style="padding: 0 8px;">Page <strong>${this.currentPage}</strong> of <strong>${totalPages}</strong></span>
-          <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="FleetNavigator.changePage(${this.currentPage + 1})" ${this.currentPage >= totalPages ? 'disabled' : ''}>Next →</button>
+          <button title="Next page" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="FleetNavigator.changePage(${this.currentPage + 1})" ${this.currentPage >= totalPages ? 'disabled' : ''}>Next →</button>
         </div>
       </div>`;
   },
@@ -984,12 +997,14 @@ const FleetNavigator = {
     if (standardTabs.includes(agentId)) {
       if (typeof switchTab === 'function') switchTab(agentId);
       this.syncActiveTabUI(agentId);
+      this.renderActiveAgentSelfImprovementsBanner(agentId);
       return;
     }
 
     // Custom or dynamic agent stage
     this.mountDynamicAgentPane(agentId);
     this.syncActiveTabUI(agentId);
+    this.renderActiveAgentSelfImprovementsBanner(agentId);
   },
 
   mountDynamicAgentPane(agentId) {
@@ -1030,13 +1045,15 @@ const FleetNavigator = {
     if (bcCat) bcCat.textContent = agent.category;
     if (btnClone) btnClone.style.display = 'inline-flex';
     if (btnExport) btnExport.style.display = agent.is_custom ? 'inline-flex' : 'none';
-    if (btnEvolve) btnEvolve.style.display = agent.is_custom ? 'inline-flex' : 'none';
+    if (btnEvolve) btnEvolve.style.display = 'inline-flex';
     if (btnDel) btnDel.style.display = agent.is_custom ? 'inline-flex' : 'none';
     if (bcStatus) {
       const isWorking = agent.status === 'working';
       bcStatus.className = `badge ${isWorking ? 'badge-success' : 'badge-neutral'}`;
       bcStatus.textContent = isWorking ? '● Working' : '● Standby';
     }
+
+    this.renderActiveAgentSelfImprovementsBanner(agentId);
 
     // Mount agent panel HTML without repeating header identity already shown in .stage-header
     const panelContainer = document.getElementById('stagePanelContainer');
@@ -1070,6 +1087,136 @@ const FleetNavigator = {
               <span class="badge" style="background: rgba(56,189,248,0.15); color: var(--accent-cyan);">Declared permissions: ${(agent.permissions || []).join(', ')}</span>
             </div>
           </div>`;
+      }
+    }
+  },
+
+  renderActiveAgentSelfImprovementsBanner(agentId) {
+    const targetIds = new Set(['overview', 'health', 'antigravity', 'backlog', 'optimizer']);
+    if (agentId) targetIds.add(agentId);
+
+    targetIds.forEach(aid => {
+      const agent = this.agents.find(a => a.id === aid);
+      if (!agent) return;
+
+      const coreContainer = document.getElementById(`coreSelfImproveBanner_${aid}`);
+      const stageContainer = (this.activeAgentId === aid && !STATIC_CORE_TAB_IDS.has(aid))
+        ? document.getElementById('stageSelfImproveBanner')
+        : null;
+
+      const containers = [coreContainer, stageContainer].filter(Boolean);
+      if (containers.length === 0) return;
+
+      const imps = Array.isArray(agent.evolution_improvements) ? agent.evolution_improvements : [];
+      const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const pillsHtml = imps.length > 0
+        ? `<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;">
+            ${imps.map(it => {
+              const t = typeof it === 'object' ? (it.title || '') : String(it);
+              const isCust = typeof it === 'object' && Boolean(it.is_custom);
+              return `<span title="${esc(typeof it === 'object' ? (it.description || t) : t)}" style="font-size: 11px; padding: 3px 9px; border-radius: 999px; background: ${isCust ? 'rgba(56, 189, 248, 0.16)' : 'rgba(16, 185, 129, 0.16)'}; border: 1px solid ${isCust ? 'rgba(56, 189, 248, 0.38)' : 'rgba(16, 185, 129, 0.38)'}; color: ${isCust ? '#7dd3fc' : '#6ee7b7'}; font-weight: 600;">${isCust ? '➕ ' : '✓ '}${esc(t)}</span>`;
+            }).join('')}
+           </div>`
+        : '';
+
+      containers.forEach((box, boxIdx) => {
+        const inpId = `inlineSelfImproveInput_${aid}_${boxIdx}`;
+        const btnId = `btnInlineSelfImprove_${aid}_${boxIdx}`;
+        box.innerHTML = `
+          <div style="padding: 10px 14px; border-radius: 10px; background: linear-gradient(135deg, rgba(88, 28, 135, 0.18), rgba(15, 23, 42, 0.78)); border: 1px solid rgba(168, 85, 247, 0.35);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span style="font-size: 14px;">✨</span>
+                <strong style="font-size: 12.5px; color: #e9d5ff;">Self-Improvement &amp; Feature Evolution (${esc(agent.name)})</strong>
+                <span class="badge" style="background: ${imps.length > 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(168, 85, 247, 0.2)'}; color: ${imps.length > 0 ? '#6ee7b7' : '#d8b4fe'}; border: 1px solid ${imps.length > 0 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(168, 85, 247, 0.4)'}; font-size: 10.5px;">
+                  ${imps.length} Undertaken
+                </span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 7px; flex-wrap: wrap; flex: 1; justify-content: flex-end; min-width: 280px;">
+                <input type="text" id="${inpId}" placeholder="➕ Type manual improvement for ${esc(agent.name)} to undertake..." onkeydown="if(event.key==='Enter'){event.preventDefault();FleetNavigator.quickAddManualImprovementInline('${aid}', '${inpId}', '${btnId}');}" style="flex: 1; max-width: 360px; min-width: 190px; padding: 5px 10px; border-radius: 6px; background: rgba(2, 6, 23, 0.75); border: 1px solid rgba(56, 189, 248, 0.35); color: #f8fafc; font-size: 11.5px;">
+                <button id="${btnId}" title="Have '${esc(agent.name)}' undertake this manual improvement immediately" type="button" class="btn" onclick="FleetNavigator.quickAddManualImprovementInline('${aid}', '${inpId}', '${btnId}')" style="padding: 5px 10px; font-size: 11px; border-color: rgba(56, 189, 248, 0.45); color: #38bdf8; font-weight: 600;">➕ Undertake Manual Item</button>
+                <button title="Open 10 AI-generated feature improvements for '${esc(agent.name)}' and select which ones to apply" type="button" class="btn btn-primary" onclick="openEvolveAgentModal('${aid}')" style="padding: 5px 11px; font-size: 11px; font-weight: 700; background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(6, 182, 212, 0.35)); border: 1px solid rgba(168, 85, 247, 0.6); color: #f8fafc;">✨ 10 Ways to Improve</button>
+              </div>
+            </div>
+            ${pillsHtml}
+          </div>
+        `;
+      });
+    });
+  },
+
+  async quickAddManualImprovementInline(agentId, inputId, btnId) {
+    const inp = document.getElementById(inputId);
+    const text = (inp ? inp.value : '').trim();
+    if (!text) {
+      if (typeof showFleetToast === 'function') {
+        showFleetToast('Type a manual improvement item first, or click "✨ 10 Ways to Improve".', true);
+      }
+      if (inp) inp.focus();
+      return;
+    }
+    const btn = document.getElementById(btnId);
+    const origText = btn ? btn.textContent : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '⏳ Undertaking...';
+    }
+    try {
+      let parsedItem = {
+        id: `custom_${Date.now()}`,
+        title: text.length <= 75 ? text : text.slice(0, 72) + '...',
+        description: `User-specified manual self-improvement: ${text}`,
+        code_enhancement_brief: text,
+        is_custom: true,
+      };
+      try {
+        const parseRes = await fetch('/api/studio/evolve/parse_custom', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: agentId, text }),
+        });
+        if (parseRes.ok) {
+          const parseData = await parseRes.json();
+          if (parseData && parseData.suggestion) {
+            parsedItem = {
+              id: parseData.suggestion.id || parsedItem.id,
+              title: parseData.suggestion.title || parsedItem.title,
+              description: parseData.suggestion.description || parsedItem.description,
+              code_enhancement_brief: parseData.suggestion.patch?.code_enhancement_brief || text,
+              is_custom: true,
+            };
+          }
+        }
+      } catch (_) {}
+
+      const agent = this.agents.find(a => a.id === agentId);
+      const existingImps = Array.isArray(agent?.evolution_improvements) ? agent.evolution_improvements : [];
+      const res = await fetch('/api/settings/agents/evolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: agentId,
+          evolution_improvements: [...existingImps, parsedItem],
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.status === 'error') {
+        throw new Error(data.message || 'Could not apply manual improvement.');
+      }
+      if (inp) inp.value = '';
+      await this.fetchFleetData();
+      this.renderActiveAgentSelfImprovementsBanner(agentId);
+      if (typeof showFleetToast === 'function') {
+        showFleetToast(`✨ '${agent?.name || agentId}' undertook manual improvement: "${parsedItem.title}"!`, false);
+      }
+    } catch (err) {
+      if (typeof showFleetToast === 'function') {
+        showFleetToast(`✕ Failed to undertake manual improvement: ${err.message}`, true);
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = origText || '➕ Undertake Manual Item';
       }
     }
   },

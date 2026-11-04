@@ -788,13 +788,6 @@ async function openEvolveAgentModal(agentId) {
       throw new Error(`Could not load agent '${agentId}' for Studio evolution.`);
     }
 
-    if (!manifest.is_custom) {
-      if (typeof openAgentSettingsDrawer === 'function') {
-        openAgentSettingsDrawer(agentId);
-      }
-      return;
-    }
-
     wizardEditAgentId = manifest.id;
 
     const titleEl = document.getElementById('wizardModalTitle');
@@ -804,12 +797,13 @@ async function openEvolveAgentModal(agentId) {
     const submitBtn = document.getElementById('btnWizardSubmit');
     const expressBtn = document.getElementById('btnStudioExpressLaunch');
 
-    if (titleEl) titleEl.textContent = `✨ Evolve '${manifest.name}' in Studio`;
-    if (subEl) subEl.textContent = 'Pick from 10 AI-tailored improvements, add your own custom enhancements, or adjust any Studio control — existing records are 100% preserved.';
-    if (badgeEl) badgeEl.textContent = 'In-Place Evolution Mode';
+    const agentTypeLabel = manifest.is_custom ? 'Custom Studio Agent' : 'Built-In Core Agent';
+    if (titleEl) titleEl.textContent = `✨ 10 Ways to Improve '${manifest.name}'`;
+    if (subEl) subEl.textContent = `Select any of the 10 AI-generated feature improvements below, or enter your own manual items for '${manifest.name}' (${agentTypeLabel}) to undertake and improve itself.`;
+    if (badgeEl) badgeEl.textContent = '10-Way AI Self-Improvement Mode';
     if (promptTitle) promptTitle.textContent = '✨ Describe New Capabilities or Refinements (Optional Re-Synthesize)';
-    if (submitBtn) submitBtn.textContent = '✨ Save & Hot-Reload Agent';
-    if (expressBtn) expressBtn.textContent = '✨ 1-Click Save & Reload';
+    if (submitBtn) submitBtn.textContent = '✨ Undertake Selected & Hot-Reload';
+    if (expressBtn) expressBtn.textContent = '✨ 1-Click Undertake & Reload';
 
     const baseSpec = {
       agent_id: manifest.id,
@@ -3237,16 +3231,24 @@ async function submitCreateAgentWizard(opts = {}) {
       loadSettingsData();
     }
 
+    const undertakenCount = Number(
+      data.undertaken_summary?.undertaken_count ||
+      (Array.isArray(spec.evolution_improvements) ? spec.evolution_improvements.length : 0)
+    );
     const seedParts = [];
     if (seededDocsCount > 0) seedParts.push(`${seededDocsCount} attachment(s) vaulted`);
     if (seededCount > 0) seedParts.push(`${seededCount} item(s) tracked`);
     const seedNote = seedParts.length > 0 ? ` (${seedParts.join(', ')})` : '';
     showFleetToast(
       isEvolve
-        ? `✨ '${spec.name}' evolved & hot-reloaded (SQLite records preserved)!`
+        ? `✨ '${spec.name}' undertook ${undertakenCount || 'selected'} self-improvement(s) & hot-reloaded!`
         : `🎉 '${spec.name}' created, scheduled & activated${seedNote}!`,
       false
     );
+
+    if (nav && typeof nav.renderActiveAgentSelfImprovementsBanner === 'function') {
+      nav.renderActiveAgentSelfImprovementsBanner(newlyCreatedAgentId);
+    }
 
     if (opts.expressOpen || isEvolve) {
       openNewlyCreatedAgent();

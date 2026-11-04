@@ -11,6 +11,7 @@ import html as html_lib
 import json
 import logging
 import os
+from pathlib import Path
 import re
 import shutil
 import sys
@@ -1425,9 +1426,15 @@ def build_antigravity_deep_build_prompt(spec: Dict[str, Any]) -> str:
     if evo_lines:
         evo_section = "- Requested Evolution Improvements & Custom Logic:\n" + "\n".join(evo_lines) + "\n"
 
+    builtin_dir = Path(__file__).resolve().parent.parent / "agents" / ag_id
+    is_builtin_agent = (spec.get("is_custom") is False) or (builtin_dir.is_dir() and spec.get("is_custom") is not True)
+    pkg_dir = f"fleet/agents/{ag_id}/" if is_builtin_agent else f"fleet/data/user/custom_agents/{ag_id}/"
+    test_path = f"tests/test_{ag_id}_agent.py" if is_builtin_agent else f"tests/test_custom_{ag_id}.py"
+    agent_kind_label = "built-in Fleet agent" if is_builtin_agent else "Fleet custom agent"
+
     return (
-        f"Deep-build custom business logic and unit tests for my Fleet custom agent '{icon} {name}' (ID: `{ag_id}`).\n"
-        f"- Package Directory: `fleet/data/user/custom_agents/{ag_id}/` (`agent.py`, `manifest.json`, `ui/panel.html`)\n"
+        f"Deep-build custom business logic and unit tests for my {agent_kind_label} '{icon} {name}' (ID: `{ag_id}`).\n"
+        f"- Package Directory: `{pkg_dir}` (`agent.py`, `manifest.json`, `ui/panel.html`)\n"
         f"- Category & Archetype: `{category}` / `{archetype}` (Intelligence Mode: `{intel}`)\n"
         f"- Operational Goal: {desc}\n"
         f"- Typed SQLite Fields: {fields_summary}\n"
@@ -1435,8 +1442,8 @@ def build_antigravity_deep_build_prompt(spec: Dict[str, Any]) -> str:
         f"- Routine Task & Event Triggers: `{routine_task}` | Triggers: `{triggers_summary}`{hooks_summary}\n"
         f"- Allowed Sandbox Permissions: `{', '.join(perms)}` (maintain 100/100 on `python -X utf8 -m fleet.tools.security_scanner` and 0 Pyright/Pylance errors by checking `self.db is not None` and binding optional dicts to local variables before `.get()`)\n"
         f"{evo_section}"
-        f"Please enhance `execute_task()` in `fleet/data/user/custom_agents/{ag_id}/agent.py` with rich domain-specific validation/analytics "
-        f"and add unit tests in `tests/test_custom_{ag_id}.py`."
+        f"Please enhance `execute_task()` in `{pkg_dir}agent.py` with rich domain-specific validation/analytics "
+        f"and add unit tests in `{test_path}`."
     )
 
 
@@ -1824,6 +1831,1576 @@ def _detect_evolution_domain_flavor(agent_manifest: Dict[str, Any]) -> str:
     return "general"
 
 
+BUILTIN_AGENT_10_IMPROVEMENTS: Dict[str, List[Dict[str, Any]]] = {
+    "health": [
+        {
+            "id": "health_antigravity_stair_countdown",
+            "title": "Post-Meal 1h45m Antigravity Stair-Climbing Countdown & Alert",
+            "description": "Fire a desktop toast reminder 1 hour and 45 minutes after meals to trigger the 5-7 minute 8-10 stair glycemic siphon protocol.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "🏃‍♂️",
+            "patch": {
+                "add_outbound_actions": ["desktop_toast"],
+                "system_prompt_directive": "Enforce the FFD 1h45m post-meal Antigravity stair-climbing window (8-10 steps for 5-7 mins) and highlight compliance.",
+                "code_enhancement_brief": "Track post-meal 1h45m Antigravity stair-climbing windows and emit timely reminder notifications.",
+            },
+        },
+        {
+            "id": "health_glycemic_delta_analyzer",
+            "title": "Glycemic Variability & Fasting-to-PPBS Delta Analyzer",
+            "description": "Compute 2-hour post-prandial glucose excursion deltas (PPBS minus Fasting) and flag >40 mg/dL spikes with meal correlations.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🩸",
+            "patch": {
+                "system_prompt_directive": "Analyze Fasting vs. 2hr Post-Prandial glucose excursion deltas (>40 mg/dL) and recommend 25-25-50% plate adjustments.",
+                "code_enhancement_brief": "Calculate daily fasting-to-PPBS glucose deltas and flag glycemic variability spikes in execute_task().",
+            },
+        },
+        {
+            "id": "health_hba1c_trajectory_forecaster",
+            "title": "HbA1c 90-Day Trajectory Forecaster (Target <6.4%)",
+            "description": "Estimate rolling eAG and projected HbA1c from logged glucose readings against your <6.4% FFD Phase 1.1 target.",
+            "category": "UI & Analytics",
+            "impact": "high",
+            "icon": "📉",
+            "patch": {
+                "add_blocks": ["sparkline_chart"],
+                "system_prompt_directive": "Project rolling estimated HbA1c (eAG) from logged glucose readings against the <6.4% target.",
+                "code_enhancement_brief": "Compute rolling eAG and estimated HbA1c trajectory from fasting_glucose and pp_glucose logs.",
+            },
+        },
+        {
+            "id": "health_med_adherence_streak_guard",
+            "title": "Medication & Supplement Adherence Streak Guard",
+            "description": "Detect missed IST morning/evening prescription doses and automatically create a priority follow-up reminder.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "💊",
+            "patch": {
+                "add_outbound_actions": ["auto_create_task"],
+                "system_prompt_directive": "Audit daily IST prescription and supplement adherence and flag any missed doses immediately.",
+                "code_enhancement_brief": "Cross-check scheduled medications against today's taken logs and report adherence percentage.",
+            },
+        },
+        {
+            "id": "health_akhada_progression_tracker",
+            "title": "Akhada Workload Progression Tracker (Mudgal, Samtola & Gadha)",
+            "description": "Track rotational volume, set counts, and mandatory World's Best Warm-up compliance across Mon/Wed/Fri Akhada strength sessions.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🪵",
+            "patch": {
+                "system_prompt_directive": "Track weekly progression across Monday Mudgal, Wednesday Samtola, Friday Bhim Gadha, and Sunday Rest protocols.",
+                "code_enhancement_brief": "Include weekday-specific Akhada training readiness and warm-up compliance in execute_task().",
+            },
+        },
+        {
+            "id": "health_hepatic_lipid_reversal_audit",
+            "title": "Hepatic & Lipid Biomarker Reversal Audit (SGPT/ALT & AIP)",
+            "description": "Monitor SGPT/ALT liver recovery, Atherogenic Index of Plasma (Triglycerides/HDL), and C-Peptide insulin resistance trends.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🔬",
+            "patch": {
+                "system_prompt_directive": "Cross-reference SGPT/ALT, Triglycerides/HDL ratio (AIP), and Fasting C-Peptide against metabolic reversal benchmarks.",
+                "code_enhancement_brief": "Add biomarker threshold checks for SGPT/ALT, AIP ratio, and C-Peptide in health diagnostics.",
+            },
+        },
+        {
+            "id": "health_shahi_pani_hydration_pacer",
+            "title": "Hydration Velocity & Shahi Pani Cadence Optimizer",
+            "description": "Pace 250ml glass intake every 45 minutes based on IST time-of-day so the 2,500ml daily goal finishes before 8:00 PM.",
+            "category": "UI & Analytics",
+            "impact": "medium",
+            "icon": "💧",
+            "patch": {
+                "system_prompt_directive": "Calculate expected hydration ml by current IST hour and recommend Shahi Pani / Green Smoothie catch-up glasses.",
+                "code_enhancement_brief": "Compute expected intraday hydration pace vs. actual water_ml logged.",
+            },
+        },
+        {
+            "id": "health_sleep_glucose_correlation",
+            "title": "Sleep-to-Fasting-Glucose Correlation Engine",
+            "description": "Correlate <7-hour sleep nights with next-morning Dawn Phenomenon fasting glucose elevations.",
+            "category": "Domain Intelligence",
+            "impact": "medium",
+            "icon": "💤",
+            "patch": {
+                "system_prompt_directive": "Correlate night sleep duration (<7h vs 7-9h) with next-day fasting blood sugar readings.",
+                "code_enhancement_brief": "Analyze sleep_hours vs. fasting_glucose pairs to detect sleep-deprivation glycemic spikes.",
+            },
+        },
+        {
+            "id": "health_lab_pdf_vault_extractor",
+            "title": "Lab Report & Prescription PDF Auto-Extractor",
+            "description": "Ingest diagnostic lab PDFs and doctor prescription scans into structured biomarker records.",
+            "category": "Schema & Extraction",
+            "impact": "high",
+            "icon": "📄",
+            "patch": {
+                "add_blocks": ["document_vault"],
+                "set_auto_ingest_inbox": True,
+                "code_enhancement_brief": "Support automatic extraction of biomarker ranges from vaulted lab PDFs.",
+            },
+        },
+        {
+            "id": "health_morning_briefing_sync",
+            "title": "Daily Morning Health Readiness & Briefing Sync",
+            "description": "Sync today's hydration target, scheduled workout, and medication status into `overview.morning_briefing`.",
+            "category": "EventBus & Schedule",
+            "impact": "medium",
+            "icon": "🌅",
+            "patch": {
+                "add_event_triggers": ["overview.morning_briefing"],
+                "code_enhancement_brief": "Publish daily health readiness digest when overview.morning_briefing fires.",
+            },
+        },
+        {
+            "id": "health_nod_fallback_scheduler",
+            "title": "Nitric Oxide Dump (NOD) Fallback Auto-Scheduler",
+            "description": "Prompt a 2-minute 3-round Nitric Oxide Dump session whenever stair climbing is missed or delayed.",
+            "category": "Automation & Hooks",
+            "impact": "medium",
+            "icon": "💨",
+            "patch": {
+                "system_prompt_directive": "Recommend the 2-minute Modified Nitric Oxide Dump (NOD) protocol whenever post-meal stair climbing is unavailable.",
+                "code_enhancement_brief": "Provide NOD fallback recommendation in health routine checks.",
+            },
+        },
+        {
+            "id": "health_weekly_markdown_digest",
+            "title": "Weekly Markdown Metabolic Reversal Digest Export",
+            "description": "Export a timestamped weekly Markdown report summarizing glucose trends, weight, hydration %, and workout completion.",
+            "category": "Automation & Hooks",
+            "impact": "medium",
+            "icon": "📝",
+            "patch": {
+                "add_outbound_actions": ["markdown_report"],
+                "code_enhancement_brief": "Generate a weekly metabolic reversal Markdown digest report.",
+            },
+        },
+    ],
+    "overview": [
+        {
+            "id": "overview_cross_agent_risk_matrix",
+            "title": "Cross-Agent Risk & SLA Priority Matrix (Top-3 Actions)",
+            "description": "Synthesize warnings across all active Fleet agents into a ranked Top-3 Morning Executive Action list.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🎯",
+            "patch": {
+                "system_prompt_directive": "Rank all cross-agent alerts, P1 tasks, and 15-day renewals into a Top-3 immediate action matrix.",
+                "code_enhancement_brief": "Aggregate warning statuses across registered agents into a prioritized top_actions list.",
+            },
+        },
+        {
+            "id": "overview_spoken_briefing_chapters",
+            "title": "Spoken Audio Briefing Prosody & Executive Chaptering",
+            "description": "Structure daily TTS audio briefings into crisp 60-second Headline, Priority Tasks, Health, and DevOps chapters.",
+            "category": "UI & Analytics",
+            "impact": "high",
+            "icon": "🔊",
+            "patch": {
+                "system_prompt_directive": "Format executive briefings into concise spoken-friendly chapters (Headline, P1 Tasks, Health, DevOps).",
+                "code_enhancement_brief": "Add structured chapter summaries optimized for Web Speech TTS playback.",
+            },
+        },
+        {
+            "id": "overview_stale_p1_task_escalation",
+            "title": "Stale P1/P2 Task Escalation & Auto-Carryover Guard",
+            "description": "Flag high-priority tasks pending for >72 hours with a desktop toast alert and decomposition suggestion.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "🚨",
+            "patch": {
+                "add_outbound_actions": ["desktop_toast"],
+                "system_prompt_directive": "Identify P1/P2 tasks older than 72 hours and recommend immediate 1-step unblocking actions.",
+                "code_enhancement_brief": "Scan open tasks for age >72h and flag stale P1/P2 items in briefing output.",
+            },
+        },
+        {
+            "id": "overview_meeting_prep_dossier",
+            "title": "Calendar & Meeting Prep Dossier Synthesizer",
+            "description": "Link upcoming calendar meetings with matching email threads and open action items 15 minutes before start.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "📅",
+            "patch": {
+                "system_prompt_directive": "Correlate today's meetings with recent email subjects and open tasks to provide a pre-meeting cheat sheet.",
+                "code_enhancement_brief": "Match upcoming meeting titles against recent emails and open tasks in briefing generation.",
+            },
+        },
+        {
+            "id": "overview_unit_test_regression_sentinel",
+            "title": "30-Minute Unit Test & Coverage Regression Sentinel",
+            "description": "Surface immediate warning banners if background pytest pass rate drops below 100% or code coverage dips.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "🧪",
+            "patch": {
+                "add_event_triggers": ["agent.alert"],
+                "system_prompt_directive": "Highlight unit test pass rate, test count, and coverage regressions in executive status checks.",
+                "code_enhancement_brief": "Verify latest test_runs pass rate and include regression alerts in overview health checks.",
+            },
+        },
+        {
+            "id": "overview_eod_win_ledger_export",
+            "title": "End-of-Day Win Ledger & Tomorrow Top-3 Markdown Export",
+            "description": "Write an evening Markdown wrap-up of completed tasks, habit streaks, and tomorrow's highest-leverage priorities.",
+            "category": "Automation & Hooks",
+            "impact": "medium",
+            "icon": "📝",
+            "patch": {
+                "add_outbound_actions": ["markdown_report"],
+                "code_enhancement_brief": "Generate an End-of-Day win ledger and next-day priority plan in Markdown.",
+            },
+        },
+        {
+            "id": "overview_habit_streak_velocity",
+            "title": "Routine & Habit Streak Velocity Scorecard",
+            "description": "Compute 7-day consistency scores across daily routines and highlight streaks at risk before evening quiet hours.",
+            "category": "UI & Analytics",
+            "impact": "medium",
+            "icon": "🔄",
+            "patch": {
+                "add_blocks": ["sparkline_chart"],
+                "system_prompt_directive": "Track daily routine completion percentage and nudge unchecked evening habits before quiet hours.",
+                "code_enhancement_brief": "Compute routine completion percentage and streak velocity in overview metrics.",
+            },
+        },
+        {
+            "id": "overview_zero_token_savings_ledger",
+            "title": "Zero-Token ($0.00) vs. LLM Compute Savings Telemetry",
+            "description": "Quantify daily tasks handled deterministically at $0.00 vs. cloud LLM calls across all active agents.",
+            "category": "UI & Analytics",
+            "impact": "medium",
+            "icon": "💰",
+            "patch": {
+                "system_prompt_directive": "Report the ratio of $0.00 Tier-0 deterministic executions vs. paid LLM token invocations.",
+                "code_enhancement_brief": "Include Tier-0 zero-token execution ratio and estimated token savings in overview telemetry.",
+            },
+        },
+        {
+            "id": "overview_paper_trail_aggregator",
+            "title": "Incoming Paper-Trail & Alert Event Auto-Aggregator",
+            "description": "Subscribe to `gmail.paper_trail_detected` so newly detected bills and policies surface in the Overview feed.",
+            "category": "EventBus & Schedule",
+            "impact": "medium",
+            "icon": "📬",
+            "patch": {
+                "add_event_triggers": ["gmail.paper_trail_detected"],
+                "code_enhancement_brief": "Aggregate recent gmail.paper_trail_detected events into the executive briefing.",
+            },
+        },
+        {
+            "id": "overview_focus_block_advisor",
+            "title": "Deep-Work Focus Block & P1 Task Matcher",
+            "description": "Identify open 90-minute calendar windows and pair them with your highest-priority P1 engineering or life tasks.",
+            "category": "Domain Intelligence",
+            "impact": "medium",
+            "icon": "🧠",
+            "patch": {
+                "system_prompt_directive": "Recommend pairing open 90-minute focus blocks with the top uncompleted P1 task.",
+                "code_enhancement_brief": "Suggest focus-block task pairings based on open P1/P2 tasks.",
+            },
+        },
+        {
+            "id": "overview_bento_anomaly_promoter",
+            "title": "Bento Micro-Widget Warning Auto-Promoter",
+            "description": "Automatically sort any agent micro-widget with overdue or warning status to the front of the Overview cockpit.",
+            "category": "UI & Analytics",
+            "impact": "medium",
+            "icon": "⚡",
+            "patch": {
+                "code_enhancement_brief": "Sort micro-widgets with warning or overdue states to the top of the Bento grid.",
+            },
+        },
+        {
+            "id": "overview_weekly_portfolio_scorecard",
+            "title": "Weekly Fleet Operations Health Scorecard (0–100)",
+            "description": "Calculate a composite 0–100 Fleet Operational Score combining task velocity, test health, security score, and habit adherence.",
+            "category": "Domain Intelligence",
+            "impact": "medium",
+            "icon": "🏆",
+            "patch": {
+                "system_prompt_directive": "Lead executive summaries with a composite 0-100 Fleet Operational Health Score.",
+                "code_enhancement_brief": "Compute a 0-100 composite operational health score across tasks, routines, and tests.",
+            },
+        },
+    ],
+    "antigravity": [
+        {
+            "id": "ag_complexity_model_autorouter",
+            "title": "Smart Complexity-Based Model Tier Auto-Router",
+            "description": "Automatically route quick status queries to Flash-Low ($0.00/low-latency) and multi-file architecture tasks to Pro/Opus tiers.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🧭",
+            "patch": {
+                "system_prompt_directive": "Match prompt complexity to the optimal model tier (Flash-Low for quick lookups, Pro/Opus for multi-file refactors).",
+                "code_enhancement_brief": "Classify prompt complexity to recommend Flash vs. Pro/Opus model routing.",
+            },
+        },
+        {
+            "id": "ag_context_compaction_guard",
+            "title": "Proactive 80% Context Window Compaction & Vault Guard",
+            "description": "Fire a desktop toast alert when context utilization crosses 80% and auto-snapshot pending prompts to the Token Vault.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "📦",
+            "patch": {
+                "add_outbound_actions": ["desktop_toast"],
+                "system_prompt_directive": "Monitor context window utilization and recommend /compact or Token Vault preservation before hitting 80%.",
+                "code_enhancement_brief": "Emit a proactive warning and vault snapshot when token utilization exceeds 80%.",
+            },
+        },
+        {
+            "id": "ag_hyperscaler_failover_verifier",
+            "title": "Multi-Hyperscaler Failover Chain Health Verifier",
+            "description": "Verify live CLI & API readiness across Google Gemini, Anthropic Claude, Azure Copilot, AWS Bedrock, and Local Ollama.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "☁️",
+            "patch": {
+                "system_prompt_directive": "Maintain an ordered failover chain across configured hyperscalers and local Ollama models.",
+                "code_enhancement_brief": "Audit configured hyperscaler providers and report active failover readiness in execute_task().",
+            },
+        },
+        {
+            "id": "ag_parallel_slot_load_balancer",
+            "title": "Parallel Agent Slot Load Balancer & Fast-Track Queue",
+            "description": "Prioritize P1 engineering prompts and automatically drain queued tasks as parallel execution slots become available.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "⚡",
+            "patch": {
+                "system_prompt_directive": "Prioritize P1 tasks in the parallel agent slot queue and maximize concurrent throughput.",
+                "code_enhancement_brief": "Optimize parallel agent slot allocation and queue drainage priority.",
+            },
+        },
+        {
+            "id": "ag_workspace_diff_context_injector",
+            "title": "Auto-Attach Active Git Diff & Failing Test Context",
+            "description": "Automatically enrich debugging prompts with current `git status` and recent failing pytest tracebacks.",
+            "category": "Schema & Extraction",
+            "impact": "high",
+            "icon": "🔍",
+            "patch": {
+                "system_prompt_directive": "When troubleshooting errors, inspect active git diffs and latest pytest failure tracebacks first.",
+                "code_enhancement_brief": "Attach concise git status and failing test context to diagnostic engineering prompts.",
+            },
+        },
+        {
+            "id": "ag_zero_token_pattern_promoter",
+            "title": "Token-to-Zero-Token ($0.00) Pattern Promoter",
+            "description": "Detect repeated LLM queries that can be answered by `$0.00` deterministic Fleet Chat commands and surface 1-click chips.",
+            "category": "UI & Analytics",
+            "impact": "medium",
+            "icon": "💚",
+            "patch": {
+                "system_prompt_directive": "Point out when a recurring query can be executed at $0.00 via deterministic @agent Omnibar commands.",
+                "code_enhancement_brief": "Identify prompts matching deterministic Tier-0 capabilities and suggest $0.00 shortcuts.",
+            },
+        },
+        {
+            "id": "ag_reusable_prompt_playbooks",
+            "title": "1-Click Engineering Playbook Chips (/audit, /release, /fix)",
+            "description": "Add structured 1-click prompt templates for Security Audit, Pre-Release Check, Pyright Fix, and Test Gap Generation.",
+            "category": "UI & Analytics",
+            "impact": "medium",
+            "icon": "🛠️",
+            "patch": {
+                "code_enhancement_brief": "Expose reusable engineering prompt templates for /audit, /release, and /test-gap workflows.",
+            },
+        },
+        {
+            "id": "ag_vault_autoresume_fallback",
+            "title": "Vaulted Prompt Auto-Resume with Fallback Model Tier",
+            "description": "Automatically resume vaulted token-exhausted prompts using the next healthy fallback model (`gemini-3.8-flash-low` or `ollama`).",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "🔄",
+            "patch": {
+                "add_outbound_actions": ["auto_create_task"],
+                "code_enhancement_brief": "Support automatic fallback model selection when resuming prompts from the Token Preservation Vault.",
+            },
+        },
+        {
+            "id": "ag_screenshot_ui_diff_inspector",
+            "title": "Pasted Screenshot & UI Alignment Diagnostic Extractor",
+            "description": "When an image attachment is pasted (Ctrl+V), extract a structured DOM/CSS verification checklist.",
+            "category": "Schema & Extraction",
+            "impact": "medium",
+            "icon": "🖼️",
+            "patch": {
+                "system_prompt_directive": "For pasted UI screenshots, output a numbered root-cause and CSS/JS file fix checklist.",
+                "code_enhancement_brief": "Enrich image-attached prompts with UI component and template mapping hints.",
+            },
+        },
+        {
+            "id": "ag_transcript_markdown_exporter",
+            "title": "Session Transcript & Reasoning Markdown Digest Export",
+            "description": "Export multi-turn Antigravity engineering transcripts and tool call summaries to timestamped Markdown files.",
+            "category": "Automation & Hooks",
+            "impact": "medium",
+            "icon": "📝",
+            "patch": {
+                "add_outbound_actions": ["markdown_report"],
+                "code_enhancement_brief": "Export recent conversation steps and engineering outcomes to a Markdown report.",
+            },
+        },
+        {
+            "id": "ag_outbound_pii_redaction_gate",
+            "title": "Pre-Dispatch PII & Secret Redaction Gate",
+            "description": "Scan outbound prompts against `pii_blocklist.json` and secret regexes before sending to external cloud hyperscalers.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🛡️",
+            "patch": {
+                "system_prompt_directive": "Never include personal filesystem paths or raw credentials in outbound cloud prompts.",
+                "code_enhancement_brief": "Verify outbound prompt sanitization against PII and secret patterns.",
+            },
+        },
+        {
+            "id": "ag_post_build_quality_gate",
+            "title": "Post-Build Pyright & 12-Layer Security Auto-Check",
+            "description": "Trigger an automatic 0-diagnostic Pyright and 100/100 Security Scanner check after agent code generation.",
+            "category": "EventBus & Schedule",
+            "impact": "medium",
+            "icon": "✅",
+            "patch": {
+                "add_event_triggers": ["agent.alert"],
+                "code_enhancement_brief": "Run post-build AST and security validation after Deep-Build code generation.",
+            },
+        },
+    ],
+    "backlog": [
+        {
+            "id": "backlog_rice_priority_scorer",
+            "title": "Automated Impact-vs-Effort RICE Priority Scorer",
+            "description": "Score backlog items by Reach, Impact, Confidence, and Effort so the highest-ROI features bubble to the top.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🎯",
+            "patch": {
+                "system_prompt_directive": "Rank backlog features using a RICE (Reach, Impact, Confidence, Effort) rubric and highlight P1 quick wins.",
+                "code_enhancement_brief": "Compute deterministic priority scores across backlog items in execute_task().",
+            },
+        },
+        {
+            "id": "backlog_dispatch_to_deep_build",
+            "title": "1-Click Dispatch Backlog Feature to Antigravity Deep-Build",
+            "description": "Convert any selected backlog item into a structured engineering brief with target files and unit test requirements.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "🚀",
+            "patch": {
+                "add_outbound_actions": ["emit_followup_event"],
+                "system_prompt_directive": "Generate implementation-ready engineering briefs with target modules and pytest cases for backlog items.",
+                "code_enhancement_brief": "Format backlog items into structured Antigravity engineering briefs.",
+            },
+        },
+        {
+            "id": "backlog_git_tag_reconciliation",
+            "title": "Git Commit & Release Tag Auto-Reconciliation",
+            "description": "Cross-check recent Git commit messages and release tags (`v2.x`) to flag implemented backlog items ready to mark Completed.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🏷️",
+            "patch": {
+                "system_prompt_directive": "Reconcile open backlog items against recent Git commits and release tags to keep completion status accurate.",
+                "code_enhancement_brief": "Audit backlog status distribution and completion percentage by target release version.",
+            },
+        },
+        {
+            "id": "backlog_dependency_blocker_detector",
+            "title": "Feature Dependency & Prerequisite Blocker Detector",
+            "description": "Identify foundational Core/DB backlog items that should be completed before dependent UI/UX features.",
+            "category": "Domain Intelligence",
+            "impact": "medium",
+            "icon": "🔗",
+            "patch": {
+                "system_prompt_directive": "Sequence Core and Database backlog items ahead of dependent UI or Integration items.",
+                "code_enhancement_brief": "Group backlog items by architectural layer (Core -> API -> UI) to surface execution order.",
+            },
+        },
+        {
+            "id": "backlog_wip_limit_bottleneck_alert",
+            "title": "Stale 'In Progress' WIP Limit & Bottleneck Alert",
+            "description": "Fire a desktop toast when more than 3 P1 items remain 'In Progress' simultaneously or stall for >7 days.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "🔔",
+            "patch": {
+                "add_outbound_actions": ["desktop_toast"],
+                "code_enhancement_brief": "Check In-Progress WIP count and alert if P1 items exceed WIP threshold.",
+            },
+        },
+        {
+            "id": "backlog_release_changelog_generator",
+            "title": "Release Milestone Readiness & Changelog Markdown Exporter",
+            "description": "Group completed backlog features by target version (`v2.x`) and export formatted release notes to Markdown.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "📝",
+            "patch": {
+                "add_outbound_actions": ["markdown_report"],
+                "code_enhancement_brief": "Generate version-grouped Markdown release notes from completed backlog items.",
+            },
+        },
+        {
+            "id": "backlog_test_coverage_mapper",
+            "title": "Automated Test Suite Mapping per Backlog Feature ID",
+            "description": "Verify that every completed `UX-*` and roadmap feature has corresponding unit tests in `tests/`.",
+            "category": "Schema & Extraction",
+            "impact": "medium",
+            "icon": "🧪",
+            "patch": {
+                "system_prompt_directive": "Ensure every completed backlog feature is paired with regression tests in tests/.",
+                "code_enhancement_brief": "Report test verification status alongside completed backlog features.",
+            },
+        },
+        {
+            "id": "backlog_issue_auto_importer",
+            "title": "GitHub Issue & Sentinel Error Auto-Escalation to Backlog",
+            "description": "Automatically create structured P1/P2 tasks when new repository issues or recurring runtime warnings are detected.",
+            "category": "Automation & Hooks",
+            "impact": "medium",
+            "icon": "📥",
+            "patch": {
+                "add_outbound_actions": ["auto_create_task"],
+                "add_event_triggers": ["agent.alert"],
+                "code_enhancement_brief": "Escalate recurring agent alerts or open issues into actionable backlog tasks.",
+            },
+        },
+        {
+            "id": "backlog_category_balance_analyzer",
+            "title": "Category Balance & Technical Debt Ratio Analyzer",
+            "description": "Visualize feature distribution across Core, AI/LLM, UI/UX, Security, and Automation categories.",
+            "category": "UI & Analytics",
+            "impact": "medium",
+            "icon": "📊",
+            "patch": {
+                "add_blocks": ["sparkline_chart"],
+                "code_enhancement_brief": "Compute per-category feature breakdown and completion percentages.",
+            },
+        },
+        {
+            "id": "backlog_velocity_burndown_forecast",
+            "title": "Release Velocity & Milestone Completion Forecaster",
+            "description": "Project milestone completion readiness from historical feature throughput and remaining P1/P2 scope.",
+            "category": "Domain Intelligence",
+            "impact": "medium",
+            "icon": "📈",
+            "patch": {
+                "system_prompt_directive": "Provide a milestone completion percentage and remaining P1/P2 burndown summary.",
+                "code_enhancement_brief": "Calculate milestone completion percentage across target versions.",
+            },
+        },
+        {
+            "id": "backlog_duplicate_feature_audit",
+            "title": "Duplicate & Overlapping Feature Consolidation Audit",
+            "description": "Flag backlog items with overlapping titles or scope so redundant work is merged early.",
+            "category": "Domain Intelligence",
+            "impact": "medium",
+            "icon": "🧹",
+            "patch": {
+                "system_prompt_directive": "Detect overlapping or duplicate feature proposals and suggest consolidating them.",
+                "code_enhancement_brief": "Scan backlog titles for potential duplicate or overlapping entries.",
+            },
+        },
+        {
+            "id": "backlog_morning_briefing_sync",
+            "title": "Daily Morning Roadmap & Active P1 Sync",
+            "description": "Sync active 'In Progress' P1 features into `overview.morning_briefing`.",
+            "category": "EventBus & Schedule",
+            "impact": "medium",
+            "icon": "🌅",
+            "patch": {
+                "add_event_triggers": ["overview.morning_briefing"],
+                "code_enhancement_brief": "Include active In-Progress P1 roadmap items during morning briefing checks.",
+            },
+        },
+    ],
+    "optimizer": [
+        {
+            "id": "opt_proactive_ram_spike_autotrim",
+            "title": "Proactive 85% RAM Spike Auto-Trim & EventBus Alert",
+            "description": "Automatically trim inactive working sets and emit `optimizer.ram_threshold_exceeded` when system RAM crosses 85%.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "💾",
+            "patch": {
+                "add_outbound_actions": ["desktop_toast", "emit_followup_event"],
+                "system_prompt_directive": "Trigger immediate working-set memory reclamation and alert companion agents when RAM exceeds 85%.",
+                "code_enhancement_brief": "Auto-reclaim working set memory and emit optimizer.ram_threshold_exceeded when RAM >85%.",
+            },
+        },
+        {
+            "id": "opt_runaway_process_sentinel",
+            "title": "Runaway Process & Orphaned Worker Memory Profiler",
+            "description": "Identify background processes consuming >1.5 GB RAM or holding stale locks and surface safe optimization recommendations.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🔍",
+            "patch": {
+                "system_prompt_directive": "Highlight top memory-consuming processes (>1.5 GB) and distinguish essential IDE/browser processes from background bloat.",
+                "code_enhancement_brief": "Flag high-memory background processes and compute reclaimable working-set headroom.",
+            },
+        },
+        {
+            "id": "opt_scheduled_temp_pycache_sweep",
+            "title": "Scheduled Temp Cache & `__pycache__` Deep Sweep",
+            "description": "Automatically purge stale system temp files and compiled bytecode caches when temp bloat exceeds 250 MB.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "🧹",
+            "patch": {
+                "set_schedule_cadence": "daily_morning",
+                "system_prompt_directive": "Recommend or execute temp cache and __pycache__ cleanup whenever reclaimable junk exceeds 250 MB.",
+                "code_enhancement_brief": "Auto-flag temp cache bloat >250 MB and report exact MB reclaimed.",
+            },
+        },
+        {
+            "id": "opt_disk_free_space_velocity",
+            "title": "Disk Free-Space Velocity & Low-Storage Early Warning",
+            "description": "Monitor free GB across `C:` and workspace drives and escalate to Central Tasks if free storage drops below 15%.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "💿",
+            "patch": {
+                "add_outbound_actions": ["auto_create_task"],
+                "system_prompt_directive": "Monitor disk utilization across system and workspace drives and warn when free space drops below 15%.",
+                "code_enhancement_brief": "Check free disk percentage across system and workspace drives in execute_task().",
+            },
+        },
+        {
+            "id": "opt_dns_latency_autoflush",
+            "title": "Network & DNS Resolver Latency Probe with Auto-Flush",
+            "description": "Measure local DNS resolution responsiveness and recommend flushing stale resolver caches on latency spikes.",
+            "category": "Domain Intelligence",
+            "impact": "medium",
+            "icon": "⚡",
+            "patch": {
+                "system_prompt_directive": "Audit DNS resolver responsiveness and recommend cache flushing when API lookup latency spikes.",
+                "code_enhancement_brief": "Include DNS resolver health status in system optimization diagnostics.",
+            },
+        },
+        {
+            "id": "opt_startup_boot_impact_profiler",
+            "title": "Startup Boot Impact Profiler & Deferral Advisor",
+            "description": "Analyze registered Windows/OS startup programs and highlight non-essential launchers slowing down boot time.",
+            "category": "Domain Intelligence",
+            "impact": "medium",
+            "icon": "🚀",
+            "patch": {
+                "system_prompt_directive": "Categorize startup boot programs into Essential Security/Driver vs. Deferrable User Launchers.",
+                "code_enhancement_brief": "Classify startup items by estimated boot impact in get_system_diagnostics().",
+            },
+        },
+        {
+            "id": "opt_sqlite_vacuum_wal_compactor",
+            "title": "SQLite `fleet_memory.db` WAL Checkpoint & Compaction Guard",
+            "description": "Keep AFCC's SQLite database sub-millisecond by checkpointing WAL files and reporting database file size.",
+            "category": "Schema & Extraction",
+            "impact": "high",
+            "icon": "🗄️",
+            "patch": {
+                "system_prompt_directive": "Include SQLite database health and WAL compaction status in workstation tuning reports.",
+                "code_enhancement_brief": "Report fleet_memory.db size and WAL health during optimization scans.",
+            },
+        },
+        {
+            "id": "opt_before_after_delta_ledger",
+            "title": "Before/After Optimization Delta Markdown Ledger",
+            "description": "Write a timestamped Markdown report recording exact MB of RAM freed, temp files deleted, and health score delta.",
+            "category": "Automation & Hooks",
+            "impact": "medium",
+            "icon": "📝",
+            "patch": {
+                "add_outbound_actions": ["markdown_report"],
+                "code_enhancement_brief": "Log before-and-after RAM % and reclaimed MB deltas on every optimization run.",
+            },
+        },
+        {
+            "id": "opt_pre_coding_boost_profile",
+            "title": "1-Click Deep-Work & Local-LLM Memory Boost Profile",
+            "description": "Prepare workstation headroom before heavy coding or local GGUF inference by trimming background working sets.",
+            "category": "UI & Analytics",
+            "impact": "medium",
+            "icon": "🔥",
+            "patch": {
+                "add_blocks": ["sparkline_chart"],
+                "code_enhancement_brief": "Provide a pre-inference / deep-work memory boost summary in execute_task().",
+            },
+        },
+        {
+            "id": "opt_log_rotation_bloat_guard",
+            "title": "Stale Log & Diagnostic Artifact Rotation Guard",
+            "description": "Scan workspace log files and flag oversized logs (>25 MB) for safe rotation.",
+            "category": "Domain Intelligence",
+            "impact": "medium",
+            "icon": "📜",
+            "patch": {
+                "system_prompt_directive": "Flag oversized log or crash dump files (>25 MB) that can be rotated to save disk space.",
+                "code_enhancement_brief": "Check workspace log directory size during temporary bloat scans.",
+            },
+        },
+        {
+            "id": "opt_morning_briefing_health_sync",
+            "title": "Sync Workstation 0–100 Health Score to Morning Briefing",
+            "description": "Publish RAM load, free disk GB, and the 0–100 PC Health Score into `overview.morning_briefing`.",
+            "category": "EventBus & Schedule",
+            "impact": "medium",
+            "icon": "🌅",
+            "patch": {
+                "add_event_triggers": ["overview.morning_briefing"],
+                "code_enhancement_brief": "Publish workstation health score and free disk GB on overview.morning_briefing.",
+            },
+        },
+        {
+            "id": "opt_cross_agent_alert_remediation",
+            "title": "Auto-Diagnostic Triage on Cross-Agent Warnings",
+            "description": "Subscribe to `agent.alert` to verify whether system resource contention caused a companion agent timeout.",
+            "category": "EventBus & Schedule",
+            "impact": "medium",
+            "icon": "🩺",
+            "patch": {
+                "add_event_triggers": ["agent.alert"],
+                "code_enhancement_brief": "Check RAM and disk contention whenever an agent.alert event is received.",
+            },
+        },
+    ],
+    "gmail": [
+        {
+            "id": "gmail_paper_trail_auto_emitter",
+            "title": "Automated Policy, Invoice & Receipt Paper-Trail Emitter",
+            "description": "Detect insurance policies, utility bills, and tax receipts in emails and emit `gmail.paper_trail_detected` to companion agents.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "📄",
+            "patch": {
+                "add_outbound_actions": ["emit_followup_event"],
+                "system_prompt_directive": "Flag billing invoices, policy renewals, and tax receipts and trigger downstream paper-trail handoffs.",
+                "code_enhancement_brief": "Emit gmail.paper_trail_detected with subject and sender metadata when billing/policy emails arrive.",
+            },
+        },
+        {
+            "id": "gmail_respond_sla_task_escalator",
+            "title": "Urgent 'Respond' SLA Timer & Central Task Escalator",
+            "description": "Automatically create a priority task in Overview for `Respond` emails awaiting a reply for >24 hours.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "💬",
+            "patch": {
+                "add_outbound_actions": ["auto_create_task", "desktop_toast"],
+                "system_prompt_directive": "Prioritize unread threads in the 'Respond' category and escalate urgent action items.",
+                "code_enhancement_brief": "Escalate high-priority Respond emails into actionable tasks.",
+            },
+        },
+        {
+            "id": "gmail_meeting_ics_agenda_extractor",
+            "title": "Meeting Invite, Zoom/Meet Link & IST Time Extractor",
+            "description": "Extract meeting URLs, organizer names, and IST start times from `Meetings` emails into the Daily Briefing.",
+            "category": "Schema & Extraction",
+            "impact": "high",
+            "icon": "📅",
+            "patch": {
+                "add_event_triggers": ["overview.morning_briefing"],
+                "system_prompt_directive": "Extract meeting timestamps, conference links, and agenda bullets from Meetings emails.",
+                "code_enhancement_brief": "Parse conference links and IST times from classified Meetings emails.",
+            },
+        },
+        {
+            "id": "gmail_vip_sender_priority_pinning",
+            "title": "VIP Sender & Executive Priority Whitelist",
+            "description": "Highlight emails from critical medical, banking, insurer, or executive domains at the top of the intelligence feed.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "⭐",
+            "patch": {
+                "system_prompt_directive": "Pin emails from medical providers, insurers, banks, and key collaborators as top-priority items.",
+                "code_enhancement_brief": "Boost priority scoring for critical financial, medical, and executive senders.",
+            },
+        },
+        {
+            "id": "gmail_subscription_creep_detector",
+            "title": "Recurring Subscription & Auto-Debit Creep Detector",
+            "description": "Scan receipt emails to surface recurring monthly/annual subscription charges and price increases.",
+            "category": "Domain Intelligence",
+            "impact": "medium",
+            "icon": "💳",
+            "patch": {
+                "add_blocks": ["sparkline_chart"],
+                "system_prompt_directive": "Identify recurring SaaS, utility, or membership charges across classified emails.",
+                "code_enhancement_brief": "Detect recurring billing subjects and summarize subscription cadence.",
+            },
+        },
+        {
+            "id": "gmail_ai_draft_reply_composer",
+            "title": "On-Demand AI Reply Draft & Bullet Summary Card",
+            "description": "Synthesize 3-bullet executive summaries and ready-to-send reply drafts for threads in the `Respond` folder.",
+            "category": "UI & Analytics",
+            "impact": "high",
+            "icon": "✍️",
+            "patch": {
+                "add_blocks": ["ai_insight_card"],
+                "system_prompt_directive": "For every 'Respond' email, suggest a crisp 2-sentence reply draft and key action required.",
+                "code_enhancement_brief": "Generate concise action-oriented reply suggestions for Respond emails.",
+            },
+        },
+        {
+            "id": "gmail_noise_auto_muter_advisor",
+            "title": "Promotional & Bulk Newsletter Noise Auto-Muter",
+            "description": "Identify high-frequency senders in `Ignore` and `FYI` to recommend 1-click mute/archive rules.",
+            "category": "Domain Intelligence",
+            "impact": "medium",
+            "icon": "🔇",
+            "patch": {
+                "system_prompt_directive": "Group high-volume promotional senders in Ignore/FYI and suggest decluttering rules.",
+                "code_enhancement_brief": "Count sender frequency in Ignore/FYI buckets to identify top noise sources.",
+            },
+        },
+        {
+            "id": "gmail_travel_pnr_countdown_extractor",
+            "title": "Travel Itinerary, Flight PNR & Check-In Countdown Extractor",
+            "description": "Detect flight, train, and hotel confirmation emails and surface upcoming departure countdowns.",
+            "category": "UI & Analytics",
+            "impact": "medium",
+            "icon": "✈️",
+            "patch": {
+                "add_blocks": ["countdown_cards"],
+                "code_enhancement_brief": "Detect travel booking keywords (PNR, flight, check-in) and extract travel dates.",
+            },
+        },
+        {
+            "id": "gmail_lab_report_health_handoff",
+            "title": "Clinical Lab & Prescription Email Handoff to Health Agent",
+            "description": "Notify the Health & Wellness agent automatically when diagnostic lab reports or pharmacy receipts arrive.",
+            "category": "EventBus & Schedule",
+            "impact": "medium",
+            "icon": "🌿",
+            "patch": {
+                "system_prompt_directive": "Flag diagnostic lab results and prescription emails for immediate Health agent correlation.",
+                "code_enhancement_brief": "Tag medical and diagnostic lab emails for Health agent handoff.",
+            },
+        },
+        {
+            "id": "gmail_custom_zero_token_rules",
+            "title": "Custom $0.00 Deterministic Sender & Keyword Rule Engine",
+            "description": "Extend the Tier-0 0-token email classifier with custom domain-specific keyword rules.",
+            "category": "Schema & Extraction",
+            "impact": "medium",
+            "icon": "⚡",
+            "patch": {
+                "code_enhancement_brief": "Support user-customizable keyword classification rules in the $0.00 email classifier.",
+            },
+        },
+        {
+            "id": "gmail_monthly_digest_markdown",
+            "title": "Monthly Email Intelligence & Category Breakdown Report",
+            "description": "Export a clean Markdown digest comparing This Month vs. Last Month across Meetings, Respond, Note, FYI, and Ignore.",
+            "category": "Automation & Hooks",
+            "impact": "medium",
+            "icon": "📝",
+            "patch": {
+                "add_outbound_actions": ["markdown_report"],
+                "code_enhancement_brief": "Export monthly email category distribution and top Respond items to Markdown.",
+            },
+        },
+        {
+            "id": "gmail_spoof_phishing_link_guard",
+            "title": "Spoofed Sender & Suspicious Billing Link Anomaly Guard",
+            "description": "Flag emails claiming urgent payment or password reset with mismatched sender domains.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🛡️",
+            "patch": {
+                "system_prompt_directive": "Warn if an urgent billing or credential email exhibits suspicious sender or link patterns.",
+                "code_enhancement_brief": "Flag suspicious urgent-payment or credential-reset subject patterns during classification.",
+            },
+        },
+    ],
+    "pr_review": [
+        {
+            "id": "pr_post_commit_delayed_ci_watcher",
+            "title": "Post-Commit Delayed CI & CodeQL Auto-Verification Watcher",
+            "description": "Automatically re-scan GitHub Actions and CodeQL after a timeout post-push and fire a toast if any check fails.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "⏱️",
+            "patch": {
+                "add_outbound_actions": ["desktop_toast", "auto_create_task"],
+                "system_prompt_directive": "Proactively scan all 8 GitHub Actions workflows and CodeQL alerts after every commit push.",
+                "code_enhancement_brief": "Run post-commit delayed pipeline verification and alert on any failing workflow or CodeQL finding.",
+            },
+        },
+        {
+            "id": "pr_codeql_sarif_root_cause_advisor",
+            "title": "Automated CodeQL & SAST Alert Root-Cause Remediation Brief",
+            "description": "Map CodeQL rules (e.g., `py/clear-text-logging-sensitive-data`) to exact file/line fixes for 1-click resolution.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🛡️",
+            "patch": {
+                "system_prompt_directive": "For any CodeQL or Dependabot alert, provide the exact file, line number, and sanitizer pattern required.",
+                "code_enhancement_brief": "Enrich security notifications with rule IDs, file locations, and remediation guidance.",
+            },
+        },
+        {
+            "id": "pr_branch_conflict_drift_predictor",
+            "title": "Unmerged Feature Branch Conflict & Ahead/Behind Drift Predictor",
+            "description": "Dry-run merge trees against `main` to detect file-level conflicts before merging.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🌿",
+            "patch": {
+                "system_prompt_directive": "Highlight ahead/behind commit counts, author attribution, and exact conflicting file paths for every branch.",
+                "code_enhancement_brief": "Verify clean mergeability against main before enabling 1-click branch merges.",
+            },
+        },
+        {
+            "id": "pr_discussions_wiki_sla_notifier",
+            "title": "Open GitHub Discussions & Wiki Comment SLA Tracker",
+            "description": "Flag unanswered community discussions and Wiki feedback comments so zero questions go unaddressed.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "💬",
+            "patch": {
+                "system_prompt_directive": "Surface unanswered GitHub Discussions and Wiki page comments with direct response links.",
+                "code_enhancement_brief": "Track unanswered count across GitHub Discussions and Wiki feedback items.",
+            },
+        },
+        {
+            "id": "pr_signed_tag_release_auditor",
+            "title": "Cryptographic Tag Signature & Release Asset Integrity Auditor",
+            "description": "Verify that the latest `v*` release tag is cryptographically signed and matches `main` HEAD.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🔏",
+            "patch": {
+                "system_prompt_directive": "Verify cryptographic signature status on release tags and ensure release notes match HEAD.",
+                "code_enhancement_brief": "Audit latest git tag signature and release asset publication status.",
+            },
+        },
+        {
+            "id": "pr_pre_merge_pyright_security_gate",
+            "title": "Zero-Diagnostic Pyright & 100/100 Security Pre-Merge Gate",
+            "description": "Verify local 12-Layer Security Scanner (100/100) and Pyright (0 errors) before branch merges.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "✅",
+            "patch": {
+                "system_prompt_directive": "Require 100/100 local security score and 0 Pyright errors before approving any branch merge.",
+                "code_enhancement_brief": "Include local security scanner score and Pyright diagnostic status in pre-merge governance checks.",
+            },
+        },
+        {
+            "id": "pr_dual_workspace_mirror_verifier",
+            "title": "Dual-Workspace Mirror Sync Verifier (`Z:` ↔ `C:` Clones)",
+            "description": "Audit whether primary and secondary local workspace clones are synced to the same commit SHA.",
+            "category": "Domain Intelligence",
+            "impact": "medium",
+            "icon": "🔄",
+            "patch": {
+                "system_prompt_directive": "Check that local mirror workspaces remain synchronized with origin/main.",
+                "code_enhancement_brief": "Report local branch sync status against origin/main.",
+            },
+        },
+        {
+            "id": "pr_missing_unit_test_detector",
+            "title": "PR Diff Coverage & Missing Unit-Test Detector",
+            "description": "Flag feature branches that modify `fleet/core/` or `fleet/api/` without updating `tests/`.",
+            "category": "Schema & Extraction",
+            "impact": "medium",
+            "icon": "🧪",
+            "patch": {
+                "system_prompt_directive": "Flag any branch diff that modifies backend modules without adding or updating unit tests.",
+                "code_enhancement_brief": "Check branch changed_files for accompanying test file updates.",
+            },
+        },
+        {
+            "id": "pr_wiki_pages_sync_verifier",
+            "title": "GitHub Wiki & Pages Documentation Drift Detector",
+            "description": "Detect modified files in `wiki/` or `docs/` and offer 1-click synchronization to GitHub Wiki.",
+            "category": "UI & Analytics",
+            "impact": "medium",
+            "icon": "📚",
+            "patch": {
+                "code_enhancement_brief": "Audit wiki/ directory sync status and report unsynced documentation pages.",
+            },
+        },
+        {
+            "id": "pr_governance_markdown_audit_export",
+            "title": "5-Pillar Repository Governance Markdown Audit Report",
+            "description": "Export a timestamped Markdown report covering CI, Security/Quality, Discussions, Wiki, Issues, and Branches.",
+            "category": "Automation & Hooks",
+            "impact": "medium",
+            "icon": "📝",
+            "patch": {
+                "add_outbound_actions": ["markdown_report"],
+                "code_enhancement_brief": "Export 5-pillar governance status to a timestamped Markdown audit report.",
+            },
+        },
+        {
+            "id": "pr_morning_briefing_governance_sync",
+            "title": "Sync Open PRs, Failing CI & Security Alerts to Morning Briefing",
+            "description": "Subscribe to `overview.morning_briefing` so repository governance blockers appear in your morning summary.",
+            "category": "EventBus & Schedule",
+            "impact": "medium",
+            "icon": "🌅",
+            "patch": {
+                "add_event_triggers": ["overview.morning_briefing"],
+                "code_enhancement_brief": "Publish CI, PR, and security alert counts during overview.morning_briefing.",
+            },
+        },
+        {
+            "id": "pr_stale_merged_branch_pruner",
+            "title": "Already-Merged Local & Remote Branch Hygiene Advisor",
+            "description": "Identify branches already merged into `main` so they can be cleanly pruned in 1 click.",
+            "category": "Domain Intelligence",
+            "impact": "medium",
+            "icon": "🧹",
+            "patch": {
+                "code_enhancement_brief": "List synced/already-merged branches eligible for safe cleanup.",
+            },
+        },
+    ],
+    "remote_chat": [
+        {
+            "id": "remote_per_sender_rate_limiter",
+            "title": "Per-Sender Sliding-Window Rate Limiter & Anti-Flood Guard",
+            "description": "Protect the local webhook bridge against accidental command loops with per-chat rate limiting.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🛡️",
+            "patch": {
+                "system_prompt_directive": "Enforce strict per-sender rate limits and reject unauthenticated chat IDs.",
+                "code_enhancement_brief": "Track per-sender command timestamps and block burst floods in execute_task().",
+            },
+        },
+        {
+            "id": "remote_quick_reply_keyboard_chips",
+            "title": "Interactive Mobile Quick-Reply Command Buttons",
+            "description": "Attach 1-tap command suggestions (`/briefing`, `/tasks`, `/status`, `@health water +1`) to outbound replies.",
+            "category": "UI & Analytics",
+            "impact": "high",
+            "icon": "📱",
+            "patch": {
+                "system_prompt_directive": "Include concise 1-tap follow-up command suggestions at the end of mobile chat responses.",
+                "code_enhancement_brief": "Attach quick_replies metadata to outbound Telegram/WhatsApp bridge responses.",
+            },
+        },
+        {
+            "id": "remote_critical_alert_push_forwarder",
+            "title": "Critical Fleet Alert Mobile Push Forwarding (Quiet-Hours Aware)",
+            "description": "Forward urgent `agent.alert` notifications to paired Telegram/WhatsApp devices outside quiet hours.",
+            "category": "EventBus & Schedule",
+            "impact": "high",
+            "icon": "🔔",
+            "patch": {
+                "add_event_triggers": ["agent.alert"],
+                "add_outbound_actions": ["desktop_toast"],
+                "code_enhancement_brief": "Forward high-priority agent.alert events to paired remote chat channels.",
+            },
+        },
+        {
+            "id": "remote_morning_briefing_mobile_push",
+            "title": "Daily Morning Executive Briefing Mobile Push Delivery",
+            "description": "Automatically push a concise mobile-formatted daily briefing when `overview.morning_briefing` triggers.",
+            "category": "EventBus & Schedule",
+            "impact": "high",
+            "icon": "🌅",
+            "patch": {
+                "add_event_triggers": ["overview.morning_briefing"],
+                "code_enhancement_brief": "Format and dispatch a mobile-friendly morning briefing on overview.morning_briefing.",
+            },
+        },
+        {
+            "id": "remote_short_command_alias_mapper",
+            "title": "1-Char Mobile Command Alias Mapper (`/b`, `/t`, `/w`, `/s`)",
+            "description": "Support rapid mobile thumb shortcuts (`/b` -> `/briefing`, `/t` -> `/tasks`, `/w` -> `@health water +1`).",
+            "category": "Domain Intelligence",
+            "impact": "medium",
+            "icon": "⚡",
+            "patch": {
+                "system_prompt_directive": "Recognize short mobile aliases (/b, /t, /w, /s) and expand them to full Fleet commands.",
+                "code_enhancement_brief": "Expand shorthand mobile slash aliases before dispatching to the Omnibar router.",
+            },
+        },
+        {
+            "id": "remote_privileged_command_pin_gate",
+            "title": "Confirmation Gate for State-Changing Remote Commands",
+            "description": "Require explicit confirmation before running mutating workstation actions remotely.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🔐",
+            "patch": {
+                "system_prompt_directive": "Require confirmation before executing mutating system commands from remote chat.",
+                "code_enhancement_brief": "Add safety confirmation checks for mutating remote commands.",
+            },
+        },
+        {
+            "id": "remote_audit_log_markdown_export",
+            "title": "Inbound/Outbound Remote Chat Audit Trail Export",
+            "description": "Export a timestamped Markdown log of remote chat commands, sender IDs, and response latencies.",
+            "category": "Automation & Hooks",
+            "impact": "medium",
+            "icon": "📝",
+            "patch": {
+                "add_outbound_actions": ["markdown_report"],
+                "code_enhancement_brief": "Export remote bridge command audit history to Markdown.",
+            },
+        },
+        {
+            "id": "remote_voice_note_intent_router",
+            "title": "Voice Note & Audio Caption Intent Router",
+            "description": "Route transcribed voice-note captions from Telegram/WhatsApp into `/task` creation or `@ask` queries.",
+            "category": "Schema & Extraction",
+            "impact": "medium",
+            "icon": "🎙️",
+            "patch": {
+                "code_enhancement_brief": "Parse voice-note transcript payloads and route them through the Omnibar command engine.",
+            },
+        },
+        {
+            "id": "remote_photo_receipt_vault_bridge",
+            "title": "Mobile Photo & PDF Attachment Drop-to-Vault Bridge",
+            "description": "Forward document attachments sent via Telegram/WhatsApp into Agent Studio Document Vault extraction.",
+            "category": "Schema & Extraction",
+            "impact": "high",
+            "icon": "📎",
+            "patch": {
+                "add_blocks": ["document_vault"],
+                "code_enhancement_brief": "Support routing inbound remote document attachments into the Document Vault.",
+            },
+        },
+        {
+            "id": "remote_offline_retry_queue",
+            "title": "Offline Outbound Message Queue & Auto-Retry Buffer",
+            "description": "Queue outbound mobile notifications in SQLite if the network is unreachable and retry on the next check.",
+            "category": "Automation & Hooks",
+            "impact": "medium",
+            "icon": "🔄",
+            "patch": {
+                "code_enhancement_brief": "Buffer failed outbound remote notifications in SQLite for automatic retry.",
+            },
+        },
+        {
+            "id": "remote_pii_path_sanitizer",
+            "title": "Outbound Mobile Reply PII & Local Path Masking",
+            "description": "Scrub local drive letters and sensitive environment variables from replies sent to mobile messaging apps.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🧹",
+            "patch": {
+                "system_prompt_directive": "Mask local workstation file paths from outbound Telegram and WhatsApp messages.",
+                "code_enhancement_brief": "Sanitize local filesystem paths from outbound remote chat messages.",
+            },
+        },
+        {
+            "id": "remote_webhook_tunnel_health_probe",
+            "title": "Telegram Bot API & Twilio Webhook Readiness Probe",
+            "description": "Verify configured bot token format and webhook endpoint status during scheduled health checks.",
+            "category": "UI & Analytics",
+            "impact": "medium",
+            "icon": "🌐",
+            "patch": {
+                "code_enhancement_brief": "Report Telegram and WhatsApp configuration readiness in execute_task() diagnostics.",
+            },
+        },
+    ],
+    "mcp_studio": [
+        {
+            "id": "mcp_json_schema_strict_validator",
+            "title": "JSON-RPC 2.0 Input Schema & Required-Property Validator",
+            "description": "Validate every registered MCP tool's `inputSchema` for JSON Schema draft compliance and required parameter types.",
+            "category": "Schema & Extraction",
+            "impact": "high",
+            "icon": "✅",
+            "patch": {
+                "system_prompt_directive": "Ensure every MCP tool schema defines explicit property types, descriptions, and required arrays.",
+                "code_enhancement_brief": "Validate JSON Schema structure across all registered MCP tools in execute_task().",
+            },
+        },
+        {
+            "id": "mcp_ide_client_config_generator",
+            "title": "1-Click Antigravity, Claude Desktop & Cursor Config Generator",
+            "description": "Generate ready-to-copy `mcpServers` JSON configurations with exact Python `-X utf8` stdio arguments.",
+            "category": "UI & Analytics",
+            "impact": "high",
+            "icon": "🔌",
+            "patch": {
+                "code_enhancement_brief": "Generate client-specific mcpServers configuration snippets for Antigravity, Claude Desktop, and Cursor.",
+            },
+        },
+        {
+            "id": "mcp_auto_expose_custom_agents",
+            "title": "Auto-Expose Custom Studio Agents as Callable MCP Tools",
+            "description": "Dynamically include all user-created Zero-Code Studio agents (`@<id> run`, `@<id> add`) in the MCP server catalog.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "🤖",
+            "patch": {
+                "system_prompt_directive": "Automatically expose active custom Studio agents as callable MCP tools.",
+                "code_enhancement_brief": "Include active custom Studio agents in the dynamic MCP tool registry.",
+            },
+        },
+        {
+            "id": "mcp_tool_latency_dryrun_profiler",
+            "title": "Interactive MCP Tool Dry-Run & Execution Latency Profiler",
+            "description": "Measure millisecond execution time and response payload size when testing tools in the MCP Inspector.",
+            "category": "UI & Analytics",
+            "impact": "high",
+            "icon": "⏱️",
+            "patch": {
+                "add_blocks": ["sparkline_chart"],
+                "code_enhancement_brief": "Record execution latency_ms and payload size during MCP tool test invocations.",
+            },
+        },
+        {
+            "id": "mcp_readonly_destructive_annotations",
+            "title": "Least-Privilege `readOnlyHint` & `destructiveHint` Annotations",
+            "description": "Annotate each MCP tool with safety metadata so connected AI hosts know which tools are read-only vs. mutating.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🛡️",
+            "patch": {
+                "system_prompt_directive": "Tag every MCP tool with readOnlyHint and destructiveHint safety annotations.",
+                "code_enhancement_brief": "Attach readOnlyHint and destructiveHint annotations to exported MCP tool definitions.",
+            },
+        },
+        {
+            "id": "mcp_standalone_server_exporter",
+            "title": "Standalone Stdio Python MCP Server Script Exporter",
+            "description": "Export selected Fleet tools as a self-contained stdio MCP server module with Markdown documentation.",
+            "category": "Automation & Hooks",
+            "impact": "medium",
+            "icon": "📝",
+            "patch": {
+                "add_outbound_actions": ["markdown_report"],
+                "code_enhancement_brief": "Export MCP server tool catalog and usage documentation to Markdown.",
+            },
+        },
+        {
+            "id": "mcp_resources_prompts_catalog",
+            "title": "MCP `resources/list` & `prompts/list` Capability Exposure",
+            "description": "Expose Fleet daily briefings, agent manifests, and reusable prompt templates as standard MCP resources and prompts.",
+            "category": "Schema & Extraction",
+            "impact": "medium",
+            "icon": "📚",
+            "patch": {
+                "code_enhancement_brief": "Include MCP resources and prompt templates in the studio manifest.",
+            },
+        },
+        {
+            "id": "mcp_invocation_audit_toast",
+            "title": "External MCP Tool Call Audit Log & Error Alerting",
+            "description": "Log external MCP tool invocations in SQLite and fire a toast if a tool call returns an error.",
+            "category": "Automation & Hooks",
+            "impact": "medium",
+            "icon": "🔔",
+            "patch": {
+                "add_outbound_actions": ["desktop_toast"],
+                "code_enhancement_brief": "Log MCP tool test runs and alert on handler exceptions.",
+            },
+        },
+        {
+            "id": "mcp_schema_injection_auditor",
+            "title": "Automated Tool Argument Sanitization & Path-Traversal Guard",
+            "description": "Verify that file-scanning and query MCP tools reject path traversal (`..`) and unsafe shell characters.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🔒",
+            "patch": {
+                "system_prompt_directive": "Enforce strict input sanitization and workspace path bounds on all MCP tool handlers.",
+                "code_enhancement_brief": "Audit MCP tool schemas for strict parameter bounds.",
+            },
+        },
+        {
+            "id": "mcp_multi_tool_chain_tester",
+            "title": "Multi-Tool Sequential Workflow Chain Tester",
+            "description": "Test multi-step MCP tool sequences (e.g., list tasks -> add task -> get briefing) in a single diagnostic run.",
+            "category": "UI & Analytics",
+            "impact": "medium",
+            "icon": "🔗",
+            "patch": {
+                "code_enhancement_brief": "Support sequential multi-tool dry-run verification in execute_task().",
+            },
+        },
+        {
+            "id": "mcp_manifest_version_differ",
+            "title": "Versioned MCP Tool Schema Snapshot & Breaking-Change Detector",
+            "description": "Detect when a tool's required parameters change so external IDE integrations stay compatible.",
+            "category": "Domain Intelligence",
+            "impact": "medium",
+            "icon": "🔄",
+            "patch": {
+                "code_enhancement_brief": "Track tool count and schema checksums across MCP Studio runs.",
+            },
+        },
+        {
+            "id": "mcp_morning_briefing_sync",
+            "title": "Sync MCP Server Health & Tool Count to Morning Briefing",
+            "description": "Include active MCP tool count and stdio bridge status in `overview.morning_briefing`.",
+            "category": "EventBus & Schedule",
+            "impact": "medium",
+            "icon": "🌅",
+            "patch": {
+                "add_event_triggers": ["overview.morning_briefing"],
+                "code_enhancement_brief": "Report MCP server readiness during morning briefing checks.",
+            },
+        },
+    ],
+    "local_llm": [
+        {
+            "id": "llm_hardware_quantization_advisor",
+            "title": "Workstation RAM/VRAM Quantization Fit Calculator (`Q4_K_M` vs `Q8_0`)",
+            "description": "Recommend the highest-precision GGUF quantization tier that fits comfortably within available system memory.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🧮",
+            "patch": {
+                "system_prompt_directive": "Recommend GGUF quantization tiers (Q4_K_M, Q5_K_M, Q8_0) based on live free RAM/VRAM.",
+                "code_enhancement_brief": "Compute recommended model size and quantization tier from live workstation RAM.",
+            },
+        },
+        {
+            "id": "llm_zero_cost_offline_autofailover",
+            "title": "Automated $0.00 Offline & Quota-Exhaustion Local Failover",
+            "description": "Automatically route Fleet agent inference to local Ollama when cloud hyperscalers hit rate limits or go offline.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "🦙",
+            "patch": {
+                "add_event_triggers": ["agent.alert"],
+                "system_prompt_directive": "Serve as the $0.00 zero-token fallback inference engine when cloud APIs are unavailable.",
+                "code_enhancement_brief": "Verify local Ollama failover readiness when cloud quota alerts occur.",
+            },
+        },
+        {
+            "id": "llm_ram_pressure_auto_unload",
+            "title": "85% RAM Pressure Idle Model Auto-Unload Coordinator",
+            "description": "Subscribe to `optimizer.ram_threshold_exceeded` to unload idle local models from memory when system RAM spikes.",
+            "category": "EventBus & Schedule",
+            "impact": "high",
+            "icon": "💾",
+            "patch": {
+                "add_event_triggers": ["optimizer.ram_threshold_exceeded"],
+                "add_outbound_actions": ["desktop_toast"],
+                "code_enhancement_brief": "Release idle local model memory when optimizer.ram_threshold_exceeded fires.",
+            },
+        },
+        {
+            "id": "llm_tokens_per_sec_benchmark",
+            "title": "Tokens-per-Second (`tok/s`) & First-Token Latency Benchmark Suite",
+            "description": "Benchmark prompt evaluation speed and generation `tok/s` across installed local models.",
+            "category": "UI & Analytics",
+            "impact": "high",
+            "icon": "⚡",
+            "patch": {
+                "add_blocks": ["sparkline_chart"],
+                "code_enhancement_brief": "Record tokens-per-second and latency metrics across local inference benchmarks.",
+            },
+        },
+        {
+            "id": "llm_task_specific_model_pinning",
+            "title": "Task-Specific Local Model Routing (Code vs. RAG vs. Fast Chat)",
+            "description": "Pin `qwen2.5-coder` for coding tasks, `nomic-embed-text` for Document Vault RAG, and `llama3.2` for general chat.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🎯",
+            "patch": {
+                "system_prompt_directive": "Match local models by specialization: qwen2.5-coder for code, deepseek-r1 for reasoning, llama3.2 for fast chat.",
+                "code_enhancement_brief": "Provide task-specialized local model recommendations in execute_task().",
+            },
+        },
+        {
+            "id": "llm_gguf_sha256_integrity_scanner",
+            "title": "GGUF File SHA-256 Checksum & Context Window Inspector",
+            "description": "Verify local `.gguf` file integrity and inspect context length metadata in `fleet/data/models/`.",
+            "category": "Schema & Extraction",
+            "impact": "medium",
+            "icon": "🔍",
+            "patch": {
+                "code_enhancement_brief": "Inspect local .gguf files for size and integrity metadata during scans.",
+            },
+        },
+        {
+            "id": "llm_daemon_port_11434_sentinel",
+            "title": "Ollama Port `11434` Daemon Health Sentinel & Toast Alert",
+            "description": "Detect when the local Ollama endpoint stops responding and surface a 1-click start instruction.",
+            "category": "Automation & Hooks",
+            "impact": "medium",
+            "icon": "🔔",
+            "patch": {
+                "add_outbound_actions": ["desktop_toast"],
+                "code_enhancement_brief": "Probe localhost:11434 health and emit a status notification if unreachable.",
+            },
+        },
+        {
+            "id": "llm_cost_savings_markdown_ledger",
+            "title": "Local $0.00 Inference Cost Savings Markdown Report",
+            "description": "Export a Markdown ledger of local inference runs and estimated cloud API dollars saved.",
+            "category": "Automation & Hooks",
+            "impact": "medium",
+            "icon": "📝",
+            "patch": {
+                "add_outbound_actions": ["markdown_report"],
+                "code_enhancement_brief": "Generate a Markdown report of local model inventory and $0.00 inference readiness.",
+            },
+        },
+        {
+            "id": "llm_custom_modelfile_persona_builder",
+            "title": "Custom Ollama `Modelfile` & Fleet Persona Generator",
+            "description": "Generate tuned Ollama `Modelfile` definitions pre-loaded with Fleet agent system prompts and temperature settings.",
+            "category": "Domain Intelligence",
+            "impact": "medium",
+            "icon": "🛠️",
+            "patch": {
+                "code_enhancement_brief": "Generate sample Ollama Modelfile templates for Fleet agents.",
+            },
+        },
+        {
+            "id": "llm_cpu_thread_concurrency_tuner",
+            "title": "Adaptive CPU Thread & Context Length (`num_ctx`) Tuner",
+            "description": "Recommend optimal `num_threads` and `num_ctx` settings so local inference never starves UI responsiveness.",
+            "category": "Domain Intelligence",
+            "impact": "medium",
+            "icon": "⚙️",
+            "patch": {
+                "system_prompt_directive": "Balance num_threads and num_ctx to preserve smooth desktop responsiveness during local inference.",
+                "code_enhancement_brief": "Calculate optimal CPU thread count for local inference based on os.cpu_count().",
+            },
+        },
+        {
+            "id": "llm_local_embedding_rag_probe",
+            "title": "Local Embedding Model Readiness Probe for Document Vault RAG",
+            "description": "Check whether an embedding model (`nomic-embed-text` / `mxbai-embed-large`) is installed for 100% offline PDF Q&A.",
+            "category": "Schema & Extraction",
+            "impact": "medium",
+            "icon": "📄",
+            "patch": {
+                "code_enhancement_brief": "Check installed local models for embedding model availability.",
+            },
+        },
+        {
+            "id": "llm_morning_briefing_sync",
+            "title": "Sync Local LLM Daemon & Model Inventory to Morning Briefing",
+            "description": "Publish local Ollama online status and installed model count into `overview.morning_briefing`.",
+            "category": "EventBus & Schedule",
+            "impact": "medium",
+            "icon": "🌅",
+            "patch": {
+                "add_event_triggers": ["overview.morning_briefing"],
+                "code_enhancement_brief": "Include local LLM daemon status in overview.morning_briefing.",
+            },
+        },
+    ],
+}
+
+
+def undertake_agent_self_improvements(
+    agent: Any,
+    improvements: List[Dict[str, Any]],
+    db: Any = None,
+) -> Dict[str, Any]:
+    """
+    Actively undertakes and persists selected + manually authored self-improvements for any Fleet agent
+    (both built-in core agents and custom Studio agents):
+    1. Logs each newly undertaken improvement in `custom_agent_records` (`record_type='self_improvement'`)
+       and in `auto_improvements` so the agent maintains an auditable self-improvement ledger.
+    2. Executes a live verification/undertaking pass on the agent with its upgraded directives.
+    """
+    agent_id = str(getattr(agent, "id", "") or "agent").strip()
+    agent_name = str(getattr(agent, "display_name", "") or getattr(agent, "name", "") or agent_id).strip()
+    active_db = db or getattr(agent, "_raw_db", None) or getattr(agent, "db", None)
+
+    undertaken_items: List[Dict[str, Any]] = []
+    existing_titles: set[str] = set()
+    if active_db is not None and hasattr(active_db, "list_custom_agent_records"):
+        try:
+            prev_recs = active_db.list_custom_agent_records(agent_id, record_type="self_improvement", limit=100)
+            for r in prev_recs:
+                t = str(r.get("title") or "").strip().lower()
+                if t:
+                    existing_titles.add(t)
+        except Exception:
+            pass
+
+    now_iso = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    newly_logged_count = 0
+    for item in improvements or []:
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("title") or "").strip()
+        if not title:
+            continue
+        desc = str(item.get("description") or item.get("code_enhancement_brief") or title).strip()
+        brief = str(item.get("code_enhancement_brief") or desc).strip()
+        is_custom = bool(item.get("is_custom", False))
+        entry_meta = {
+            "id": str(item.get("id") or ""),
+            "title": title,
+            "description": desc,
+            "code_enhancement_brief": brief,
+            "is_custom": is_custom,
+            "source": "manual_user" if is_custom else "ai_10_way_advisor",
+            "undertaken_at": str(item.get("undertaken_at") or now_iso),
+            "status": "undertaken",
+        }
+        undertaken_items.append(entry_meta)
+
+        if title.lower() not in existing_titles and active_db is not None:
+            existing_titles.add(title.lower())
+            newly_logged_count += 1
+            try:
+                if hasattr(active_db, "add_custom_agent_record"):
+                    active_db.add_custom_agent_record(
+                        agent_id,
+                        title=title[:120],
+                        record_type="self_improvement",
+                        data=entry_meta,
+                        status="undertaken",
+                    )
+            except Exception as exc:
+                logger.debug("Could not log self_improvement record for %s: %s", agent_id, exc)
+            try:
+                if hasattr(active_db, "log_auto_improvement"):
+                    tag = "Manual User Improvement" if is_custom else "AI 10-Way Improvement"
+                    active_db.log_auto_improvement(
+                        category=f"agent_self_improve:{agent_id}",
+                        description=f"[{agent_name} — {tag}] {title}: {brief}"[:300],
+                        file_modified=f"agents/{agent_id}",
+                        status="COMPLETED",
+                    )
+            except Exception as exc:
+                logger.debug("Could not log auto_improvement for %s: %s", agent_id, exc)
+
+    # Execute an immediate non-blocking undertaking verification pass on the agent
+    execution_result: Dict[str, Any] = {"status": "undertaken", "agent_id": agent_id}
+    try:
+        meta = getattr(agent, "manifest_meta", {}) or {}
+        routine_task = str(meta.get("routine_task") or "default").strip() or "default"
+        if hasattr(agent, "execute_task"):
+            res = agent.execute_task(routine_task, payload={"skip_llm": True, "self_improvement_pass": True})
+            if isinstance(res, dict):
+                execution_result = res
+    except Exception as exc:
+        execution_result = {"status": "undertaken", "message": f"Improvements active ({exc})"}
+
+    return {
+        "status": "ok",
+        "agent_id": agent_id,
+        "undertaken_count": len(undertaken_items),
+        "newly_logged_count": newly_logged_count,
+        "improvements": undertaken_items,
+        "execution": execution_result,
+    }
+
+
 def _build_deterministic_evolution_pool(
     agent_manifest: Dict[str, Any],
     runtime_summary: Dict[str, Any],
@@ -1833,6 +3410,7 @@ def _build_deterministic_evolution_pool(
     outbound hooks, EventBus triggers, recurrence, inbox auto-ingest, typed fields, and AI analytical rules.
     Filtered later via `_sanitize_improvement_patch` so only genuinely new improvements are suggested.
     """
+    agent_id = str(agent_manifest.get("id") or agent_manifest.get("agent_id") or "").strip().lower()
     flavor = _detect_evolution_domain_flavor(agent_manifest)
     name = str(agent_manifest.get("name") or "this agent")
     entries_cnt = int(runtime_summary.get("entries_count") or 0)
@@ -2306,6 +3884,9 @@ def _build_deterministic_evolution_pool(
     candidates.extend(domain_intel_upgrades.get(flavor, domain_intel_upgrades["general"]))
     if flavor != "general":
         candidates.extend(domain_intel_upgrades["general"])
+    builtin_bespoke = BUILTIN_AGENT_10_IMPROVEMENTS.get(agent_id, [])
+    if builtin_bespoke:
+        candidates = [dict(item) for item in builtin_bespoke] + candidates
     return candidates
 
 

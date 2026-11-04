@@ -158,8 +158,8 @@ function renderSettingsAgents() {
           </div>
           <div class="agent-card-actions">
             <button class="btn btn-sm btn-outline" style="border-color: rgba(56,189,248,0.4); color: var(--accent-cyan);" onclick="cloneCustomAgentFromUI('${agent.id}')" title="Duplicate Agent Blueprint into a Fresh Custom Agent">📋 Clone</button>
+            <button class="btn btn-sm btn-outline" style="border-color: rgba(168,85,247,0.45); color: #d8b4fe;" onclick="closeSettingsModal(); openEvolveAgentModal('${agent.id}')" title="Auto-generate 10 ways to improve '${escapeHtml(agent.name || agent.id)}' features or add manual self-improvements">✨ 10 Ways to Improve</button>
             ${agent.is_custom ? `<button class="btn btn-sm btn-outline" style="border-color: rgba(16,185,129,0.4); color: #34d399;" onclick="exportAgentPackFromUI('${agent.id}')" title="Export Portable SHA-256 Verified .fleetagent Pack">📤 Export</button>` : ''}
-            ${agent.is_custom ? `<button class="btn btn-sm btn-outline" style="border-color: rgba(168,85,247,0.45); color: #d8b4fe;" onclick="openEvolveAgentModal('${agent.id}')" title="Evolve Custom Agent UI, Fields &amp; Logic in Studio">✨ Evolve</button>` : ''}
             ${agent.is_custom ? `<button class="btn btn-sm btn-outline" style="border-color: rgba(239,68,68,0.4); color: #f87171;" onclick="deleteCustomAgentFromSettings('${agent.id}')" title="Permanently Delete Custom Agent">🗑️ Delete</button>` : ''}
             <button class="btn btn-sm btn-outline" onclick="toggleAgentDrawer('${agent.id}')" title="Configure Agent Properties">
               ⚙️ Customize
