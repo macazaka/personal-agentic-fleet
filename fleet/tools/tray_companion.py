@@ -108,11 +108,12 @@ def execute_tray_action(
         from fleet.core.optimizer import optimize_ram
 
         res = optimize_ram()
+        freed_mb = float(res.get("freed_mb") or 0.0) if isinstance(res, dict) else 0.0
         return {
             "status": "ok",
             "action_id": act,
-            "optimizer": res,
-            "message": f"RAM working-set optimized ({res.get('freed_mb', 0)} MB freed).",
+            "freed_mb": freed_mb,
+            "message": f"RAM working-set optimized ({freed_mb} MB freed).",
         }
 
     if act == "morning_briefing":
@@ -123,11 +124,11 @@ def execute_tray_action(
             from fleet.core.database import FleetDatabase
 
             target_db = FleetDatabase()
-        brief = BriefingEngine(db=target_db).generate_daily_briefing()
+        BriefingEngine(db=target_db).generate_daily_briefing()
         return {
             "status": "ok",
             "action_id": act,
-            "briefing": brief,
+            "briefing_generated": True,
             "message": "Generated Executive Morning Briefing.",
         }
 
@@ -172,12 +173,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     if args.action == "status":
-        print(json.dumps(get_tray_companion_status(), indent=2))
+        status_info = get_tray_companion_status()
+        print(f"[TrayCompanion] {status_info.get('tray_label', 'OK')}")
         return 0
 
     out = execute_tray_action(args.action, payload={"transcript": args.transcript})
-    print(json.dumps(out, indent=2))
-    return 0 if out.get("status") == "ok" else 1
+    is_ok = out.get("status") == "ok"
+    print(f"[TrayCompanion] action={args.action} status={'ok' if is_ok else 'error'}")
+    return 0 if is_ok else 1
 
 
 if __name__ == "__main__":
