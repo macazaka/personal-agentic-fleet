@@ -292,7 +292,11 @@ def test_server_sse_stream_listener():
     srv_h.path = "/api/events/stream"
 
     def trigger_event():
-        time.sleep(0.05)
+        for _ in range(100):
+            if b"event: ready" in wfile.getvalue():
+                break
+            time.sleep(0.005)
+        time.sleep(0.01)
         from fleet.core.event_bus import FleetEvent
         srv_mod.bus.dispatch(FleetEvent(sender="test", target="all", action="test_evt", payload={"x": 1}))
 
