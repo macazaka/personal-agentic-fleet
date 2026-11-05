@@ -220,7 +220,9 @@ class LocalLLMAgent(FleetAgent):
                 }
             )
 
-        export_dir = Path(DATA_DIR) / "user" / "lora_datasets"
+        from fleet.core.db.base import is_test_environment
+        sub_vault = "test_user" if is_test_environment() else "user"
+        export_dir = Path(DATA_DIR) / sub_vault / "lora_datasets"
         export_dir.mkdir(parents=True, exist_ok=True)
         export_file = export_dir / "personal_fleet_instruct.jsonl"
         lines = [json.dumps(item, ensure_ascii=False) for item in samples[:max_samples]]

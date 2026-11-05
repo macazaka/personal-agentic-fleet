@@ -25,11 +25,11 @@ class HealthAgent(FleetAgent):
 
     @property
     def order(self) -> int:
-        return 10
+        return 20
 
     @property
     def is_default(self) -> bool:
-        return True
+        return False
 
     def get_agent_settings_schema(self) -> List[Dict[str, Any]]:
         return [

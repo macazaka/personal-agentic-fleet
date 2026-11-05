@@ -116,6 +116,9 @@ def isolate_test_session():
     test_user_dir = DATA_DIR / "test_user"
     if test_user_dir.exists():
         shutil.rmtree(test_user_dir, ignore_errors=True)
+    dummy_db = DATA_DIR / "fleet.db"
+    if dummy_db.exists():
+        dummy_db.unlink(missing_ok=True)
 
     yield
 
@@ -135,6 +138,9 @@ def isolate_test_session():
 
     if test_user_dir.exists():
         shutil.rmtree(test_user_dir, ignore_errors=True)
+    dummy_db = DATA_DIR / "fleet.db"
+    if dummy_db.exists():
+        dummy_db.unlink(missing_ok=True)
 
 
 @pytest.fixture(autouse=True)

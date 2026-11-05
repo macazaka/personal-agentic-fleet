@@ -200,8 +200,36 @@ class GmailManager:
 
         if not self.is_connected or not self.service:
             # Mock / disconnected mode
+            from fleet.core.db.base import is_test_environment
+            if not is_test_environment():
+                cached = self._enrich_emails_with_attachment_security(self.db.get_classified_emails())
+                try:
+                    from fleet.integrations.email_intelligence_proposals import (
+                        discover_email_and_attachment_proposals,
+                    )
+                    discover_email_and_attachment_proposals(self.db, emails=cached)
+                except Exception:
+                    pass
+                counts = {CATEGORIES[cid]: 0 for cid in CATEGORIES}
+                for item in cached:
+                    cname = item.get("category_name", "Ignore")
+                    counts[cname] = counts.get(cname, 0) + 1
+                return {
+                    "status": "success",
+                    "connected_to_live_gmail": False,
+                    "dry_run": dry_run,
+                    "query_used": query,
+                    "total_processed": len(cached),
+                    "counts": counts,
+                    "classified_sample": cached[:10],
+                    "tokens_used": 0,
+                    "cost_usd": "$0.00",
+                    "tier": "Tier 0 Deterministic ($0.00 / 0 Tokens)",
+                    "cached": True
+                }
+
             if not force_refresh and known_ids:
-                cached = self.db.get_classified_emails()
+                cached = self._enrich_emails_with_attachment_security(self.db.get_classified_emails())
                 if cached:
                     counts = {CATEGORIES[cid]: 0 for cid in CATEGORIES}
                     for item in cached:
@@ -222,7 +250,7 @@ class GmailManager:
                     }
 
             raw_emails = self._get_mock_sample_emails()
-            classified = self.classifier.classify_batch(raw_emails)
+            classified = self._enrich_emails_with_attachment_security(self.classifier.classify_batch(raw_emails))
             self.db.save_classified_emails(classified)
         else:
             # Live connected Gmail mode
@@ -456,6 +484,13 @@ class GmailManager:
                     "If possible, please share your feedback by 4:00 PM today so we can send the final deck.\n\n"
                     "Thanks!\nSarah Chen\nSenior Solutions Architect"
                 ),
+                "attachments": [
+                    {
+                        "filename": "ACME_Enterprise_Client_Proposal_v2.pdf",
+                        "mime_type": "application/pdf",
+                        "content_base64": "JVBERi0xLjQKJcOkw7zDtsOfCjEgMCBvYmoKPDwvVHlwZS9DYXRhbG9nPj4KZW5kb2JqCllPRgo=",
+                    }
+                ],
                 "is_direct_to": True,
                 "can_unsubscribe": False,
                 "unsubscribe_url": None,
@@ -564,14 +599,67 @@ class GmailManager:
                     "Your next billing cycle begins on November 14, 2026.\n"
                     "Download official PDF receipt: https://billing.stripe.com/invoice/inv_8941/pdf"
                 ),
+                "attachments": [
+                    {
+                        "filename": "Stripe_Invoice_INV-2026-10-8941.pdf",
+                        "mime_type": "application/pdf",
+                        "content_base64": "JVBERi0xLjQKJcOkw7zDtsOfCjEgMCBvYmoKPDwvVHlwZS9DYXRhbG9nPj4KZW5kb2JqCllPRgo=",
+                    }
+                ],
                 "mime_type": "text/html",
                 "can_unsubscribe": False,
                 "unsubscribe_url": None,
                 "unsubscribe_type": None
             }
         ]
+        from fleet.integrations.email_intelligence_proposals import scan_email_attachment_security
         for em in emails:
             em["unsubscribed"] = self.db.is_email_unsubscribed(em["id"])
+            scans = []
+            for att in em.get("attachments") or []:
+                scan_res = scan_email_attachment_security(
+                    filename=str(att.get("filename") or "attachment.pdf"),
+                    content_base64=str(att.get("content_base64") or ""),
+                    mime_type=str(att.get("mime_type") or "application/pdf"),
+                    run_os_av=False,
+                )
+                att["virus_scan"] = scan_res
+                scans.append(scan_res)
+            em["attachment_scans"] = scans
+        return emails
+
+    def _enrich_emails_with_attachment_security(self, emails: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Ensures emails loaded from SQLite cache include attachment metadata and pre-use antivirus scan reports."""
+        if not emails:
+            return []
+        mock_by_id = {m["id"]: m for m in self._get_mock_sample_emails()}
+        from fleet.integrations.email_intelligence_proposals import (
+            _infer_or_get_email_attachments,
+            scan_email_attachment_security,
+        )
+        for em in emails:
+            if not isinstance(em, dict):
+                continue
+            mid = str(em.get("id") or "")
+            if not em.get("attachments") and mid in mock_by_id and mock_by_id[mid].get("attachments"):
+                em["attachments"] = mock_by_id[mid]["attachments"]
+                em["attachment_scans"] = mock_by_id[mid].get("attachment_scans", [])
+            else:
+                atts = _infer_or_get_email_attachments(em)
+                if atts and not em.get("attachment_scans"):
+                    scans = []
+                    for att in atts:
+                        if not isinstance(att, dict):
+                            continue
+                        scan_res = scan_email_attachment_security(
+                            filename=str(att.get("filename") or "attachment.pdf"),
+                            content_base64=str(att.get("content_base64") or ""),
+                            mime_type=str(att.get("mime_type") or "application/pdf"),
+                            run_os_av=False,
+                        )
+                        att["virus_scan"] = scan_res
+                        scans.append(scan_res)
+                    em["attachment_scans"] = scans
         return emails
 
     def get_email_full_body(self, message_id: str) -> Dict[str, Any]:

@@ -18,6 +18,12 @@ logger = logging.getLogger("fleet.core.db")
 
 def is_test_environment() -> bool:
     """Detects whether code is executing within a test runner or pytest environment."""
+    if (
+        os.environ.get("FLEET_PRODUCTION_SERVER") == "1"
+        and os.environ.get("FLEET_TEST_MODE") != "1"
+        and "PYTEST_CURRENT_TEST" not in os.environ
+    ):
+        return False
     return (
         os.environ.get("FLEET_TEST_MODE") == "1"
         or "pytest" in sys.modules
@@ -27,6 +33,14 @@ def is_test_environment() -> bool:
 
 def get_effective_db_path(custom_path: Optional[Path] = None) -> Path:
     """Returns the effective SQLite database path, strictly isolating test runs from production."""
+    # Production Agentic Fleet Control Center (AFCC) server is strictly bound to production database
+    if (
+        os.environ.get("FLEET_PRODUCTION_SERVER") == "1"
+        and os.environ.get("FLEET_TEST_MODE") != "1"
+        and "PYTEST_CURRENT_TEST" not in os.environ
+    ):
+        return custom_path or DB_PATH
+
     db_module = sys.modules.get("fleet.core.database")
     check_fn = getattr(db_module, "is_test_environment", is_test_environment) if db_module else is_test_environment
     if check_fn():
@@ -39,10 +53,6 @@ def get_effective_db_path(custom_path: Optional[Path] = None) -> Path:
         except Exception:
             pass
         return custom_path
-
-    # Production Agentic Fleet Control Center (AFCC) server is strictly bound to production database
-    if os.environ.get("FLEET_PRODUCTION_SERVER") == "1":
-        return custom_path or DB_PATH
 
     if custom_path is not None:
         return custom_path
@@ -88,6 +98,11 @@ class BaseDatabase:
         with self._get_connection() as conn:
             if not is_test_environment():
                 self._purge_leaked_unit_test_rows(conn)
+        if not is_test_environment() and self.db_path == DB_PATH and hasattr(self, "sync_ux_roadmap_backlog"):
+            try:
+                getattr(self, "sync_ux_roadmap_backlog")()
+            except Exception as e:
+                logger.warning("Backlog sync non-fatal warning on %s: %s", self.db_path, e)
         try:
             from fleet.core.db.migrations import apply_migrations
             apply_migrations(self.db_path)
@@ -97,7 +112,8 @@ class BaseDatabase:
     def _purge_leaked_unit_test_rows(self, conn: sqlite3.Connection) -> None:
         """
         Proactively purges any unit-test fixture rows (e.g. 'Discord Integration Bot',
-        'Zinc Sulfate 50mg', 'Test Task', 'E2E Deep Verification') if they ever leaked
+        'Zinc Sulfate 50mg', 'Test Task', 'E2E Deep Verification', 'msg_001'..'msg_007',
+        'test_vault_secret', 'Check my code while busy', etc.) if they ever leaked
         into a non-test database.
         """
         try:
@@ -109,7 +125,95 @@ class BaseDatabase:
                     "DELETE FROM medications WHERE LOWER(TRIM(name)) IN ('zinc sulfate 50mg', 'test med', 'unit test med')"
                 )
                 conn.execute(
-                    "DELETE FROM tasks WHERE LOWER(source) IN ('test', 'unittest', 'pytest', 'testagent', 'e2e_test', 'test_runner') OR LOWER(title) LIKE '%test task%' OR LOWER(title) LIKE '%e2e deep verification%' OR LOWER(title) LIKE '%unauthorized task%'"
+                    "DELETE FROM medication_logs WHERE medication_id NOT IN (SELECT id FROM medications)"
+                )
+                conn.execute(
+                    """
+                    DELETE FROM tasks
+                    WHERE LOWER(TRIM(COALESCE(source, ''))) IN (
+                        'test', 'unittest', 'pytest', 'testagent', 'e2e_test', 'test_runner', 'github_pipeline_sentinel'
+                    )
+                    OR LOWER(TRIM(title)) IN (
+                        'test task', 'test mcp', 'mcp direct task', 'server task',
+                        'quarterly workstation audit', 'clean desk', 'buy groceries',
+                        'submit tax return', 'urgent security patch', 'routine system sweep',
+                        'low priority item', 'empty desc task', 'complete unit test suite',
+                        'simulated dry run task', 'renew annual car insurance policy before expiry',
+                        'failing job', 'stuck task', 'unauthorized task', 'e2e deep verification',
+                        'review daily priorities & goals', 'hydration & afternoon stretch'
+                    )
+                    OR LOWER(title) LIKE '%test task%'
+                    OR LOWER(title) LIKE '%e2e deep verification%'
+                    OR LOWER(title) LIKE '%unauthorized task%'
+                    OR LOWER(title) LIKE '[github sentinel]%'
+                    OR LOWER(COALESCE(description, '')) LIKE '%pytest failure tests/%'
+                    """
+                )
+                conn.execute(
+                    """
+                    DELETE FROM classified_emails
+                    WHERE message_id IN ('msg_001', 'msg_002', 'msg_003', 'msg_004', 'msg_005', 'msg_006', 'msg_007')
+                    OR LOWER(message_id) LIKE 'test_%'
+                    OR LOWER(sender) IN ('promotions@retailbrand.com', 'sarah chen <sarah.chen@company.com>')
+                    """
+                )
+                conn.execute(
+                    """
+                    DELETE FROM unsubscribed_emails
+                    WHERE message_id IN ('msg_001', 'msg_002', 'msg_003', 'msg_004', 'msg_005', 'msg_006', 'msg_007')
+                    OR LOWER(message_id) LIKE 'test_%'
+                    OR LOWER(sender) = 'promotions@retailbrand.com'
+                    """
+                )
+                conn.execute(
+                    """
+                    DELETE FROM settings
+                    WHERE key IN ('test_vault_secret', 'test_key', 'unit_test_setting')
+                    OR LOWER(key) LIKE 'test_%'
+                    """
+                )
+                conn.execute(
+                    """
+                    DELETE FROM chat_queue
+                    WHERE TRIM(prompt) IN (
+                        'Check my code while busy',
+                        'Please inspect the attached image(s).',
+                        'New prompt when out of tokens',
+                        'Pending prompt during token limit',
+                        'Research 5 should queue',
+                        'Research 3 dispatched directly',
+                        'Inspect UI'
+                    )
+                    OR (status = 'cancelled' AND prompt LIKE '%insurance_policy_sentinel%')
+                    """
+                )
+                conn.execute(
+                    """
+                    DELETE FROM token_preservation_vault
+                    WHERE reason IN (
+                        'Test quota limit',
+                        'Rate quota 429',
+                        'Simulated token exhaustion',
+                        'Token limit exhausted',
+                        'Token limit reached before dispatching queue',
+                        'Quota error: '
+                    )
+                    """
+                )
+                conn.execute(
+                    """
+                    DELETE FROM activity_logs
+                    WHERE LOWER(TRIM(COALESCE(agent, ''))) IN (
+                        'testagent', 'e2e_test', 'pytest', 'testrunner', 'tester', 'test_suite',
+                        'scheduler:broken', 'scheduler:custom_agent', 'scheduler:renewal_sentinel_2',
+                        'scheduler:renewal_sentinel', 'scheduler:insurance_policy_sentinel',
+                        'notesagent', 'tokenmonitor', 'queueworker', 'parallelagent'
+                    )
+                    OR LOWER(TRIM(COALESCE(action, ''))) IN ('test_run', 'run_test_suite', 'schedule_fail')
+                    OR LOWER(COALESCE(details, '')) LIKE '%[source: github_pipeline_sentinel]%'
+                    OR LOWER(COALESCE(details, '')) LIKE '%test task%'
+                    OR LOWER(COALESCE(details, '')) LIKE '%e2e deep verification%'
+                    """
                 )
         except Exception:
             pass
@@ -286,28 +390,31 @@ class BaseDatabase:
                 """, default_backlog)
 
             if not is_test_environment() and self.db_path == DB_PATH:
-                from fleet.core.db.backlog import UX_ROADMAP_BACKLOG_ITEMS
+                from fleet.core.db.backlog import ALL_CANONICAL_BACKLOG_ITEMS
                 now_str = datetime.now().isoformat()
                 cursor.execute("SELECT title FROM feature_backlog")
-                existing_titles = {row["title"] for row in cursor.fetchall()}
-                for item in UX_ROADMAP_BACKLOG_ITEMS:
-                    if item["title"] not in existing_titles:
+                existing_titles = {str(row["title"]).strip() for row in cursor.fetchall()}
+                for item in ALL_CANONICAL_BACKLOG_ITEMS:
+                    title = item["title"].strip()
+                    created_ts = item.get("created_at") or now_str
+                    if title not in existing_titles:
                         cursor.execute(
                             """
                             INSERT INTO feature_backlog (title, description, category, priority, status, target_version, created_at, updated_at)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                             """,
                             (
-                                item["title"],
+                                title,
                                 item["description"],
                                 item["category"],
                                 item["priority"],
                                 item["status"],
                                 item["target_version"],
-                                now_str,
+                                created_ts,
                                 now_str,
                             ),
                         )
+                        existing_titles.add(title)
 
             # Unsubscribed Emails table
             cursor.execute("""

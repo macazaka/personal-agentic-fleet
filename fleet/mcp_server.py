@@ -836,6 +836,232 @@ def fleet_run_scheduled_task(schedule_id: Optional[str] = None, agent: Optional[
     return f"Failed to execute task: {res.get('result', {}).get('error', 'Unknown error')}"
 
 
+@mcp.tool(description="Execute a bi-directional voice or conversational command across AFCC and trigger linked dashboard & agent activities.")
+def fleet_voice_converse(transcript: str) -> str:
+    """Process a spoken or natural-language command and return spoken_reply, ui_actions, and executed_activities."""
+    import fleet.server as srv
+    from fleet.core.omnibar_dispatcher import transcribe_and_dispatch_voice_command
+    res = transcribe_and_dispatch_voice_command(
+        transcript=transcript,
+        agent_registry=getattr(srv, "agent_registry", None),
+        db=getattr(srv, "db", None),
+    )
+    return json.dumps(res, indent=2)
+
+
+@mcp.tool(description="Execute Health & Wellness operations ('summary', 'log_water', 'log_metric', 'toggle_medication', 'metabolic_profile') in the local SQLite vault.")
+def fleet_health_action(
+    action: str = "summary",
+    value: float = 0.0,
+    metric_type: str = "weight_kg",
+    unit: str = "",
+    medication_id: Optional[int] = None,
+) -> str:
+    """Perform Health & Wellness tracking actions via MCP."""
+    import fleet.server as srv
+    db = getattr(srv, "db", None)
+    if not db:
+        return json.dumps({"status": "error", "message": "Database unavailable"}, indent=2)
+    act = (action or "summary").strip().lower()
+    if act == "log_water":
+        glasses = int(value) if value and value >= 1 else 1
+        res = db.log_water_intake(glasses_delta=glasses, amount_delta_ml=glasses * 250)
+        return json.dumps({"status": "ok", "action": "log_water", "hydration": res}, indent=2)
+    if act == "log_metric":
+        mid = db.log_health_metric(metric_type=metric_type, value=float(value), unit=unit, notes="Logged via FastMCP")
+        return json.dumps({"status": "ok", "action": "log_metric", "metric_id": mid, "metric_type": metric_type, "value": value}, indent=2)
+    if act == "toggle_medication" and medication_id is not None:
+        res = db.toggle_medication_log(int(medication_id))
+        return json.dumps({"status": "ok", "action": "toggle_medication", "result": res}, indent=2)
+    if act == "metabolic_profile":
+        return json.dumps({"status": "ok", "metabolic_profile": db.get_metabolic_profile()}, indent=2)
+    return json.dumps({"status": "ok", "summary": db.get_health_dashboard_summary()}, indent=2)
+
+
+@mcp.tool(description="Run 4-layer pre-download attachment antivirus scan, discover email/attachment proposals, or approve/reject Unapproved proposals in the Feature Backlog.")
+def fleet_email_proposals_and_virus_scan(
+    action: str = "list_proposals",
+    status: str = "Unapproved",
+    backlog_id: Optional[int] = None,
+    filename: str = "",
+    content_base64: str = "",
+) -> str:
+    """Manage Email Intelligence attachment virus scanning and Unapproved backlog proposals via MCP."""
+    import base64
+    import fleet.server as srv
+    from fleet.integrations.email_intelligence_proposals import (
+        approve_email_proposal,
+        discover_email_and_attachment_proposals,
+        reject_email_proposal,
+        scan_email_attachment_security,
+    )
+    act = (action or "list_proposals").strip().lower()
+    if act == "scan_attachment":
+        scan_res = scan_email_attachment_security(
+            filename=filename or "attachment.bin",
+            content_base64=content_base64,
+        )
+        return json.dumps(scan_res, indent=2)
+    if act in ("discover_proposals", "list_proposals"):
+        res = discover_email_and_attachment_proposals(db=getattr(srv, "db", None))
+        return json.dumps(res, indent=2)
+    if act == "approve_proposal" and backlog_id is not None:
+        res = approve_email_proposal(
+            proposal_id="",
+            db=getattr(srv, "db", None),
+            registry=getattr(srv, "agent_registry", None),
+            backlog_id=int(backlog_id),
+        )
+        return json.dumps(res, indent=2)
+    if act == "reject_proposal" and backlog_id is not None:
+        res = reject_email_proposal(proposal_id="", db=getattr(srv, "db", None), backlog_id=int(backlog_id))
+        return json.dumps(res, indent=2)
+    return json.dumps(discover_email_and_attachment_proposals(db=getattr(srv, "db", None)), indent=2)
+
+
+@mcp.tool(description="Query, multi-filter (by statuses and priorities), add, or update items in the Personal Fleet Feature Backlog.")
+def fleet_manage_backlog(
+    action: str = "list",
+    statuses: str = "",
+    priorities: str = "",
+    title: str = "",
+    category: str = "Agent Enhancement",
+    priority: str = "P2",
+    status: str = "Planned",
+    description: str = "",
+    item_id: Optional[int] = None,
+) -> str:
+    """Manage the Personal Fleet Feature Backlog via MCP."""
+    import fleet.server as srv
+    db = getattr(srv, "db", None)
+    if not db:
+        return json.dumps({"status": "error", "message": "Database unavailable"}, indent=2)
+    act = (action or "list").strip().lower()
+    if act == "add" and title.strip():
+        bid = db.add_feature_backlog_item(
+            title=title.strip(),
+            category=category,
+            priority=priority,
+            status=status,
+            description=description,
+        )
+        return json.dumps({"status": "ok", "action": "add", "backlog_id": bid}, indent=2)
+    if act == "update_status" and item_id is not None:
+        ok = db.update_feature_backlog_status(int(item_id), status)
+        return json.dumps({"status": "ok" if ok else "error", "item_id": item_id, "new_status": status}, indent=2)
+    items = db.list_feature_backlog_items(status=statuses or None, priority=priorities or None)
+    return json.dumps({"status": "ok", "count": len(items), "items": items[:50], "stats": db.get_feature_backlog_stats()}, indent=2)
+
+
+@mcp.tool(description="Auto-generate 10 ways to improve any agent, improvise a manual improvement prompt with LLM context, or undertake self-improvements via Feature Backlog.")
+def fleet_evolve_agent(
+    agent_id: str = "overview",
+    action: str = "suggestions",
+    manual_text: str = "",
+) -> str:
+    """Trigger AI Self-Improvement & Feature Evolution for any AFCC agent via MCP."""
+    from fleet.api.router import router
+    act = (action or "suggestions").strip().lower()
+    if act == "improvise":
+        res = router.invoke("POST", "/api/studio/evolve/improvise", {"id": agent_id, "text": manual_text})
+        return json.dumps(res.get("data", res), indent=2)
+    if act == "undertake" and manual_text.strip():
+        res = router.invoke("POST", "/api/studio/evolve", {
+            "id": agent_id,
+            "evolution_improvements": [{
+                "id": f"mcp_manual_{agent_id}",
+                "title": manual_text.strip().split("\n")[0][:110],
+                "description": manual_text.strip(),
+                "code_enhancement_brief": manual_text.strip(),
+                "is_custom": True,
+            }],
+        })
+        return json.dumps(res.get("data", res), indent=2)
+    if act == "status":
+        res = router.invoke("GET", f"/api/studio/evolve/status?id={agent_id}")
+        return json.dumps(res.get("data", res), indent=2)
+    res = router.invoke("POST", "/api/studio/evolve/suggestions", {"id": agent_id, "count": 10})
+    return json.dumps(res.get("data", res), indent=2)
+
+
+@mcp.tool(description="Run PC Optimizer actions ('diagnostics', 'optimize_ram', 'clean_temp', 'flush_dns', 'purge_pycache') or the 12-Layer Security Scanner ('security_scan').")
+def fleet_optimize_and_audit(action: str = "diagnostics") -> str:
+    """Execute PC Optimizer and 12-Layer Security Audit operations via MCP."""
+    from fleet.core.optimizer import (
+        clean_temp_files,
+        flush_dns_cache,
+        get_pc_performance_diagnostics,
+        optimize_ram,
+        purge_dev_caches,
+    )
+    act = (action or "diagnostics").strip().lower()
+    if act == "optimize_ram":
+        return json.dumps(optimize_ram(), indent=2)
+    if act == "clean_temp":
+        return json.dumps(clean_temp_files(), indent=2)
+    if act == "flush_dns":
+        return json.dumps(flush_dns_cache(), indent=2)
+    if act == "purge_pycache":
+        return json.dumps(purge_dev_caches(), indent=2)
+    if act == "security_scan":
+        from fleet.tools.security_scanner import run_security_scan
+        return json.dumps(run_security_scan(), indent=2)
+    return json.dumps(get_pc_performance_diagnostics(), indent=2)
+
+
+@mcp.tool(description="Universal API-First Bridge: Invoke any registered AFCC & Agentic Fleet REST endpoint ('GET' or 'POST') in-process via MCP.")
+def fleet_call_api(method: str = "GET", path: str = "/api/status", payload: Optional[Dict[str, Any]] = None) -> str:
+    """Call any AFCC REST API route directly from MCP without socket overhead."""
+    from fleet.api.router import router
+    res = router.invoke(method=method, path=path, payload=payload)
+    return json.dumps(res, indent=2)
+
+
+def list_mcp_tools_metadata() -> list[Dict[str, Any]]:
+    """Introspects all `fleet_*` MCP tools registered in `fleet.mcp_server` with parameter schemas."""
+    import inspect
+    tools_meta: list[Dict[str, Any]] = []
+    for name, obj in sorted(globals().items()):
+        if not name.startswith("fleet_") or not callable(obj):
+            continue
+        sig = inspect.signature(obj)
+        params = {}
+        for p_name, p_obj in sig.parameters.items():
+            params[p_name] = {
+                "required": p_obj.default is inspect.Parameter.empty,
+                "default": None if p_obj.default is inspect.Parameter.empty else p_obj.default,
+                "annotation": str(p_obj.annotation) if p_obj.annotation is not inspect.Parameter.empty else "any",
+            }
+        tools_meta.append({
+            "name": name,
+            "description": (inspect.getdoc(obj) or "").split("\n")[0],
+            "parameters": params,
+        })
+    return tools_meta
+
+
+def invoke_mcp_tool(tool_name: str, arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Executes any registered `fleet_*` MCP tool by name and returns structured JSON/text output."""
+    clean_name = (tool_name or "").strip()
+    fn = globals().get(clean_name)
+    if not fn or not clean_name.startswith("fleet_") or not callable(fn):
+        raise KeyError(f"Unknown MCP tool '{clean_name}'")
+    args = arguments if isinstance(arguments, dict) else {}
+    raw_out = fn(**args)
+    parsed_json = None
+    if isinstance(raw_out, str):
+        try:
+            parsed_json = json.loads(raw_out)
+        except Exception:
+            parsed_json = None
+    return {
+        "status": "ok",
+        "tool": clean_name,
+        "result": parsed_json if parsed_json is not None else raw_out,
+        "raw_text": raw_out if isinstance(raw_out, str) else json.dumps(raw_out),
+    }
+
+
 if __name__ == "__main__":
     # Runs the stdio MCP server for Antigravity, Claude Code, GitHub Copilot, and Cursor
     mcp.run(transport="stdio")

@@ -1189,3 +1189,471 @@ window.toggleAntigravityRightDock = toggleAntigravityRightDock;
 window.toggleAntigravityFullPageOrDock = toggleAntigravityFullPageOrDock;
 window.closeAntigravityRightDock = closeAntigravityRightDock;
 window.dockFleetChatToRightPanel = dockFleetChatToRightPanel;
+
+// --- Bi-Directional Audio Conversation & Live Activity Engine ---
+window.AFCCVoice = {
+  isListening: false,
+  userWantsListening: false,
+  isSpeaking: false,
+  continuousMode: localStorage.getItem('afcc_voice_continuous') !== 'false',
+  spokenReplyEnabled: localStorage.getItem('afcc_voice_tts_enabled') !== 'false',
+  speechRate: parseFloat(localStorage.getItem('afcc_voice_rate') || '1.05') || 1.05,
+  lastSpokenReply: 'Hello! I am your Personal Agentic Fleet Voice Copilot. Tell me what you would like to do.',
+  recognition: null
+};
+
+function updateVoiceCopilotUI(stateLabel, stateKind) {
+  const badge = document.getElementById('voiceStateBadge');
+  const orb = document.getElementById('voiceHudOrb');
+  const btnMic = document.getElementById('btnVoiceToggleMic');
+  const btnInputMic = document.getElementById('btnAgVoiceMic');
+  const btnGlobalVoice = document.getElementById('btnGlobalVoiceLive');
+  const globalBtnText = document.getElementById('globalVoiceBtnText');
+  const btnCont = document.getElementById('btnVoiceContinuousMode');
+  const btnTts = document.getElementById('btnVoiceTtsToggle');
+  const btnStopSpeak = document.getElementById('btnVoiceStopSpeaking');
+
+  const isListening = Boolean(window.AFCCVoice.isListening);
+  const isSpeaking = Boolean(window.AFCCVoice.isSpeaking);
+
+  if (badge) {
+    if (stateLabel) {
+      badge.textContent = stateLabel;
+    } else if (isListening) {
+      badge.textContent = '🎙️ Listening to you...';
+    } else if (isSpeaking) {
+      badge.textContent = '🔊 AFCC Speaking...';
+    } else {
+      badge.textContent = '● Ready to Listen & Speak';
+    }
+    if (stateKind === 'listening' || isListening) {
+      badge.style.background = 'rgba(244, 63, 94, 0.2)';
+      badge.style.color = '#fb7185';
+      badge.style.borderColor = 'rgba(244, 63, 94, 0.45)';
+    } else if (stateKind === 'speaking' || isSpeaking) {
+      badge.style.background = 'rgba(56, 189, 248, 0.2)';
+      badge.style.color = '#38bdf8';
+      badge.style.borderColor = 'rgba(56, 189, 248, 0.45)';
+    } else if (stateKind === 'executing') {
+      badge.style.background = 'rgba(245, 158, 11, 0.2)';
+      badge.style.color = '#fbbf24';
+      badge.style.borderColor = 'rgba(245, 158, 11, 0.45)';
+    } else {
+      badge.style.background = 'rgba(16, 185, 129, 0.16)';
+      badge.style.color = '#34d399';
+      badge.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+    }
+  }
+
+  if (orb) {
+    orb.textContent = isListening ? '🔴' : (isSpeaking ? '🔊' : '🎙️');
+    orb.style.boxShadow = (isListening || isSpeaking) ? '0 0 14px rgba(168, 85, 247, 0.75)' : 'none';
+  }
+
+  if (btnMic) {
+    btnMic.innerHTML = isListening ? '⏹️ Stop Mic' : '🎙️ Speak Now';
+    btnMic.style.background = isListening
+      ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+      : 'linear-gradient(135deg, #a855f7, #6366f1)';
+  }
+
+  if (btnInputMic) {
+    btnInputMic.style.background = isListening ? 'rgba(239, 68, 68, 0.25)' : 'rgba(168, 85, 247, 0.14)';
+    btnInputMic.style.borderColor = isListening ? '#ef4444' : 'rgba(168, 85, 247, 0.45)';
+    btnInputMic.style.color = isListening ? '#fca5a5' : '#d8b4fe';
+  }
+
+  if (btnGlobalVoice && globalBtnText) {
+    globalBtnText.textContent = isListening ? 'Listening...' : (isSpeaking ? 'Speaking...' : 'Voice Live');
+    btnGlobalVoice.style.background = isListening
+      ? 'rgba(239, 68, 68, 0.22)'
+      : 'rgba(168, 85, 247, 0.16)';
+    btnGlobalVoice.style.borderColor = isListening ? '#ef4444' : 'rgba(168, 85, 247, 0.5)';
+  }
+
+  if (btnCont) {
+    const cOn = Boolean(window.AFCCVoice.continuousMode);
+    btnCont.innerHTML = cOn ? '🔄 Hands-Free: ON' : '🔄 Hands-Free: OFF';
+    btnCont.style.color = cOn ? '#34d399' : 'var(--text-muted)';
+    btnCont.style.borderColor = cOn ? 'rgba(16, 185, 129, 0.45)' : 'var(--card-border)';
+    btnCont.style.background = cOn ? 'rgba(16, 185, 129, 0.14)' : 'rgba(255, 255, 255, 0.04)';
+  }
+
+  if (btnTts) {
+    const tOn = Boolean(window.AFCCVoice.spokenReplyEnabled);
+    btnTts.innerHTML = tOn ? '🔊 Voice Reply: ON' : '🔇 Voice Reply: OFF';
+    btnTts.style.color = tOn ? 'var(--accent-cyan)' : 'var(--text-muted)';
+    btnTts.style.borderColor = tOn ? 'rgba(56, 189, 248, 0.4)' : 'var(--card-border)';
+    btnTts.style.background = tOn ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255, 255, 255, 0.04)';
+  }
+
+  if (btnStopSpeak) {
+    btnStopSpeak.style.display = isSpeaking ? 'inline-flex' : 'none';
+  }
+}
+
+function toggleVoiceCopilotPanel(startListeningImmediately) {
+  const hud = document.getElementById('afccVoiceCopilotHud');
+  if (!window.isAgRightDocked && typeof openAntigravityRightDock === 'function') {
+    openAntigravityRightDock();
+  }
+  if (hud) {
+    const isHidden = hud.style.display === 'none';
+    hud.style.display = (startListeningImmediately || isHidden) ? 'block' : 'none';
+  }
+  updateVoiceCopilotUI();
+  if (startListeningImmediately && !window.AFCCVoice.isListening) {
+    toggleVoiceMicListening(true);
+  }
+}
+
+function toggleVoiceContinuousLoop() {
+  window.AFCCVoice.continuousMode = !window.AFCCVoice.continuousMode;
+  try {
+    localStorage.setItem('afcc_voice_continuous', window.AFCCVoice.continuousMode ? 'true' : 'false');
+  } catch (e) {}
+  updateVoiceCopilotUI();
+}
+
+function toggleVoiceSpokenReply() {
+  window.AFCCVoice.spokenReplyEnabled = !window.AFCCVoice.spokenReplyEnabled;
+  try {
+    localStorage.setItem('afcc_voice_tts_enabled', window.AFCCVoice.spokenReplyEnabled ? 'true' : 'false');
+  } catch (e) {}
+  if (!window.AFCCVoice.spokenReplyEnabled) {
+    stopAfccVoiceSpeaking();
+  }
+  updateVoiceCopilotUI();
+}
+
+function setAfccVoiceRate(val) {
+  const num = parseFloat(val);
+  if (!isNaN(num) && num >= 0.5 && num <= 2.0) {
+    window.AFCCVoice.speechRate = num;
+    try {
+      localStorage.setItem('afcc_voice_rate', String(num));
+    } catch (e) {}
+  }
+}
+
+function stopAfccVoiceSpeaking() {
+  if ('speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch (e) {}
+  }
+  window.AFCCVoice.isSpeaking = false;
+  updateVoiceCopilotUI();
+}
+
+function speakAfccVoiceText(text, onDoneCallback) {
+  const cleanText = String(text || '').trim();
+  if (!cleanText) {
+    if (typeof onDoneCallback === 'function') onDoneCallback();
+    return;
+  }
+  window.AFCCVoice.lastSpokenReply = cleanText;
+
+  if (!window.AFCCVoice.spokenReplyEnabled || !('speechSynthesis' in window)) {
+    if (typeof onDoneCallback === 'function') onDoneCallback();
+    return;
+  }
+
+  try {
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(cleanText);
+    utter.rate = window.AFCCVoice.speechRate || 1.05;
+    utter.pitch = 1.0;
+
+    // Select a natural English voice if available
+    const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+    const preferred = voices.find(v => /Natural|Aria|Jenny|Guy|Google US English|Zira/i.test(v.name) && /en/i.test(v.lang))
+      || voices.find(v => /en/i.test(v.lang));
+    if (preferred) {
+      utter.voice = preferred;
+    }
+
+    utter.onstart = () => {
+      window.AFCCVoice.isSpeaking = true;
+      updateVoiceCopilotUI('🔊 AFCC Speaking...', 'speaking');
+    };
+    utter.onend = () => {
+      window.AFCCVoice.isSpeaking = false;
+      updateVoiceCopilotUI();
+      if (typeof onDoneCallback === 'function') onDoneCallback();
+    };
+    utter.onerror = () => {
+      window.AFCCVoice.isSpeaking = false;
+      updateVoiceCopilotUI();
+      if (typeof onDoneCallback === 'function') onDoneCallback();
+    };
+
+    window.speechSynthesis.speak(utter);
+  } catch (e) {
+    window.AFCCVoice.isSpeaking = false;
+    updateVoiceCopilotUI();
+    if (typeof onDoneCallback === 'function') onDoneCallback();
+  }
+}
+
+function replayLastAfccVoiceReply() {
+  if (window.AFCCVoice.lastSpokenReply) {
+    speakAfccVoiceText(window.AFCCVoice.lastSpokenReply);
+  }
+}
+
+async function executeVoiceUiActions(uiActions) {
+  if (!Array.isArray(uiActions) || uiActions.length === 0) return;
+  for (const act of uiActions) {
+    if (!act || !act.type) continue;
+    try {
+      if (act.type === 'switch_agent' && act.agent_id) {
+        if (typeof FleetNavigator !== 'undefined' && typeof FleetNavigator.switchAgent === 'function') {
+          FleetNavigator.switchAgent(act.agent_id);
+        } else if (typeof switchTab === 'function') {
+          switchTab(act.agent_id);
+        }
+      } else if (act.type === 'filter_tasks' && act.filter) {
+        if (typeof filterTasksBySource === 'function') {
+          await fetchTasks();
+          filterTasksBySource(act.filter);
+        }
+      } else if (act.type === 'set_task_mask') {
+        window._maskSensitiveTaskData = Boolean(act.masked);
+        try {
+          localStorage.setItem('afcc_mask_sensitive_tasks', window._maskSensitiveTaskData ? 'true' : 'false');
+        } catch (e) {}
+        if (typeof renderTasksList === 'function') renderTasksList();
+        if (typeof fetchTasks === 'function') fetchTasks();
+      } else if (act.type === 'refresh_tasks') {
+        if (typeof fetchTasks === 'function') fetchTasks();
+      } else if (act.type === 'refresh_briefing') {
+        if (typeof fetchBriefing === 'function') fetchBriefing();
+      } else if (act.type === 'refresh_health') {
+        if (typeof fetchHealthDashboard === 'function') fetchHealthDashboard();
+      } else if (act.type === 'refresh_emails') {
+        if (typeof syncEmails === 'function') syncEmails();
+        else if (typeof fetchEmails === 'function') fetchEmails();
+        if (typeof fetchEmailProposals === 'function') fetchEmailProposals();
+      } else if (act.type === 'test_virus_shield') {
+        if (typeof testAttachmentVirusShield === 'function') testAttachmentVirusShield();
+      } else if (act.type === 'refresh_optimizer') {
+        if (typeof fetchOptimizerData === 'function') fetchOptimizerData();
+      } else if (act.type === 'run_security_scan') {
+        if (typeof runSecurityScanFromHeader === 'function') runSecurityScanFromHeader();
+      } else if (act.type === 'run_tests') {
+        if (typeof runTestsNow === 'function') runTestsNow();
+      } else if (act.type === 'filter_backlog' && act.status) {
+        setTimeout(() => {
+          if (typeof filterBacklogByStatus === 'function') filterBacklogByStatus(act.status);
+        }, 120);
+      } else if (act.type === 'open_evolve_modal' && act.agent_id) {
+        if (typeof openEvolveAgentModal === 'function') openEvolveAgentModal(act.agent_id);
+      } else if (act.type === 'set_theme' && act.theme) {
+        if (typeof FleetNavigator !== 'undefined') {
+          FleetNavigator.themeMode = act.theme;
+          FleetNavigator.savePersistedState();
+          FleetNavigator.applyLayoutAndThemeToDOM();
+        }
+      } else if (act.type === 'set_layout' && act.layout) {
+        if (typeof FleetNavigator !== 'undefined' && typeof FleetNavigator.setWorkspaceLayout === 'function') {
+          FleetNavigator.setWorkspaceLayout(act.layout, true);
+        }
+      }
+    } catch (err) {
+      console.warn('Voice UI action error:', err);
+    }
+  }
+}
+
+async function executeVoiceTurnText(transcriptText) {
+  const spoken = String(transcriptText || '').trim();
+  if (!spoken) return;
+
+  const transcriptEl = document.getElementById('voiceTranscriptText');
+  const replyLineEl = document.getElementById('voiceAssistantReplyLine');
+  const replyTextEl = document.getElementById('voiceSpokenReplyText');
+  const actStripEl = document.getElementById('voiceExecutedActivitiesStrip');
+
+  if (transcriptEl) {
+    transcriptEl.innerHTML = `<strong style="color: #fff;">"${escapeHtml(spoken)}"</strong>`;
+  }
+  updateVoiceCopilotUI('⚡ Executing Linked Activities...', 'executing');
+
+  try {
+    const res = await fetch('/api/voice/converse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transcript: spoken })
+    });
+    const data = await res.json();
+
+    const spokenReply = data.spoken_reply || data.message || data.title || 'Done.';
+    if (replyLineEl && replyTextEl) {
+      replyLineEl.style.display = 'block';
+      replyTextEl.textContent = spokenReply;
+    }
+
+    const activities = Array.isArray(data.executed_activities) ? data.executed_activities : [];
+    if (actStripEl) {
+      if (activities.length > 0) {
+        actStripEl.style.display = 'flex';
+        actStripEl.innerHTML = activities.map(act => `
+          <span class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 10px; padding: 2px 7px;">
+            ⚡ ${escapeHtml(act)}
+          </span>
+        `).join('');
+      } else {
+        actStripEl.style.display = 'none';
+      }
+    }
+
+    // Mirror into Zero-Token Fleet Chat history so conversation is preserved visually
+    if (typeof FleetNavigator !== 'undefined') {
+      if (!Array.isArray(FleetNavigator.omnibarChatTurns)) {
+        FleetNavigator.omnibarChatTurns = [];
+      }
+      FleetNavigator.omnibarChatTurns.push({
+        userQuery: `🎙️ ${spoken}`,
+        data: data
+      });
+      if (typeof renderAgFleetZeroChat === 'function') {
+        renderAgFleetZeroChat();
+      }
+    }
+
+    // Execute linked live UI & agent activities simultaneously
+    await executeVoiceUiActions(data.ui_actions || []);
+    if (typeof fetchLogs === 'function') fetchLogs();
+
+    // Speak the reply aloud and resume listening if in continuous hands-free mode
+    speakAfccVoiceText(spokenReply, () => {
+      if (window.AFCCVoice.userWantsListening && window.AFCCVoice.continuousMode) {
+        startBrowserSpeechRecognition();
+      }
+    });
+  } catch (e) {
+    console.error('Voice converse error:', e);
+    updateVoiceCopilotUI();
+  }
+}
+
+function startBrowserSpeechRecognition() {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const transcriptEl = document.getElementById('voiceTranscriptText');
+  if (!SpeechRec) {
+    if (transcriptEl) {
+      transcriptEl.innerHTML = `<span style="color: #fbbf24;">Browser SpeechRecognition unavailable — click any activity chip below or type in the console to converse with AFCC!</span>`;
+    }
+    window.AFCCVoice.isListening = false;
+    window.AFCCVoice.userWantsListening = false;
+    updateVoiceCopilotUI();
+    return;
+  }
+
+  // Stop any ongoing TTS before listening to avoid self-echo
+  if (window.AFCCVoice.isSpeaking) {
+    stopAfccVoiceSpeaking();
+  }
+
+  try {
+    if (window.AFCCVoice.recognition) {
+      try { window.AFCCVoice.recognition.abort(); } catch (e) {}
+    }
+    const rec = new SpeechRec();
+    rec.lang = 'en-US';
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    rec.continuous = false;
+
+    let finalTranscript = '';
+
+    rec.onstart = () => {
+      window.AFCCVoice.isListening = true;
+      updateVoiceCopilotUI('🎙️ Listening... Speak to AFCC', 'listening');
+      if (transcriptEl) {
+        transcriptEl.innerHTML = `<span style="color: #c084fc; font-style: italic;">Listening for your voice command...</span>`;
+      }
+    };
+
+    rec.onresult = (event) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const chunk = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += chunk;
+        } else {
+          interim += chunk;
+        }
+      }
+      const preview = (finalTranscript || interim || '').trim();
+      if (preview && transcriptEl) {
+        transcriptEl.innerHTML = `<span style="color: #e2e8f0;">"${escapeHtml(preview)}"</span>`;
+      }
+      const cmdInput = document.getElementById('agCommandInput');
+      if (cmdInput && preview) {
+        cmdInput.value = preview;
+      }
+    };
+
+    rec.onerror = (event) => {
+      window.AFCCVoice.isListening = false;
+      if (event && event.error === 'not-allowed') {
+        window.AFCCVoice.userWantsListening = false;
+        if (transcriptEl) {
+          transcriptEl.innerHTML = `<span style="color: #fb7185;">Microphone permission denied. Allow mic access in your browser or click any activity chip below.</span>`;
+        }
+      }
+      updateVoiceCopilotUI();
+    };
+
+    rec.onend = () => {
+      window.AFCCVoice.isListening = false;
+      updateVoiceCopilotUI();
+      const captured = finalTranscript.trim();
+      if (captured) {
+        const cmdInput = document.getElementById('agCommandInput');
+        if (cmdInput) cmdInput.value = '';
+        executeVoiceTurnText(captured);
+      } else if (window.AFCCVoice.userWantsListening && window.AFCCVoice.continuousMode && !window.AFCCVoice.isSpeaking) {
+        setTimeout(() => {
+          if (window.AFCCVoice.userWantsListening && !window.AFCCVoice.isListening && !window.AFCCVoice.isSpeaking) {
+            startBrowserSpeechRecognition();
+          }
+        }, 350);
+      }
+    };
+
+    window.AFCCVoice.recognition = rec;
+    rec.start();
+  } catch (e) {
+    window.AFCCVoice.isListening = false;
+    updateVoiceCopilotUI();
+  }
+}
+
+function toggleVoiceMicListening(forceStart) {
+  const shouldStart = typeof forceStart === 'boolean' ? forceStart : !window.AFCCVoice.isListening;
+  if (shouldStart) {
+    window.AFCCVoice.userWantsListening = true;
+    startBrowserSpeechRecognition();
+  } else {
+    window.AFCCVoice.userWantsListening = false;
+    window.AFCCVoice.isListening = false;
+    if (window.AFCCVoice.recognition) {
+      try { window.AFCCVoice.recognition.stop(); } catch (e) {}
+    }
+    updateVoiceCopilotUI();
+  }
+}
+
+window.toggleVoiceCopilotPanel = toggleVoiceCopilotPanel;
+window.toggleVoiceMicListening = toggleVoiceMicListening;
+window.toggleVoiceContinuousLoop = toggleVoiceContinuousLoop;
+window.toggleVoiceSpokenReply = toggleVoiceSpokenReply;
+window.stopAfccVoiceSpeaking = stopAfccVoiceSpeaking;
+window.setAfccVoiceRate = setAfccVoiceRate;
+window.replayLastAfccVoiceReply = replayLastAfccVoiceReply;
+window.executeVoiceTurnText = executeVoiceTurnText;
+window.executeVoiceUiActions = executeVoiceUiActions;
+window.speakAfccVoiceText = speakAfccVoiceText;

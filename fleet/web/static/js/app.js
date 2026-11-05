@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof fetchExerciseVideos === 'function') fetchExerciseVideos();
   if (typeof openAntigravityRightDock === 'function') openAntigravityRightDock();
   if (typeof initDynamicAgentTabs === 'function') initDynamicAgentTabs();
-  else if (typeof switchTab === 'function') switchTab('health');
+  else if (typeof switchTab === 'function') switchTab('overview');
 
   // Auto poll updates every 8 seconds
   setInterval(() => {

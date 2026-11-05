@@ -1,10 +1,62 @@
-<div class="panel-section" id="viewGmail">
-  <div class="card" style="padding: 24px; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
-    <p style="color: #94a3b8; font-size: 14px; margin-bottom: 16px;">
-      Autonomous triage into <strong>Meetings</strong>, <strong>Respond</strong>, <strong>Note</strong>, <strong>FYI</strong>, and <strong>Ignore</strong> using Tier 0 local heuristics.
-    </p>
-    <div style="display: flex; gap: 12px;">
-      <button title="Sync and classify recent Gmail messages" class="btn btn-primary" onclick="syncEmailsNow()">🔄 Sync & Classify Recent Emails</button>
+<div class="panel-section" id="viewGmail" style="display: flex; flex-direction: column; gap: 16px;">
+  <!-- Top Command Header -->
+  <div class="card" style="padding: 20px 24px; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--card-border);">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <span style="font-size: 22px;">📧</span>
+          <h3 style="margin: 0; font-size: 17px; font-weight: 700; color: #fff;">Email Intelligence &amp; Attachment Security Center</h3>
+          <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 11px;">🛡️ 4-Layer Pre-Download Antivirus Active</span>
+          <span class="badge" style="background: rgba(0, 242, 254, 0.12); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.3); font-size: 11px;">⚡ Tier 0 Deterministic ($0.00)</span>
+        </div>
+        <p style="color: #94a3b8; font-size: 12.5px; margin: 6px 0 0 0; line-height: 1.45;">
+          Autonomous 5-Folder Triage (<strong>0-Meetings</strong>, <strong>1-Respond</strong>, <strong>2-Note</strong>, <strong>3-FYI</strong>, <strong>4-Ignore</strong>) • Pre-download/pre-use attachment virus &amp; macro scanner • Automatic discovery of <strong>New AFCC Tracking Additions</strong> and <strong>New Agents</strong> (queued as <strong style="color: #fb7185;">Unapproved</strong> in Backlog until you approve).
+        </p>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <button title="Run a live pre-download EICAR & macro antivirus block test to verify attachment protection" class="btn" style="font-size: 12px; padding: 7px 12px; border-color: rgba(16, 185, 129, 0.4); color: #34d399; background: rgba(16, 185, 129, 0.1);" onclick="testAttachmentVirusShield()">
+          🧪 Test Virus Block
+        </button>
+        <button title="Open Personal Fleet Feature Backlog filtered to Unapproved email & attachment proposals" class="btn" style="font-size: 12px; padding: 7px 12px; border-color: rgba(244, 63, 94, 0.4); color: #fb7185; background: rgba(244, 63, 94, 0.12);" onclick="FleetNavigator.switchAgent('backlog'); setTimeout(() => filterBacklogByStatus('Unapproved'), 120);">
+          ⏳ View Unapproved in Backlog
+        </button>
+        <button title="Sync and classify recent Gmail messages and scan attachments" class="btn btn-primary" style="font-size: 12px; padding: 7px 14px;" onclick="syncEmails(true)">
+          🔄 Sync &amp; Classify Recent Emails
+        </button>
+      </div>
     </div>
+    <div id="gmailAgentPillGrid" class="email-pill-grid" style="margin-top: 14px; margin-bottom: 0;"></div>
+  </div>
+
+  <!-- Proposed AFCC Tracking Additions & New Agents (Pending User Approval) -->
+  <div class="card" style="padding: 18px 22px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(168, 85, 247, 0.08) 100%); border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.3);">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <span style="font-size: 16px;">🛡️</span>
+        <strong style="font-size: 14px; color: #f8fafc;">Proposed AFCC Tracking Additions &amp; New Agents (Require Your Approval)</strong>
+        <span id="gmailAgentPendingBadge" class="badge" style="background: rgba(244, 63, 94, 0.16); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.38); font-size: 11px;">⏳ Unapproved in Backlog</span>
+      </div>
+      <button title="Rescan emails and attachments for AFCC tracking and new agent proposals" class="btn" style="font-size: 11.5px; padding: 4px 10px;" onclick="fetchEmailProposals()">
+        🔄 Refresh Proposals
+      </button>
+    </div>
+    <div id="gmailAgentVirusTestBanner" style="display: none; margin-bottom: 10px; padding: 10px 12px; border-radius: 8px; font-size: 12px;"></div>
+    <div id="gmailAgentProposalsList" style="display: flex; flex-direction: column; gap: 10px;"></div>
+  </div>
+
+  <!-- Classified Email & Attachment Feed -->
+  <div class="card" style="padding: 18px 22px; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--card-border);">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
+      <strong style="font-size: 14px; color: #f8fafc;">📬 Classified Email &amp; Virus-Scanned Attachment Feed</strong>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+        <button title="Show all classified emails" class="filter-btn active" onclick="filterEmails('ALL')">All</button>
+        <button title="Filter to 0) Meetings folder" class="filter-btn" onclick="filterEmails('Meetings')">📅 Meetings</button>
+        <button title="Filter to 1) Respond folder" class="filter-btn" onclick="filterEmails('Respond')">💬 Respond</button>
+        <button title="Filter to 2) Note folder" class="filter-btn" onclick="filterEmails('Note')">📝 Note</button>
+        <button title="Filter to 3) FYI folder" class="filter-btn" onclick="filterEmails('FYI')">ℹ️ FYI</button>
+        <button title="Filter to 4) Ignore folder" class="filter-btn" onclick="filterEmails('Ignore')">🚫 Ignore</button>
+      </div>
+    </div>
+    <div id="gmailAgentEmailList" style="display: flex; flex-direction: column; gap: 10px;"></div>
   </div>
 </div>

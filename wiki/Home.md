@@ -2,12 +2,16 @@
 
 Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operations Wiki**!
 
-[![Release: v2.14.3](https://img.shields.io/badge/Release-v2.14.3-00b4d8.svg)](Release-Notes)
+[![Release: v2.15.1](https://img.shields.io/badge/Release-v2.15.1-00b4d8.svg)](Release-Notes)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%5B12%20Layers%5D-brightgreen.svg)](Security-Model)
 [![Zero-Token Engine](https://img.shields.io/badge/Architecture-Zero--Token%20Microkernel-orange.svg)](Architecture)
+[![API-First: OpenAPI 3.1.0](https://img.shields.io/badge/API--First-OpenAPI%203.1.0%20%7C%20100%25%20REST-6366f1.svg)](API-Reference)
+[![MCP Ready: 29 Tools](https://img.shields.io/badge/MCP%20Ready-29%20Tools%20%7C%20Stdio%20%2B%20HTTP-059669.svg)](API-Reference)
+[![Voice Copilot: Bi-Directional](https://img.shields.io/badge/Voice%20Copilot-Bi--Directional%20STT%20%2B%20TTS-d97706.svg)](AFCC-and-UI-Features)
 [![Privacy: Local-First](https://img.shields.io/badge/Privacy-100%25%20Local--First%20DPAPI-teal.svg)](Security-Model)
+[![Dev Tools](https://img.shields.io/badge/Dev%20Tools-Copilot%20%7C%20Claude%20Code%20%7C%20Gemini%20%7C%20Amazon%20Q-blueviolet.svg)](Hyperscalers-Token-Optimizer-and-Scheduler)
 [![Hyperscalers](https://img.shields.io/badge/Hyperscalers-Google%20%7C%20Azure%20%7C%20AWS%20%7C%20Claude%20%7C%20Ollama-purple.svg)](Hyperscalers-Token-Optimizer-and-Scheduler)
 [![Windows: 10 / 11](https://img.shields.io/badge/Windows-10%20%7C%2011%20(64--bit)-0078D6.svg?logo=windows)](Installation-and-Quick-Start)
 [![macOS: Universal](https://img.shields.io/badge/macOS-Apple%20Silicon%20%7C%20Intel-black.svg?logo=apple)](Installation-and-Quick-Start)
@@ -52,10 +56,10 @@ Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operat
 | **[[Release-Notes]]** | Complete semantic version history and categorized changelog notes (synchronized with `CHANGELOG.md` at `v2.8.6`). |
 
 <!-- AUTO-LATEST-RELEASE:START -->
-## 🆕 Latest Release Highlights (`v2.14.3`)
+## 🆕 Latest Release Highlights (`v2.15.1`)
 
-> **Live Codebase Inventory**: `10` Built-In Agents • `139` REST API Endpoints • `35` Core Microkernel Modules • `21` Automation Tools • `495` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
+> **Live Codebase Inventory**: `10` Built-In Agents • `151` REST API Endpoints • `35` Core Microkernel Modules • `21` Automation Tools • `501` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
 
-### Added
-- **Universal "✨ 10 Ways to Improve" & Manual Self-Improvement Engine**: Every built-in core agent (`health`, `overview`, `antigravity`, `backlog`, `optimizer`, `gmail`, `pr_review`, `remote_chat`, `mcp_studio`, `local_llm`) and custom Studio agent now surfaces a **"✨ 10 Ways to Improve"** button across all AFCC views, matrix cards, dense table rows, sidebars, launchpad chips, and Settings cards, auto-generating 10 domain-authentic feature improvements with multi-select checkboxes plus manual user improvement entry and live self-improvement undertaking.
+### Fixed
+- Proactive release synchronization, static type verification, and documentation maintenance.
 <!-- AUTO-LATEST-RELEASE:END -->

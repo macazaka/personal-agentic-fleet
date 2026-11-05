@@ -23,11 +23,11 @@ class OverviewAgent(FleetAgent):
 
     @property
     def order(self) -> int:
-        return 20
+        return 10
 
     @property
     def is_default(self) -> bool:
-        return False
+        return True
 
     def get_agent_settings_schema(self) -> List[Dict[str, Any]]:
         return [

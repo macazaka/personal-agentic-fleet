@@ -39,11 +39,11 @@
     }
 
     // --- Antigravity Live Stream, Model Selector & Queue Engine ---
-    let currentTab = 'health';
+    let currentTab = 'overview';
     let agInterval = null;
 
     window.isAgRightDocked = true;
-    window.lastNonAgTab = 'health';
+    window.lastNonAgTab = 'overview';
 
     function switchTab(tab) {
       if (tab !== 'antigravity') {

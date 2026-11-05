@@ -109,8 +109,15 @@ class AgentRegistry:
                 pass
 
         agents_config = self.config.get("agents", {})
-        default_agent_id = self.config.get("default_agent", "health")
         persisted_overrides = self.load_overrides()
+        if "default_agent" in self.config:
+            default_agent_id = self.config["default_agent"]
+        else:
+            default_agent_id = self.config.get("server", {}).get("default_agent", "overview")
+            for ov_id, ov_cfg in persisted_overrides.items():
+                if isinstance(ov_cfg, dict) and ov_cfg.get("is_default") is True:
+                    default_agent_id = ov_id
+                    break
 
         # 1. Discover built-in agents
         directories_to_scan = [(self.agents_dir, "fleet.agents")]
@@ -137,7 +144,9 @@ class AgentRegistry:
                     agent_instance = self._load_agent_from_file(agent_file, item, agent_cfg, module_prefix)
                     if agent_instance:
                         self._all_discovered_agents[agent_instance.id] = agent_instance
-                        if default_agent_id == agent_instance.id or agent_cfg.get("is_default"):
+                        if "default_agent" in self.config or any(isinstance(v, dict) and v.get("is_default") is True for v in persisted_overrides.values()):
+                            agent_instance._override_default = (default_agent_id == agent_instance.id)
+                        elif default_agent_id == agent_instance.id or agent_cfg.get("is_default"):
                             agent_instance._override_default = True
 
                         if agent_cfg.get("enabled") is False:
@@ -240,13 +249,15 @@ class AgentRegistry:
                 self.agents.pop(agent_id, None)
 
         # Handle is_default tab override
+        overrides = self.load_overrides()
         if filtered_updates.get("is_default"):
             for other_id, other_agent in self._all_discovered_agents.items():
                 if other_id != agent_id:
                     other_agent._override_default = False
+                    if other_id in overrides and isinstance(overrides[other_id], dict):
+                        overrides[other_id]["is_default"] = False
 
         # Save to persistent storage
-        overrides = self.load_overrides()
         existing = overrides.get(agent_id, {})
         existing.update(filtered_updates)
         overrides[agent_id] = existing
@@ -595,18 +606,20 @@ class AgentRegistry:
                     if not e_title or e_title.lower() in seen_evo_titles:
                         continue
                     seen_evo_titles.add(e_title.lower())
-                    merged_evo.append({
+                    preserved = dict(item)
+                    preserved.update({
                         "id": str(item.get("id") or ""),
-                        "title": e_title[:90],
-                        "description": str(item.get("description") or "")[:280],
-                        "code_enhancement_brief": str(item.get("code_enhancement_brief") or "")[:360],
+                        "title": e_title[:160],
+                        "description": str(item.get("description") or "")[:1200],
+                        "code_enhancement_brief": str(item.get("code_enhancement_brief") or "")[:1200],
                         "is_custom": bool(item.get("is_custom", False)),
                     })
+                    merged_evo.append(preserved)
                 elif isinstance(item, str) and item.strip():
                     e_title = item.strip()
                     if e_title.lower() not in seen_evo_titles:
                         seen_evo_titles.add(e_title.lower())
-                        merged_evo.append({"id": "", "title": e_title[:90], "description": "", "code_enhancement_brief": "", "is_custom": False})
+                        merged_evo.append({"id": "", "title": e_title[:160], "description": "", "code_enhancement_brief": "", "is_custom": False})
         if merged_evo:
             new_manifest["evolution_improvements"] = merged_evo[-30:]
 
@@ -653,6 +666,14 @@ class AgentRegistry:
                 if k in new_manifest:
                     agent.manifest_meta[k] = new_manifest[k]
 
+            undertaken = {}
+            if merged_evo:
+                undertaken = undertake_agent_self_improvements(agent, new_manifest["evolution_improvements"], db=self.db)
+                if isinstance(undertaken.get("improvements"), list):
+                    new_manifest["evolution_improvements"] = undertaken["improvements"]
+                    agent.manifest_meta["evolution_improvements"] = undertaken["improvements"]
+                    agent.config["evolution_improvements"] = undertaken["improvements"]
+
             if self.db is not None and hasattr(self.db, "set_setting"):
                 try:
                     evo_persist = {
@@ -676,9 +697,6 @@ class AgentRegistry:
                 except Exception as e:
                     logger.warning(f"Could not persist built-in evolution state for '{clean_id}': {e}")
 
-            undertaken = {}
-            if merged_evo:
-                undertaken = undertake_agent_self_improvements(agent, new_manifest["evolution_improvements"], db=self.db)
             out_mf = agent.get_ui_manifest()
             out_mf["undertaken_summary"] = undertaken
             return out_mf
@@ -736,6 +754,11 @@ class AgentRegistry:
         undertaken = {}
         if merged_evo:
             undertaken = undertake_agent_self_improvements(reloaded, new_manifest["evolution_improvements"], db=self.db)
+            if isinstance(undertaken.get("improvements"), list):
+                new_manifest["evolution_improvements"] = undertaken["improvements"]
+                if hasattr(reloaded, "manifest_meta") and isinstance(reloaded.manifest_meta, dict):
+                    reloaded.manifest_meta["evolution_improvements"] = undertaken["improvements"]
+                manifest_path.write_text(json.dumps(new_manifest, indent=2), encoding="utf-8")
         out_mf = reloaded.get_ui_manifest()
         out_mf["undertaken_summary"] = undertaken
         return out_mf
@@ -1046,6 +1069,32 @@ class AgentRegistry:
 
         if agent_dir_resolved.is_dir():
             shutil.rmtree(agent_dir_resolved, ignore_errors=True)
+
+        # Clean up associated schedule overrides, document folders, inbox, and reports for this custom agent
+        try:
+            vault_dir = custom_root_resolved.parent
+            for rel_dir in (vault_dir / "agent_docs" / clean_id, vault_dir / "inbox" / clean_id):
+                if rel_dir.is_dir():
+                    shutil.rmtree(rel_dir, ignore_errors=True)
+            rep_file = vault_dir / "reports" / f"{clean_id}_latest.md"
+            if rep_file.is_file():
+                rep_file.unlink(missing_ok=True)
+            sched_path = vault_dir / "schedule_overrides.json"
+            if sched_path.is_file():
+                sched_overrides = json.loads(sched_path.read_text(encoding="utf-8"))
+                if isinstance(sched_overrides, dict):
+                    keys_to_remove = [
+                        k for k, v in sched_overrides.items()
+                        if k == clean_id
+                        or k.startswith(f"{clean_id}_")
+                        or (isinstance(v, dict) and v.get("agent") == clean_id)
+                    ]
+                    if keys_to_remove:
+                        for k in keys_to_remove:
+                            sched_overrides.pop(k, None)
+                        sched_path.write_text(json.dumps(sched_overrides, indent=2), encoding="utf-8")
+        except Exception as e:
+            logger.warning(f"Error cleaning auxiliary files/schedules for deleted agent '{clean_id}': {e}")
 
         # Clean up any Deep-Build local unit test for this deleted user-vault custom agent
         try:

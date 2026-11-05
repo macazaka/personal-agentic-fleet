@@ -57,7 +57,7 @@ let globalHealthSummary = null;
         if (daysRemainingEl) {
           let days = meta.days_remaining;
           if (days === undefined) {
-            const target = new Date('2027-01-07');
+            const target = new Date('2027-01-01');
             const now = new Date();
             days = Math.max(0, Math.ceil((target - now) / (1000 * 60 * 60 * 24)));
           }

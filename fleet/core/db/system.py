@@ -82,15 +82,16 @@ class SystemMixin(_DbBase):
     # --- Activity Log Operations ---
     def log_activity(self, agent: str, action: str, details: str = "") -> None:
         # In production workstation mode, strictly reject unit test logging
-        if os.environ.get("FLEET_PRODUCTION_SERVER") == "1":
+        from fleet.core.db.base import is_test_environment
+        if not is_test_environment() or os.environ.get("FLEET_PRODUCTION_SERVER") == "1":
             ag_low = (agent or "").lower()
             ac_low = (action or "").lower()
             dt_low = (details or "").lower()
-            if ag_low in ('testagent', 'e2e_test', 'pytest', 'testrunner', 'tester'):
+            if ag_low in ("testagent", "e2e_test", "pytest", "testrunner", "tester", "test_suite", "scheduler:broken", "scheduler:custom_agent"):
                 return
-            if ac_low in ('test_run', 'run_test_suite'):
+            if ac_low in ("test_run", "run_test_suite"):
                 return
-            if 'e2e deep' in dt_low or 'test task' in dt_low:
+            if "e2e deep" in dt_low or "test task" in dt_low or "pytest failure tests/" in dt_low:
                 return
 
         now = datetime.now().isoformat()
@@ -109,11 +110,18 @@ class SystemMixin(_DbBase):
                 cursor.execute("""
                     SELECT * FROM activity_logs 
                     WHERE (agent IS NULL OR (
-                        LOWER(agent) NOT IN ('testagent', 'e2e_test', 'pytest', 'testrunner', 'tester')
+                        LOWER(agent) NOT IN (
+                            'testagent', 'e2e_test', 'pytest', 'testrunner', 'tester', 'test_suite',
+                            'scheduler:broken', 'scheduler:custom_agent', 'scheduler:renewal_sentinel_2',
+                            'scheduler:renewal_sentinel', 'scheduler:insurance_policy_sentinel'
+                        )
                         AND LOWER(agent) NOT LIKE '%test%'
                     ))
                     AND (action IS NULL OR (
-                        LOWER(action) NOT IN ('test_run', 'run_test_suite')
+                        LOWER(action) NOT IN (
+                            'test_run', 'run_test_suite', 'self_critique',
+                            'a2a_proactive_scan_complete', 'dream_insight', 'schedule_fail'
+                        )
                         AND LOWER(action) NOT LIKE '%test%'
                     ))
                     AND (details IS NULL OR (
@@ -121,6 +129,8 @@ class SystemMixin(_DbBase):
                         AND LOWER(details) NOT LIKE '%test task%'
                         AND LOWER(details) NOT LIKE '%ran test%'
                         AND LOWER(details) NOT LIKE '%passed test%'
+                        AND LOWER(details) NOT LIKE '%pytest failure tests/%'
+                        AND LOWER(details) NOT LIKE '%unknown target agent%'
                     ))
                     ORDER BY id DESC LIMIT ?
                 """, (limit,))
@@ -595,13 +605,12 @@ class SystemMixin(_DbBase):
     ) -> Dict[str, Any]:
         mf = manifest or {}
         default_checks = mf.get("checklist_items") if isinstance(mf.get("checklist_items"), list) else None
-        all_records = self.list_custom_agent_records(agent_id, limit=80)
-        entries = [r for r in all_records if r.get("record_type") == "entry"]
-        runs = [r for r in all_records if r.get("record_type") == "run"]
-        insights = [r for r in all_records if r.get("record_type") == "ai_insight"]
-        documents = [r for r in all_records if r.get("record_type") == "document"]
-        cycle_history = [r for r in all_records if r.get("record_type") == "cycle_history"]
-        chat_history = list(reversed([r for r in all_records if r.get("record_type") == "chat"][:12]))
+        entries = self.list_custom_agent_records(agent_id, record_type="entry", limit=100)
+        runs = self.list_custom_agent_records(agent_id, record_type="run", limit=50)
+        insights = self.list_custom_agent_records(agent_id, record_type="ai_insight", limit=20)
+        documents = self.list_custom_agent_records(agent_id, record_type="document", limit=50)
+        cycle_history = self.list_custom_agent_records(agent_id, record_type="cycle_history", limit=30)
+        chat_history = list(reversed(self.list_custom_agent_records(agent_id, record_type="chat", limit=12)))
         checklist = self.get_custom_agent_checklist(agent_id, default_items=default_checks)
 
         today = datetime.now().date()

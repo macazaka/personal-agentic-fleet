@@ -769,12 +769,10 @@ def run_github_pipeline_audit(
                 from fleet.core.database import FleetDatabase
                 from fleet.config import DB_PATH
                 db = FleetDatabase(DB_PATH)
-                db.add_task(
-                    title=f"[GitHub Sentinel] Resolve {summary_msg}",
-                    description=str(report.get("remediation_prompt", "")),
-                    priority="P1",
-                    assigned_agent="pr_review",
-                    source="github_pipeline_sentinel",
+                db.log_activity(
+                    "pr_review",
+                    "pipeline_sentinel_alert",
+                    f"Detected {summary_msg} (Report saved to pr_review agent view)",
                 )
             except Exception:
                 pass

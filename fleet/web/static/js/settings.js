@@ -541,6 +541,7 @@ function populateGeneralSettingsForm() {
   const cost = document.getElementById('genSettingCostPolicy');
   const theme = document.getElementById('genSettingTheme');
   const layout = document.getElementById('genSettingLayout');
+  const defAgentSelect = document.getElementById('genSettingDefaultAgent');
 
   if (tz) tz.value = s.timezone || 'Asia/Kolkata (IST, UTC+05:30)';
   if (notify) notify.checked = s.notifications_enabled !== 'false';
@@ -550,6 +551,18 @@ function populateGeneralSettingsForm() {
   if (cost) cost.value = s.cost_policy || 'PREFER_ZERO_TOKEN_CODE';
   if (theme) theme.value = s.theme || 'dark';
   if (layout) layout.value = s.layout || 'sidebar_dock';
+
+  if (defAgentSelect) {
+    const enabledAgents = (fleetSettingsState.agents || []).filter(a => a && a.enabled);
+    if (enabledAgents.length > 0) {
+      defAgentSelect.innerHTML = enabledAgents.map(a =>
+        `<option value="${escapeHtml(a.id)}">${escapeHtml(a.icon || '⚡')} ${escapeHtml(a.name || a.id)} (${escapeHtml(a.id)})</option>`
+      ).join('');
+    }
+    const currentDefFromAgents = (fleetSettingsState.agents || []).find(a => a && a.is_default);
+    const effDefault = (currentDefFromAgents && currentDefFromAgents.id) || s.default_agent || 'overview';
+    defAgentSelect.value = effDefault;
+  }
 
   // Highlight active layout option card
   ['sidebar_dock', 'command_deck', 'launchpad_grid'].forEach(l => {
@@ -581,6 +594,7 @@ function onSelectThemeInSettings(themeId) {
 async function saveGeneralSettings() {
   const selectedLayout = document.getElementById('genSettingLayout')?.value || 'sidebar_dock';
   const selectedTheme = document.getElementById('genSettingTheme')?.value || 'dark';
+  const selectedDefaultAgent = document.getElementById('genSettingDefaultAgent')?.value || 'overview';
   const payload = {
     timezone: document.getElementById('genSettingTimezone')?.value,
     notifications_enabled: Boolean(document.getElementById('genSettingNotifications')?.checked),
@@ -590,6 +604,7 @@ async function saveGeneralSettings() {
     cost_policy: document.getElementById('genSettingCostPolicy')?.value || 'PREFER_ZERO_TOKEN_CODE',
     theme: selectedTheme,
     layout: selectedLayout,
+    default_agent: selectedDefaultAgent,
   };
 
   try {
@@ -603,11 +618,15 @@ async function saveGeneralSettings() {
       throw new Error(data.message || 'Save failed');
     }
     fleetSettingsState.settings = data.settings || {};
+    await refreshSettingsData();
     if (typeof FleetNavigator !== 'undefined') {
       FleetNavigator.setWorkspaceLayout(selectedLayout, false);
       FleetNavigator.setWorkspaceTheme(selectedTheme, false);
+      if (typeof FleetNavigator.fetchFleetData === 'function') {
+        FleetNavigator.fetchFleetData();
+      }
     }
-    showSettingsToast('General fleet settings, layout & theme saved successfully.');
+    showSettingsToast('General fleet settings, default startup agent, layout & theme saved.');
   } catch (err) {
     console.error('Failed to save general settings:', err);
     showSettingsToast('Failed to save settings: ' + err.message, 'error');

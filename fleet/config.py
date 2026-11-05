@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 # Fleet Version & Minimum Runtime Requirement
-VERSION = "2.14.3"
+VERSION = "2.15.1"
 MIN_PYTHON_VERSION = (3, 10)
 PORT = 7890
 
@@ -194,7 +194,7 @@ def load_fleet_config() -> dict:
 
     # 3. Default fallback configuration
     return {
-        "server": {"host": "127.0.0.1", "port": 7890, "default_agent": "health"},
+        "server": {"host": "127.0.0.1", "port": 7890, "default_agent": "overview"},
         "agents": {
             "health": {"enabled": True},
             "overview": {"enabled": True},

@@ -25,11 +25,25 @@ class TasksMixin(_DbBase):
         clean_desc = (description or "").strip()
         task_source = (source or assigned_agent or "Manual").strip()
 
-        # In production workstation mode, strictly reject unit test task pollution
-        if os.environ.get("FLEET_PRODUCTION_SERVER") == "1":
-            s_low = task_source.lower()
-            t_low = clean_title.lower()
-            if s_low in ('e2e_test', 'testagent', 'pytest', 'unittest') or 'e2e deep' in t_low:
+        # In production workstation mode, strictly reject unit test or CI sentinel task pollution
+        from fleet.core.db.base import is_test_environment
+        s_low = task_source.lower()
+        t_low = clean_title.lower()
+        d_low = clean_desc.lower()
+        if not is_test_environment() or os.environ.get("FLEET_PRODUCTION_SERVER") == "1":
+            if (
+                s_low in ("test", "e2e_test", "testagent", "pytest", "unittest", "test_runner", "github_pipeline_sentinel")
+                or "e2e deep" in t_low
+                or t_low.startswith("[github sentinel]")
+                or "pytest failure tests/" in d_low
+                or t_low in (
+                    "test task", "test mcp", "mcp direct task", "server task",
+                    "quarterly workstation audit", "clean desk", "buy groceries",
+                    "submit tax return", "urgent security patch", "routine system sweep",
+                    "low priority item", "empty desc task", "complete unit test suite",
+                    "simulated dry run task", "failing job", "stuck task", "unauthorized task",
+                )
+            ):
                 return -1
 
         with self._get_connection() as conn:
@@ -43,7 +57,62 @@ class TasksMixin(_DbBase):
             self.log_activity(assigned_agent, "add_task", f"Created task #{task_id}: {clean_title} [Source: {task_source}]")
             return task_id
 
+    def sync_local_personal_tasks_vault(self) -> int:
+        """
+        Hydrate local-only personal tasks from the gitignored local vault
+        (fleet/data/user/personal_tasks_vault.json) into the local SQLite database.
+        Zero personal data is stored in git-tracked code.
+        """
+        from fleet.core.db.base import is_test_environment
+        if is_test_environment() and os.environ.get("FLEET_PRODUCTION_SERVER") != "1":
+            return 0
+        db_path_norm = str(getattr(self, "db_path", "")).replace("\\", "/")
+        if not db_path_norm.endswith("fleet/data/fleet_memory.db"):
+            return 0
+        try:
+            from pathlib import Path
+            vault_path = Path(self.db_path).resolve().parent / "user" / "personal_tasks_vault.json"
+            if not vault_path.exists():
+                return 0
+            raw = json.loads(vault_path.read_text(encoding="utf-8"))
+            items = raw.get("tasks", []) if isinstance(raw, dict) else (raw if isinstance(raw, list) else [])
+            if not items:
+                return 0
+            inserted = 0
+            now = datetime.now().isoformat()
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT title, source FROM tasks")
+                existing = {(str(r["title"]).strip().lower(), str(r["source"] or "").strip().lower()) for r in cursor.fetchall()}
+                for item in items:
+                    if not isinstance(item, dict):
+                        continue
+                    title = str(item.get("title") or "").strip()
+                    desc = str(item.get("description") or "").strip()
+                    source = str(item.get("source") or "Monthly").strip()
+                    priority = str(item.get("priority") or "P1").strip().upper()
+                    status = str(item.get("status") or "pending").strip().lower()
+                    due_date = item.get("due_date")
+                    if not title or not desc:
+                        continue
+                    key = (title.lower(), source.lower())
+                    if key in existing:
+                        continue
+                    cursor.execute("""
+                        INSERT INTO tasks (title, description, source, priority, status, due_date, created_at, updated_at, assigned_agent)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'AgendaAgent')
+                    """, (title, desc, source, priority, status, due_date, now, now))
+                    existing.add(key)
+                    inserted += 1
+                if inserted > 0:
+                    conn.commit()
+            return inserted
+        except Exception:
+            return 0
+
     def list_tasks(self, status: Optional[str] = None, limit: int = 50, require_description: bool = True, exclude_tests: bool = False) -> List[Dict[str, Any]]:
+        if exclude_tests:
+            self.sync_local_personal_tasks_vault()
         with self._get_connection() as conn:
             cursor = conn.cursor()
             conditions = []
@@ -55,9 +124,10 @@ class TasksMixin(_DbBase):
                 conditions.append("description IS NOT NULL AND TRIM(description) != ''")
 
             if exclude_tests:
+                from fleet.core.db.base import is_test_environment
                 conditions.append("""(
                     (source IS NULL OR (
-                        LOWER(source) NOT IN ('test', 'unittest', 'pytest', 'testagent', 'e2e_test', 'test_runner')
+                        LOWER(source) NOT IN ('test', 'unittest', 'pytest', 'testagent', 'e2e_test', 'test_runner', 'github_pipeline_sentinel')
                         AND LOWER(source) NOT LIKE '%test%'
                     ))
                     AND (title IS NULL OR (
@@ -65,8 +135,20 @@ class TasksMixin(_DbBase):
                         AND LOWER(title) NOT LIKE '%e2e deep verification%'
                         AND LOWER(title) NOT LIKE '%automated test task%'
                         AND LOWER(title) NOT LIKE '%unauthorized task%'
+                        AND LOWER(title) NOT LIKE '[github sentinel]%'
                     ))
+                    AND (description IS NULL OR LOWER(description) NOT LIKE '%pytest failure tests/%')
                 )""")
+                if not is_test_environment():
+                    conditions.append("""(
+                        title IS NULL OR LOWER(TRIM(title)) NOT IN (
+                            'test mcp', 'mcp direct task', 'server task',
+                            'quarterly workstation audit', 'clean desk', 'buy groceries',
+                            'submit tax return', 'urgent security patch', 'routine system sweep',
+                            'low priority item', 'empty desc task', 'complete unit test suite',
+                            'simulated dry run task', 'failing job', 'stuck task'
+                        )
+                    )""")
 
             sql = "SELECT * FROM tasks"
             if conditions:
@@ -83,7 +165,6 @@ class TasksMixin(_DbBase):
                     d["source"] = d.get("assigned_agent") or "Manual"
                 rows.append(d)
             return rows
-
 
     def update_task_status(self, task_id: int, status: str) -> bool:
         now = datetime.now().isoformat()
@@ -107,7 +188,6 @@ class TasksMixin(_DbBase):
             if deleted:
                 self.log_activity("AgendaAgent", "delete_task", f"Task #{task_id} deleted")
             return deleted
-
 
     # --- Routine & Habit Operations ---
     def list_routines(self) -> List[Dict[str, Any]]:
@@ -147,4 +227,3 @@ class TasksMixin(_DbBase):
             r_id = cursor.lastrowid or 0
             self.log_activity("AgendaAgent", "add_routine", f"Added routine #{r_id}: {title} at {time_target}")
             return r_id
-

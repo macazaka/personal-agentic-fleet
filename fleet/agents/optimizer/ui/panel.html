@@ -253,48 +253,7 @@
         <button title="Close Diagnostic Lab Report modal" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeApolloModal()">✕</button>
       </div>
       <div style="overflow-y: auto; max-height: 72vh; padding-right: 8px; font-size: 12.5px; line-height: 1.5; color: var(--text);">
-        <!-- Summary Alert -->
-        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
-          <strong style="color: #f87171;">Key Findings & Areas Requiring Intervention:</strong>
-          <ul style="margin-left: 20px; margin-top: 6px; font-size: 12px;">
-            <li><strong>Diabetic Glycemic Control:</strong> HbA1c 7.1% (eAG 157 mg/dL), Fasting Glucose 108 mg/dL, 2hr Post-Prandial Glucose 165 mg/dL.</li>
-            <li><strong>Insulin Resistance:</strong> Fasting C-Peptide is significantly elevated at 7.53 ng/mL (Ref: 1.1 - 4.4), confirming severe hyperinsulinemia.</li>
-            <li><strong>Dyslipidemia:</strong> Total Chol 209 mg/dL, Triglycerides 208 mg/dL, Low HDL 31 mg/dL, LDL 136.8 mg/dL, AIP 0.470 (High cardiovascular risk).</li>
-            <li><strong>Liver Strain:</strong> SGPT/ALT elevated at 68.8 U/L (Ref: 10-50), indicating NAFLD / hepatic lipid accumulation.</li>
-            <li><strong>Urinary Markers:</strong> Pus Cells 12-15 /hpf, Leucocyte Esterase Positive++ (suggests mild urinary tract inflammation).</li>
-            <li><strong>Optimal Organs:</strong> Kidney function optimal (eGFR 113.92 mL/min, Creatinine 0.70 mg/dL), Vitamin D sufficient (66.9 ng/mL), B12 normal (545 pg/mL), Thyroid euthyroid (TSH 1.68 µIU/mL).</li>
-          </ul>
-        </div>
-
-        <!-- Detailed Table -->
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px;">
-          <thead>
-            <tr style="border-bottom: 1px solid var(--card-border); background: rgba(255,255,255,0.04); text-align: left;">
-              <th style="padding: 8px;">Test Parameter</th>
-              <th style="padding: 8px;">Result</th>
-              <th style="padding: 8px;">Biological Ref. Interval</th>
-              <th style="padding: 8px;">Status / Flag</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Fasting Glucose</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">108 mg/dL</td><td style="padding: 6px 8px;">70 - 100</td><td style="padding: 6px 8px; color: #f87171;">Prediabetes</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Post Prandial Glucose (2hr)</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">165 mg/dL</td><td style="padding: 6px 8px;">&lt; 140 (Diabetic &gt;200)</td><td style="padding: 6px 8px; color: #f87171;">Diabetic</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">HbA1c (Glycated Hb)</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-amber);">7.1 %</td><td style="padding: 6px 8px;">&lt; 5.7 (Diabetic &ge;6.5)</td><td style="padding: 6px 8px; color: var(--accent-amber);">Diabetic (Fair Control)</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Fasting C-Peptide</td><td style="padding: 6px 8px; font-weight: 700; color: #c084fc;">7.530 ng/mL</td><td style="padding: 6px 8px;">1.1 - 4.4</td><td style="padding: 6px 8px; color: #c084fc;">Hyperinsulinemia</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Total Cholesterol</td><td style="padding: 6px 8px; font-weight: 700;">209 mg/dL</td><td style="padding: 6px 8px;">&lt; 200</td><td style="padding: 6px 8px; color: var(--accent-amber);">Borderline High</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Triglycerides</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">208 mg/dL</td><td style="padding: 6px 8px;">&lt; 150</td><td style="padding: 6px 8px; color: #f87171;">High</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">HDL Cholesterol</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">31 mg/dL</td><td style="padding: 6px 8px;">&ge; 40 Desirable</td><td style="padding: 6px 8px; color: #f87171;">Low</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">LDL Cholesterol</td><td style="padding: 6px 8px; font-weight: 700;">136.8 mg/dL</td><td style="padding: 6px 8px;">&lt; 100</td><td style="padding: 6px 8px; color: var(--accent-amber);">Elevated</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">SGPT / ALT (Liver)</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">68.8 U/L</td><td style="padding: 6px 8px;">10 - 50</td><td style="padding: 6px 8px; color: #f87171;">Elevated (NAFLD)</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">SGOT / AST (Liver)</td><td style="padding: 6px 8px; font-weight: 700;">40.1 U/L</td><td style="padding: 6px 8px;">10 - 50</td><td style="padding: 6px 8px;">Normal</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Serum Creatinine</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green);">0.70 mg/dL</td><td style="padding: 6px 8px;">0.7 - 1.2</td><td style="padding: 6px 8px; color: var(--accent-green);">Normal</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">eGFR (Glomerular Filtration)</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green);">113.92 mL/min</td><td style="padding: 6px 8px;">&gt; 60</td><td style="padding: 6px 8px; color: var(--accent-green);">Optimal</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Vitamin D (25-OH)</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green);">66.9 ng/mL</td><td style="padding: 6px 8px;">30 - 100</td><td style="padding: 6px 8px; color: var(--accent-green);">Sufficient</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Vitamin B12</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green);">545 pg/mL</td><td style="padding: 6px 8px;">197 - 771</td><td style="padding: 6px 8px; color: var(--accent-green);">Normal</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">hs-CRP (Cardiac Risk)</td><td style="padding: 6px 8px; font-weight: 700;">1.10 mg/L</td><td style="padding: 6px 8px;">&lt; 3.0</td><td style="padding: 6px 8px;">Average Risk</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Urine Pus Cells</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">12 - 15 /hpf</td><td style="padding: 6px 8px;">0 - 5</td><td style="padding: 6px 8px; color: #f87171;">Elevated</td></tr>
-          </tbody>
-        </table>
+        <div style="padding: 12px; color: var(--text-muted);">Personal diagnostic biomarkers are stored exclusively in your local gitignored SQLite database (<code>fleet/data/fleet_memory.db</code>) and never stored in GitHub.</div>
       </div>
     </div>
   </div>
@@ -387,8 +346,7 @@
       </div>
       <div style="overflow-y: auto; max-height: 72vh; padding-right: 8px; font-size: 12.5px; line-height: 1.6; color: var(--text);">
         <div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
-          <strong>Consult Goals:</strong> Within 3 Months (07 Jan 2027) <strong style="color: var(--accent-cyan);">HbA1c &lt; 6.4%</strong> • Diet Remarks: <strong style="color: #f87171;">Salt restricted diet</strong> • Recommendations: <strong style="color: var(--accent-amber);">Monitor BP</strong>
-        </div>
+          <strong>Consult Goals:</strong> Loaded from Local SQLite Vault</div>
 
         <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px;">
           <thead>

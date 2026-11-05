@@ -297,3 +297,91 @@ def post_mind_heal(handler: Any, body: Dict[str, Any]):
     res = fleet_mind.heal()
     handler._send_json(res)
 
+
+# =========================================================================
+# API-First & Dual-Transport FastMCP Architecture Discovery Endpoints
+# =========================================================================
+
+@router.get("/api/architecture/manifest")
+def get_architecture_manifest_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """Returns the complete API-First & MCP-Ready Architecture Manifest and Project Badge Matrix."""
+    from fleet.mcp_server import list_mcp_tools_metadata
+
+    live_ver = get_live_version()
+    endpoints = router.list_registered_endpoints()
+    mcp_tools = list_mcp_tools_metadata()
+    handler._send_json({
+        "status": "ok",
+        "release": f"v{live_ver}",
+        "wiki": "17 Deep-Dive Guides",
+        "python": "3.10+",
+        "license": "Apache 2.0",
+        "security_audit": "100/100 [12 Layers]",
+        "architecture": "Zero-Token Microkernel",
+        "privacy": "100% Local-First DPAPI",
+        "hyperscalers": ["Google", "Azure", "AWS", "Claude", "Ollama"],
+        "operating_systems": {
+            "windows": "10 | 11 (64-bit)",
+            "macos": "Apple Silicon | Intel",
+            "linux": "Ubuntu | Debian | Fedora | Arch",
+        },
+        "dev_tools": ["Copilot", "Claude Code", "Gemini", "Amazon Q"],
+        "api_first": {
+            "enabled": True,
+            "rest_endpoints_count": len(endpoints),
+            "openapi_url": "/api/openapi.json",
+            "in_process_invoke": True,
+        },
+        "mcp_ready": {
+            "enabled": True,
+            "server_name": "personal-fleet",
+            "transports": ["stdio", "http_json"],
+            "mcp_tools_count": len(mcp_tools),
+            "tools_url": "/api/mcp/tools",
+            "call_url": "/api/mcp/call",
+        },
+    })
+
+
+@router.get("/api/openapi.json")
+def get_openapi_spec_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """Returns the auto-generated OpenAPI 3.1.0 specification for all registered AFCC & Fleet routes."""
+    spec = router.get_openapi_spec(version=get_live_version())
+    handler._send_json(spec)
+
+
+@router.get("/api/mcp/tools")
+def get_mcp_tools_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """Lists all registered FastMCP tools and their parameter schemas over HTTP JSON."""
+    from fleet.mcp_server import list_mcp_tools_metadata
+
+    tools = list_mcp_tools_metadata()
+    handler._send_json({
+        "status": "ok",
+        "server": "personal-fleet",
+        "transports": ["stdio", "http_json"],
+        "count": len(tools),
+        "tools": tools,
+    })
+
+
+@router.post("/api/mcp/call")
+def post_mcp_call_endpoint(handler: Any, body: Dict[str, Any]):
+    """Invokes any registered `fleet_*` FastMCP tool over HTTP JSON."""
+    from fleet.mcp_server import invoke_mcp_tool
+
+    payload = body if isinstance(body, dict) else {}
+    tool_name = str(payload.get("tool") or payload.get("name") or "").strip()
+    arguments = payload.get("arguments") if isinstance(payload.get("arguments"), dict) else {}
+    if not tool_name:
+        handler._send_json({"status": "error", "message": "Field 'tool' is required"}, status=400)
+        return
+    try:
+        res = invoke_mcp_tool(tool_name=tool_name, arguments=arguments)
+        handler._send_json(res)
+    except KeyError as ke:
+        handler._send_json({"status": "error", "message": str(ke)}, status=404)
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+

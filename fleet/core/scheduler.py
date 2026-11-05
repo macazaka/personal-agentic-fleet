@@ -417,8 +417,15 @@ class FleetScheduler:
                     logger.warning(f"Could not load custom {cpath}: {e}")
 
         # 4. Merge persistent overrides (toggles, edits & custom agent schedules from Web Dashboard/API)
+        from fleet.core.db.base import is_test_environment
         overrides = self.load_overrides()
-        for oid, o_data in overrides.items():
+        pruned_orphans = False
+        is_test = is_test_environment()
+        sub_vault = "test_user" if is_test else "user"
+        builtin_agents_dir = BASE_DIR / "agents"
+        custom_agents_dir = DATA_DIR / sub_vault / "custom_agents"
+
+        for oid, o_data in list(overrides.items()):
             if not isinstance(o_data, dict):
                 continue
             if o_data.get("_deleted"):
@@ -426,7 +433,27 @@ class FleetScheduler:
             elif oid in rules_by_id:
                 rules_by_id[oid].update(o_data)
             elif o_data.get("agent") and o_data.get("task"):
-                rules_by_id[oid] = dict(o_data, id=oid)
+                if is_test:
+                    rules_by_id[oid] = dict(o_data, id=oid)
+                else:
+                    target_agent = str(o_data.get("agent") or "").strip()
+                    # Verify that any standalone override rule belongs to an existing built-in or custom agent
+                    agent_exists = (
+                        (builtin_agents_dir / target_agent).is_dir()
+                        or (custom_agents_dir / target_agent).is_dir()
+                        or any(r.get("agent") == target_agent for r in rules_by_id.values())
+                    )
+                    if agent_exists:
+                        rules_by_id[oid] = dict(o_data, id=oid)
+                    else:
+                        overrides.pop(oid, None)
+                        pruned_orphans = True
+
+        if pruned_orphans:
+            try:
+                self.save_overrides(overrides)
+            except Exception:
+                pass
 
         # Normalize and store final rules
         self.schedules = []

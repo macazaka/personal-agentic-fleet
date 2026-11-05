@@ -1203,11 +1203,91 @@ async function addCustomEvolveImprovement() {
       newSuggestion = buildClientFallbackCustomSuggestion(cleanText);
     }
     studioEvolveSuggestions = [newSuggestion, ...studioEvolveSuggestions];
-    if (inp) inp.value = '';
+    if (inp) {
+      inp.value = '';
+      inp.rows = 2;
+    }
+    const metaBar = document.getElementById('studioCustomImproviseMetaBar');
+    if (metaBar) metaBar.style.display = 'none';
     renderStudioEvolveSuggestionsList();
     syncSelectedEvolveSuggestionsToWizard();
     showFleetToast(`➕ Added custom improvement: "${newSuggestion.title}"`, false);
   });
+}
+
+let _lastModalImproviseOriginalText = '';
+
+async function improviseCustomEvolvePrompt() {
+  const inp = document.getElementById('studioCustomImprovementInput');
+  const rawText = (inp ? inp.value : '').trim();
+  if (!rawText) {
+    showFleetToast('Type a draft improvement idea first, then click "🪄 Improvise Prompt (LLM)" to enhance it.', true);
+    if (inp) inp.focus();
+    return;
+  }
+  const btn = document.getElementById('btnImproviseModalPrompt');
+  const origLabel = btn ? btn.textContent : '🪄 Improvise Prompt (LLM)';
+  const providerSel = document.getElementById('studioEvolveLlmProvider');
+  const provider = providerSel ? providerSel.value : 'auto';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Improvising...';
+  }
+  try {
+    _lastModalImproviseOriginalText = rawText;
+    const res = await fetch('/api/studio/evolve/improvise', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: wizardEditAgentId || undefined,
+        text: rawText,
+        provider,
+        spec: buildCurrentWizardSpecPayload(),
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.status === 'error') {
+      throw new Error(data.message || 'Could not improvise prompt.');
+    }
+    const enhanced = String(data.improvised_text || rawText).trim();
+    if (inp) {
+      inp.value = enhanced;
+      inp.rows = Math.min(6, Math.max(3, enhanced.split('\n').length));
+      inp.focus();
+    }
+    const metaBar = document.getElementById('studioCustomImproviseMetaBar');
+    if (metaBar) {
+      const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      metaBar.style.display = 'flex';
+      metaBar.innerHTML = `
+        <div>
+          ✨ <strong>Enhanced for ${esc(data.agent_name || wizardEditAgentId || 'Agent')}</strong>
+          via <code>${esc(data.model_used || 'LLM')}</code>
+          <span style="color: #cbd5e1;">• Context: ${esc(data.domain_title || data.context_summary || '')} — Review or edit above before clicking ➕ Add Improvement.</span>
+        </div>
+        <button type="button" class="btn" onclick="restoreOriginalModalImproviseDraft()" style="padding: 3px 9px; font-size: 10.5px; border-color: rgba(248, 250, 252, 0.3); color: #f8fafc;">↩️ Restore Original</button>
+      `;
+    }
+    showFleetToast(`🪄 Prompt enhanced with ${data.agent_name || 'agent'} context! Review before adding.`, false);
+  } catch (err) {
+    showFleetToast(`✕ Could not improvise prompt: ${err.message}`, true);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = origLabel;
+    }
+  }
+}
+
+function restoreOriginalModalImproviseDraft() {
+  const inp = document.getElementById('studioCustomImprovementInput');
+  if (inp && _lastModalImproviseOriginalText) {
+    inp.value = _lastModalImproviseOriginalText;
+    inp.rows = Math.min(5, Math.max(2, _lastModalImproviseOriginalText.split('\n').length));
+    inp.focus();
+  }
+  const metaBar = document.getElementById('studioCustomImproviseMetaBar');
+  if (metaBar) metaBar.style.display = 'none';
 }
 
 function removeCustomEvolveImprovement(idx) {
@@ -3247,7 +3327,13 @@ async function submitCreateAgentWizard(opts = {}) {
     );
 
     if (nav && typeof nav.renderActiveAgentSelfImprovementsBanner === 'function') {
+      if (isEvolve && nav._selfImproveMonitorOpen) {
+        nav._selfImproveMonitorOpen[newlyCreatedAgentId] = true;
+      }
       nav.renderActiveAgentSelfImprovementsBanner(newlyCreatedAgentId);
+    }
+    if (typeof window.fetchFeatureBacklog === 'function') {
+      try { window.fetchFeatureBacklog(); } catch (_) {}
     }
 
     if (opts.expressOpen || isEvolve) {

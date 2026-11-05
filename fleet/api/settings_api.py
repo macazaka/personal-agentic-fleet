@@ -30,6 +30,7 @@ DEFAULT_SETTINGS = {
     "auto_backup_enabled": "true",
     "theme": "dark",
     "layout": "sidebar_dock",
+    "default_agent": "overview",
 }
 
 AVAILABLE_LAYOUTS = [
@@ -117,6 +118,11 @@ def update_fleet_settings(handler: Any, body: Dict[str, Any]):
             if hasattr(srv, "db") and srv.db:
                 srv.db.set_setting(k, str_val)
                 updated_keys.append(k)
+            if k == "default_agent" and str_val and hasattr(srv, "agent_registry") and srv.agent_registry:
+                try:
+                    srv.agent_registry.customize_agent(str_val, {"is_default": True})
+                except Exception:
+                    pass
         except Exception:
             pass
 
@@ -190,6 +196,8 @@ def customize_agent_settings(handler: Any, body: Dict[str, Any]):
     try:
         manifest = srv.agent_registry.customize_agent(agent_id, updates)
         if hasattr(srv, "db") and srv.db:
+            if updates.get("is_default"):
+                srv.db.set_setting("default_agent", agent_id)
             srv.db.log_activity("FleetSettings", "agent_customize", f"Customized agent '{agent_id}'")
 
         handler._send_json({
@@ -933,6 +941,91 @@ def parse_custom_evolve_improvement_endpoint(handler: Any, body: Dict[str, Any])
         handler._send_json({"status": "ok", "suggestion": suggestion})
     except ValueError as ve:
         handler._send_json({"status": "error", "message": str(ve)}, status=400)
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+
+@router.post("/api/studio/evolve/improvise")
+def improvise_evolve_prompt_endpoint(handler: Any, body: Dict[str, Any]):
+    """
+    Context-Aware Prompt Improviser: Enhances/improvises the user's manual improvement text
+    using AFCC's connected LLM grounded in the exact agent where the button was clicked
+    (e.g., Health & Wellness, Overview & Tasks, PC Optimizer, Feature Backlog, or any Custom Agent).
+    """
+    if not isinstance(body, dict):
+        handler._send_json({"status": "error", "message": "Expected JSON object"}, status=400)
+        return
+    raw_text = str(body.get("text") or body.get("prompt") or "").strip()
+    provider = str(body.get("provider") or "auto").strip() or "auto"
+    model = str(body.get("model") or "").strip() or None
+    try:
+        from fleet.core.agent_studio import improvise_agent_improvement_prompt
+
+        effective_manifest: Dict[str, Any] = {}
+        runtime_summary: Dict[str, Any] = {}
+        try:
+            effective_manifest, runtime_summary = _resolve_evolve_manifest_and_runtime(body)
+        except (KeyError, ValueError):
+            raw_spec = body.get("spec")
+            if isinstance(raw_spec, dict):
+                effective_manifest = raw_spec
+            else:
+                aid = str(body.get("id") or body.get("agent_id") or "overview").strip() or "overview"
+                effective_manifest = {"id": aid, "name": aid.replace("_", " ").title()}
+
+        result = improvise_agent_improvement_prompt(
+            agent_manifest=effective_manifest,
+            raw_text=raw_text,
+            runtime_summary=runtime_summary,
+            provider=provider,
+            model=model,
+        )
+        handler._send_json(result)
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+
+@router.get("/api/studio/evolve/status")
+def get_agent_evolve_status_endpoint(handler: Any, parsed_url_or_query: Any):
+    """
+    Returns live self-improvement status, Feature Backlog linkage (#BL-id), step-by-step execution
+    pipeline, and LLM textual responses for the specified agent.
+    """
+    if isinstance(parsed_url_or_query, dict):
+        query = parsed_url_or_query
+    else:
+        query = urllib.parse.parse_qs(getattr(parsed_url_or_query, "query", "") or "")
+    agent_id = (query.get("id", [""])[0] or query.get("agent_id", [""])[0] or "overview").strip()
+    try:
+        import fleet.server as srv
+        from fleet.core.agent_studio import get_agent_improvement_context, undertake_agent_self_improvements
+
+        reg = getattr(srv, "agent_registry", None)
+        agent = reg.get_agent(agent_id) if reg else None
+        if not agent:
+            handler._send_json({"status": "error", "message": f"Agent '{agent_id}' not found"}, status=404)
+            return
+
+        mf = agent.get_ui_manifest()
+        evo_items = mf.get("evolution_improvements") or []
+        if evo_items and any(
+            isinstance(it, dict) and (not it.get("llm_response") or not it.get("backlog_id"))
+            for it in evo_items
+        ):
+            undertaken = undertake_agent_self_improvements(agent, evo_items, db=getattr(srv, "db", None))
+            if isinstance(undertaken.get("improvements"), list):
+                evo_items = undertaken["improvements"]
+
+        ctx = get_agent_improvement_context(mf)
+        handler._send_json({
+            "status": "ok",
+            "agent_id": agent.id,
+            "agent_name": agent.display_name,
+            "domain_title": ctx["domain_title"],
+            "context_summary": ctx["context_summary"],
+            "undertaken_count": len(evo_items),
+            "improvements": evo_items,
+        })
     except Exception as e:
         handler._send_json({"status": "error", "message": str(e)}, status=500)
 
@@ -1976,6 +2069,43 @@ def post_pin_overview_widget_endpoint(handler: Any, body: Dict[str, Any]):
 # =========================================================================
 # UX-10: Ambient System Tray Companion, Global Hotkey & Voice Capture
 # =========================================================================
+
+@router.get("/api/voice/activities")
+def get_voice_activities_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """Returns the catalog of bi-directional voice-linked AFCC activities across all agents."""
+    from fleet.core.omnibar_dispatcher import get_omnibar_chat_history, get_voice_activities_catalog
+
+    activities = get_voice_activities_catalog()
+    handler._send_json({
+        "status": "ok",
+        "activities": activities,
+        "count": len(activities),
+        "history": get_omnibar_chat_history()[-10:],
+    })
+
+
+@router.post("/api/voice/converse")
+def post_voice_converse_endpoint(handler: Any, body: Dict[str, Any]):
+    """Bi-Directional Audio Conversation endpoint: executes linked activities and returns spoken reply + UI actions."""
+    from fleet.core.omnibar_dispatcher import transcribe_and_dispatch_voice_command
+
+    payload = body if isinstance(body, dict) else {}
+    transcript = str(payload.get("transcript") or payload.get("query") or "").strip()
+    if not transcript:
+        handler._send_json({"status": "error", "message": "Field 'transcript' is required"}, status=400)
+        return
+    res = transcribe_and_dispatch_voice_command(
+        transcript=transcript,
+        agent_registry=getattr(srv, "agent_registry", None),
+        db=getattr(srv, "db", None),
+    )
+    if hasattr(srv, "db") and srv.db:
+        try:
+            srv.db.log_activity("VoiceCopilot", "voice_turn", f"Voice: '{transcript[:80]}' -> {res.get('title', 'OK')}")
+        except Exception:
+            pass
+    handler._send_json(res)
+
 
 @router.post("/api/omnibar/voice")
 def post_omnibar_voice_endpoint(handler: Any, body: Dict[str, Any]):

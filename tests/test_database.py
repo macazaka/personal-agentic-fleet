@@ -506,3 +506,52 @@ def test_email_caching_and_health_operations():
         assert summary["hydration"]["glasses"] == 2
 
 
+def test_production_server_isolation_and_purge(monkeypatch):
+    """Verifies multi-layer production guards against unit-test and CI sentinel leakage."""
+    from fleet.core.db.base import is_test_environment
+
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
+        db = FleetDatabase(db_path=Path(tmpdir) / "prod_purge_test.db")
+        with db._get_connection() as conn:
+            conn.execute(
+                "INSERT INTO tasks (title, description, source, priority, status, created_at, updated_at, assigned_agent) "
+                "VALUES ('[GitHub Sentinel] Resolve 1 CI failure', 'Pytest Failure tests/test_foo.py', 'github_pipeline_sentinel', 'P1', 'pending', '2026-11-04', '2026-11-04', 'pr_review')"
+            )
+            conn.execute(
+                "INSERT INTO tasks (title, description, source, priority, status, created_at, updated_at, assigned_agent) "
+                "VALUES ('Call accountant', 'Schedule Q4 tax review', 'Manual', 'P1', 'pending', '2026-11-04', '2026-11-04', 'AgendaAgent')"
+            )
+            conn.commit()
+            db._purge_leaked_unit_test_rows(conn)
+
+        remaining_tasks = db.list_tasks(exclude_tests=True)
+        assert len(remaining_tasks) == 1
+        assert remaining_tasks[0]["title"] == "Call accountant"
+
+        # When FLEET_PRODUCTION_SERVER=1 is active, is_test_environment() must be False even if pytest is loaded
+        monkeypatch.setenv("FLEET_PRODUCTION_SERVER", "1")
+        monkeypatch.delenv("FLEET_TEST_MODE", raising=False)
+        monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+        assert is_test_environment() is False
+        assert db.add_task("[GitHub Sentinel] Resolve CI", "Pytest Failure tests/x.py", source="github_pipeline_sentinel") == -1
+        assert db.add_task("Clean desk", "Organize cables", source="Manual") == -1
+
+        # Verify multi-select status and priority filtering in feature backlog
+        db.add_feature_backlog_item("Roadmap Alpha", "Desc A", category="Core", priority="P1", status="Idea", target_version="v2.15.0")
+        db.add_feature_backlog_item("Roadmap Beta", "Desc B", category="Core", priority="P2", status="Planned", target_version="v2.15.0")
+        db.add_feature_backlog_item("Roadmap Gamma", "Desc C", category="Core", priority="P3", status="In Progress", target_version="v2.15.0")
+
+        multi_status = db.list_feature_backlog_items(status="Idea,Planned", target_version="v2.15.0")
+        assert {item["title"] for item in multi_status} == {"Roadmap Alpha", "Roadmap Beta"}
+
+        multi_prio = db.list_feature_backlog_items(priority="P1,P3", target_version="v2.15.0")
+        assert {item["title"] for item in multi_prio} == {"Roadmap Alpha", "Roadmap Gamma"}
+
+        combined = db.list_feature_backlog_items(status="Idea,Planned,In Progress", priority="P2", target_version="v2.15.0")
+        assert [item["title"] for item in combined] == ["Roadmap Beta"]
+
+        stats = db.get_feature_backlog_stats()
+        assert "p1" in stats and "p2" in stats and "p3" in stats
+
+
+

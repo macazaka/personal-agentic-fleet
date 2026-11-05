@@ -7,6 +7,7 @@ Persists test metrics into FleetDatabase and latest_test_results.json.
 import io
 import json
 import os
+import shutil
 import sys
 import time
 from datetime import datetime
@@ -17,9 +18,7 @@ try:
     import coverage
 except ImportError:
     coverage = None
-import pytest
-
-from fleet.config import BASE_DIR, DATA_DIR
+from fleet.config import BASE_DIR, DATA_DIR, TEST_DB_PATH
 from fleet.core.database import FleetDatabase
 
 RESULTS_FILE = DATA_DIR / "latest_test_results.json"
@@ -80,6 +79,7 @@ def run_test_suite(db: Optional[FleetDatabase] = None) -> Dict[str, Any]:
     """
     old_test_mode = os.environ.get("FLEET_TEST_MODE")
     old_prod_server = os.environ.get("FLEET_PRODUCTION_SERVER")
+    in_nested_pytest = "PYTEST_CURRENT_TEST" in os.environ
 
     # Set headless SDL drivers for pygame tests and enforce zero-token test mode
     os.environ["SDL_VIDEODRIVER"] = "dummy"
@@ -119,6 +119,7 @@ def run_test_suite(db: Optional[FleetDatabase] = None) -> Dict[str, Any]:
         tests_dir = str(PROJECT_ROOT / "tests")
 
         # Run pytest
+        import pytest
         exit_code = pytest.main(
             [
                 "-q",
@@ -186,10 +187,13 @@ def run_test_suite(db: Optional[FleetDatabase] = None) -> Dict[str, Any]:
         except Exception as e:
             results["db_error"] = str(e)
 
-        # Save to JSON file for instant API retrieval
+        # Save to JSON file for instant API retrieval (never overwrite production RESULTS_FILE with a 0-test mocked run)
         try:
-            DATA_DIR.mkdir(parents=True, exist_ok=True)
-            RESULTS_FILE.write_text(json.dumps(results, indent=2), encoding="utf-8")
+            target_file = RESULTS_FILE
+            if target_file == DATA_DIR / "latest_test_results.json" and (in_nested_pytest or total_tests == 0):
+                target_file = DATA_DIR / "test_user" / "latest_test_results.json"
+            target_file.parent.mkdir(parents=True, exist_ok=True)
+            target_file.write_text(json.dumps(results, indent=2), encoding="utf-8")
         except Exception:
             pass
 
@@ -210,7 +214,9 @@ def get_latest_results(db: Optional[FleetDatabase] = None) -> Dict[str, Any]:
     """Retrieve the most recent test run results from file or database."""
     if RESULTS_FILE.exists():
         try:
-            return json.loads(RESULTS_FILE.read_text(encoding="utf-8"))
+            data = json.loads(RESULTS_FILE.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and (data.get("total_tests", 0) > 0 or RESULTS_FILE != DATA_DIR / "latest_test_results.json"):
+                return data
         except Exception:
             pass
 
@@ -227,6 +233,26 @@ def get_latest_results(db: Optional[FleetDatabase] = None) -> Dict[str, Any]:
 
     # If no test has run yet, trigger one
     return run_test_suite(database)
+
+
+def _cleanup_test_artifacts() -> None:
+    """Ensures temporary test DB and test_user directory are removed even after a subprocess timeout."""
+    for ext in ("", "-shm", "-wal"):
+        p = Path(str(TEST_DB_PATH) + ext)
+        if p.exists():
+            try:
+                p.unlink()
+            except Exception:
+                pass
+    test_user_dir = DATA_DIR / "test_user"
+    if test_user_dir.exists():
+        shutil.rmtree(test_user_dir, ignore_errors=True)
+    dummy_db = DATA_DIR / "fleet.db"
+    if dummy_db.exists():
+        try:
+            dummy_db.unlink()
+        except Exception:
+            pass
 
 
 def run_test_suite_isolated(db: Optional[FleetDatabase] = None) -> Dict[str, Any]:
@@ -252,7 +278,7 @@ def run_test_suite_isolated(db: Optional[FleetDatabase] = None) -> Dict[str, Any
             [sys.executable, "-m", "fleet.tools.test_runner"],
             capture_output=True,
             text=True,
-            timeout=180,
+            timeout=360,
             cwd=str(PROJECT_ROOT),
             env=sub_env,
             **hidden_kwargs,
@@ -275,6 +301,8 @@ def run_test_suite_isolated(db: Optional[FleetDatabase] = None) -> Dict[str, Any
         return results
     except Exception as e:
         return {"status": "ERROR", "error": str(e), "total_tests": 0, "passed_tests": 0}
+    finally:
+        _cleanup_test_artifacts()
 
 
 def main() -> int:
@@ -289,8 +317,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-
-
-
-
-

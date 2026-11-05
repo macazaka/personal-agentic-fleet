@@ -89,6 +89,14 @@ def get_system_snapshot() -> Dict[str, Any]:
     return snapshot
 
 
+def _get_effective_crash_dir() -> Path:
+    """Routes unit-test crash dumps into the ephemeral test_user directory unless explicitly monkeypatched."""
+    from fleet.core.db.base import is_test_environment
+    if CRASH_REPORTS_DIR == DATA_DIR / "crash_reports" and is_test_environment():
+        return DATA_DIR / "test_user" / "crash_reports"
+    return CRASH_REPORTS_DIR
+
+
 def generate_crash_report(
     exc_type: Any,
     exc_val: Any,
@@ -96,10 +104,11 @@ def generate_crash_report(
     thread_name: Optional[str] = None
 ) -> Path:
     """Generates and writes a sanitized crash forensic dump file."""
-    CRASH_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    crash_dir = _get_effective_crash_dir()
+    crash_dir.mkdir(parents=True, exist_ok=True)
     timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
     report_filename = f"crash_{timestamp_str}_{os.getpid()}.json"
-    report_path = CRASH_REPORTS_DIR / report_filename
+    report_path = crash_dir / report_filename
 
     raw_tb = "".join(traceback.format_exception(exc_type, exc_val, exc_tb))
     sanitized_tb = sanitize_sensitive_data(raw_tb)
@@ -123,10 +132,11 @@ def generate_crash_report(
 
 def prune_old_crash_reports(keep: int = MAX_CRASH_REPORTS) -> int:
     """Maintains a bounded collection of crash reports, removing oldest first."""
-    if not CRASH_REPORTS_DIR.exists():
+    crash_dir = _get_effective_crash_dir()
+    if not crash_dir.exists():
         return 0
 
-    reports = sorted(CRASH_REPORTS_DIR.glob("crash_*.json"), key=lambda p: p.stat().st_mtime)
+    reports = sorted(crash_dir.glob("crash_*.json"), key=lambda p: p.stat().st_mtime)
     pruned = 0
     if len(reports) > keep:
         to_delete = reports if keep == 0 else reports[:-keep]
@@ -141,11 +151,12 @@ def prune_old_crash_reports(keep: int = MAX_CRASH_REPORTS) -> int:
 
 def list_crash_reports() -> List[Dict[str, Any]]:
     """Returns metadata for all available crash reports."""
-    if not CRASH_REPORTS_DIR.exists():
+    crash_dir = _get_effective_crash_dir()
+    if not crash_dir.exists():
         return []
 
     reports = []
-    for p in sorted(CRASH_REPORTS_DIR.glob("crash_*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
+    for p in sorted(crash_dir.glob("crash_*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
         try:
             with open(p, "r", encoding="utf-8") as f:
                 data = json.load(f)

@@ -392,6 +392,11 @@ def sync_version_everywhere(repo_root: Path = REPO_ROOT, target_version: str = "
             rf"\g<1>v{clean_ver}\2",
             new_txt,
         )
+        new_txt = re.sub(
+            r'(Release\s*<strong>)v[^<]+(</strong>)',
+            rf"\g<1>v{clean_ver}\2",
+            new_txt,
+        )
         if new_txt != txt:
             dash_path.write_text(new_txt, encoding="utf-8", newline="\n")
             updates.append({"file": "fleet/web/templates/dashboard.html", "detail": f"Synchronized UI version badges to v{clean_ver}"})

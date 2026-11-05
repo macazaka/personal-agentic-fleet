@@ -41,8 +41,8 @@ def test_health_agent_lifecycle(agent_env):
     assert agent.id == "health"
     assert agent.name == "Health & Wellness"
     assert agent.icon == "🌿"
-    assert agent.order == 10
-    assert agent.is_default is True
+    assert agent.order == 20
+    assert agent.is_default is False
 
     # Routes
     router = ApiRouter()
@@ -71,8 +71,8 @@ def test_overview_agent_lifecycle(agent_env):
     assert agent.id == "overview"
     assert agent.name == "Overview & Tasks"
     assert agent.icon == "⚡"
-    assert agent.order == 20
-    assert agent.is_default is False
+    assert agent.order == 10
+    assert agent.is_default is True
 
     router = ApiRouter()
     agent.register_routes(router)

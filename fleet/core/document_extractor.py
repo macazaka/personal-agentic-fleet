@@ -155,10 +155,10 @@ DOCUMENT_SCENARIO_PROFILES: List[Dict[str, Any]] = [
             "measured numeric reading or dosage, and biological reference range / clinical flag."
         ),
         "recommended_fields": [
-            {"key": "title", "label": "Biomarker / Medication", "type": "text", "placeholder": "e.g. HbA1c / Vitamin D3 Follow-Up"},
+            {"key": "title", "label": "Biomarker / Medication", "type": "text", "placeholder": "e.g. Vitamin D3 Follow-Up"},
             {"key": "due_date", "label": "Next Test / Refill Date", "type": "date", "placeholder": "YYYY-MM-DD"},
-            {"key": "numeric_value", "label": "Measured Value / Dose", "type": "number", "placeholder": "7.1"},
-            {"key": "reference_note", "label": "Ref Range / Regimen", "type": "text", "placeholder": "Ref < 5.7% | Morning pre-meal"},
+            {"key": "numeric_value", "label": "Measured Value / Dose", "type": "number", "placeholder": "50"},
+            {"key": "reference_note", "label": "Ref Range / Regimen", "type": "text", "placeholder": "Morning pre-meal"},
         ],
         "recommended_blocks": [
             "alert_banner", "kpi_row", "document_vault", "quick_capture_bar",
@@ -999,6 +999,21 @@ def parse_uploaded_document(
 
     is_visual_media = ext in VISUAL_MEDIA_MIME_MAP
     mime_type = VISUAL_MEDIA_MIME_MAP.get(ext, "application/pdf" if ext == ".pdf" else "text/plain")
+
+    # Pre-Use Antivirus & Malware Security Gate (Blocks EICAR, disguised PE/ELF, active PDF JS/Launch, VBA macros)
+    from fleet.integrations.email_intelligence_proposals import scan_email_attachment_security
+    virus_scan = scan_email_attachment_security(
+        filename=filename or safe_name,
+        content_bytes=raw_bytes,
+        mime_type=mime_type,
+        run_os_av=False,
+    )
+    if not virus_scan.get("safe_to_use", False):
+        raise ValueError(
+            f"Security Antivirus Block: Attachment '{safe_name}' blocked before use — "
+            f"{virus_scan.get('threat_reason') or virus_scan.get('threat_code')}"
+        )
+
     extracted_text = ""
     parser_used = "utf8_text"
 
@@ -1058,6 +1073,7 @@ def parse_uploaded_document(
         "parser_used": parser_used,
         "extracted_text": extracted_text,
         "char_count": len(extracted_text),
+        "virus_scan": virus_scan,
     }
 
 
@@ -1638,7 +1654,7 @@ def _deterministic_extract_tracking_items(
                     "extra_fields": row_extra,
                 })
 
-    # 3. Clinical Lab Report Biomarker Lines (e.g. `HbA1c: 7.1 % (Ref: < 5.7) - High / Diabetic`)
+    # 3. Clinical Lab Report Biomarker Lines (e.g. `Biomarker: <value> (Ref: <range>)`)
     if not items and scenario["id"] == "medical_lab_rx":
         next_review_m = _EXPIRY_LABEL_RE.search(text)
         default_review_dt = normalize_extracted_date(next_review_m.group(1)) if next_review_m else ""

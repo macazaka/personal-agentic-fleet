@@ -102,15 +102,15 @@ def test_db_health_metabolic_profile(tmp_path):
             CREATE TABLE IF NOT EXISTS metabolic_profile (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 target_weight_kg REAL DEFAULT 75.0,
-                target_hba1c REAL DEFAULT 6.4,
-                target_date TEXT DEFAULT '2027-01-07',
+                target_hba1c REAL DEFAULT 5.5,
+                target_date TEXT DEFAULT '2027-06-01',
                 baseline_json TEXT,
                 updated_at TEXT
             );
         """)
         conn.execute("""
             INSERT OR REPLACE INTO metabolic_profile (id, target_weight_kg, target_hba1c, target_date, baseline_json)
-            VALUES (1, 75.0, 6.4, '2027-01-07', '{"start_weight": 85}');
+            VALUES (1, 75.0, 5.5, '2027-06-01', '{"start_weight": 85}');
         """)
         conn.commit()
 

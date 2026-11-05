@@ -10,7 +10,7 @@ import fleet.server as srv
 
 @router.get("/api/tasks")
 def get_tasks(handler: Any, parsed_url: urllib.parse.ParseResult):
-    tasks = srv.db.list_tasks()
+    tasks = srv.db.list_tasks(limit=200, exclude_tests=True)
     handler._send_json(tasks)
 
 
@@ -37,7 +37,7 @@ def toggle_task(handler: Any, body: Dict[str, Any]):
         handler._send_json({"error": "Missing task ID"}, 400)
         return
     task_id = int(raw_id)
-    tasks = srv.db.list_tasks()
+    tasks = srv.db.list_tasks(limit=500)
     task = next((t for t in tasks if t["id"] == task_id), None)
     if not task:
         handler._send_json({"error": "Not found"}, 404)

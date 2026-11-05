@@ -320,7 +320,7 @@ class HealthMixin(_DbBase):
             else:
                 d["baseline"] = {}
 
-            target_date_str = d.get("target_date", "2027-01-07")
+            target_date_str = d.get("target_date", "")
             try:
                 target_dt = datetime.strptime(target_date_str, "%Y-%m-%d")
                 now = datetime.now()
@@ -342,8 +342,8 @@ class HealthMixin(_DbBase):
             if not prof:
                 return {}
             new_wt = target_weight_kg if target_weight_kg is not None else prof.get("target_weight_kg", 75.0)
-            new_a1c = target_hba1c if target_hba1c is not None else prof.get("target_hba1c", 6.4)
-            new_date = target_date if target_date is not None else prof.get("target_date", "2027-01-07")
+            new_a1c = target_hba1c if target_hba1c is not None else prof.get("target_hba1c", 6.0)
+            new_date = target_date if target_date is not None else prof.get("target_date", "")
             cursor.execute("""
                 UPDATE metabolic_profile
                 SET target_weight_kg = ?, target_hba1c = ?, target_date = ?, updated_at = ?
@@ -371,12 +371,12 @@ class HealthMixin(_DbBase):
         bp_dia_trends = self.get_health_trends("blood_pressure_dia", 14)
 
         latest_sleep = sleep_trends[-1]["value"] if sleep_trends else 7.5
-        latest_steps = int(steps_trends[-1]["value"]) if steps_trends else 8420
-        latest_hr = int(hr_trends[-1]["value"]) if hr_trends else 68
-        latest_fasting = fasting_glucose_trends[-1]["value"] if fasting_glucose_trends else 125.0
-        latest_pp = pp_glucose_trends[-1]["value"] if pp_glucose_trends else 261.0
-        latest_weight = weight_trends[-1]["value"] if weight_trends else 98.0
-        latest_bp = int(bp_sys_trends[-1]["value"]) if bp_sys_trends else 125
+        latest_steps = int(steps_trends[-1]["value"]) if steps_trends else 8000
+        latest_hr = int(hr_trends[-1]["value"]) if hr_trends else 70
+        latest_fasting = fasting_glucose_trends[-1]["value"] if fasting_glucose_trends else 100.0
+        latest_pp = pp_glucose_trends[-1]["value"] if pp_glucose_trends else 135.0
+        latest_weight = weight_trends[-1]["value"] if weight_trends else 75.0
+        latest_bp = int(bp_sys_trends[-1]["value"]) if bp_sys_trends else 120
         latest_bp_dia = int(bp_dia_trends[-1]["value"]) if bp_dia_trends else 80
 
         metabolic = self.get_metabolic_profile()

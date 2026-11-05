@@ -1,11 +1,14 @@
 # ⚡ Personal Agentic Fleet
 
-[![Release: v2.14.3](https://img.shields.io/badge/Release-v2.14.3-00b4d8.svg)](CHANGELOG.md)
+[![Release: v2.15.1](https://img.shields.io/badge/Release-v2.15.1-00b4d8.svg)](CHANGELOG.md)
 [![GitHub Wiki: 17 Deep-Dive Guides](https://img.shields.io/badge/GitHub%20Wiki-17%20Deep--Dive%20Guides-0284c7.svg?logo=github)](https://github.com/macazaka/personal-agentic-fleet/wiki)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%5B12%20Layers%5D-brightgreen.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Security-Model)
 [![Zero-Token Engine](https://img.shields.io/badge/Architecture-Zero--Token%20Microkernel-orange.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Architecture)
+[![API-First: OpenAPI 3.1.0](https://img.shields.io/badge/API--First-OpenAPI%203.1.0%20%7C%20100%25%20REST-6366f1.svg)](docs/API_REFERENCE.md)
+[![MCP Ready: 29 Tools](https://img.shields.io/badge/MCP%20Ready-29%20Tools%20%7C%20Stdio%20%2B%20HTTP-059669.svg)](docs/API_REFERENCE.md)
+[![Voice Copilot: Bi-Directional](https://img.shields.io/badge/Voice%20Copilot-Bi--Directional%20STT%20%2B%20TTS-d97706.svg)](wiki/AFCC-and-UI-Features.md)
 [![Privacy: Local-First](https://img.shields.io/badge/Privacy-100%25%20Local--First%20DPAPI-teal.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Security-Model)
 [![Hyperscalers](https://img.shields.io/badge/Hyperscalers-Google%20%7C%20Azure%20%7C%20AWS%20%7C%20Claude%20%7C%20Ollama-purple.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Hyperscalers-Token-Optimizer-and-Scheduler)
 [![Windows: 10 / 11](https://img.shields.io/badge/Windows-10%20%7C%2011%20(64--bit)-0078D6.svg?logo=windows)](https://github.com/macazaka/personal-agentic-fleet/wiki/Installation-and-Quick-Start)
@@ -102,12 +105,12 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
 ## 🌟 Key Highlights
 
 <!-- AUTO-LATEST-RELEASE:START -->
-### 🆕 What's New in Release `v2.14.3` (Auto-Synchronized)
+### 🆕 What's New in Release `v2.15.1` (Auto-Synchronized)
 
-> **Live Telemetry**: `10` Core Agents • `139` REST API Endpoints • `35` Microkernel Engines • `21` Automation Tools • `495` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
+> **Live Telemetry**: `10` Core Agents • `151` REST API Endpoints • `35` Microkernel Engines • `21` Automation Tools • `501` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
 
-### Added
-- **Universal "✨ 10 Ways to Improve" & Manual Self-Improvement Engine**: Every built-in core agent (`health`, `overview`, `antigravity`, `backlog`, `optimizer`, `gmail`, `pr_review`, `remote_chat`, `mcp_studio`, `local_llm`) and custom Studio agent now surfaces a **"✨ 10 Ways to Improve"** button across all AFCC views, matrix cards, dense table rows, sidebars, launchpad chips, and Settings cards, auto-generating 10 domain-authentic feature improvements with multi-select checkboxes plus manual user improvement entry and live self-improvement undertaking.
+### Fixed
+- Proactive release synchronization, static type verification, and documentation maintenance.
 <!-- AUTO-LATEST-RELEASE:END -->
 
 - **🔌 Modular Plug-and-Play Agents**: Every dashboard view is a standalone, self-contained agent package inside `fleet/agents/` with least-privilege capability manifests (`manifest.json`) enforced by `ScopedDatabaseProxy`. See **[Wiki: 7 Built-in Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents)** and **[Wiki: Customizing Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Customizing-Agents)**.

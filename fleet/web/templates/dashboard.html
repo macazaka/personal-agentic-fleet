@@ -22,7 +22,7 @@
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
               <h1 style="margin: 0; white-space: nowrap;">Personal Agentic Fleet</h1>
               <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.35); font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;" onclick="openReleaseNotesModal()" title="View Release Notes & Versions">
-                <span id="fleetHeaderVerBadge">v2.14.3</span>
+                <span id="fleetHeaderVerBadge">v2.15.1</span>
                 <span style="font-size: 9px; opacity: 0.8;">📜</span>
               </span>
             </div>
@@ -68,6 +68,10 @@
             <span>🚀</span>
             <span id="headerUpdateBadgeText">Update Available</span>
           </div>
+          <button class="btn" id="btnGlobalVoiceLive" onclick="toggleVoiceCopilotPanel(true)" title="Bi-Directional Audio Conversation with AFCC — Speak to control tasks, health, email virus scan, PC optimizer, and backlog" style="padding: 7px 11px; font-size: 12px; border-color: rgba(168, 85, 247, 0.5); color: #d8b4fe; background: rgba(168, 85, 247, 0.16); display: inline-flex; align-items: center; gap: 5px;">
+            <span id="globalVoiceMicIcon">🎙️</span>
+            <span id="globalVoiceBtnText">Voice Live</span>
+          </button>
           <button class="btn" id="btnGlobalHeaderRightDock" onclick="toggleAntigravityRightDock()" title="Show / Hide Antigravity Live &amp; $0.00 Fleet Chat in the Right Side Panel" style="padding: 7px 11px; font-size: 12px; border-color: rgba(16, 185, 129, 0.45); color: var(--accent-green); background: rgba(16, 185, 129, 0.18);">
             ◨ Hide Right Chat
           </button>
@@ -86,8 +90,8 @@
       <!-- Tier 2: Bounded Pinned Command Deck Bar (Capped width, zero duplicate tabs, +N overflow pill) -->
       <div class="wcc-command-deck-bar" id="wccCommandDeckBar">
         <div class="nav-tabs" id="dynamicNavTabs">
-          <button title="🌿 Health & Wellness" class="nav-tab active" id="tabBtnHealth" onclick="switchTab('health')">🌿 Health & Wellness</button>
-          <button title="⚡ Overview" class="nav-tab" id="tabBtnOverview" onclick="switchTab('overview')">⚡ Overview</button>
+          <button title="⚡ Overview & Tasks" class="nav-tab active" id="tabBtnOverview" onclick="switchTab('overview')">⚡ Overview</button>
+          <button title="🌿 Health & Wellness" class="nav-tab" id="tabBtnHealth" onclick="switchTab('health')">🌿 Health & Wellness</button>
           <button title="🤖 Antigravity Live" class="nav-tab" id="tabBtnAntigravity" onclick="switchTab('antigravity')">🤖 Antigravity Live</button>
           <button title="📋 Feature Backlog" class="nav-tab" id="tabBtnBacklog" onclick="switchTab('backlog')">📋 Feature Backlog</button>
           <button title="🚀 PC Optimizer" class="nav-tab" id="tabBtnOptimizer" onclick="switchTab('optimizer')">🚀 PC Optimizer</button>
@@ -168,7 +172,24 @@
       <!-- Main Stage Container for Active Views -->
       <main class="fleet-main-stage" id="fleetMainStage">
     <!-- View 1: Overview -->
-    <div id="viewOverview" style="display: none;">
+    <div id="viewOverview" style="display: block;">
+      <!-- Project Architectural Pillars & API-First / MCP-Ready Shield Matrix -->
+      <div id="afccArchitectureBadgesStrip" style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 14px; padding: 10px 14px; border-radius: 10px; background: rgba(15, 23, 42, 0.72); border: 1px solid var(--card-border); font-size: 11px;">
+        <span class="badge" style="background: rgba(0, 180, 216, 0.18); color: #38bdf8; border: 1px solid rgba(0, 180, 216, 0.4);">Release <strong>v2.15.1</strong></span>
+        <span class="badge" style="background: rgba(2, 132, 199, 0.18); color: #7dd3fc; border: 1px solid rgba(2, 132, 199, 0.4);">GitHub Wiki <strong>17 Deep-Dive Guides</strong></span>
+        <span class="badge" style="background: rgba(37, 99, 235, 0.18); color: #93c5fd; border: 1px solid rgba(37, 99, 235, 0.4);">Python <strong>3.10+</strong></span>
+        <span class="badge" style="background: rgba(22, 163, 74, 0.18); color: #4ade80; border: 1px solid rgba(22, 163, 74, 0.4);">License <strong>Apache 2.0</strong></span>
+        <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.45);">Security Audit <strong>100/100 [12 Layers]</strong></span>
+        <span class="badge" style="background: rgba(234, 88, 12, 0.18); color: #fb923c; border: 1px solid rgba(234, 88, 12, 0.4);">Architecture <strong>Zero-Token Microkernel</strong></span>
+        <span class="badge" style="background: rgba(13, 148, 136, 0.2); color: #2dd4bf; border: 1px solid rgba(13, 148, 136, 0.45);">Privacy <strong>100% Local-First DPAPI</strong></span>
+        <span class="badge" style="background: rgba(147, 51, 234, 0.18); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.45);">Hyperscalers <strong>Google | Azure | AWS | Claude | Ollama</strong></span>
+        <span class="badge" style="background: rgba(0, 120, 214, 0.18); color: #60a5fa; border: 1px solid rgba(0, 120, 214, 0.4);">Windows <strong>10 | 11 (64-bit)</strong></span>
+        <span class="badge" style="background: rgba(255, 255, 255, 0.08); color: #e2e8f0; border: 1px solid rgba(255, 255, 255, 0.25);">🍎 macOS <strong>Apple Silicon | Intel</strong></span>
+        <span class="badge" style="background: rgba(217, 119, 6, 0.18); color: #fbbf24; border: 1px solid rgba(217, 119, 6, 0.4);">🐧 Linux <strong>Ubuntu | Debian | Fedora | Arch</strong></span>
+        <span class="badge" style="background: rgba(124, 58, 237, 0.18); color: #d8b4fe; border: 1px solid rgba(124, 58, 237, 0.45);">Dev Tools <strong>Copilot | Claude Code | Gemini | Amazon Q</strong></span>
+        <a href="/api/openapi.json" target="_blank" rel="noopener noreferrer" class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); text-decoration: none;" title="Open live OpenAPI 3.1.0 specification">🔌 API-First <strong>OpenAPI 3.1</strong></a>
+        <a href="/api/mcp/tools" target="_blank" rel="noopener noreferrer" class="badge" style="background: rgba(56, 189, 248, 0.16); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); text-decoration: none;" title="Inspect all 29 registered FastMCP tools &amp; schemas">⚡ MCP-Ready <strong>29 FastMCP Tools (stdio + HTTP)</strong></a>
+      </div>
       <!-- Morning Briefing Card -->
       <div class="briefing-box" id="briefingBox">
       <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -303,15 +324,23 @@
       <div>
         <!-- Task Management Card -->
         <div class="card">
-          <div class="card-title">
-            <span>🎯 Daily Tasks & Goals</span>
-            <span style="font-size: 12px; color: var(--text-muted);" id="taskCounter">0 Tasks</span>
+          <div class="card-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <span>🎯 Daily, Monthly &amp; Yearly Tasks</span>
+              <span class="badge" style="background: rgba(16, 185, 129, 0.14); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 10.5px;" title="Zero personal task details, account numbers, consumer IDs, or amounts are ever committed to GitHub. Stored strictly in your local gitignored SQLite database and fleet/data/user/personal_tasks_vault.json.">🔒 100% Stored Locally • 0 in GitHub</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button id="btnToggleTaskMask" title="Mask or reveal sensitive bank account numbers, loan IDs, IFSC codes, consumer numbers, and amounts on screen" class="btn" style="font-size: 11px; padding: 3px 9px; background: rgba(16, 185, 129, 0.16); border-color: rgba(16, 185, 129, 0.45); color: #34d399;" onclick="toggleTaskSensitiveMask()">
+                🙈 Mask IDs: On
+              </button>
+              <span style="font-size: 12px; color: var(--text-muted);" id="taskCounter">0 Tasks</span>
+            </div>
           </div>
 
           <!-- Add Task Form -->
           <div class="task-input-bar">
             <input type="text" id="taskTitle" placeholder="Task title (e.g. 'Review quarterly budget')..." style="flex: 1.2;">
-            <input type="text" id="taskDesc" placeholder="Description / details (required)..." style="flex: 1.8;" onkeypress="if(event.key==='Enter') addTask()">
+            <input type="text" id="taskDesc" placeholder="Description / details (stored locally only)..." style="flex: 1.8;" onkeypress="if(event.key==='Enter') addTask()">
             <select id="taskPriority" style="min-width: 110px;">
               <option value="P1">🔴 P1 High</option>
               <option value="P2" selected>🟡 P2 Medium</option>
@@ -319,16 +348,27 @@
             </select>
             <select id="taskSource" style="min-width: 120px;">
               <option value="Dashboard" selected>💻 Dashboard</option>
+              <option value="Monthly">📅 Monthly</option>
+              <option value="Yearly">🗓️ Yearly</option>
               <option value="Manual">📍 Manual</option>
               <option value="Antigravity">⚡ Antigravity</option>
               <option value="Meeting">📅 Meeting</option>
               <option value="Email">📬 Email</option>
             </select>
-            <button title="Add new task to the task board" class="btn btn-primary" onclick="addTask()">+ Add</button>
+            <button title="Add new task to your local-only task vault" class="btn btn-primary" onclick="addTask()">+ Add</button>
+          </div>
+
+          <!-- Cadence & Status Filter Pills -->
+          <div id="taskFilterBar" style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;">
+            <button title="Show all local tasks across Daily, Monthly, and Yearly cadences" class="filter-btn active" data-task-filter="ALL" onclick="filterTasksBySource('ALL')">All</button>
+            <button title="Filter Monthly recurring financial, compliance, domain, and utility tasks" class="filter-btn" data-task-filter="Monthly" onclick="filterTasksBySource('Monthly')">📅 Monthly</button>
+            <button title="Filter Yearly recurring tax and insurance tasks" class="filter-btn" data-task-filter="Yearly" onclick="filterTasksBySource('Yearly')">🗓️ Yearly</button>
+            <button title="Show only Pending tasks" class="filter-btn" data-task-filter="PENDING" onclick="filterTasksBySource('PENDING')">⏳ Pending</button>
+            <button title="Show Completed (✔) tasks" class="filter-btn" data-task-filter="COMPLETED" onclick="filterTasksBySource('COMPLETED')">✓ Completed</button>
           </div>
 
           <!-- Task List -->
-          <div class="task-list" id="taskList">
+          <div class="task-list" id="taskList" style="max-height: 480px; overflow-y: auto;">
             <!-- Dynamic task items -->
           </div>
         </div>
@@ -352,6 +392,33 @@
           <!-- Folder Category Pills -->
           <div class="email-pill-grid" id="emailPillGrid">
             <!-- Rendered via JS -->
+          </div>
+
+          <!-- Email & Attachment Discovery Queue (Pre-Download Antivirus Scan + Unapproved Backlog Approval Gate) -->
+          <div id="emailProposalsQueueBox" style="margin-bottom: 14px; padding: 12px 14px; border-radius: 10px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.07) 0%, rgba(168, 85, 247, 0.08) 100%); border: 1px solid rgba(16, 185, 129, 0.28);">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+              <div style="display: flex; align-items: center; gap: 7px; flex-wrap: wrap;">
+                <span style="font-size: 14px;">🛡️</span>
+                <strong style="font-size: 12.5px; color: #f8fafc;">Email & Attachment Discovery Queue (Approval Gate)</strong>
+                <span id="emailVirusShieldBadge" class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 10.5px;">🛡️ Pre-Download Virus Scan: CLEAN</span>
+                <span id="emailPendingApprovalsBadge" class="badge" style="background: rgba(244, 63, 94, 0.16); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.38); font-size: 10.5px; cursor: pointer;" onclick="FleetNavigator.switchAgent('backlog'); setTimeout(() => filterBacklogByStatus('Unapproved'), 120);" title="Click to view Unapproved email & attachment proposals in the Feature Backlog">⏳ Unapproved in Backlog</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <button title="Run a live pre-download EICAR & macro antivirus block test to verify attachment protection" class="btn" style="font-size: 10.5px; padding: 3px 8px; border-color: rgba(16, 185, 129, 0.4); color: #34d399; background: rgba(16, 185, 129, 0.1);" onclick="testAttachmentVirusShield()">
+                  🧪 Test Virus Block
+                </button>
+                <button title="Refresh email & attachment discovery proposals" class="btn" style="font-size: 10.5px; padding: 3px 8px;" onclick="fetchEmailProposals()">
+                  🔄 Scan Proposals
+                </button>
+              </div>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4;">
+              Attachments are virus-scanned in memory <strong>before</strong> downloading or using. Discovered AFCC tracking additions &amp; new agent blueprints are marked <strong style="color: #fb7185;">Unapproved</strong> in the Feature Backlog until you approve them below.
+            </div>
+            <div id="emailVirusTestResultBanner" style="display: none; margin-bottom: 8px; padding: 8px 10px; border-radius: 8px; font-size: 11.5px;"></div>
+            <div id="emailProposalsList" style="display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto;">
+              <!-- Rendered via emails.js -->
+            </div>
           </div>
 
           <!-- Filter Tabs -->
@@ -440,7 +507,7 @@
     <div id="agMainStageAnchor" style="display: none;"></div>
 
   <!-- View 3: Health & Wellness Tracking Panel -->
-  <div id="viewHealth" style="display: flex; flex-direction: column; gap: 20px;">
+  <div id="viewHealth" style="display: none; flex-direction: column; gap: 20px;">
     <!-- Health Header & Overall Adherence Banner -->
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 18px 22px; backdrop-filter: blur(12px);">
       <div>
@@ -486,8 +553,9 @@
             <strong style="font-size: 16px; color: #fff;">Freedom From Diabetes — Phase 1.1 Metabolic Reversal Protocol</strong>
             <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); font-weight: 700;">Personal Metabolic Profile</span>
           </div>
-          <div style="font-size: 12.5px; color: var(--text); line-height: 1.5;">
-            Primary Goal: <strong style="color: var(--accent-green);">HbA1c &lt; 6.4% within 3 Months</strong> (by <strong>07-Jan-2027</strong>) • Basic Health Goal (BHG): <strong style="color: var(--accent-cyan);">Reach Target BHG</strong>
+          <div style="font-size: 12.5px; color: var(--text); line-height: 1.5;" id="ffdPrimaryGoalBanner">
+            Primary Goal: <strong style="color: var(--accent-green);" id="ffdPrimaryGoalText">Loaded from Local SQLite Vault</strong> • Basic Health Goal (BHG): <strong style="color: var(--accent-cyan);">Reach Target BHG</strong>
+            <span class="badge" style="background: rgba(16, 185, 129, 0.14); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 10px; margin-left: 6px;">🔒 Stored Locally Only (Not in GitHub)</span>
           </div>
           <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px;">
             Active Prescription Regimen • Directives: <span style="color: #f87171;">Salt-Restricted Diet</span>, <span style="color: var(--accent-amber);">Monitor BP Daily</span>, 4th Morsel Rule
@@ -497,42 +565,42 @@
           <div style="text-align: right; background: rgba(0,0,0,0.3); padding: 8px 14px; border-radius: 8px; border: 1px solid var(--card-border);">
             <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Days to Follow-up</div>
             <div style="font-size: 18px; font-weight: 800; color: var(--accent-cyan);" id="ffdDaysRemaining">-- Days Left</div>
-            <div style="font-size: 9.5px; color: var(--text-muted);">Target: 07-Jan-2027</div>
+            <div style="font-size: 9.5px; color: var(--text-muted);" id="ffdTargetDateLabel">Target: Local Profile</div>
           </div>
         </div>
       </div>
 
-      <!-- Quick Baseline Biomarkers Chips Grid -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; font-size: 11.5px;">
+      <!-- Quick Baseline Biomarkers Chips Grid (Hydrated at runtime from local-only SQLite database) -->
+      <div id="ffdBaselineChipsGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; font-size: 11.5px;">
         <div style="background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #f87171;">
           <div style="color: var(--text-muted);">Fasting Blood Sugar</div>
-          <div style="font-size: 14px; font-weight: 700; color: #fff;">108 mg/dL <span style="font-size: 10px; color: #f87171;">(High)</span></div>
+          <div style="font-size: 14px; font-weight: 700; color: #fff;" id="bioChipFasting">-- (Local Vault)</div>
           <div style="font-size: 9.5px; color: var(--text-muted);">Normal: 70-100</div>
         </div>
         <div style="background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #f87171;">
           <div style="color: var(--text-muted);">Post-Prandial (2hr)</div>
-          <div style="font-size: 14px; font-weight: 700; color: #fff;">165 mg/dL <span style="font-size: 10px; color: #f87171;">(Diabetic &gt;200)</span></div>
+          <div style="font-size: 14px; font-weight: 700; color: #fff;" id="bioChipPP">-- (Local Vault)</div>
           <div style="font-size: 9.5px; color: var(--text-muted);">Normal: &lt;140</div>
         </div>
         <div style="background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 6px; border-left: 3px solid var(--accent-amber);">
           <div style="color: var(--text-muted);">HbA1c Baseline</div>
-          <div style="font-size: 14px; font-weight: 700; color: #fff;">7.1% <span style="font-size: 10px; color: var(--accent-amber);">(Goal: &lt;6.4%)</span></div>
-          <div style="font-size: 9.5px; color: var(--text-muted);">eAG: 157 mg/dL</div>
+          <div style="font-size: 14px; font-weight: 700; color: #fff;" id="bioChipHba1c">-- (Local Vault)</div>
+          <div style="font-size: 9.5px; color: var(--text-muted);" id="bioChipHba1cSub">Loaded from local SQLite</div>
         </div>
         <div style="background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #c084fc;">
           <div style="color: var(--text-muted);">Fasting C-Peptide</div>
-          <div style="font-size: 14px; font-weight: 700; color: #fff;">7.53 ng/mL <span style="font-size: 10px; color: #c084fc;">(Insulin Resist.)</span></div>
+          <div style="font-size: 14px; font-weight: 700; color: #fff;" id="bioChipCPeptide">-- (Local Vault)</div>
           <div style="font-size: 9.5px; color: var(--text-muted);">Normal: 1.1 - 4.4</div>
         </div>
         <div style="background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #f87171;">
           <div style="color: var(--text-muted);">Liver SGPT / ALT</div>
-          <div style="font-size: 14px; font-weight: 700; color: #fff;">68.8 U/L <span style="font-size: 10px; color: #f87171;">(Elevated)</span></div>
+          <div style="font-size: 14px; font-weight: 700; color: #fff;" id="bioChipSgpt">-- (Local Vault)</div>
           <div style="font-size: 9.5px; color: var(--text-muted);">Hepatic Support Protocol</div>
         </div>
         <div style="background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 6px; border-left: 3px solid var(--accent-green);">
           <div style="color: var(--text-muted);">Kidney eGFR</div>
-          <div style="font-size: 14px; font-weight: 700; color: #fff;">113.92 mL/min <span style="font-size: 10px; color: var(--accent-green);">(Optimal)</span></div>
-          <div style="font-size: 9.5px; color: var(--text-muted);">Creatinine: 0.70</div>
+          <div style="font-size: 14px; font-weight: 700; color: #fff;" id="bioChipEgfr">-- (Local Vault)</div>
+          <div style="font-size: 9.5px; color: var(--text-muted);" id="bioChipEgfrSub">Loaded from local SQLite</div>
         </div>
       </div>
     </div>
@@ -1067,24 +1135,28 @@
     <div id="coreSelfImproveBanner_backlog"></div>
 
     <!-- Backlog Statistics Metrics Grid -->
-    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;" id="backlogStatsGrid">
-      <div class="stat-pill" style="min-width: unset;">
+    <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px;" id="backlogStatsGrid">
+      <div class="stat-pill" style="min-width: unset; cursor: pointer;" onclick="filterBacklogByStatus('ALL')" title="Click to show all backlog features">
         <span class="label">Total Features</span>
         <span class="val" id="backlogStatTotal" style="color: var(--text);">0</span>
       </div>
-      <div class="stat-pill" style="min-width: unset;">
+      <div class="stat-pill" style="min-width: unset; cursor: pointer;" onclick="filterBacklogByStatus('Unapproved')" title="Click to toggle Unapproved email/attachment proposals filter">
+        <span class="label">⏳ Unapproved</span>
+        <span class="val" id="backlogStatUnapproved" style="color: #fb7185;">0</span>
+      </div>
+      <div class="stat-pill" style="min-width: unset; cursor: pointer;" onclick="filterBacklogByStatus('In Progress')" title="Click to toggle In Progress filter">
         <span class="label">In Progress</span>
         <span class="val" id="backlogStatInProgress" style="color: var(--accent-cyan);">0</span>
       </div>
-      <div class="stat-pill" style="min-width: unset;">
+      <div class="stat-pill" style="min-width: unset; cursor: pointer;" onclick="filterBacklogByStatus('Planned')" title="Click to toggle Planned filter">
         <span class="label">Planned</span>
         <span class="val" id="backlogStatPlanned" style="color: #a855f7;">0</span>
       </div>
-      <div class="stat-pill" style="min-width: unset;">
+      <div class="stat-pill" style="min-width: unset; cursor: pointer;" onclick="filterBacklogByStatus('Idea')" title="Click to toggle Idea filter">
         <span class="label">Ideas</span>
         <span class="val" id="backlogStatIdea" style="color: #fbbf24;">0</span>
       </div>
-      <div class="stat-pill" style="min-width: unset;">
+      <div class="stat-pill" style="min-width: unset; cursor: pointer;" onclick="filterBacklogByStatus('Completed')" title="Click to toggle Completed filter">
         <span class="label">Completed</span>
         <span class="val" id="backlogStatCompleted" style="color: var(--accent-green);">0</span>
       </div>
@@ -1123,9 +1195,13 @@
         <div>
           <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">TARGET RELEASE</label>
           <select id="newBacklogVersion" style="width: 100%; box-sizing: border-box; padding: 9px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 13px;">
-            <option value="v1.4.0">v1.4.0 (Next)</option>
-            <option value="v1.5.0">v1.5.0</option>
+            <option value="v2.15.0">v2.15.0 (Next)</option>
+            <option value="v3.0.0">v3.0.0</option>
+            <option value="v2.14.3">v2.14.3</option>
+            <option value="v2.14.0">v2.14.0</option>
             <option value="v2.0.0">v2.0.0</option>
+            <option value="v1.5.0">v1.5.0</option>
+            <option value="v1.4.0">v1.4.0</option>
             <option value="Backlog">Future Backlog</option>
           </select>
         </div>
@@ -1141,15 +1217,32 @@
 
     <!-- Filters & Search Toolbar -->
     <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; background: rgba(15, 23, 42, 0.4); border: 1px solid var(--card-border); border-radius: 10px; padding: 10px 14px;">
-      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-        <span style="font-size: 11.5px; color: var(--text-muted); font-weight: 600;">STATUS:</span>
-        <button title="All" class="filter-btn active" id="backlogFilterStatusAll" onclick="filterBacklogByStatus('ALL')">All</button>
-        <button title="Idea" class="filter-btn" id="backlogFilterStatusIdea" onclick="filterBacklogByStatus('Idea')">Idea</button>
-        <button title="Planned" class="filter-btn" id="backlogFilterStatusPlanned" onclick="filterBacklogByStatus('Planned')">Planned</button>
-        <button title="In Progress" class="filter-btn" id="backlogFilterStatusProgress" onclick="filterBacklogByStatus('In Progress')">In Progress</button>
-        <button title="Completed" class="filter-btn" id="backlogFilterStatusCompleted" onclick="filterBacklogByStatus('Completed')">Completed</button>
+      <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;" role="group" aria-label="Multi-select Status Filter">
+          <span style="font-size: 11px; color: var(--text-muted); font-weight: 700; letter-spacing: 0.4px;" title="Click multiple statuses to combine them">STATUS (MULTI):</span>
+          <button title="Show all statuses (resets multi-selection)" class="filter-btn active" id="backlogFilterStatusAll" onclick="filterBacklogByStatus('ALL')">All</button>
+          <button title="Toggle Unapproved status filter for email & attachment proposals pending your approval (multi-select)" class="filter-btn" id="backlogFilterStatusUnapproved" onclick="filterBacklogByStatus('Unapproved')">⏳ Unapproved</button>
+          <button title="Toggle Idea status filter (multi-select)" class="filter-btn" id="backlogFilterStatusIdea" onclick="filterBacklogByStatus('Idea')">💡 Idea</button>
+          <button title="Toggle Planned status filter (multi-select)" class="filter-btn" id="backlogFilterStatusPlanned" onclick="filterBacklogByStatus('Planned')">📅 Planned</button>
+          <button title="Toggle In Progress status filter (multi-select)" class="filter-btn" id="backlogFilterStatusProgress" onclick="filterBacklogByStatus('In Progress')">⚡ In Progress</button>
+          <button title="Toggle Completed status filter (multi-select)" class="filter-btn" id="backlogFilterStatusCompleted" onclick="filterBacklogByStatus('Completed')">✅ Completed</button>
+        </div>
+        <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.12);"></div>
+        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;" role="group" aria-label="Multi-select Priority Filter">
+          <span style="font-size: 11px; color: var(--text-muted); font-weight: 700; letter-spacing: 0.4px;" title="Click multiple priorities to combine them">PRIORITY (MULTI):</span>
+          <button title="Show all priorities (resets multi-selection)" class="filter-btn active" id="backlogFilterPriorityAll" onclick="filterBacklogByPriority('ALL')">All</button>
+          <button title="Toggle P1 High priority filter (multi-select)" class="filter-btn" id="backlogFilterPriorityP1" onclick="filterBacklogByPriority('P1')">🔴 P1</button>
+          <button title="Toggle P2 Medium priority filter (multi-select)" class="filter-btn" id="backlogFilterPriorityP2" onclick="filterBacklogByPriority('P2')">🟡 P2</button>
+          <button title="Toggle P3 Low priority filter (multi-select)" class="filter-btn" id="backlogFilterPriorityP3" onclick="filterBacklogByPriority('P3')">🟢 P3</button>
+        </div>
       </div>
-      <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <input type="text" id="backlogSearchInput" oninput="renderBacklogFromState()" placeholder="🔍 Search backlog features..." style="background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); padding: 5px 10px; font-size: 12px; min-width: 190px;">
+        <select id="backlogSortFilter" onchange="renderBacklogFromState()" style="background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); padding: 5px 10px; font-size: 12px;">
+          <option value="chronological_asc">Sort: Release History (v1.0 ➔ v2.14)</option>
+          <option value="version_desc">Sort: Newest Release First (v2.14 ➔ v1.0)</option>
+          <option value="priority">Sort: Priority (P1 ➔ P3)</option>
+        </select>
         <select id="backlogCategoryFilter" onchange="fetchBacklog()" style="background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); padding: 5px 10px; font-size: 12px;">
           <option value="ALL">All Categories</option>
           <option value="Core">Core System</option>
@@ -1160,10 +1253,32 @@
           <option value="Security">Security</option>
         </select>
         <select id="backlogVersionFilter" onchange="fetchBacklog()" style="background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); padding: 5px 10px; font-size: 12px;">
-          <option value="ALL">All Releases</option>
-          <option value="v1.4.0">v1.4.0</option>
-          <option value="v1.5.0">v1.5.0</option>
+          <option value="ALL">All Releases (v1.0.0 – v2.14.3)</option>
+          <option value="v2.14.3">v2.14.3</option>
+          <option value="v2.14.0">v2.14.0</option>
+          <option value="v2.13.1">v2.13.1</option>
+          <option value="v2.13.0">v2.13.0</option>
+          <option value="v2.11.0">v2.11.0</option>
+          <option value="v2.10.0">v2.10.0</option>
+          <option value="v2.8.9">v2.8.9</option>
+          <option value="v2.7.0">v2.7.0</option>
+          <option value="v2.6.0">v2.6.0</option>
+          <option value="v2.5.0">v2.5.0</option>
+          <option value="v2.4.0">v2.4.0</option>
+          <option value="v2.3.0">v2.3.0</option>
+          <option value="v2.2.0">v2.2.0</option>
+          <option value="v2.1.0">v2.1.0</option>
           <option value="v2.0.0">v2.0.0</option>
+          <option value="v1.9.0">v1.9.0</option>
+          <option value="v1.8.0">v1.8.0</option>
+          <option value="v1.7.0">v1.7.0</option>
+          <option value="v1.6.0">v1.6.0</option>
+          <option value="v1.5.0">v1.5.0</option>
+          <option value="v1.4.0">v1.4.0</option>
+          <option value="v1.3.0">v1.3.0</option>
+          <option value="v1.2.0">v1.2.0</option>
+          <option value="v1.1.0">v1.1.0</option>
+          <option value="v1.0.0">v1.0.0</option>
           <option value="Backlog">Future Backlog</option>
         </select>
       </div>
@@ -1388,7 +1503,7 @@
           </div>
           <div id="coreSelfImproveBanner_antigravity"></div>
 
-          <!-- Unified Chat Engine Switcher: Antigravity Live (LLM) <-> Chat with Fleet ($0.00 Zero-Token) -->
+          <!-- Unified Chat Engine Switcher: Antigravity Live (LLM) <-> Chat with Fleet ($0.00 Zero-Token) <-> Voice Live -->
           <div id="agChatEngineToggleBar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; padding: 7px 10px; border-radius: 10px; background: rgba(15, 23, 42, 0.72); border: 1px solid var(--card-border);">
             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
               <span style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">MODE:</span>
@@ -1398,9 +1513,78 @@
               <button title="⚡ Chat with Fleet ($0.00)" type="button" id="btnAgModeFleet" class="btn btn-sm" onclick="setAgChatEngineMode('fleet_zero_token')" style="font-size: 11.5px; padding: 4px 10px; border-radius: 7px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--card-border); color: var(--text-muted); font-weight: 600;">
                 ⚡ Chat with Fleet ($0.00)
               </button>
+              <button title="Toggle Bi-Directional Audio Conversation &amp; Live Voice Activity HUD" type="button" id="btnAgModeVoice" class="btn btn-sm" onclick="toggleVoiceCopilotPanel()" style="font-size: 11.5px; padding: 4px 10px; border-radius: 7px; background: rgba(168, 85, 247, 0.16); border: 1px solid rgba(168, 85, 247, 0.45); color: #d8b4fe; font-weight: 600;">
+                🎙️ Voice Conversation
+              </button>
             </div>
             <div id="agChatModeHintText" style="font-size: 10.5px; color: var(--text-muted);">
-              1-click switch: <strong style="color: var(--accent-cyan);">Live LLM</strong> ⇄ <strong style="color: var(--accent-green);">$0.00 Fleet</strong>
+              1-click switch: <strong style="color: var(--accent-cyan);">Live LLM</strong> ⇄ <strong style="color: var(--accent-green);">$0.00 Fleet</strong> ⇄ <strong style="color: #d8b4fe;">🎙️ Voice</strong>
+            </div>
+          </div>
+
+          <!-- Bi-Directional Audio Conversation & Live Linked Activities HUD -->
+          <div id="afccVoiceCopilotHud" style="display: block; margin-top: 6px; margin-bottom: 6px; padding: 12px 14px; border-radius: 12px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(15, 23, 42, 0.88) 55%, rgba(16, 185, 129, 0.1) 100%); border: 1px solid rgba(168, 85, 247, 0.38); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span id="voiceHudOrb" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(168, 85, 247, 0.25); border: 1px solid rgba(168, 85, 247, 0.55); font-size: 14px;">🎙️</span>
+                <strong style="font-size: 12.5px; color: #f8fafc;">Bi-Directional Audio Conversation &amp; Live Activity Copilot</strong>
+                <span id="voiceStateBadge" class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 10.5px;">● Ready to Listen &amp; Speak</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <button id="btnVoiceToggleMic" title="Start or stop microphone listening for bi-directional voice conversation" class="btn btn-primary" onclick="toggleVoiceMicListening()" style="font-size: 11px; padding: 4px 11px; background: linear-gradient(135deg, #a855f7, #6366f1); border: none; font-weight: 700;">
+                  🎙️ Speak Now
+                </button>
+                <button id="btnVoiceContinuousMode" title="Toggle hands-free continuous conversation loop (auto-listens after AFCC finishes speaking)" class="btn" onclick="toggleVoiceContinuousLoop()" style="font-size: 10.5px; padding: 4px 9px; border-color: rgba(16, 185, 129, 0.45); color: #34d399; background: rgba(16, 185, 129, 0.14);">
+                  🔄 Hands-Free: ON
+                </button>
+                <button id="btnVoiceTtsToggle" title="Mute or unmute AFCC spoken audio responses" class="btn" onclick="toggleVoiceSpokenReply()" style="font-size: 10.5px; padding: 4px 9px; border-color: rgba(56, 189, 248, 0.4); color: var(--accent-cyan); background: rgba(56, 189, 248, 0.12);">
+                  🔊 Voice Reply: ON
+                </button>
+                <button id="btnVoiceStopSpeaking" title="Interrupt and stop AFCC spoken audio playback immediately" class="btn" onclick="stopAfccVoiceSpeaking()" style="font-size: 10.5px; padding: 4px 8px; display: none; border-color: rgba(244, 63, 94, 0.45); color: #fb7185;">
+                  🤫 Stop Audio
+                </button>
+                <select id="voiceRateSelect" title="Adjust AFCC spoken voice speed" onchange="setAfccVoiceRate(this.value)" style="background: rgba(15, 23, 42, 0.8); border: 1px solid var(--card-border); color: var(--text); border-radius: 6px; padding: 3px 6px; font-size: 10.5px;">
+                  <option value="0.95">0.95x</option>
+                  <option value="1.05" selected>1.05x Natural</option>
+                  <option value="1.15">1.15x Fast</option>
+                  <option value="1.25">1.25x Rapid</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Live Transcript & Spoken Reply Monitor -->
+            <div id="voiceLiveTranscriptBox" style="padding: 8px 11px; border-radius: 8px; background: rgba(15, 23, 42, 0.72); border: 1px solid rgba(255, 255, 255, 0.08); font-size: 11.5px; margin-bottom: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                <div id="voiceUserSaidLine" style="color: var(--text-muted); line-height: 1.4;">
+                  🎙️ <strong>You:</strong> <span id="voiceTranscriptText">Click "🎙️ Speak Now" or any activity chip below to talk to AFCC...</span>
+                </div>
+                <button title="Replay AFCC's last spoken response aloud" class="btn" onclick="replayLastAfccVoiceReply()" style="font-size: 10px; padding: 2px 7px; white-space: nowrap;">🔊 Replay</button>
+              </div>
+              <div id="voiceAssistantReplyLine" style="color: #e2e8f0; margin-top: 4px; line-height: 1.4; display: none;">
+                🔊 <strong style="color: #34d399;">AFCC:</strong> <span id="voiceSpokenReplyText"></span>
+              </div>
+              <div id="voiceExecutedActivitiesStrip" style="display: none; gap: 6px; flex-wrap: wrap; margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.1);"></div>
+            </div>
+
+            <!-- Linked Activities You Can Trigger While Speaking -->
+            <div style="font-size: 10.5px; color: var(--text-muted); margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
+              <span>⚡ <strong>Say any phrase aloud</strong> (or click to execute &amp; hear AFCC respond):</span>
+              <span style="color: #c084fc;">🔒 100% Local-First</span>
+            </div>
+            <div id="voiceQuickActivitiesGrid" style="display: flex; gap: 5px; flex-wrap: wrap;">
+              <button title="Speak or click: Give me my daily briefing" type="button" class="quick-chip" onclick="executeVoiceTurnText('Give me my daily briefing')">☀️ Daily Briefing</button>
+              <button title="Speak or click: Show my monthly tasks" type="button" class="quick-chip" onclick="executeVoiceTurnText('Show my monthly tasks')">📅 Monthly Tasks</button>
+              <button title="Speak or click: Show my yearly tasks" type="button" class="quick-chip" onclick="executeVoiceTurnText('Show my yearly tasks')">🗓️ Yearly Tasks</button>
+              <button title="Speak or click: Mask sensitive IDs" type="button" class="quick-chip" onclick="executeVoiceTurnText('Mask sensitive IDs')">🙈 Mask IDs</button>
+              <button title="Speak or click: Reveal account numbers" type="button" class="quick-chip" onclick="executeVoiceTurnText('Reveal account numbers')">👁️ Reveal IDs</button>
+              <button title="Speak or click: Please log a glass of water" type="button" class="quick-chip" onclick="executeVoiceTurnText('Please log a glass of water')">💧 +1 Water</button>
+              <button title="Speak or click: What is my workout today?" type="button" class="quick-chip" onclick="executeVoiceTurnText('What is my workout today?')">🏋️ Workout</button>
+              <button title="Speak or click: Check my emails and scan attachments" type="button" class="quick-chip" onclick="executeVoiceTurnText('Check my emails and scan attachments')">📬 Check Emails</button>
+              <button title="Speak or click: Run antivirus block test" type="button" class="quick-chip" onclick="executeVoiceTurnText('Run antivirus block test')">🛡️ Virus Test</button>
+              <button title="Speak or click: Optimize my RAM" type="button" class="quick-chip" onclick="executeVoiceTurnText('Optimize my RAM')">🚀 Optimize RAM</button>
+              <button title="Speak or click: Run security scan" type="button" class="quick-chip" onclick="executeVoiceTurnText('Run security scan')">🔒 Security Scan</button>
+              <button title="Speak or click: Show unapproved backlog items" type="button" class="quick-chip" onclick="executeVoiceTurnText('Show unapproved backlog items')">📋 Unapproved Backlog</button>
+              <button title="Speak or click: Suggest 10 ways to improve overview" type="button" class="quick-chip" onclick="executeVoiceTurnText('Suggest 10 ways to improve overview')">✨ 10 Ways to Improve</button>
             </div>
           </div>
 
@@ -1529,6 +1713,11 @@
                   </button>
                   <input type="file" id="agImageFileInput" accept="image/*" multiple style="display: none;" onchange="handleImageFileSelect(event)">
 
+                  <!-- Bi-Directional Voice Mic button -->
+                  <button class="btn btn-icon-sm" id="btnAgVoiceMic" type="button" onclick="toggleVoiceMicListening()" title="Speak to AFCC (Bi-Directional Audio Conversation &amp; Live Activity Trigger)" style="padding: 6px 10px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.14);">
+                    <span id="agInputMicIcon" style="font-size: 14px;">🎙️</span>
+                  </button>
+
                   <!-- Model Selector Dropdown Popover -->
                   <div style="position: relative;">
                     <button title="Select active model or inspect usage" class="ag-model-select-btn" id="agModelDropdownBtn" type="button" onclick="toggleModelMenu(event)">
@@ -1595,7 +1784,7 @@
           <span style="font-size: 22px;">📜</span>
           <div>
             <strong style="font-size: 16px; color: var(--text);">Fleet Release Notes & Version History</strong>
-            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.14.3</div>
+            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.15.1</div>
           </div>
         </div>
         <button title="Close Release Notes modal" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeReleaseNotesModal()">✕</button>
@@ -1647,47 +1836,26 @@
         </div>
         <button title="Close Diagnostic Lab Report modal" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeApolloModal()">✕</button>
       </div>
-      <div style="overflow-y: auto; max-height: 72vh; padding-right: 8px; font-size: 12.5px; line-height: 1.5; color: var(--text);">
-        <!-- Summary Alert -->
-        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
-          <strong style="color: #f87171;">Key Findings & Areas Requiring Intervention:</strong>
-          <ul style="margin-left: 20px; margin-top: 6px; font-size: 12px;">
-            <li><strong>Diabetic Glycemic Control:</strong> HbA1c 7.1% (eAG 157 mg/dL), Fasting Glucose 108 mg/dL, 2hr Post-Prandial Glucose 165 mg/dL.</li>
-            <li><strong>Insulin Resistance:</strong> Fasting C-Peptide is significantly elevated at 7.53 ng/mL (Ref: 1.1 - 4.4), confirming severe hyperinsulinemia.</li>
-            <li><strong>Dyslipidemia:</strong> Total Chol 209 mg/dL, Triglycerides 208 mg/dL, Low HDL 31 mg/dL, LDL 136.8 mg/dL, AIP 0.470 (High cardiovascular risk).</li>
-            <li><strong>Liver Strain:</strong> SGPT/ALT elevated at 68.8 U/L (Ref: 10-50), indicating NAFLD / hepatic lipid accumulation.</li>
-            <li><strong>Urinary Markers:</strong> Pus Cells 12-15 /hpf, Leucocyte Esterase Positive++ (suggests mild urinary tract inflammation).</li>
-            <li><strong>Optimal Organs:</strong> Kidney function optimal (eGFR 113.92 mL/min, Creatinine 0.70 mg/dL), Vitamin D sufficient (66.9 ng/mL), B12 normal (545 pg/mL), Thyroid euthyroid (TSH 1.68 µIU/mL).</li>
-          </ul>
+      <div id="apolloModalContentBody" style="overflow-y: auto; max-height: 72vh; padding-right: 8px; font-size: 12.5px; line-height: 1.5; color: var(--text);">
+        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
+          <strong style="color: #34d399;">🔒 Local-Only Personal Health Vault:</strong>
+          <div style="margin-top: 4px; font-size: 12px;" id="apolloSummaryList">
+            Personal diagnostic biomarkers are stored exclusively in your local gitignored SQLite database (<code>fleet/data/fleet_memory.db</code>) and are never stored in GitHub.
+          </div>
         </div>
 
-        <!-- Detailed Table -->
+        <!-- Detailed Table (Populated at runtime from local SQLite metabolic_profile) -->
         <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px;">
           <thead>
             <tr style="border-bottom: 1px solid var(--card-border); background: rgba(255,255,255,0.04); text-align: left;">
               <th style="padding: 8px;">Test Parameter</th>
-              <th style="padding: 8px;">Result</th>
+              <th style="padding: 8px;">Result (Local Vault)</th>
               <th style="padding: 8px;">Biological Ref. Interval</th>
               <th style="padding: 8px;">Status / Flag</th>
             </tr>
           </thead>
-          <tbody>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Fasting Glucose</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">108 mg/dL</td><td style="padding: 6px 8px;">70 - 100</td><td style="padding: 6px 8px; color: #f87171;">Prediabetes</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Post Prandial Glucose (2hr)</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">165 mg/dL</td><td style="padding: 6px 8px;">&lt; 140 (Diabetic &gt;200)</td><td style="padding: 6px 8px; color: #f87171;">Diabetic</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">HbA1c (Glycated Hb)</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-amber);">7.1 %</td><td style="padding: 6px 8px;">&lt; 5.7 (Diabetic &ge;6.5)</td><td style="padding: 6px 8px; color: var(--accent-amber);">Diabetic (Fair Control)</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Fasting C-Peptide</td><td style="padding: 6px 8px; font-weight: 700; color: #c084fc;">7.530 ng/mL</td><td style="padding: 6px 8px;">1.1 - 4.4</td><td style="padding: 6px 8px; color: #c084fc;">Hyperinsulinemia</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Total Cholesterol</td><td style="padding: 6px 8px; font-weight: 700;">209 mg/dL</td><td style="padding: 6px 8px;">&lt; 200</td><td style="padding: 6px 8px; color: var(--accent-amber);">Borderline High</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Triglycerides</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">208 mg/dL</td><td style="padding: 6px 8px;">&lt; 150</td><td style="padding: 6px 8px; color: #f87171;">High</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">HDL Cholesterol</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">31 mg/dL</td><td style="padding: 6px 8px;">&ge; 40 Desirable</td><td style="padding: 6px 8px; color: #f87171;">Low</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">LDL Cholesterol</td><td style="padding: 6px 8px; font-weight: 700;">136.8 mg/dL</td><td style="padding: 6px 8px;">&lt; 100</td><td style="padding: 6px 8px; color: var(--accent-amber);">Elevated</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">SGPT / ALT (Liver)</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">68.8 U/L</td><td style="padding: 6px 8px;">10 - 50</td><td style="padding: 6px 8px; color: #f87171;">Elevated (NAFLD)</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">SGOT / AST (Liver)</td><td style="padding: 6px 8px; font-weight: 700;">40.1 U/L</td><td style="padding: 6px 8px;">10 - 50</td><td style="padding: 6px 8px;">Normal</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Serum Creatinine</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green);">0.70 mg/dL</td><td style="padding: 6px 8px;">0.7 - 1.2</td><td style="padding: 6px 8px; color: var(--accent-green);">Normal</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">eGFR (Glomerular Filtration)</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green);">113.92 mL/min</td><td style="padding: 6px 8px;">&gt; 60</td><td style="padding: 6px 8px; color: var(--accent-green);">Optimal</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Vitamin D (25-OH)</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green);">66.9 ng/mL</td><td style="padding: 6px 8px;">30 - 100</td><td style="padding: 6px 8px; color: var(--accent-green);">Sufficient</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Vitamin B12</td><td style="padding: 6px 8px; font-weight: 700; color: var(--accent-green);">545 pg/mL</td><td style="padding: 6px 8px;">197 - 771</td><td style="padding: 6px 8px; color: var(--accent-green);">Normal</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">hs-CRP (Cardiac Risk)</td><td style="padding: 6px 8px; font-weight: 700;">1.10 mg/L</td><td style="padding: 6px 8px;">&lt; 3.0</td><td style="padding: 6px 8px;">Average Risk</td></tr>
-            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding: 6px 8px;">Urine Pus Cells</td><td style="padding: 6px 8px; font-weight: 700; color: #f87171;">12 - 15 /hpf</td><td style="padding: 6px 8px;">0 - 5</td><td style="padding: 6px 8px; color: #f87171;">Elevated</td></tr>
+          <tbody id="apolloLabTableBody">
+            <tr><td colspan="4" style="padding: 12px; color: var(--text-muted);">Loading baseline biomarkers from local SQLite vault...</td></tr>
           </tbody>
         </table>
       </div>
@@ -1781,8 +1949,8 @@
         <button title="Close Doctor Prescription modal" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closePrescriptionModal()">✕</button>
       </div>
       <div style="overflow-y: auto; max-height: 72vh; padding-right: 8px; font-size: 12.5px; line-height: 1.6; color: var(--text);">
-        <div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
-          <strong>Consult Goals:</strong> Within 3 Months (07 Jan 2027) <strong style="color: var(--accent-cyan);">HbA1c &lt; 6.4%</strong> • Diet Remarks: <strong style="color: #f87171;">Salt restricted diet</strong> • Recommendations: <strong style="color: var(--accent-amber);">Monitor BP</strong>
+        <div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;" id="ffdPrescriptionGoalsBanner">
+          <strong>Consult Goals:</strong> <span id="ffdPrescriptionGoalText">Loaded from Local SQLite Vault</span> • Diet Remarks: <strong style="color: #f87171;">Salt restricted diet</strong> • Recommendations: <strong style="color: var(--accent-amber);">Monitor BP</strong>
         </div>
 
         <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px;">
@@ -2046,6 +2214,18 @@
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div class="form-group">
+              <label style="font-size: 13px; font-weight: 600; color: var(--text);">🚀 Default Startup Agent (Landing View)</label>
+              <p style="font-size: 11.5px; color: var(--text-muted); margin: 2px 0 6px 0;">Select which agent opens automatically when you launch the Agentic Fleet Control Center (also configurable per-agent under Agents &amp; Customization).</p>
+              <select id="genSettingDefaultAgent" class="form-control">
+                <option value="overview">⚡ Overview &amp; Tasks (Default)</option>
+                <option value="health">🌿 Health &amp; Wellness</option>
+                <option value="backlog">📋 Feature Backlog</option>
+                <option value="optimizer">🚀 PC Optimizer</option>
+                <option value="antigravity">🤖 Antigravity Live</option>
+              </select>
             </div>
 
             <div class="form-group">
@@ -2524,10 +2704,16 @@
               <!-- Hydrated dynamically from POST /api/studio/evolve/suggestions -->
             </div>
 
-            <!-- Add Custom Improvement Bar -->
-            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 9px 10px; border-radius: 8px; background: rgba(2, 6, 23, 0.65); border: 1px dashed rgba(56, 189, 248, 0.38); margin-bottom: 11px;">
-              <input type="text" id="studioCustomImprovementInput" placeholder="➕ Add your own improvement (e.g. 'Add sparkline chart &amp; desktop toast alerts' or 'Flag policies with NCB &lt; 20%')..." onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomEvolveImprovement();}" style="flex: 1; min-width: 240px; padding: 7px 11px; background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(56, 189, 248, 0.32); border-radius: 7px; color: #f8fafc; font-size: 12px; font-family: inherit;">
-              <button title="Add your custom improvement to the selected evolution plan" type="button" class="btn btn-secondary" id="btnAddCustomEvolveImprovement" onclick="addCustomEvolveImprovement()" style="padding: 7px 13px; font-size: 11.5px; font-weight: 700; border-color: rgba(56, 189, 248, 0.5); color: #38bdf8; white-space: nowrap;">➕ Add Improvement</button>
+            <!-- Add Custom Improvement Bar (Multi-Line + Context-Aware LLM Prompt Improviser) -->
+            <div style="padding: 9px 10px; border-radius: 8px; background: rgba(2, 6, 23, 0.65); border: 1px dashed rgba(56, 189, 248, 0.38); margin-bottom: 11px;">
+              <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch;">
+                <textarea id="studioCustomImprovementInput" rows="2" placeholder="➕ Add your own multi-line improvement (Ctrl+Enter to add, or click '🪄 Improvise Prompt' to enhance with agent context via LLM)..." onkeydown="if((event.ctrlKey||event.metaKey)&amp;&amp;event.key==='Enter'){event.preventDefault();addCustomEvolveImprovement();}" style="flex: 1; min-width: 260px; padding: 7px 11px; background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(56, 189, 248, 0.32); border-radius: 7px; color: #f8fafc; font-size: 12px; line-height: 1.45; resize: vertical; font-family: inherit;"></textarea>
+                <div style="display: flex; flex-direction: column; gap: 6px; justify-content: center;">
+                  <button title="Enhance and improvise your draft text with the connected LLM using this agent's specific context so you can review it before adding" type="button" class="btn" id="btnImproviseModalPrompt" onclick="improviseCustomEvolvePrompt()" style="padding: 6px 12px; font-size: 11px; font-weight: 700; border-color: rgba(168, 85, 247, 0.55); background: rgba(88, 28, 135, 0.28); color: #e9d5ff; white-space: nowrap;">🪄 Improvise Prompt (LLM)</button>
+                  <button title="Add your custom improvement to the selected evolution plan (registers in Feature Backlog &amp; executes to completion)" type="button" class="btn btn-secondary" id="btnAddCustomEvolveImprovement" onclick="addCustomEvolveImprovement()" style="padding: 6px 12px; font-size: 11px; font-weight: 700; border-color: rgba(56, 189, 248, 0.5); color: #38bdf8; white-space: nowrap;">➕ Add Improvement</button>
+                </div>
+              </div>
+              <div id="studioCustomImproviseMetaBar" style="display: none; margin-top: 7px; padding: 6px 10px; border-radius: 6px; background: rgba(88, 28, 135, 0.22); border: 1px solid rgba(168, 85, 247, 0.38); font-size: 11px; color: #e9d5ff; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;"></div>
             </div>
 
             <!-- Direct Action Bar -->

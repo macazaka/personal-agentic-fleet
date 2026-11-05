@@ -201,9 +201,12 @@ def test_settings_api_error_branches(mock_fleet_env):
     from fleet.config import DATA_DIR
     dummy_db = DATA_DIR / "fleet.db"
     dummy_db.write_text("dummy", encoding="utf-8")
-    with patch("shutil.copy2", side_effect=PermissionError("Locked")):
-        create_backup_snapshot(handler, {})
-        assert handler._send_json.call_args[1].get("status") == 500
+    try:
+        with patch("shutil.copy2", side_effect=PermissionError("Locked")):
+            create_backup_snapshot(handler, {})
+            assert handler._send_json.call_args[1].get("status") == 500
+    finally:
+        dummy_db.unlink(missing_ok=True)
 
 
 
@@ -803,6 +806,276 @@ def test_afcc_all_buttons_have_tooltips_sop():
         f"AFCC SOP Violation: Found {len(missing_tooltips)} buttons without title tooltips:\n"
         + "\n".join(missing_tooltips)
     )
+
+
+def test_improvise_prompt_and_backlog_first_self_improvement_pipeline(mock_fleet_env):
+    """
+    Verifies:
+    1. Context-aware prompt improvisation (`POST /api/studio/evolve/improvise`) understands the specific agent
+       context (e.g., Health & Wellness vs. Overview & Tasks) and returns a multi-line reviewable prompt.
+    2. Undertaking a manual improvement (`POST /api/settings/agents/evolve`) first registers the item in
+       `feature_backlog` (`Planned` -> `In Progress`) and then executes it to completion (`Completed`, 100%),
+       recording the LLM textual response (`llm_response`) and 4-stage `execution_steps`.
+    3. Live status & LLM textual response endpoint (`GET /api/studio/evolve/status`) returns the enriched status.
+    """
+    from fleet.api.settings_api import (
+        evolve_custom_agent_endpoint,
+        get_agent_evolve_status_endpoint,
+        improvise_evolve_prompt_endpoint,
+    )
+
+    handler = MagicMock()
+
+    # 1. Improvise inside Health & Wellness agent
+    improvise_evolve_prompt_endpoint(handler, {
+        "id": "health",
+        "text": "alert me when post meal glucose spikes above 140",
+    })
+    res_health = handler._send_json.call_args[0][0]
+    assert res_health["status"] == "ok"
+    assert res_health["agent_id"] == "health"
+    assert "\n" in res_health["improvised_text"]
+    assert "FFD" in res_health["improvised_text"] or "Glucose" in res_health["improvised_text"]
+    assert "FFD" in res_health["domain_title"]
+
+    # 2. Improvise inside Overview & Tasks agent
+    handler.reset_mock()
+    improvise_evolve_prompt_endpoint(handler, {
+        "id": "overview",
+        "text": "enhance code coverage to over 99.5%",
+    })
+    res_ov = handler._send_json.call_args[0][0]
+    assert res_ov["status"] == "ok"
+    assert res_ov["agent_id"] == "overview"
+    assert "\n" in res_ov["improvised_text"]
+    assert "Coverage" in res_ov["improvised_text"] or "Pytest" in res_ov["improvised_text"]
+
+    # 3. Undertake manual improvement -> must go to Feature Backlog first and execute to completion
+    handler.reset_mock()
+    evolve_custom_agent_endpoint(handler, {
+        "id": "health",
+        "evolution_improvements": [
+            {
+                "id": "custom_glucose_spike_guard",
+                "title": "Post-Prandial Glucose Spike Guard (>140 mg/dL)",
+                "description": res_health["improvised_text"],
+                "code_enhancement_brief": res_health["improvised_text"],
+                "is_custom": True,
+            }
+        ],
+    })
+    evo_res = handler._send_json.call_args[0][0]
+    assert evo_res["status"] == "success"
+    undertaken = evo_res["manifest"]["evolution_improvements"]
+    assert len(undertaken) >= 1
+    latest = undertaken[-1]
+    assert latest["status"] == "completed"
+    assert latest["progress"] == 100
+    assert latest["backlog_id"] > 0
+    assert latest["backlog_status"] == "Completed"
+    assert "Self-Improvement Executed to Completion" in latest["llm_response"]
+    assert len(latest["execution_steps"]) == 4
+
+    # Verify the Feature Backlog SQLite row exists and is Completed
+    db = mock_fleet_env["db"]
+    bl_items = db.list_feature_backlog_items(status="Completed")
+    assert any(int(item["id"]) == int(latest["backlog_id"]) for item in bl_items)
+
+    # 4. Query live status endpoint
+    handler.reset_mock()
+    get_agent_evolve_status_endpoint(handler, {"id": ["health"]})
+    st_res = handler._send_json.call_args[0][0]
+    assert st_res["status"] == "ok"
+    assert st_res["agent_id"] == "health"
+    assert st_res["undertaken_count"] >= 1
+    assert st_res["improvements"][-1]["backlog_id"] == latest["backlog_id"]
+
+
+def test_bidirectional_voice_conversation_and_linked_activities(mock_fleet_env):
+    import urllib.parse
+    from fleet.api.settings_api import get_voice_activities_endpoint, post_voice_converse_endpoint
+
+    handler = MagicMock()
+
+    # 1. GET /api/voice/activities
+    get_voice_activities_endpoint(handler, urllib.parse.urlparse("/api/voice/activities"))
+    cat_res = handler._send_json.call_args[0][0]
+    assert cat_res["status"] == "ok"
+    assert cat_res["count"] >= 10
+    assert any(a["id"] == "voice_monthly_tasks" for a in cat_res["activities"])
+
+    # 2. Voice: Add monthly task & filter monthly tasks
+    handler.reset_mock()
+    post_voice_converse_endpoint(handler, {"transcript": "Add monthly task Review domain renewals"})
+    add_res = handler._send_json.call_args[0][0]
+    assert add_res["status"] == "ok"
+    assert add_res["mode"] == "voice_task_created"
+    assert "spoken_reply" in add_res
+    assert any(a.get("type") == "refresh_tasks" for a in add_res.get("ui_actions", []))
+
+    handler.reset_mock()
+    post_voice_converse_endpoint(handler, {"transcript": "Show my monthly tasks"})
+    m_res = handler._send_json.call_args[0][0]
+    assert m_res["status"] == "ok"
+    assert m_res["normalized_command"] == "filter_tasks:Monthly"
+    assert any(a.get("type") == "filter_tasks" and a.get("filter") == "Monthly" for a in m_res["ui_actions"])
+    assert len(m_res["executed_activities"]) >= 1
+
+    # 3. Voice: Complete task by title
+    handler.reset_mock()
+    post_voice_converse_endpoint(handler, {"transcript": "Complete task Review domain renewals"})
+    comp_res = handler._send_json.call_args[0][0]
+    assert comp_res["status"] == "ok"
+    assert comp_res["mode"] == "voice_task_completed"
+    assert "completed" in comp_res["spoken_reply"].lower()
+
+    # 4. Voice: Mask & Reveal sensitive IDs
+    handler.reset_mock()
+    post_voice_converse_endpoint(handler, {"transcript": "Mask sensitive IDs"})
+    mask_res = handler._send_json.call_args[0][0]
+    assert mask_res["status"] == "ok"
+    assert any(a.get("type") == "set_task_mask" and a.get("masked") is True for a in mask_res["ui_actions"])
+
+    handler.reset_mock()
+    post_voice_converse_endpoint(handler, {"transcript": "Reveal account numbers"})
+    unmask_res = handler._send_json.call_args[0][0]
+    assert unmask_res["status"] == "ok"
+    assert any(a.get("type") == "set_task_mask" and a.get("masked") is False for a in unmask_res["ui_actions"])
+
+    # 5. Voice: Log health vitals (weight & fasting sugar)
+    handler.reset_mock()
+    post_voice_converse_endpoint(handler, {"transcript": "Log weight 74.5 kg"})
+    wt_res = handler._send_json.call_args[0][0]
+    assert wt_res["status"] == "ok"
+    assert wt_res["agent_id"] == "health"
+    assert "74.5" in wt_res["spoken_reply"]
+
+    handler.reset_mock()
+    post_voice_converse_endpoint(handler, {"transcript": "Log fasting sugar 96"})
+    sg_res = handler._send_json.call_args[0][0]
+    assert sg_res["status"] == "ok"
+    assert sg_res["agent_id"] == "health"
+    assert "96" in sg_res["spoken_reply"]
+
+    # 6. Voice: Email Intelligence, Virus Shield, Backlog, and Self-Improvement
+    handler.reset_mock()
+    post_voice_converse_endpoint(handler, {"transcript": "Check my emails and scan attachments"})
+    em_res = handler._send_json.call_args[0][0]
+    assert em_res["status"] == "ok"
+    assert any(a.get("type") == "refresh_emails" for a in em_res["ui_actions"])
+
+    handler.reset_mock()
+    post_voice_converse_endpoint(handler, {"transcript": "Run antivirus block test"})
+    av_res = handler._send_json.call_args[0][0]
+    assert av_res["status"] == "ok"
+    assert any(a.get("type") == "test_virus_shield" for a in av_res["ui_actions"])
+
+    handler.reset_mock()
+    post_voice_converse_endpoint(handler, {"transcript": "Show unapproved backlog items"})
+    bl_res = handler._send_json.call_args[0][0]
+    assert bl_res["status"] == "ok"
+    assert any(a.get("type") == "filter_backlog" and a.get("status") == "Unapproved" for a in bl_res["ui_actions"])
+
+    handler.reset_mock()
+    post_voice_converse_endpoint(handler, {"transcript": "Suggest 10 ways to improve overview"})
+    ev_res = handler._send_json.call_args[0][0]
+    assert ev_res["status"] == "ok"
+    assert any(a.get("type") == "open_evolve_modal" and a.get("agent_id") == "overview" for a in ev_res["ui_actions"])
+
+
+def test_api_first_and_mcp_ready_architecture(mock_fleet_env):
+    import json
+    import urllib.parse
+    from fleet.api.router import router
+    from fleet.api.system_api import (
+        get_architecture_manifest_endpoint,
+        get_mcp_tools_endpoint,
+        get_openapi_spec_endpoint,
+        post_mcp_call_endpoint,
+    )
+    from fleet.mcp_server import (
+        fleet_call_api,
+        fleet_email_proposals_and_virus_scan,
+        fleet_evolve_agent,
+        fleet_health_action,
+        fleet_manage_backlog,
+        fleet_optimize_and_audit,
+        fleet_voice_converse,
+        invoke_mcp_tool,
+        list_mcp_tools_metadata,
+    )
+
+    handler = MagicMock()
+
+    # 1. Architecture Manifest endpoint verifies all 12 badge pillars + API-First & MCP-Ready metadata
+    get_architecture_manifest_endpoint(handler, urllib.parse.urlparse("/api/architecture/manifest"))
+    arch = handler._send_json.call_args[0][0]
+    assert arch["status"] == "ok"
+    assert arch["architecture"] == "Zero-Token Microkernel"
+    assert arch["privacy"] == "100% Local-First DPAPI"
+    assert arch["security_audit"] == "100/100 [12 Layers]"
+    assert arch["wiki"] == "17 Deep-Dive Guides"
+    assert "Google" in arch["hyperscalers"] and "Ollama" in arch["hyperscalers"]
+    assert "Copilot" in arch["dev_tools"] and "Amazon Q" in arch["dev_tools"]
+    assert arch["api_first"]["enabled"] is True
+    assert arch["api_first"]["rest_endpoints_count"] >= 40
+    assert arch["mcp_ready"]["enabled"] is True
+    assert arch["mcp_ready"]["mcp_tools_count"] >= 28
+
+    # 2. OpenAPI 3.1.0 live spec endpoint
+    handler.reset_mock()
+    get_openapi_spec_endpoint(handler, urllib.parse.urlparse("/api/openapi.json"))
+    spec = handler._send_json.call_args[0][0]
+    assert spec["openapi"] == "3.1.0"
+    assert "/api/voice/converse" in spec["paths"]
+    assert "/api/mcp/tools" in spec["paths"]
+
+    # 3. Dual-transport MCP introspection & HTTP JSON tool invocation
+    handler.reset_mock()
+    get_mcp_tools_endpoint(handler, urllib.parse.urlparse("/api/mcp/tools"))
+    mcp_list = handler._send_json.call_args[0][0]
+    assert mcp_list["status"] == "ok"
+    tool_names = {t["name"] for t in mcp_list["tools"]}
+    for expected_tool in (
+        "fleet_voice_converse",
+        "fleet_health_action",
+        "fleet_email_proposals_and_virus_scan",
+        "fleet_manage_backlog",
+        "fleet_evolve_agent",
+        "fleet_optimize_and_audit",
+        "fleet_call_api",
+    ):
+        assert expected_tool in tool_names
+
+    # 4. Invoke MCP tools via HTTP POST /api/mcp/call and direct function calls
+    handler.reset_mock()
+    post_mcp_call_endpoint(handler, {
+        "tool": "fleet_voice_converse",
+        "arguments": {"transcript": "Mask sensitive IDs"},
+    })
+    call_res = handler._send_json.call_args[0][0]
+    assert call_res["status"] == "ok"
+    assert call_res["result"]["normalized_command"] == "task_mask:on"
+
+    # Direct MCP tool checks
+    h_out = json.loads(fleet_health_action(action="log_water", value=1))
+    assert h_out["status"] == "ok"
+
+    bl_out = json.loads(fleet_manage_backlog(action="list", statuses="Planned,Completed", priorities="P1,P2"))
+    assert bl_out["status"] == "ok"
+
+    ev_out = json.loads(fleet_evolve_agent(agent_id="overview", action="improvise", manual_text="improve task filters"))
+    assert ev_out["status"] == "ok"
+
+    em_out = json.loads(fleet_email_proposals_and_virus_scan(action="list_proposals", status="Unapproved"))
+    assert em_out["status"] == "ok"
+
+    api_bridge_out = json.loads(fleet_call_api(method="GET", path="/api/voice/activities"))
+    assert api_bridge_out["status"] == "ok"
+    assert api_bridge_out["status_code"] == 200
+
+
+
 
 
 

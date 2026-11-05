@@ -57,7 +57,7 @@ class BriefingEngine:
         self.agent_registry = agent_registry
 
     def generate_daily_briefing(self, agent_registry: Any = None) -> Dict[str, Any]:
-        tasks = self.db.list_tasks()
+        tasks = self.db.list_tasks(exclude_tests=True)
         routines = self.db.list_routines()
 
         now = datetime.now()

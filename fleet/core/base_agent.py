@@ -111,9 +111,11 @@ class FleetAgent(ABC):
     @property
     def is_active_default(self) -> bool:
         """Whether this agent is the active default tab, respecting user override."""
+        if self._override_default is not None:
+            return bool(self._override_default)
         if "is_default" in self.config:
             return bool(self.config["is_default"])
-        return getattr(self, "_override_default", self.is_default)
+        return self.is_default
 
     # === Hyperscaler & Model Preferences Per Agent ===
 
@@ -427,6 +429,29 @@ class FleetAgent(ABC):
                 pass
         if isinstance(self.config.get("evolution_improvements"), list) and self.config.get("evolution_improvements"):
             meta["evolution_improvements"] = self.config["evolution_improvements"]
+
+        evo_list = meta.get("evolution_improvements")
+        if isinstance(evo_list, list) and evo_list and any(
+            isinstance(it, dict) and (not it.get("llm_response") or not it.get("backlog_id"))
+            for it in evo_list
+        ):
+            try:
+                import json
+                from fleet.core.agent_studio import undertake_agent_self_improvements
+                res_evo = undertake_agent_self_improvements(self, evo_list, db=self._raw_db)
+                if isinstance(res_evo.get("improvements"), list):
+                    meta["evolution_improvements"] = res_evo["improvements"]
+                    self.manifest_meta["evolution_improvements"] = res_evo["improvements"]
+                    self.config["evolution_improvements"] = res_evo["improvements"]
+                    if self._raw_db is not None and hasattr(self._raw_db, "set_setting"):
+                        raw_evo_cur = self._raw_db.get_setting(f"agent_evolution_{self.id}")
+                        evo_obj = json.loads(raw_evo_cur) if isinstance(raw_evo_cur, str) and raw_evo_cur else {}
+                        if not isinstance(evo_obj, dict):
+                            evo_obj = {}
+                        evo_obj["evolution_improvements"] = res_evo["improvements"]
+                        self._raw_db.set_setting(f"agent_evolution_{self.id}", json.dumps(evo_obj))
+            except Exception:
+                pass
 
         is_customized = bool(
             is_customized

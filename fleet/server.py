@@ -229,7 +229,13 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             status_filter = query.get("status", [None])[0]
             cat_filter = query.get("category", [None])[0]
             ver_filter = query.get("target_version", [None])[0]
-            items = db.list_feature_backlog_items(status=status_filter, category=cat_filter, target_version=ver_filter)
+            prio_filter = query.get("priority", [None])[0]
+            items = db.list_feature_backlog_items(
+                status=status_filter,
+                category=cat_filter,
+                target_version=ver_filter,
+                priority=prio_filter,
+            )
             stats = db.get_feature_backlog_stats()
             self._send_json({"items": items, "stats": stats})
 
