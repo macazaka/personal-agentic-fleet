@@ -678,6 +678,21 @@ def discover_email_and_attachment_proposals(
             saved_map[pid] = cand
             proposals_out.append(cand)
 
+    # Prune any orphaned '[Email Track]' / '[Email New Agent]' Unapproved rows not in active proposals_out
+    if db is not None and hasattr(db, "list_feature_backlog_items") and hasattr(db, "delete_feature_backlog_item"):
+        try:
+            active_bl_ids = {int(p.get("backlog_id") or 0) for p in proposals_out if int(p.get("backlog_id") or 0) > 0}
+            unapproved_rows = db.list_feature_backlog_items(status="Unapproved")
+            for row in unapproved_rows:
+                rid = int(row.get("id") or 0)
+                rtitle = str(row.get("title") or "")
+                if rid > 0 and rid not in active_bl_ids and (
+                    rtitle.startswith("[Email Track]") or rtitle.startswith("[Email New Agent]")
+                ):
+                    db.delete_feature_backlog_item(rid)
+        except Exception as exc:
+            logger.debug("Could not prune orphaned Unapproved email backlog rows: %s", exc)
+
     _save_proposals_map(db, saved_map)
 
     unapproved_list = [p for p in proposals_out if p.get("approval_status") == "unapproved"]

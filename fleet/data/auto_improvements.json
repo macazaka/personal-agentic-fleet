@@ -1,5 +1,472 @@
 [
   {
+    "scan_id": "SCAN-20261105-221544",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 4 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-11-05T22:15:44.882304"
+  },
+  {
+    "scan_id": "SCAN-20261105-221544",
+    "issue_type": "DATABASE",
+    "severity": "MEDIUM",
+    "description": "Detected 0 database lock/busy log event(s) and SQLite WAL journal file size of 4.03 MB (threshold: 4 MB).",
+    "action_taken": "Executed PRAGMA wal_checkpoint(TRUNCATE) and PRAGMA optimize. Reclaimed 0.0 MB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "wal_size_bytes": 4227152,
+      "wal_size_mb": 4.03
+    },
+    "metrics_after": {
+      "wal_size_bytes": 4227152,
+      "reclaimed_mb": 0.0
+    },
+    "created_at": "2026-11-05T22:15:44.881868"
+  },
+  {
+    "scan_id": "SCAN-20261105-221538",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 4 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-11-05T22:15:38.598549"
+  },
+  {
+    "scan_id": "SCAN-20261105-221538",
+    "issue_type": "DATABASE",
+    "severity": "MEDIUM",
+    "description": "Detected 0 database lock/busy log event(s) and SQLite WAL journal file size of 4.03 MB (threshold: 4 MB).",
+    "action_taken": "Executed PRAGMA wal_checkpoint(TRUNCATE) and PRAGMA optimize. Reclaimed 0.0 MB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "wal_size_bytes": 4227152,
+      "wal_size_mb": 4.03
+    },
+    "metrics_after": {
+      "wal_size_bytes": 4227152,
+      "reclaimed_mb": 0.0
+    },
+    "created_at": "2026-11-05T22:15:38.598330"
+  },
+  {
+    "scan_id": "SCAN-20261105-220643",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-11-05T22:06:43.951641"
+  },
+  {
+    "scan_id": "SCAN-20261105-220643",
+    "issue_type": "DATABASE",
+    "severity": "MEDIUM",
+    "description": "Detected 0 database lock/busy log event(s) and SQLite WAL journal file size of 4.03 MB (threshold: 4 MB).",
+    "action_taken": "Executed PRAGMA wal_checkpoint(TRUNCATE) and PRAGMA optimize. Reclaimed 0.0 MB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "wal_size_bytes": 4227152,
+      "wal_size_mb": 4.03
+    },
+    "metrics_after": {
+      "wal_size_bytes": 4227152,
+      "reclaimed_mb": 0.0
+    },
+    "created_at": "2026-11-05T22:06:43.801051"
+  },
+  {
+    "scan_id": "SCAN-20261105-220538",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-11-05T22:05:39.564644"
+  },
+  {
+    "scan_id": "SCAN-20261105-220538",
+    "issue_type": "DATABASE",
+    "severity": "MEDIUM",
+    "description": "Detected 0 database lock/busy log event(s) and SQLite WAL journal file size of 4.03 MB (threshold: 4 MB).",
+    "action_taken": "Executed PRAGMA wal_checkpoint(TRUNCATE) and PRAGMA optimize. Reclaimed 0.0 MB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "wal_size_bytes": 4227152,
+      "wal_size_mb": 4.03
+    },
+    "metrics_after": {
+      "wal_size_bytes": 4227152,
+      "reclaimed_mb": 0.0
+    },
+    "created_at": "2026-11-05T22:05:38.603233"
+  },
+  {
+    "scan_id": "SCAN-20261105-215951",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-11-05T21:59:51.798200"
+  },
+  {
+    "scan_id": "SCAN-20261105-215951",
+    "issue_type": "DATABASE",
+    "severity": "MEDIUM",
+    "description": "Detected 0 database lock/busy log event(s) and SQLite WAL journal file size of 4.03 MB (threshold: 4 MB).",
+    "action_taken": "Executed PRAGMA wal_checkpoint(TRUNCATE) and PRAGMA optimize. Reclaimed 0.0 MB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "wal_size_bytes": 4227152,
+      "wal_size_mb": 4.03
+    },
+    "metrics_after": {
+      "wal_size_bytes": 4227152,
+      "reclaimed_mb": 0.0
+    },
+    "created_at": "2026-11-05T21:59:51.797899"
+  },
+  {
+    "scan_id": "SCAN-20261105-215950",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-11-05T21:59:50.544825"
+  },
+  {
+    "scan_id": "SCAN-20261105-215950",
+    "issue_type": "DATABASE",
+    "severity": "MEDIUM",
+    "description": "Detected 0 database lock/busy log event(s) and SQLite WAL journal file size of 4.03 MB (threshold: 4 MB).",
+    "action_taken": "Executed PRAGMA wal_checkpoint(TRUNCATE) and PRAGMA optimize. Reclaimed 0.0 MB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "wal_size_bytes": 4227152,
+      "wal_size_mb": 4.03
+    },
+    "metrics_after": {
+      "wal_size_bytes": 4227152,
+      "reclaimed_mb": 0.0
+    },
+    "created_at": "2026-11-05T21:59:50.544461"
+  },
+  {
+    "scan_id": "SCAN-20261105-214432",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-11-05T21:44:33.326954"
+  },
+  {
+    "scan_id": "SCAN-20261105-214432",
+    "issue_type": "DATABASE",
+    "severity": "MEDIUM",
+    "description": "Detected 0 database lock/busy log event(s) and SQLite WAL journal file size of 4.03 MB (threshold: 4 MB).",
+    "action_taken": "Executed PRAGMA wal_checkpoint(TRUNCATE) and PRAGMA optimize. Reclaimed 0.0 MB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "wal_size_bytes": 4227152,
+      "wal_size_mb": 4.03
+    },
+    "metrics_after": {
+      "wal_size_bytes": 4227152,
+      "reclaimed_mb": 0.0
+    },
+    "created_at": "2026-11-05T21:44:33.326576"
+  },
+  {
+    "scan_id": "SCAN-20261105-214432",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-11-05T21:44:33.227421"
+  },
+  {
+    "scan_id": "SCAN-20261105-214432",
+    "issue_type": "DATABASE",
+    "severity": "MEDIUM",
+    "description": "Detected 0 database lock/busy log event(s) and SQLite WAL journal file size of 4.03 MB (threshold: 4 MB).",
+    "action_taken": "Executed PRAGMA wal_checkpoint(TRUNCATE) and PRAGMA optimize. Reclaimed 0.0 MB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "wal_size_bytes": 4227152,
+      "wal_size_mb": 4.03
+    },
+    "metrics_after": {
+      "wal_size_bytes": 4227152,
+      "reclaimed_mb": 0.0
+    },
+    "created_at": "2026-11-05T21:44:33.227107"
+  },
+  {
+    "scan_id": "SCAN-20261105-212324",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-11-05T21:23:25.185555"
+  },
+  {
+    "scan_id": "SCAN-20261105-212324",
+    "issue_type": "DATABASE",
+    "severity": "MEDIUM",
+    "description": "Detected 0 database lock/busy log event(s) and SQLite WAL journal file size of 4.03 MB (threshold: 4 MB).",
+    "action_taken": "Executed PRAGMA wal_checkpoint(TRUNCATE) and PRAGMA optimize. Reclaimed 0.0 MB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "wal_size_bytes": 4227152,
+      "wal_size_mb": 4.03
+    },
+    "metrics_after": {
+      "wal_size_bytes": 4227152,
+      "reclaimed_mb": 0.0
+    },
+    "created_at": "2026-11-05T21:23:25.185216"
+  },
+  {
+    "scan_id": "SCAN-20261105-210816",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-11-05T21:08:16.400174"
+  },
+  {
+    "scan_id": "SCAN-20261105-210816",
+    "issue_type": "DATABASE",
+    "severity": "MEDIUM",
+    "description": "Detected 0 database lock/busy log event(s) and SQLite WAL journal file size of 4.03 MB (threshold: 4 MB).",
+    "action_taken": "Executed PRAGMA wal_checkpoint(TRUNCATE) and PRAGMA optimize. Reclaimed 0.0 MB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "wal_size_bytes": 4227152,
+      "wal_size_mb": 4.03
+    },
+    "metrics_after": {
+      "wal_size_bytes": 4227152,
+      "reclaimed_mb": 0.0
+    },
+    "created_at": "2026-11-05T21:08:16.399764"
+  },
+  {
+    "scan_id": "SCAN-20261105-210812",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-11-05T21:08:13.792452"
+  },
+  {
+    "scan_id": "SCAN-20261105-210812",
+    "issue_type": "DATABASE",
+    "severity": "MEDIUM",
+    "description": "Detected 0 database lock/busy log event(s) and SQLite WAL journal file size of 4.03 MB (threshold: 4 MB).",
+    "action_taken": "Executed PRAGMA wal_checkpoint(TRUNCATE) and PRAGMA optimize. Reclaimed 0.0 MB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "wal_size_bytes": 4227152,
+      "wal_size_mb": 4.03
+    },
+    "metrics_after": {
+      "wal_size_bytes": 4227152,
+      "reclaimed_mb": 0.0
+    },
+    "created_at": "2026-11-05T21:08:13.791815"
+  },
+  {
+    "scan_id": "SCAN-20261105-162857",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-11-05T16:28:57.753874"
+  },
+  {
+    "scan_id": "SCAN-20261105-162857",
+    "issue_type": "DATABASE",
+    "severity": "MEDIUM",
+    "description": "Detected 0 database lock/busy log event(s) and SQLite WAL journal file size of 4.03 MB (threshold: 4 MB).",
+    "action_taken": "Executed PRAGMA wal_checkpoint(TRUNCATE) and PRAGMA optimize. Reclaimed 0.0 MB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "wal_size_bytes": 4227152,
+      "wal_size_mb": 4.03
+    },
+    "metrics_after": {
+      "wal_size_bytes": 4227152,
+      "reclaimed_mb": 0.0
+    },
+    "created_at": "2026-11-05T16:28:57.753549"
+  },
+  {
+    "scan_id": "SCAN-20261105-161351",
+    "issue_type": "TASK_FAILURES",
+    "severity": "MEDIUM",
+    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
+    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "failed_tasks": 0
+    },
+    "metrics_after": {
+      "quarantined_tasks": 0
+    },
+    "created_at": "2026-11-05T16:13:51.662373"
+  },
+  {
+    "scan_id": "SCAN-20261105-161351",
+    "issue_type": "DATABASE",
+    "severity": "MEDIUM",
+    "description": "Detected 0 database lock/busy log event(s) and SQLite WAL journal file size of 4.03 MB (threshold: 4 MB).",
+    "action_taken": "Executed PRAGMA wal_checkpoint(TRUNCATE) and PRAGMA optimize. Reclaimed 0.0 MB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "wal_size_bytes": 4227152,
+      "wal_size_mb": 4.03
+    },
+    "metrics_after": {
+      "wal_size_bytes": 4227152,
+      "reclaimed_mb": 0.0
+    },
+    "created_at": "2026-11-05T16:13:51.662087"
+  },
+  {
+    "scan_id": "SCAN-20261105-155708",
+    "issue_type": "DATABASE",
+    "severity": "MEDIUM",
+    "description": "Detected 0 database lock/busy log event(s) and SQLite WAL journal file size of 4.03 MB (threshold: 4 MB).",
+    "action_taken": "Executed PRAGMA wal_checkpoint(TRUNCATE) and PRAGMA optimize. Reclaimed 0.0 MB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "wal_size_bytes": 4227152,
+      "wal_size_mb": 4.03
+    },
+    "metrics_after": {
+      "wal_size_bytes": 4227152,
+      "reclaimed_mb": 0.0
+    },
+    "created_at": "2026-11-05T15:57:09.006252"
+  },
+  {
+    "scan_id": "SCAN-20261105-155221",
+    "issue_type": "DATABASE",
+    "severity": "MEDIUM",
+    "description": "Detected 0 database lock/busy log event(s) and SQLite WAL journal file size of 4.03 MB (threshold: 4 MB).",
+    "action_taken": "Executed PRAGMA wal_checkpoint(TRUNCATE) and PRAGMA optimize. Reclaimed 0.0 MB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "wal_size_bytes": 4227152,
+      "wal_size_mb": 4.03
+    },
+    "metrics_after": {
+      "wal_size_bytes": 4227152,
+      "reclaimed_mb": 0.0
+    },
+    "created_at": "2026-11-05T15:52:22.215939"
+  },
+  {
+    "scan_id": "SCAN-20261105-154247",
+    "issue_type": "DATABASE",
+    "severity": "MEDIUM",
+    "description": "Detected 0 database lock/busy log event(s) and SQLite WAL journal file size of 4.03 MB (threshold: 4 MB).",
+    "action_taken": "Executed PRAGMA wal_checkpoint(TRUNCATE) and PRAGMA optimize. Reclaimed 0.0 MB.",
+    "status": "VERIFIED",
+    "metrics_before": {
+      "wal_size_bytes": 4227152,
+      "wal_size_mb": 4.03
+    },
+    "metrics_after": {
+      "wal_size_bytes": 4227152,
+      "reclaimed_mb": 0.0
+    },
+    "created_at": "2026-11-05T15:42:48.475047"
+  },
+  {
     "scan_id": "SCAN-20261105-152116",
     "issue_type": "TASK_FAILURES",
     "severity": "MEDIUM",
@@ -2680,445 +3147,5 @@
       "reclaimed_kb": 1.37
     },
     "created_at": "2026-10-27T12:21:19.325618"
-  },
-  {
-    "scan_id": "SCAN-20261027-121938",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T12:19:38.361166"
-  },
-  {
-    "scan_id": "SCAN-20261027-121935",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T12:19:35.685910"
-  },
-  {
-    "scan_id": "SCAN-20261027-121935",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T12:19:35.584220"
-  },
-  {
-    "scan_id": "SCAN-20261027-121934",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T12:19:34.914579"
-  },
-  {
-    "scan_id": "SCAN-20261027-121934",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T12:19:34.808202"
-  },
-  {
-    "scan_id": "SCAN-20261027-121933",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T12:19:33.227369"
-  },
-  {
-    "scan_id": "SCAN-20261027-121933",
-    "issue_type": "CRASH_DUMPS",
-    "severity": "LOW",
-    "description": "Found 11 crash dump files (0 older than 7 days, max age 0.2 days). Retention threshold is 10.",
-    "action_taken": "Pruned 1 aged/excess crash report dumps. Reclaimed 0.72 KB.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "total_dumps": 11
-    },
-    "metrics_after": {
-      "remaining_dumps": 10,
-      "reclaimed_kb": 0.72
-    },
-    "created_at": "2026-10-27T12:19:33.227109"
-  },
-  {
-    "scan_id": "SCAN-20261027-121418",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T12:14:18.806503"
-  },
-  {
-    "scan_id": "SCAN-20261027-112307",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T11:23:07.074811"
-  },
-  {
-    "scan_id": "SCAN-20261027-111904",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T11:19:04.916315"
-  },
-  {
-    "scan_id": "SCAN-20261027-104949",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T10:49:49.921419"
-  },
-  {
-    "scan_id": "SCAN-20261027-104948",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T10:49:48.046341"
-  },
-  {
-    "scan_id": "SCAN-20261027-104947",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T10:49:47.930626"
-  },
-  {
-    "scan_id": "SCAN-20261027-104945",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T10:49:45.763584"
-  },
-  {
-    "scan_id": "SCAN-20261027-104945",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T10:49:45.655573"
-  },
-  {
-    "scan_id": "SCAN-20261027-104944",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T10:49:44.135264"
-  },
-  {
-    "scan_id": "SCAN-20261027-104944",
-    "issue_type": "CRASH_DUMPS",
-    "severity": "LOW",
-    "description": "Found 11 crash dump files (0 older than 7 days, max age 0.1 days). Retention threshold is 10.",
-    "action_taken": "Pruned 1 aged/excess crash report dumps. Reclaimed 0.49 KB.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "total_dumps": 11
-    },
-    "metrics_after": {
-      "remaining_dumps": 10,
-      "reclaimed_kb": 0.49
-    },
-    "created_at": "2026-10-27T10:49:44.134989"
-  },
-  {
-    "scan_id": "SCAN-20261027-104018",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T10:40:18.514494"
-  },
-  {
-    "scan_id": "SCAN-20261027-104018",
-    "issue_type": "CRASH_DUMPS",
-    "severity": "LOW",
-    "description": "Found 12 crash dump files (0 older than 7 days, max age 0.1 days). Retention threshold is 10.",
-    "action_taken": "Pruned 2 aged/excess crash report dumps. Reclaimed 1.4 KB.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "total_dumps": 12
-    },
-    "metrics_after": {
-      "remaining_dumps": 10,
-      "reclaimed_kb": 1.4
-    },
-    "created_at": "2026-10-27T10:40:18.514196"
-  },
-  {
-    "scan_id": "SCAN-20261027-103843",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T10:38:43.901795"
-  },
-  {
-    "scan_id": "SCAN-20261027-103841",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T10:38:41.067103"
-  },
-  {
-    "scan_id": "SCAN-20261027-103840",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T10:38:40.966548"
-  },
-  {
-    "scan_id": "SCAN-20261027-103840",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T10:38:40.301521"
-  },
-  {
-    "scan_id": "SCAN-20261027-103840",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T10:38:40.203631"
-  },
-  {
-    "scan_id": "SCAN-20261027-103838",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T10:38:38.351802"
-  },
-  {
-    "scan_id": "SCAN-20261027-103838",
-    "issue_type": "CRASH_DUMPS",
-    "severity": "LOW",
-    "description": "Found 12 crash dump files (0 older than 7 days, max age 0.1 days). Retention threshold is 10.",
-    "action_taken": "Pruned 2 aged/excess crash report dumps. Reclaimed 1.17 KB.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "total_dumps": 12
-    },
-    "metrics_after": {
-      "remaining_dumps": 10,
-      "reclaimed_kb": 1.17
-    },
-    "created_at": "2026-10-27T10:38:38.351567"
-  },
-  {
-    "scan_id": "SCAN-20261027-103415",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T10:34:16.169864"
-  },
-  {
-    "scan_id": "SCAN-20261027-103415",
-    "issue_type": "CRASH_DUMPS",
-    "severity": "LOW",
-    "description": "Found 11 crash dump files (0 older than 7 days, max age 0.1 days). Retention threshold is 10.",
-    "action_taken": "Pruned 1 aged/excess crash report dumps. Reclaimed 0.72 KB.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "total_dumps": 11
-    },
-    "metrics_after": {
-      "remaining_dumps": 10,
-      "reclaimed_kb": 0.72
-    },
-    "created_at": "2026-10-27T10:34:16.169613"
-  },
-  {
-    "scan_id": "SCAN-20261027-091010",
-    "issue_type": "TASK_FAILURES",
-    "severity": "MEDIUM",
-    "description": "Identified 0 failed tasks in queue and 3 task execution error log entries.",
-    "action_taken": "Quarantined 0 continuously failing task(s) and applied backoff.",
-    "status": "VERIFIED",
-    "metrics_before": {
-      "failed_tasks": 0
-    },
-    "metrics_after": {
-      "quarantined_tasks": 0
-    },
-    "created_at": "2026-10-27T09:10:11.002742"
   }
 ]

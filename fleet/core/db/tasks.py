@@ -117,7 +117,7 @@ class TasksMixin(_DbBase):
             cursor = conn.cursor()
             conditions = []
             params: List[Any] = []
-            if status:
+            if status and status.upper() != "ALL":
                 conditions.append("status = ?")
                 params.append(status)
             if require_description:
