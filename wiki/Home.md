@@ -60,6 +60,14 @@ Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operat
 
 > **Live Codebase Inventory**: `10` Built-In Agents • `151` REST API Endpoints • `35` Core Microkernel Modules • `21` Automation Tools • `501` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
 
-### Fixed
-- Proactive release synchronization, static type verification, and documentation maintenance.
+### Added
+- **API-First In-Process Router & Auto-Generated OpenAPI 3.1.0 Spec**: Added programmatic `ApiRouter.invoke(method, path, payload)`, `GET /api/openapi.json` (`151` live endpoints), and `GET /api/architecture/manifest` in [`fleet/api/router.py`](fleet/api/router.py) and [`fleet/api/system_api.py`](fleet/api/system_api.py).
+- **Dual-Transport FastMCP Server (`29 Tools` — Stdio + HTTP Bridge)**: Expanded [`fleet/mcp_server.py`](fleet/mcp_server.py) to `29` MCP tools (`fleet_voice_converse`, `fleet_health_action`, `fleet_email_proposals_and_virus_scan`, `fleet_manage_backlog`, `fleet_evolve_agent`, `fleet_optimize_and_audit`, `fleet_call_api`, etc.) exposed via both Stdio and `GET /api/mcp/tools` + `POST /api/mcp/call`.
+- **Bi-Directional Voice Conversation & Live Activity Copilot**: Added hands-free Speech-to-Text (`SpeechRecognition`) and Text-to-Speech (`speechSynthesis`) voice conversation (`POST /api/voice/converse`, `GET /api/voice/activities`) with live UI activity execution and automatic speech redaction of sensitive IDs.
+- **Email Intelligence 4-Layer Antivirus Scanner & Approval Gate**: Added pre-download attachment malware/heuristic/Defender scanning (`scan_email_attachment_security`), automatic extraction of `Unapproved` task/agent proposals (`POST /api/emails/proposals/approve`), and automatic pruning of orphaned `Unapproved` email backlog items.
+- **Multi-Line Prompt Improvisation, Backlog-First Execution & Live LLM Telemetry**: Upgraded manual self-improvement entry across all agents with context-aware LLM prompt improvisation (`POST /api/agents/improve/improvise`), mandatory backlog registration before execution, and a live 4-stage execution & LLM streaming monitor.
+- **Multi-Select Backlog Filtering & Default Startup Agent Setting**: Added multi-choice Status (`Unapproved`, `Idea`, `Planned`, `In Progress`, `Completed`) and Priority (`P0`–`P3`) filtering in the Feature Backlog agent, and configurable `default_agent` startup selection (defaulting to `overview`) in AFCC Settings.
+
+### Security & Privacy
+- **100% Local-Only Personal Data Vault & Default On-Screen ID Masking (`🙈 Mask IDs: On`)**: Scrubbed all personal biomarker and financial/account identifiers from git-tracked source files into local gitignored storage (`fleet/data/fleet_memory.db` & `fleet/data/user/`), added default on-screen account/ID masking with a 1-click reveal toggle, and added 3-layer test isolation guards against unit-test pollution of production databases.
 <!-- AUTO-LATEST-RELEASE:END -->
