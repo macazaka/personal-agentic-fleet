@@ -612,11 +612,15 @@ class HyperscalerGateway:
 
         if not token and os.environ.get("FLEET_TEST_MODE") != "1":
             try:
+                hidden_kw: Dict[str, Any] = (
+                    {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)} if os.name == "nt" else {}
+                )
                 res = subprocess.run(
                     ["gcloud", "auth", "print-access-token"],
                     capture_output=True,
                     text=True,
                     timeout=5,
+                    **hidden_kw,
                 )
                 if res.returncode == 0 and res.stdout.strip():
                     token = res.stdout.strip()

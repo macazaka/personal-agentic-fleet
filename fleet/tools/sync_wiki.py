@@ -21,6 +21,18 @@ WIKI_SOURCE_DIR = PROJECT_ROOT / "wiki"
 DEFAULT_WIKI_REMOTE = "git@github.com:macazaka/personal-agentic-fleet.wiki.git"
 
 
+def _hidden_subprocess_kwargs() -> Dict[str, Any]:
+    kwargs: Dict[str, Any] = {}
+    if os.name == "nt":
+        kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+        if hasattr(subprocess, "STARTUPINFO"):
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0x00000001)
+            si.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+            kwargs["startupinfo"] = si
+    return kwargs
+
+
 def _remove_readonly(func, path, _):
     try:
         os.chmod(path, stat.S_IWRITE)
@@ -69,6 +81,7 @@ def sync_github_wiki(remote_url: str = DEFAULT_WIKI_REMOTE, dry_run: bool = Fals
         capture_output=True,
         text=True,
         check=False,
+        **_hidden_subprocess_kwargs(),
     )
 
     if res_clone.returncode != 0:
@@ -94,23 +107,23 @@ def sync_github_wiki(remote_url: str = DEFAULT_WIKI_REMOTE, dry_run: bool = Fals
         print(f"  + Synced {wf.name}")
 
     # 3. Commit and push
-    subprocess.run(["git", "config", "user.name", "Personal Agentic Fleet Bot"], cwd=str(staging_dir), check=False)
-    subprocess.run(["git", "config", "user.email", "fleet@local.internal"], cwd=str(staging_dir), check=False)
-    subprocess.run(["git", "add", "."], cwd=str(staging_dir), check=True)
+    subprocess.run(["git", "config", "user.name", "Personal Agentic Fleet Bot"], cwd=str(staging_dir), check=False, **_hidden_subprocess_kwargs())
+    subprocess.run(["git", "config", "user.email", "fleet@local.internal"], cwd=str(staging_dir), check=False, **_hidden_subprocess_kwargs())
+    subprocess.run(["git", "add", "."], cwd=str(staging_dir), check=True, **_hidden_subprocess_kwargs())
 
-    status_res = subprocess.run(["git", "status", "--porcelain"], cwd=str(staging_dir), capture_output=True, text=True)
+    status_res = subprocess.run(["git", "status", "--porcelain"], cwd=str(staging_dir), capture_output=True, text=True, **_hidden_subprocess_kwargs())
     if not status_res.stdout.strip():
         print("[OK] Wiki is already up to date. Zero changes required.")
         shutil.rmtree(staging_dir, onerror=_remove_readonly)
         return {"status": "up_to_date", "files_synced": len(wiki_files)}
 
-    subprocess.run(["git", "commit", "-m", "docs(wiki): update documentation pages from main repository"], cwd=str(staging_dir), check=True)
+    subprocess.run(["git", "commit", "-m", "docs(wiki): update documentation pages from main repository"], cwd=str(staging_dir), check=True, **_hidden_subprocess_kwargs())
     
     print("Pushing updates to GitHub Wiki...")
-    push_res = subprocess.run(["git", "push", "origin", "master"], cwd=str(staging_dir), capture_output=True, text=True)
+    push_res = subprocess.run(["git", "push", "origin", "master"], cwd=str(staging_dir), capture_output=True, text=True, **_hidden_subprocess_kwargs())
     if push_res.returncode != 0:
         # Some wikis use 'main' instead of 'master'
-        push_res = subprocess.run(["git", "push", "origin", "main"], cwd=str(staging_dir), capture_output=True, text=True)
+        push_res = subprocess.run(["git", "push", "origin", "main"], cwd=str(staging_dir), capture_output=True, text=True, **_hidden_subprocess_kwargs())
 
     shutil.rmtree(staging_dir, onerror=_remove_readonly)
 

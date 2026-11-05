@@ -5,7 +5,7 @@ diffstat/change inspection, conflict detection, and interactive branch actions.
 
 from pathlib import Path
 import subprocess
-from typing import List
+from typing import Any, Dict, List
 from unittest.mock import patch
 
 from fleet.agents.pr_review.agent import PRReviewAgent, _is_safe_branch_name
@@ -22,6 +22,14 @@ def _git(repo: Path, args: List[str], author_name: str = "Alice Dev", author_ema
 
     full_env = os.environ.copy()
     full_env.update(env_vars)
+    hidden_kw: Dict[str, Any] = {}
+    if os.name == "nt":
+        hidden_kw["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+        if hasattr(subprocess, "STARTUPINFO"):
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0x00000001)
+            si.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+            hidden_kw["startupinfo"] = si
     res = subprocess.run(
         ["git", *args],
         cwd=str(repo),
@@ -31,6 +39,7 @@ def _git(repo: Path, args: List[str], author_name: str = "Alice Dev", author_ema
         encoding="utf-8",
         errors="replace",
         check=True,
+        **hidden_kw,
     )
     return res.stdout.strip()
 
@@ -197,11 +206,16 @@ def test_signed_git_tag_creation_and_hook_verification(tmp_path: Path):
     # Generate an isolated temporary Ed25519 SSH signing key for deterministic cross-platform testing
     key_file = tmp_path / "test_signing_ed25519"
     pub_file = tmp_path / "test_signing_ed25519.pub"
+    import os
+    hidden_kw: Dict[str, Any] = (
+        {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)} if os.name == "nt" else {}
+    )
     keygen = subprocess.run(
         ["ssh-keygen", "-t", "ed25519", "-N", "", "-f", str(key_file), "-q"],
         capture_output=True,
         text=True,
         check=False,
+        **hidden_kw,
     )
     assert keygen.returncode == 0 and pub_file.is_file()
 

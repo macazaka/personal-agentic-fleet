@@ -43,7 +43,13 @@ _ALLOWED_API_HOSTS = frozenset({"api.github.com", "api.osv.dev"})
 
 def _hidden_subprocess_kwargs() -> Dict[str, Any]:
     if os.name == "nt":
-        return {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
+        kwargs: Dict[str, Any] = {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
+        if hasattr(subprocess, "STARTUPINFO"):
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0x00000001)
+            si.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+            kwargs["startupinfo"] = si
+        return kwargs
     return {}
 
 
@@ -52,7 +58,13 @@ def _detached_subprocess_kwargs() -> Dict[str, Any]:
         create_no_win = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
         detached_proc = getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
         new_group = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
-        return {"creationflags": create_no_win | detached_proc | new_group, "close_fds": True}
+        kwargs: Dict[str, Any] = {"creationflags": create_no_win | detached_proc | new_group, "close_fds": True}
+        if hasattr(subprocess, "STARTUPINFO"):
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0x00000001)
+            si.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+            kwargs["startupinfo"] = si
+        return kwargs
     return {"start_new_session": True, "close_fds": True}
 
 

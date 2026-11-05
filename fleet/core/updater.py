@@ -37,6 +37,19 @@ _LAST_CHECK_CACHE: Dict[str, Any] = {}
 _LAST_CHECK_TS: float = 0.0
 
 
+def _hidden_subprocess_kwargs() -> Dict[str, Any]:
+    """Returns Windows creationflags and STARTUPINFO so git.exe runs completely hidden without console flash."""
+    kwargs: Dict[str, Any] = {}
+    if os.name == "nt":
+        kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+        if hasattr(subprocess, "STARTUPINFO"):
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0x00000001)
+            si.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+            kwargs["startupinfo"] = si
+    return kwargs
+
+
 def _build_tls_context() -> ssl.SSLContext:
     ctx = ssl.create_default_context()
     ctx.minimum_version = ssl.TLSVersion.TLSv1_2
@@ -258,12 +271,14 @@ def ensure_latest_version_before_launch(
                             capture_output=True,
                             timeout=10,
                             check=False,
+                            **_hidden_subprocess_kwargs(),
                         )
                         subprocess.run(
                             ["git", "-C", str(root), "merge", "--ff-only", "FETCH_HEAD"],
                             capture_output=True,
                             timeout=10,
                             check=False,
+                            **_hidden_subprocess_kwargs(),
                         )
                         upgraded = True
                         upgrade_source = f"sibling_workspace ({sibling_drive})"
@@ -312,6 +327,7 @@ def download_and_apply_update(repo_root: Optional[Path] = None) -> Dict[str, Any
                 text=True,
                 timeout=30,
                 check=False,
+                **_hidden_subprocess_kwargs(),
             )
             out = (res.stdout or res.stderr or "").strip()
             if res.returncode == 0:

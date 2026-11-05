@@ -320,13 +320,20 @@ def run_preflight_gate(repo_root: Path = _ROOT) -> int:
 
     # 6. Run Pytest Suite in Clean Environment with PYTHONPATH
     print("[6/6] Running Full Unit Test Suite (pytest tests/)...")
-    hidden_kw = {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)} if os.name == "nt" else {}
+    hidden_kw: Dict[str, Any] = {}
+    if os.name == "nt":
+        hidden_kw["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+        if hasattr(subprocess, "STARTUPINFO"):
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0x00000001)
+            si.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+            hidden_kw["startupinfo"] = si
     env = os.environ.copy()
     env["PYTHONPATH"] = str(repo_root)
     env["FLEET_TEST_MODE"] = "1"
 
     cmd = [sys.executable, "-m", "pytest", "tests/", "-q"]
-    p = subprocess.run(cmd, cwd=str(repo_root), env=env, check=False)
+    p = subprocess.run(cmd, cwd=str(repo_root), env=env, check=False, **hidden_kw)
     if p.returncode != 0:
         print(f"[-] Pytest Suite FAILED with exit code {p.returncode}.")
         return p.returncode

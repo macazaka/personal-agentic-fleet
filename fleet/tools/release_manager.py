@@ -36,7 +36,13 @@ REPO_ROOT = BASE_DIR.parent
 
 def _hidden_subprocess_kwargs() -> Dict[str, Any]:
     if os.name == "nt":
-        return {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
+        kwargs: Dict[str, Any] = {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
+        if hasattr(subprocess, "STARTUPINFO"):
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0x00000001)
+            si.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+            kwargs["startupinfo"] = si
+        return kwargs
     return {}
 
 
@@ -850,6 +856,7 @@ def run_daily_git_sync_and_release(
             text=True,
             timeout=15,
             check=False,
+            **_hidden_subprocess_kwargs(),
         )
         dirty_lines = [ln.strip() for ln in (st_proc.stdout or "").splitlines() if ln.strip()]
         if not dirty_lines:
@@ -862,7 +869,7 @@ def run_daily_git_sync_and_release(
                 "message": "Working tree is already clean; no daily commit needed.",
             }
 
-        subprocess.run(["git", "add", "-A"], cwd=str(repo_root), check=False, timeout=30)
+        subprocess.run(["git", "add", "-A"], cwd=str(repo_root), check=False, timeout=30, **_hidden_subprocess_kwargs())
         date_str = datetime.now().strftime("%Y-%m-%d")
         commit_msg = f"feat(release): daily batched workstation sync and documentation update ({date_str})"
         env = dict(os.environ)
@@ -877,6 +884,7 @@ def run_daily_git_sync_and_release(
             text=True,
             timeout=180,
             check=False,
+            **_hidden_subprocess_kwargs(),
         )
         committed = c_proc.returncode == 0
         ver = get_current_configured_version(repo_root)
@@ -892,6 +900,7 @@ def run_daily_git_sync_and_release(
                 text=True,
                 timeout=120,
                 check=False,
+                **_hidden_subprocess_kwargs(),
             )
             pushed = p_proc.returncode == 0
         return {

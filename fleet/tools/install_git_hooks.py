@@ -279,9 +279,14 @@ def _configure_git_branch_protection(repo_root: Path) -> None:
     fallback_git = Path(os.path.expanduser(r"~\AppData\Local\Programs\Git\cmd\git.exe"))
     if fallback_git.is_file():
         git_exe = str(fallback_git)
-    hidden_kw: Dict[str, Any] = (
-        {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)} if os.name == "nt" else {}
-    )
+    hidden_kw: Dict[str, Any] = {}
+    if os.name == "nt":
+        hidden_kw["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+        if hasattr(subprocess, "STARTUPINFO"):
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0x00000001)
+            si.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+            hidden_kw["startupinfo"] = si
     settings = [
         ("receive.denyDeletes", "true"),
         ("receive.denyNonFastForwards", "true"),
@@ -341,7 +346,12 @@ def install_git_hooks(repo_root: Path = ROOT_DIR) -> dict:
 
     _configure_git_branch_protection(repo_root)
 
-    python_shebang = sys.executable.replace("\\", "/") if sys.executable else "/usr/bin/env python"
+    py_exe = Path(sys.executable) if sys.executable else None
+    if py_exe and py_exe.name.lower() == "pythonw.exe":
+        console_py = py_exe.with_name("python.exe")
+        if console_py.is_file():
+            py_exe = console_py
+    python_shebang = str(py_exe).replace("\\", "/") if py_exe else "/usr/bin/env python"
     installed = []
 
     # Install pre-commit

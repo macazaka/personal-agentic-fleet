@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.15.2] - 2026-11-06
+
+### Fixed
+- **Backlog**: Auto-prune orphaned Unapproved email proposals and handle status=ALL in list_tasks.
+
+### Documentation & Maintenance
+- **Changelog**: Resolve CHANGELOG.md v2.15.1 release notes and sync wiki.
+
+---
+
 ## [2.15.1] - 2026-11-05
 
 ### Added

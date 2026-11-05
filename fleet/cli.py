@@ -189,7 +189,12 @@ def cmd_stop(args: argparse.Namespace) -> int:
         print(f"[*] Stopping Personal Agentic Fleet (PID {pid})...")
         try:
             if sys.platform == "win32":
-                subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, check=False)
+                subprocess.run(
+                    ["taskkill", "/F", "/T", "/PID", str(pid)],
+                    capture_output=True,
+                    check=False,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
+                )
             else:
                 import signal
                 os.kill(pid, signal.SIGTERM)
@@ -210,9 +215,10 @@ def cmd_stop(args: argparse.Namespace) -> int:
         if sys.platform == "win32":
             try:
                 subprocess.run(
-                    ["powershell", "-NoProfile", "-Command", f"Get-NetTCPConnection -LocalPort {PORT} -ErrorAction SilentlyContinue | ForEach-Object {{ Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }}"],
+                    ["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", f"Get-NetTCPConnection -LocalPort {PORT} -ErrorAction SilentlyContinue | ForEach-Object {{ Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }}"],
                     capture_output=True,
-                    check=False
+                    check=False,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
                 )
             except Exception:
                 pass

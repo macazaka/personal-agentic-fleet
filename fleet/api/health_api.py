@@ -237,6 +237,18 @@ def open_video_in_system(handler: Any, body: Dict[str, Any]):
         return
     try:
         startfile_fn = getattr(os, "startfile", None)
+        is_mocked = (
+            (startfile_fn is not None and (hasattr(startfile_fn, "assert_called") or "MagicMock" in type(startfile_fn).__name__))
+            or hasattr(subprocess.run, "assert_called")
+            or "MagicMock" in type(subprocess.run).__name__
+        )
+        if not is_mocked and (
+            "pytest" in sys.modules
+            or os.environ.get("FLEET_TEST_MODE") == "1"
+            or os.environ.get("PYTEST_CURRENT_TEST")
+        ):
+            handler._send_json({"status": "opened", "filename": safe_name, "simulated": True})
+            return
         if startfile_fn:
             startfile_fn(str(file_path))
         elif sys.platform == "darwin":

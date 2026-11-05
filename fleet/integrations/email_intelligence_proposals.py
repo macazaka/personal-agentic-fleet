@@ -160,12 +160,16 @@ def scan_email_attachment_security(
             temp_file = quarantine_dir / f"scan_{sha256_hex[:16]}.bin"
             try:
                 temp_file.write_bytes(raw_bytes)
+                hidden_kw: Dict[str, Any] = (
+                    {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)} if os.name == "nt" else {}
+                )
                 proc = subprocess.run(
                     [str(mpcmd), "-Scan", "-ScanType", "3", "-File", str(temp_file), "-DisableRemediation"],
                     capture_output=True,
                     text=True,
                     timeout=8,
                     check=False,
+                    **hidden_kw,
                 )
                 if proc.returncode not in (0,):
                     threat_code = "WINDOWS_DEFENDER_DETECTION"

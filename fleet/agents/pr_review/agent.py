@@ -399,15 +399,25 @@ class PRReviewAgent(FleetAgent):
 
     def _run_git(self, args: List[str], timeout: int = 15, cwd: Optional[Path] = None) -> subprocess.CompletedProcess:
         target_cwd = cwd or self.repo_root
+        hidden_kwargs: Dict[str, Any] = {}
+        if os.name == "nt":
+            hidden_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            if hasattr(subprocess, "STARTUPINFO"):
+                si = subprocess.STARTUPINFO()
+                si.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0x00000001)
+                si.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+                hidden_kwargs["startupinfo"] = si
         return subprocess.run(
             ["git", *args],
             cwd=str(target_cwd),
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
             timeout=timeout,
             check=False,
+            **hidden_kwargs,
         )
 
     def _detect_base_branch(self, cwd: Optional[Path] = None) -> str:

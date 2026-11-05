@@ -182,39 +182,42 @@ def test_optimizer_api_exhaustive(mock_api_env):
 
     handler = MagicMock()
 
-    # 1. GET /api/optimizer/diagnostics
-    opt_mod.get_diagnostics(handler, urllib.parse.urlparse("/api/optimizer/diagnostics"))
-    assert handler._send_json.called
-    handler.reset_mock()
+    with patch("fleet.core.optimizer.subprocess.run") as mock_sub:
+        mock_sub.return_value = MagicMock(returncode=0, stdout="Successfully flushed")
 
-    # 2. POST /api/optimizer/clean_temp
-    opt_mod.post_clean_temp(handler, {})
-    assert handler._send_json.called
-    handler.reset_mock()
+        # 1. GET /api/optimizer/diagnostics
+        opt_mod.get_diagnostics(handler, urllib.parse.urlparse("/api/optimizer/diagnostics"))
+        assert handler._send_json.called
+        handler.reset_mock()
 
-    # 3. POST /api/optimizer/flush_dns
-    opt_mod.post_flush_dns(handler, {})
-    assert handler._send_json.called
-    handler.reset_mock()
+        # 2. POST /api/optimizer/clean_temp
+        opt_mod.post_clean_temp(handler, {})
+        assert handler._send_json.called
+        handler.reset_mock()
 
-    # 4. POST /api/optimizer/purge_caches
-    opt_mod.post_purge_caches(handler, {})
-    assert handler._send_json.called
-    handler.reset_mock()
+        # 3. POST /api/optimizer/flush_dns
+        opt_mod.post_flush_dns(handler, {})
+        assert handler._send_json.called
+        handler.reset_mock()
 
-    # 5. POST /api/optimizer/optimize_ram
-    opt_mod.post_optimize_ram(handler, {})
-    assert handler._send_json.called
-    handler.reset_mock()
+        # 4. POST /api/optimizer/purge_caches
+        opt_mod.post_purge_caches(handler, {})
+        assert handler._send_json.called
+        handler.reset_mock()
 
-    # 6. POST /api/optimizer/open_startup
-    opt_mod.post_open_startup(handler, {})
-    assert handler._send_json.called
-    handler.reset_mock()
+        # 5. POST /api/optimizer/optimize_ram
+        opt_mod.post_optimize_ram(handler, {})
+        assert handler._send_json.called
+        handler.reset_mock()
 
-    # 7. POST /api/optimizer/auto_tune
-    opt_mod.post_auto_tune(handler, {})
-    assert handler._send_json.called
+        # 6. POST /api/optimizer/open_startup
+        opt_mod.post_open_startup(handler, {})
+        assert handler._send_json.called
+        handler.reset_mock()
+
+        # 7. POST /api/optimizer/auto_tune
+        opt_mod.post_auto_tune(handler, {})
+        assert handler._send_json.called
 
 
 def test_health_api_exhaustive(mock_api_env):
