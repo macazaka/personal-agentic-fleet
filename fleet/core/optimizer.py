@@ -331,6 +331,10 @@ def get_temp_bloat_info() -> Dict[str, Any]:
                         file_count += 1
                     except Exception:
                         continue
+                    if file_count >= 1500:
+                        break
+                if file_count >= 1500:
+                    break
     except Exception:
         pass
     return {
