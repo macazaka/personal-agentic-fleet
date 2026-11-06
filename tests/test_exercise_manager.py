@@ -113,3 +113,87 @@ def test_ffd_exercise_protocol():
     assert "hypoglycemia_protocol" in proto
     assert "mandatory_warmup" in proto
 
+
+def test_all_exercise_videos_accessible_stream_and_open_including_warmup_apostrophes(tmp_path, monkeypatch):
+    """
+    Verifies that every exercise and diet video—especially:
+      1. '03 - Get your whole body warmed up in just 10 mins.mp4' (Category: "World's Best Warm-Up & Mobility")
+      2. '03 - World's Best Warm up ... Freedom from Diabetes.mp4'
+      3. '03 - World’s Best Warm-Up.mp4'
+    is accessible for HTTP Range streaming (/api/health/video/stream), system player launch
+    (/api/health/video/open_system via JSON body AND ?file= query param), and that health.js
+    properly escapes apostrophes in onclick handlers.
+    """
+    import io
+    from pathlib import Path
+    import urllib.parse
+    from unittest.mock import MagicMock
+    import fleet.core.exercise_manager as em_mod
+    import fleet.api.health_api as health_api
+
+    fallback_warmup_files = [
+        "03 - Get your whole body warmed up in just 10 mins.mp4",
+        "03 - World's Best Warm up _ Freedom from Diabetes.mp4",
+        "03 - World’s Best Warm-Up.mp4",
+    ]
+
+    # If running in headless CI where ./data/videos is not present, seed realistic MP4 files in tmp_path
+    if not em_mod.FFD_VIDEOS_DIR.exists() or not list(em_mod.FFD_VIDEOS_DIR.glob("*.mp4")):
+        mp4_header = b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom" + (b"\x00" * 4096)
+        for fname in fallback_warmup_files + ["02 - Super Green Smoothie for Diabetics.mp4"]:
+            (tmp_path / fname).write_bytes(mp4_header)
+        monkeypatch.setattr(em_mod, "FFD_VIDEOS_DIR", tmp_path)
+        monkeypatch.setattr(health_api, "FFD_VIDEOS_DIR", tmp_path)
+
+    videos = list_exercise_videos()
+    assert len(videos) >= 3
+    filenames = [v["filename"] for v in videos]
+    assert any("warmed up in just 10 mins" in f.lower() for f in filenames)
+    assert any("world's best warm up" in f.lower() and "freedom from diabetes" in f.lower() for f in filenames)
+    assert any("world" in f.lower() and "best warm-up" in f.lower() for f in filenames)
+
+    # Verify every single video in the catalog streams (HTTP 206 Range) and opens via API
+    for v in videos:
+        fname = v["filename"]
+        enc_fname = urllib.parse.quote(fname)
+
+        # 1. Stream video with Range header (bytes=0-1023) -> HTTP 206 Partial Content
+        h_stream = MagicMock()
+        h_stream.headers = {"Range": "bytes=0-511"}
+        h_stream.wfile = io.BytesIO()
+        parsed_stream = urllib.parse.urlparse(f"/api/health/video/stream?file={enc_fname}")
+        health_api.stream_video(h_stream, parsed_stream)
+        h_stream.send_response.assert_called_with(206)
+        streamed_bytes = h_stream.wfile.getvalue()
+        assert len(streamed_bytes) == 512
+        assert b"ftyp" in streamed_bytes[:32]
+
+        # 2. Open video in system player via JSON body {"filename": fname}
+        h_open_body = MagicMock()
+        health_api.open_video_in_system(h_open_body, {"filename": fname})
+        res_body = h_open_body._send_json.call_args[0][0]
+        assert res_body["status"] in ("opened", "ok")
+        assert res_body.get("ok") is True
+
+        # 3. Open video in system player via query string ?file=... (with empty POST body)
+        h_open_query = MagicMock()
+        h_open_query.path = f"/api/health/video/open_system?file={enc_fname}"
+        health_api.open_video_in_system(h_open_query, {})
+        res_query = h_open_query._send_json.call_args[0][0]
+        assert res_query["status"] in ("opened", "ok")
+        assert res_query.get("ok") is True
+
+    # 4. Also verify straight vs curly apostrophe fallback resolution
+    h_curly = MagicMock()
+    health_api.open_video_in_system(h_curly, {"filename": "03 - World's Best Warm-Up.mp4"})
+    assert h_curly._send_json.call_args[0][0]["status"] == "opened"
+
+    # 5. Verify frontend health.js properly escapes apostrophes (\\') in onclick handlers
+    health_js_path = Path(__file__).resolve().parent.parent / "fleet" / "web" / "static" / "js" / "health.js"
+    js_text = health_js_path.read_text(encoding="utf-8")
+    assert "function escapeJsAttrStr(" in js_text
+    assert '.replace(/\'/g, "\\\'")' not in js_text, "Broken single-backslash replace must not exist in health.js"
+    assert "escapeJsAttrStr(v.filename)" in js_text
+    assert "escapeJsAttrStr(v.category" in js_text
+
+

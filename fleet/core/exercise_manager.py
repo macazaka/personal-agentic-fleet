@@ -9,12 +9,15 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 import os
-from fleet.config import load_fleet_config
+from fleet.config import BASE_DIR, load_fleet_config
 
 _fleet_cfg = load_fleet_config()
 _custom_videos_dir = _fleet_cfg.get("agents", {}).get("health", {}).get("videos_directory") or os.getenv("FLEET_VIDEOS_DIR")
+_repo_videos_dir = BASE_DIR.parent / "data" / "videos"
 if _custom_videos_dir and Path(_custom_videos_dir).exists():
     FFD_VIDEOS_DIR = Path(_custom_videos_dir)
+elif _repo_videos_dir.exists():
+    FFD_VIDEOS_DIR = _repo_videos_dir
 else:
     FFD_VIDEOS_DIR = Path(r"./data/videos")
 

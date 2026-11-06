@@ -175,6 +175,27 @@ def get_health_image(handler: Any, parsed_url: urllib.parse.ParseResult):
 
 
 
+def _resolve_video_file(raw_filename: str) -> Path | None:
+    """Safely resolves a video filename inside FFD_VIDEOS_DIR, handling straight/curly apostrophe variants."""
+    safe_name = Path(urllib.parse.unquote(str(raw_filename or ""))).name.strip()
+    if not safe_name or safe_name.startswith("."):
+        return None
+    base_dir = FFD_VIDEOS_DIR.resolve()
+    candidate = (base_dir / safe_name).resolve()
+    if candidate.is_file() and candidate.is_relative_to(base_dir):
+        return candidate
+    # Fallback: match normalizing curly/straight apostrophes and extra whitespace
+    norm_target = safe_name.replace("’", "'").replace("‘", "'").lower()
+    if base_dir.is_dir():
+        for f in base_dir.glob("*.mp4"):
+            norm_f = f.name.replace("’", "'").replace("‘", "'").lower()
+            if norm_f == norm_target or norm_target in norm_f:
+                resolved = f.resolve()
+                if resolved.is_relative_to(base_dir):
+                    return resolved
+    return None
+
+
 @router.get("/api/health/video/stream")
 def stream_video(handler: Any, parsed_url: urllib.parse.ParseResult):
     query = urllib.parse.parse_qs(parsed_url.query)
@@ -183,21 +204,27 @@ def stream_video(handler: Any, parsed_url: urllib.parse.ParseResult):
     if not safe_name or safe_name.startswith("."):
         handler.send_error(400, "Missing filename")
         return
-    file_path = (FFD_VIDEOS_DIR / safe_name).resolve()
-    if not file_path.is_file() or not file_path.is_relative_to(FFD_VIDEOS_DIR.resolve()):
+    file_path = _resolve_video_file(safe_name)
+    if file_path is None:
         handler.send_error(404, "Video not found")
         return
 
     file_size = file_path.stat().st_size
-    range_header = getattr(handler, "headers", {}).get("Range")
+    headers_obj = getattr(handler, "headers", None)
+    range_header = headers_obj.get("Range") if headers_obj and hasattr(headers_obj, "get") else None
 
     if range_header and range_header.startswith("bytes="):
         try:
             byte_range = range_header.split("=")[1].strip()
             parts = byte_range.split("-")
             start = int(parts[0]) if parts[0] else 0
-            end = int(parts[1]) if len(parts) > 1 and parts[1] else min(start + 2 * 1024 * 1024 - 1, file_size - 1)
+            end = int(parts[1]) if len(parts) > 1 and parts[1] else min(start + 8 * 1024 * 1024 - 1, file_size - 1)
             end = min(end, file_size - 1)
+            if start >= file_size or start > end:
+                handler.send_response(416)
+                handler.send_header("Content-Range", f"bytes */{file_size}")
+                handler.end_headers()
+                return
             length = end - start + 1
 
             handler.send_response(206)
@@ -209,7 +236,15 @@ def stream_video(handler: Any, parsed_url: urllib.parse.ParseResult):
 
             with open(file_path, "rb") as f:
                 f.seek(start)
-                handler.wfile.write(f.read(length))
+                remaining = length
+                while remaining > 0:
+                    chunk = f.read(min(1024 * 512, remaining))
+                    if not chunk:
+                        break
+                    handler.wfile.write(chunk)
+                    remaining -= len(chunk)
+            return
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError):
             return
         except Exception:
             pass
@@ -223,16 +258,19 @@ def stream_video(handler: Any, parsed_url: urllib.parse.ParseResult):
         with open(file_path, "rb") as f:
             while chunk := f.read(1024 * 512):
                 handler.wfile.write(chunk)
-    except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+    except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError):
         pass
 
 
 @router.post("/api/health/video/open_system")
 def open_video_in_system(handler: Any, body: Dict[str, Any]):
-    filename = body.get("filename", "")
-    safe_name = os.path.basename(filename)
-    file_path = (FFD_VIDEOS_DIR / safe_name).resolve()
-    if not file_path.is_file():
+    filename = body.get("filename") or body.get("file") or ""
+    if not filename and hasattr(handler, "path"):
+        parsed_q = urllib.parse.parse_qs(urllib.parse.urlparse(str(getattr(handler, "path", ""))).query)
+        filename = parsed_q.get("file", [""])[0] or parsed_q.get("filename", [""])[0]
+    safe_name = os.path.basename(str(filename))
+    file_path = _resolve_video_file(safe_name)
+    if file_path is None:
         handler._send_json({"error": "Video not found"}, 404)
         return
     try:
@@ -247,7 +285,7 @@ def open_video_in_system(handler: Any, body: Dict[str, Any]):
             or os.environ.get("FLEET_TEST_MODE") == "1"
             or os.environ.get("PYTEST_CURRENT_TEST")
         ):
-            handler._send_json({"status": "opened", "filename": safe_name, "simulated": True})
+            handler._send_json({"status": "opened", "ok": True, "filename": file_path.name, "simulated": True})
             return
         if startfile_fn:
             startfile_fn(str(file_path))
@@ -255,7 +293,7 @@ def open_video_in_system(handler: Any, body: Dict[str, Any]):
             subprocess.run(["open", str(file_path)], check=False)
         else:
             subprocess.run(["xdg-open", str(file_path)], check=False)
-        handler._send_json({"status": "opened", "filename": safe_name})
+        handler._send_json({"status": "opened", "ok": True, "filename": file_path.name})
     except Exception as e:
         handler._send_json({"error": str(e)}, 500)
 

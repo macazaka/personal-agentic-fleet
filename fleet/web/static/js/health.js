@@ -668,6 +668,14 @@ async function fetchExerciseVideos() {
   }
 }
 
+function escapeJsAttrStr(str) {
+  return String(str || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '&quot;')
+    .replace(/\r?\n/g, ' ');
+}
+
 function renderVideoCategoryFilters() {
   const row = document.getElementById('videoCategoryFiltersRow');
   if (!row) return;
@@ -695,9 +703,9 @@ function renderVideoCategoryFilters() {
     const icon = categoryIcons[cat] || '📹';
     const label = cat === 'all'
       ? (currentVideoType === 'exercise' ? `All Exercise (${relevant.length})` : `All Diet (${relevant.length})`)
-      : `${icon} ${cat}`;
+      : `${icon} ${escapeHtml(cat)}`;
     const isActive = currentExerciseCategory === cat ? 'active' : '';
-    const safeCat = cat.replace(/'/g, "\'");
+    const safeCat = escapeJsAttrStr(cat);
 
     return `
       <button class="filter-btn ${isActive}" onclick="filterVideoCategory('${safeCat}')" style="font-size: 11px; padding: 4px 10px; border-radius: 6px;">
@@ -735,9 +743,9 @@ function renderExerciseVideos() {
 
   grid.innerHTML = filtered.map(v => {
     const title = v.title || v.clean_title || v.filename;
-    const cleanTitle = title.replace(/'/g, "\'");
-    const filenameSafe = v.filename.replace(/'/g, "\'");
-    const catSafe = (v.category || 'FFD Video').replace(/'/g, "\'");
+    const cleanTitle = escapeJsAttrStr(title);
+    const filenameSafe = escapeJsAttrStr(v.filename);
+    const catSafe = escapeJsAttrStr(v.category || 'FFD Video');
     const streamUrl = '/api/health/video/stream?file=' + encodeURIComponent(v.filename);
 
     return `
@@ -750,11 +758,11 @@ function renderExerciseVideos() {
               <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(0, 242, 254, 0.9); display: flex; align-items: center; justify-content: center; color: #000; font-size: 15px; font-weight: bold; box-shadow: 0 4px 14px rgba(0,0,0,0.6);">▶</div>
             </div>
             <span style="position: absolute; bottom: 6px; right: 8px; font-size: 10px; background: rgba(0,0,0,0.85); color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: 600;">${v.size_mb || 0} MB</span>
-            <span style="position: absolute; top: 6px; left: 8px; font-size: 9.5px; background: rgba(0, 242, 254, 0.2); border: 1px solid rgba(0, 242, 254, 0.4); color: var(--accent-cyan); padding: 1px 6px; border-radius: 4px; font-weight: 600;">${v.category}</span>
+            <span style="position: absolute; top: 6px; left: 8px; font-size: 9.5px; background: rgba(0, 242, 254, 0.2); border: 1px solid rgba(0, 242, 254, 0.4); color: var(--accent-cyan); padding: 1px 6px; border-radius: 4px; font-weight: 600;">${escapeHtml(v.category)}</span>
           </div>
 
           <!-- Title -->
-          <div style="font-size: 12.5px; font-weight: 600; color: #fff; line-height: 1.35; margin-bottom: 6px;">${title}</div>
+          <div style="font-size: 12.5px; font-weight: 600; color: #fff; line-height: 1.35; margin-bottom: 6px;">${escapeHtml(title)}</div>
         </div>
 
         <!-- Action Buttons -->
@@ -783,13 +791,14 @@ function playExerciseVideo(filename, title, category) {
   if (modalCat) modalCat.innerText = category || 'FFD Video';
   if (modalPath) modalPath.innerText = './data/videos/' + filename;
 
+  if (modal) modal.style.display = 'flex';
+
   if (player) {
+    player.pause();
     player.src = '/api/health/video/stream?file=' + encodeURIComponent(filename);
     player.load();
     player.play().catch(e => console.log('Autoplay prevented or paused:', e));
   }
-
-  if (modal) modal.style.display = 'flex';
 }
 
 function closeVideoModal() {
@@ -797,7 +806,8 @@ function closeVideoModal() {
   const player = document.getElementById('exerciseVideoPlayer');
   if (player) {
     player.pause();
-    player.src = '';
+    player.removeAttribute('src');
+    player.load();
   }
   if (modal) modal.style.display = 'none';
   currentPlayingVideo = null;
@@ -810,9 +820,13 @@ async function openCurrentVideoInSystem() {
 
 async function openVideoInSystem(filename) {
   try {
-    const res = await fetch('/api/health/video/open_system?file=' + encodeURIComponent(filename), { method: 'POST' });
+    const res = await fetch('/api/health/video/open_system?file=' + encodeURIComponent(filename), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename })
+    });
     const data = await res.json();
-    if (data.status === 'ok') {
+    if (data.status === 'opened' || data.status === 'ok' || data.ok) {
       if (typeof showToast === 'function') {
         showToast('Opened ' + (data.filename || filename) + ' in system media player');
       }
