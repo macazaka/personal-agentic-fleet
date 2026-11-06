@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 # Fleet Version & Minimum Runtime Requirement
-VERSION = "2.15.8"
+VERSION = "2.15.9"
 MIN_PYTHON_VERSION = (3, 10)
 PORT = 7890
 

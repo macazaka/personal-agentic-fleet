@@ -228,8 +228,10 @@ def verify_documentation_integrity(repo_root: Path = _ROOT) -> Dict[str, Any]:
     # Verify Release Version Parity across README.md, CHANGELOG.md, and Wiki pages on live repository
     if (repo_root / "fleet" / "__init__.py").is_file() and (repo_root / "wiki" / "Home.md").is_file():
         try:
-            from fleet.tools.release_manager import get_current_configured_version
+            from fleet.tools.release_manager import get_current_configured_version, sync_version_everywhere
             ver = get_current_configured_version(repo_root)
+            if repo_root.resolve() == _ROOT.resolve():
+                sync_version_everywhere(repo_root, ver)
             parity_targets = [
                 ("README.md", f"v{ver}"),
                 ("CHANGELOG.md", f"[{ver}]"),
