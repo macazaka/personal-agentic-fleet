@@ -61,19 +61,132 @@
       renderTasksList();
     }
 
+    const _MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const _MONTH_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+    function _formatIsoDateParts(isoStr) {
+      if (!isoStr) return null;
+      const d = new Date(isoStr);
+      if (isNaN(d.getTime())) return null;
+      const day = String(d.getDate()).padStart(2, '0');
+      const mShort = _MONTH_SHORT[d.getMonth()];
+      const mFull = _MONTH_FULL[d.getMonth()];
+      const year = d.getFullYear();
+      return {
+        day,
+        monthShort: mShort,
+        monthFull: mFull,
+        year,
+        formattedDate: `${day} ${mShort} ${year}`,
+        formattedMonthYear: `${mFull} ${year}`,
+        shortMonthYear: `${mShort} ${year}`
+      };
+    }
+
+    function _getCurrentCycleParts() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const monthIdx = now.getMonth();
+      const lastDay = new Date(year, monthIdx + 1, 0).getDate();
+      const mShort = _MONTH_SHORT[monthIdx];
+      const mFull = _MONTH_FULL[monthIdx];
+      return {
+        year,
+        nextYearShort: String((year + 1) % 100).padStart(2, '0'),
+        nextYearFull: year + 1,
+        monthShort: mShort,
+        monthFull: mFull,
+        shortMonthYear: `${mShort} ${year}`,
+        fullMonthYear: `${mFull} ${year}`,
+        endOfMonthDate: `${lastDay} ${mShort} ${year}`
+      };
+    }
+
+    function resolveTaskTemporalMeta(t) {
+      const cyc = _getCurrentCycleParts();
+      const srcLower = String(t.source || t.assigned_agent || 'Manual').toLowerCase();
+      const titleLower = String(t.title || '').toLowerCase();
+      const descLower = String(t.description || '').toLowerCase();
+      const rawDue = String(t.due_date || '').trim();
+      const createdParts = _formatIsoDateParts(t.created_at) || {
+        day: String(new Date().getDate()).padStart(2, '0'),
+        monthShort: cyc.monthShort,
+        monthFull: cyc.monthFull,
+        year: cyc.year,
+        formattedDate: `${String(new Date().getDate()).padStart(2, '0')} ${cyc.monthShort} ${cyc.year}`,
+        formattedMonthYear: cyc.fullMonthYear,
+        shortMonthYear: cyc.shortMonthYear
+      };
+      const updatedParts = _formatIsoDateParts(t.updated_at || t.created_at) || createdParts;
+      const isDone = t.status === 'completed';
+
+      if (srcLower === 'monthly') {
+        let dueText = rawDue;
+        if (!dueText) {
+          if (titleLower.includes('credit card') && descLower.includes('27th')) {
+            dueText = `04 ${cyc.monthShort} ${cyc.year} (Axis) & 27 ${cyc.monthShort} ${cyc.year} (ICICI)`;
+          } else if (titleLower.includes('websites') || descLower.includes('ojas.world')) {
+            dueText = `By ${cyc.endOfMonthDate} • GoDaddy (Ojas.world): Jan ${cyc.nextYearFull}`;
+          } else {
+            dueText = `By ${cyc.endOfMonthDate} (1st–${cyc.endOfMonthDate})`;
+          }
+        }
+        return {
+          periodLabel: `🗓️ Month: ${cyc.fullMonthYear}`,
+          dueLabel: `📌 Due Date: ${dueText}`,
+          statusLabel: isDone
+            ? `✓ Completed for ${cyc.shortMonthYear} (${updatedParts.formattedDate})`
+            : `⏳ Pending for ${cyc.shortMonthYear}`
+        };
+      }
+
+      if (srcLower === 'yearly') {
+        let dueText = rawDue;
+        if (!dueText || dueText.toLowerCase() === 'jan 25th') {
+          if (titleLower.includes('income tax') || descLower.includes('jan 25')) {
+            dueText = `25 Jan ${cyc.nextYearFull} (Month: January • Year: ${cyc.nextYearFull})`;
+          } else {
+            dueText = `Annual ${cyc.year} Cycle (Jan–Dec ${cyc.year})`;
+          }
+        }
+        return {
+          periodLabel: `🗓️ Year: ${cyc.year} (FY ${cyc.year}–${cyc.nextYearShort})`,
+          dueLabel: `📌 Due Date: ${dueText}`,
+          statusLabel: isDone
+            ? `✓ Completed for ${cyc.year} (${updatedParts.formattedDate})`
+            : `⏳ Pending for Year ${cyc.year}–${cyc.nextYearShort}`
+        };
+      }
+
+      // Daily / One-Off / Manual / Antigravity / Dashboard tasks
+      const dueText = rawDue
+        ? `${rawDue} (Added ${createdParts.formattedDate})`
+        : `${createdParts.formattedDate} (Month: ${createdParts.monthShort} • Year: ${createdParts.year})`;
+      return {
+        periodLabel: `🗓️ Date: ${createdParts.formattedDate} (${createdParts.shortMonthYear})`,
+        dueLabel: `📌 Target Date: ${dueText}`,
+        statusLabel: isDone
+          ? `✓ Completed (${updatedParts.formattedDate})`
+          : `⏳ Pending (${createdParts.formattedDate})`
+      };
+    }
+
     function updateTaskFilterBarCounts(tasks) {
       const bar = document.getElementById('taskFilterBar');
       if (!bar) return;
+      const cyc = _getCurrentCycleParts();
       const allCount = tasks.length;
-      const monthlyCount = tasks.filter(t => String(t.source || '').toLowerCase() === 'monthly').length;
-      const yearlyCount = tasks.filter(t => String(t.source || '').toLowerCase() === 'yearly').length;
+      const monthlyTasks = tasks.filter(t => String(t.source || '').toLowerCase() === 'monthly');
+      const monthlyPending = monthlyTasks.filter(t => t.status !== 'completed').length;
+      const yearlyTasks = tasks.filter(t => String(t.source || '').toLowerCase() === 'yearly');
+      const yearlyPending = yearlyTasks.filter(t => t.status !== 'completed').length;
       const pendingCount = tasks.filter(t => t.status !== 'completed').length;
       const completedCount = tasks.filter(t => t.status === 'completed').length;
 
       const labels = {
-        'ALL': `All (${allCount})`,
-        'Monthly': `📅 Monthly (${monthlyCount})`,
-        'Yearly': `🗓️ Yearly (${yearlyCount})`,
+        'ALL': `All (${allCount} • ${pendingCount} Pending)`,
+        'Monthly': `📅 Monthly: ${cyc.shortMonthYear} (${monthlyPending} Pending / ${monthlyTasks.length})`,
+        'Yearly': `🗓️ Yearly: ${cyc.year}–${cyc.nextYearShort} (${yearlyPending} Pending / ${yearlyTasks.length})`,
         'PENDING': `⏳ Pending (${pendingCount})`,
         'COMPLETED': `✓ Completed (${completedCount})`
       };
@@ -102,7 +215,10 @@
 
       const counterEl = document.getElementById('taskCounter');
       if (counterEl) {
-        counterEl.innerText = filter === 'ALL' ? `${allTasks.length} Total` : `${tasks.length} / ${allTasks.length} Shown`;
+        const pendingShown = tasks.filter(t => t.status !== 'completed').length;
+        counterEl.innerText = filter === 'ALL'
+          ? `${allTasks.length} Total (${pendingShown} Pending)`
+          : `${tasks.length} / ${allTasks.length} Shown (${pendingShown} Pending)`;
       }
 
       if (tasks.length === 0) {
@@ -122,14 +238,25 @@
             ? 'background: rgba(168, 85, 247, 0.14); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35);'
             : 'background: rgba(0, 242, 254, 0.1); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.25);');
         const maskedTitle = maskSensitiveTaskText(t.title || '');
+        const temporal = resolveTaskTemporalMeta(t);
+        const statusPillStyle = isDone
+          ? 'background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);'
+          : 'background: rgba(245, 158, 11, 0.16); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);';
         return `
           <div class="task-item ${isDone ? 'completed' : ''}">
-            <div class="task-left" style="align-items: flex-start;">
+            <div class="task-left" style="align-items: flex-start; width: 100%;">
               <input type="checkbox" class="task-checkbox" style="margin-top: 3px;" ${isDone ? 'checked' : ''} onchange="toggleTask(${t.id})">
               <span class="badge ${badgeClass}" style="margin-top: 1px;">${escapeHtml(t.priority || 'P2')}</span>
               <span class="badge-source" style="font-size: 10px; padding: 2px 7px; border-radius: 4px; ${sourceBadgeStyle} font-weight: 600; white-space: nowrap; margin-top: 1px;">${sourceIcon} ${escapeHtml(sourceText)}</span>
-              <div style="display: flex; flex-direction: column; gap: 3px;">
-                <span class="task-title" style="font-size: 13.5px; font-weight: 600;">${escapeHtml(maskedTitle)}</span>
+              <div style="display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap;">
+                  <span class="task-title" style="font-size: 13.5px; font-weight: 600;">${escapeHtml(maskedTitle)}</span>
+                  <span style="font-size: 10.5px; padding: 2px 8px; border-radius: 999px; font-weight: 600; white-space: nowrap; ${statusPillStyle}">${escapeHtml(temporal.statusLabel)}</span>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                  <span style="font-size: 11px; padding: 1px 7px; border-radius: 4px; background: rgba(148, 163, 184, 0.12); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.25); font-weight: 500;">${escapeHtml(temporal.periodLabel)}</span>
+                  <span style="font-size: 11px; padding: 1px 7px; border-radius: 4px; background: rgba(56, 189, 248, 0.08); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.22); font-weight: 500;">${escapeHtml(temporal.dueLabel)}</span>
+                </div>
                 <span class="task-desc" style="font-size: 12px; color: var(--text-muted); line-height: 1.45;">${formatTaskDescriptionHtml(t.description)}</span>
               </div>
             </div>
@@ -157,9 +284,11 @@
     async function addTask() {
       const input = document.getElementById('taskTitle');
       const descInput = document.getElementById('taskDesc');
+      const dueInput = document.getElementById('taskDueDate');
       const sourceSelect = document.getElementById('taskSource');
       const title = input.value.trim();
       const description = descInput ? descInput.value.trim() : '';
+      const due_date = dueInput ? dueInput.value.trim() : '';
       const priority = document.getElementById('taskPriority').value;
       const source = sourceSelect ? sourceSelect.value : 'Dashboard';
       if (!title || !description) {
@@ -170,11 +299,12 @@
       const resp = await fetch('/api/tasks', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ title, description, priority, source })
+        body: JSON.stringify({ title, description, priority, source, due_date })
       });
       if (resp.ok) {
         input.value = '';
         if (descInput) descInput.value = '';
+        if (dueInput) dueInput.value = '';
         fetchTasks();
         fetchBriefing();
         fetchLogs();

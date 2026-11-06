@@ -97,6 +97,14 @@ class TasksMixin(_DbBase):
                         continue
                     key = (title.lower(), source.lower())
                     if key in existing:
+                        if due_date:
+                            cursor.execute("""
+                                UPDATE tasks SET due_date = ?
+                                WHERE LOWER(TRIM(title)) = ? AND LOWER(TRIM(source)) = ?
+                                  AND (due_date IS NULL OR TRIM(due_date) = '')
+                            """, (due_date, title.lower(), source.lower()))
+                            if cursor.rowcount > 0:
+                                inserted += 1
                         continue
                     cursor.execute("""
                         INSERT INTO tasks (title, description, source, priority, status, due_date, created_at, updated_at, assigned_agent)

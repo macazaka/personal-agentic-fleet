@@ -20,13 +20,14 @@ def create_task(handler: Any, body: Dict[str, Any]):
     description = body.get("description", "").strip()
     priority = body.get("priority", "P2")
     source = body.get("source", "Dashboard").strip() or "Dashboard"
+    due_date = (body.get("due_date") or "").strip() or None
     if not title:
         handler._send_json({"error": "Title required"}, 400)
         return
     if not description:
         handler._send_json({"error": "Description required"}, 400)
         return
-    task_id = srv.db.add_task(title, description=description, priority=priority, source=source)
+    task_id = srv.db.add_task(title, description=description, priority=priority, due_date=due_date, source=source)
     handler._send_json({"id": task_id, "status": "created"})
 
 

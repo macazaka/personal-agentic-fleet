@@ -22,7 +22,7 @@
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
               <h1 style="margin: 0; white-space: nowrap;">Personal Agentic Fleet</h1>
               <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.35); font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;" onclick="openReleaseNotesModal()" title="View Release Notes & Versions">
-                <span id="fleetHeaderVerBadge">v2.15.6</span>
+                <span id="fleetHeaderVerBadge">v2.15.7</span>
                 <span style="font-size: 9px; opacity: 0.8;">📜</span>
               </span>
             </div>
@@ -293,13 +293,14 @@
           <!-- Add Task Form -->
           <div class="task-input-bar">
             <input type="text" id="taskTitle" placeholder="Task title (e.g. 'Review quarterly budget')..." style="flex: 1.2;">
-            <input type="text" id="taskDesc" placeholder="Description / details (stored locally only)..." style="flex: 1.8;" onkeypress="if(event.key==='Enter') addTask()">
-            <select id="taskPriority" style="min-width: 110px;">
+            <input type="text" id="taskDesc" placeholder="Description / details (stored locally only)..." style="flex: 1.6;" onkeypress="if(event.key==='Enter') addTask()">
+            <input type="text" id="taskDueDate" placeholder="Date / Month / Year (e.g. 27 Nov 2026)" style="flex: 0.9; min-width: 150px;" title="Target Date, Month, or Year for this task (optional; defaults to current cycle)">
+            <select id="taskPriority" style="min-width: 105px;">
               <option value="P1">🔴 P1 High</option>
               <option value="P2" selected>🟡 P2 Medium</option>
               <option value="P3">🟢 P3 Low</option>
             </select>
-            <select id="taskSource" style="min-width: 120px;">
+            <select id="taskSource" style="min-width: 115px;">
               <option value="Dashboard" selected>💻 Dashboard</option>
               <option value="Monthly">📅 Monthly</option>
               <option value="Yearly">🗓️ Yearly</option>
@@ -1737,7 +1738,7 @@
           <span style="font-size: 22px;">📜</span>
           <div>
             <strong style="font-size: 16px; color: var(--text);">Fleet Release Notes & Version History</strong>
-            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.15.6</div>
+            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.15.7</div>
           </div>
         </div>
         <button title="Close Release Notes modal" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeReleaseNotesModal()">✕</button>
