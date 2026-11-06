@@ -2,15 +2,18 @@
 
 Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operations Wiki**!
 
-[![Release: v2.15.2](https://img.shields.io/badge/Release-v2.15.2-00b4d8.svg)](Release-Notes)
+[![Release: v2.15.3](https://img.shields.io/badge/Release-v2.15.3-00b4d8.svg)](Release-Notes)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%5B12%20Layers%5D-brightgreen.svg)](Security-Model)
 [![Zero-Token Engine](https://img.shields.io/badge/Architecture-Zero--Token%20Microkernel-orange.svg)](Architecture)
-[![API-First: OpenAPI 3.1.0](https://img.shields.io/badge/API--First-OpenAPI%203.1.0%20%7C%20100%25%20REST-6366f1.svg)](API-Reference)
-[![MCP Ready: 29 Tools](https://img.shields.io/badge/MCP%20Ready-29%20Tools%20%7C%20Stdio%20%2B%20HTTP-059669.svg)](API-Reference)
+[![API-First: OpenAPI 3.1.0](https://img.shields.io/badge/API--First-OpenAPI%203.1.0%20%7C%20150%2B%20REST%20Endpoints-6366f1.svg)](API-Reference)
+[![MCP Ready: 29 Tools](https://img.shields.io/badge/MCP%20Ready-29%20FastMCP%20Tools%20%7C%20Stdio%20%2B%20HTTP-059669.svg)](API-Reference)
+[![Persistence: SQLite WAL](https://img.shields.io/badge/Persistence-SQLite%203%20WAL%20%7C%20Scoped%20ACLs-0ea5e9.svg)](Architecture)
+[![Privacy: Local-First](https://img.shields.io/badge/Privacy-100%25%20Local--First%20DPAPI%20%2B%20PII%20Vault-teal.svg)](Security-Model)
+[![Cognitive Mind: 4-Layer Gestalt](https://img.shields.io/badge/Cognitive%20Mind-4--Layer%20Gestalt%20%2B%20Self--Critique-ec4899.svg)](Cognitive-Fleet-Mind)
+[![Email Guard: 4-Layer AV](https://img.shields.io/badge/Email%20Guard-4--Layer%20AV%20%2B%20Approval%20Gate-ef4444.svg)](Built-in-Agents)
 [![Voice Copilot: Bi-Directional](https://img.shields.io/badge/Voice%20Copilot-Bi--Directional%20STT%20%2B%20TTS-d97706.svg)](AFCC-and-UI-Features)
-[![Privacy: Local-First](https://img.shields.io/badge/Privacy-100%25%20Local--First%20DPAPI-teal.svg)](Security-Model)
 [![Dev Tools](https://img.shields.io/badge/Dev%20Tools-Copilot%20%7C%20Claude%20Code%20%7C%20Gemini%20%7C%20Amazon%20Q-blueviolet.svg)](Hyperscalers-Token-Optimizer-and-Scheduler)
 [![Hyperscalers](https://img.shields.io/badge/Hyperscalers-Google%20%7C%20Azure%20%7C%20AWS%20%7C%20Claude%20%7C%20Ollama-purple.svg)](Hyperscalers-Token-Optimizer-and-Scheduler)
 [![Windows: 10 / 11](https://img.shields.io/badge/Windows-10%20%7C%2011%20(64--bit)-0078D6.svg?logo=windows)](Installation-and-Quick-Start)
@@ -56,13 +59,10 @@ Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operat
 | **[[Release-Notes]]** | Complete semantic version history and categorized changelog notes (synchronized with `CHANGELOG.md` at `v2.8.6`). |
 
 <!-- AUTO-LATEST-RELEASE:START -->
-## 🆕 Latest Release Highlights (`v2.15.2`)
+## 🆕 Latest Release Highlights (`v2.15.3`)
 
 > **Live Codebase Inventory**: `10` Built-In Agents • `151` REST API Endpoints • `35` Core Microkernel Modules • `21` Automation Tools • `501` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
 
 ### Fixed
-- **Backlog**: Auto-prune orphaned Unapproved email proposals and handle status=ALL in list_tasks.
-
-### Documentation & Maintenance
-- **Changelog**: Resolve CHANGELOG.md v2.15.1 release notes and sync wiki.
+- Proactive release synchronization, static type verification, and documentation maintenance.
 <!-- AUTO-LATEST-RELEASE:END -->

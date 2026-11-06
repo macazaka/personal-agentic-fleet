@@ -1,26 +1,40 @@
 # ⚡ Personal Agentic Fleet
 
-[![Release: v2.15.2](https://img.shields.io/badge/Release-v2.15.2-00b4d8.svg)](CHANGELOG.md)
+[![Release: v2.15.3](https://img.shields.io/badge/Release-v2.15.3-00b4d8.svg)](CHANGELOG.md)
 [![GitHub Wiki: 17 Deep-Dive Guides](https://img.shields.io/badge/GitHub%20Wiki-17%20Deep--Dive%20Guides-0284c7.svg?logo=github)](https://github.com/macazaka/personal-agentic-fleet/wiki)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%5B12%20Layers%5D-brightgreen.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Security-Model)
 [![Zero-Token Engine](https://img.shields.io/badge/Architecture-Zero--Token%20Microkernel-orange.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Architecture)
-[![API-First: OpenAPI 3.1.0](https://img.shields.io/badge/API--First-OpenAPI%203.1.0%20%7C%20100%25%20REST-6366f1.svg)](docs/API_REFERENCE.md)
-[![MCP Ready: 29 Tools](https://img.shields.io/badge/MCP%20Ready-29%20Tools%20%7C%20Stdio%20%2B%20HTTP-059669.svg)](docs/API_REFERENCE.md)
+[![API-First: OpenAPI 3.1.0](https://img.shields.io/badge/API--First-OpenAPI%203.1.0%20%7C%20150%2B%20REST%20Endpoints-6366f1.svg)](docs/API_REFERENCE.md)
+[![MCP Ready: 29 Tools](https://img.shields.io/badge/MCP%20Ready-29%20FastMCP%20Tools%20%7C%20Stdio%20%2B%20HTTP-059669.svg)](docs/API_REFERENCE.md)
+[![Persistence: SQLite WAL](https://img.shields.io/badge/Persistence-SQLite%203%20WAL%20%7C%20Scoped%20ACLs-0ea5e9.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Architecture)
+[![Privacy: Local-First](https://img.shields.io/badge/Privacy-100%25%20Local--First%20DPAPI%20%2B%20PII%20Vault-teal.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Security-Model)
+[![Cognitive Mind: 4-Layer Gestalt](https://img.shields.io/badge/Cognitive%20Mind-4--Layer%20Gestalt%20%2B%20Self--Critique-ec4899.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Cognitive-Fleet-Mind)
+[![Email Guard: 4-Layer AV](https://img.shields.io/badge/Email%20Guard-4--Layer%20AV%20%2B%20Approval%20Gate-ef4444.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents)
 [![Voice Copilot: Bi-Directional](https://img.shields.io/badge/Voice%20Copilot-Bi--Directional%20STT%20%2B%20TTS-d97706.svg)](wiki/AFCC-and-UI-Features.md)
-[![Privacy: Local-First](https://img.shields.io/badge/Privacy-100%25%20Local--First%20DPAPI-teal.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Security-Model)
 [![Hyperscalers](https://img.shields.io/badge/Hyperscalers-Google%20%7C%20Azure%20%7C%20AWS%20%7C%20Claude%20%7C%20Ollama-purple.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Hyperscalers-Token-Optimizer-and-Scheduler)
 [![Windows: 10 / 11](https://img.shields.io/badge/Windows-10%20%7C%2011%20(64--bit)-0078D6.svg?logo=windows)](https://github.com/macazaka/personal-agentic-fleet/wiki/Installation-and-Quick-Start)
 [![macOS: Universal](https://img.shields.io/badge/macOS-Apple%20Silicon%20%7C%20Intel-black.svg?logo=apple)](https://github.com/macazaka/personal-agentic-fleet/wiki/Installation-and-Quick-Start)
 [![Linux: Native](https://img.shields.io/badge/Linux-Ubuntu%20%7C%20Debian%20%7C%20Fedora%20%7C%20Arch-orange.svg?logo=linux)](https://github.com/macazaka/personal-agentic-fleet/wiki/Installation-and-Quick-Start)
 [![Dev Tools](https://img.shields.io/badge/Dev%20Tools-Copilot%20%7C%20Claude%20Code%20%7C%20Gemini%20%7C%20Amazon%20Q-blueviolet.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Hyperscalers-Token-Optimizer-and-Scheduler)
 
-> **An open-source, local-first agentic operating system with a plug-and-play microkernel architecture.**
-> Run personal intelligence, metabolic & strength tracking, PC optimizations, and autonomous routines with **0 cloud token spend (`$0.00`)** and 100% deterministic local Python & SQLite execution.
+> **An open-source, local-first agentic operating system with an API-First, MCP-Ready, plug-and-play microkernel architecture.**
+> Run personal intelligence, metabolic & strength tracking, PC optimizations, email threat scanning, bi-directional voice control, and autonomous routines with **0 cloud token spend (`$0.00`)** and 100% deterministic local Python & SQLite execution.
 > Plug in any frontier LLM across **Google Gemini, Microsoft Azure, AWS Bedrock (with native SigV4), Anthropic Claude, OpenAI, or local Ollama**, and bridge seamlessly with **GitHub Copilot, Claude Code, Gemini CLI, and Amazon Q Developer**.
 >
-> 🌐 **Explore the Official Technical Encyclopedia:** **[Personal Agentic Fleet GitHub Wiki (`github.com/macazaka/personal-agentic-fleet/wiki`)](https://github.com/macazaka/personal-agentic-fleet/wiki)** — 17 comprehensive architectural and operational deep-dive guides synchronized automatically with every release.
+> 🌐 **Explore the Official Technical Encyclopedia:** **[Personal Agentic Fleet GitHub Wiki (`github.com/macazaka/personal-agentic-fleet/wiki`)](https://github.com/macazaka/personal-agentic-fleet/wiki)** — 17+ comprehensive architectural and operational deep-dive guides synchronized automatically with every release.
+
+### 🏛️ Core Architectural Pillars at a Glance
+
+| Architectural Pillar | Technical Specification & Design Guarantees |
+| :--- | :--- |
+| **🔌 API-First (`OpenAPI 3.1.0`)** | Every capability across the Agentic Fleet Control Center (AFCC) and all agents is exposed via `O(1)` REST JSON routes (`150+` endpoints) with live introspection at `GET /api/openapi.json` and `GET /api/architecture/manifest`. |
+| **⚡ Dual-Transport MCP Ready (`29 Tools`)** | Full Model Context Protocol (FastMCP) parity across both **Stdio** (`python -m fleet.mcp_server`) and **HTTP JSON** (`GET /api/mcp/tools`, `POST /api/mcp/call`), plus the universal `fleet_call_api` bridge to invoke any REST route from MCP clients. |
+| **🧠 Zero-Token Microkernel (`$0.00`)** | Deterministic local execution (`Tier 0 Intent Router`, `BM25 RAG`, `Fuzzy Jaccard/Trigram Cache`, and `SQLite 3 WAL` persistence) handles daily briefings, routines, PC optimization, and diagnostics with `0` mandatory cloud LLM token spend. |
+| **🔒 100% Local-First DPAPI & PII Isolation** | Hardware-tied Windows `DPAPI` (`crypt32.dll`), macOS Keychain, and Linux SecretService encryption at rest; sensitive financial/account/health IDs live strictly in git-ignored `fleet/data/user/` with UI masking (`••••`) and a 12-layer pre-commit/pre-push PII & secret gate (`100/100`). |
+| **🛡️ 4-Layer Zero-Trust Email & Attachment Guard** | Pre-download extension & double-extension blocklist, in-memory SHA-256 + EICAR/MZ/ELF magic-byte inspection, PDF `/JavaScript` + Office VBA macro disarming, and optional Windows Defender CLI verification—requiring explicit human approval (`Unapproved` -> `Approve` / `Reject`) before execution. |
+| **🎙️ Bi-Directional Voice Copilot (`STT + TTS`)** | Hands-free continuous Web Speech recognition + speech synthesis linked via `/api/voice/converse` and `fleet_voice_converse` to 22 live workstation activities across tasks, health, email scanning, PC optimization, and feature backlog governance. |
 
 ---
 
@@ -105,15 +119,12 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
 ## 🌟 Key Highlights
 
 <!-- AUTO-LATEST-RELEASE:START -->
-### 🆕 What's New in Release `v2.15.2` (Auto-Synchronized)
+### 🆕 What's New in Release `v2.15.3` (Auto-Synchronized)
 
 > **Live Telemetry**: `10` Core Agents • `151` REST API Endpoints • `35` Microkernel Engines • `21` Automation Tools • `501` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
 
 ### Fixed
-- **Backlog**: Auto-prune orphaned Unapproved email proposals and handle status=ALL in list_tasks.
-
-### Documentation & Maintenance
-- **Changelog**: Resolve CHANGELOG.md v2.15.1 release notes and sync wiki.
+- Proactive release synchronization, static type verification, and documentation maintenance.
 <!-- AUTO-LATEST-RELEASE:END -->
 
 - **🔌 Modular Plug-and-Play Agents**: Every dashboard view is a standalone, self-contained agent package inside `fleet/agents/` with least-privilege capability manifests (`manifest.json`) enforced by `ScopedDatabaseProxy`. See **[Wiki: 7 Built-in Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents)** and **[Wiki: Customizing Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Customizing-Agents)**.
