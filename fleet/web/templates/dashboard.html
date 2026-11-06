@@ -22,7 +22,7 @@
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
               <h1 style="margin: 0; white-space: nowrap;">Personal Agentic Fleet</h1>
               <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.35); font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;" onclick="openReleaseNotesModal()" title="View Release Notes & Versions">
-                <span id="fleetHeaderVerBadge">v2.15.5</span>
+                <span id="fleetHeaderVerBadge">v2.15.6</span>
                 <span style="font-size: 9px; opacity: 0.8;">📜</span>
               </span>
             </div>
@@ -268,39 +268,6 @@
           <div style="font-size: 24px; font-weight: 700; color: #c084fc; margin-top: 4px;">$0.00</div>
           <div style="font-size: 11px; color: var(--accent-green); margin-top: 2px;">0 Tokens (Deterministic)</div>
         </div>
-      </div>
-
-      <!-- Fleet Operations Controls & Toolbar -->
-      <div style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 16px; backdrop-filter: blur(10px); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-        <div style="display: flex; gap: 10px; align-items: center; flex: 1; min-width: 280px;">
-          <input type="text" id="fleetOpsSearchInput" placeholder="🔍 Instant search across 100+ agents by name, ID, domain..." style="flex: 1; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); color: var(--text); border-radius: 6px; padding: 8px 14px; font-size: 13px;" oninput="FleetNavigator.onOperationsSearch(this.value)">
-          <select id="opsCategoryFilter" style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); color: var(--text); border-radius: 6px; padding: 8px 12px; font-size: 13px;" onchange="FleetNavigator.setOperationsCategoryFilter(this.value)">
-            <option value="all">All Domains (All Categories)</option>
-          </select>
-        </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <div style="display: flex; background: rgba(255, 255, 255, 0.04); border-radius: 6px; padding: 2px; border: 1px solid var(--border-color);">
-            <button title="All" class="ops-status-pill active" data-status="all" onclick="FleetNavigator.setOperationsStatusFilter('all')" style="background: transparent; border: none; color: var(--text); padding: 6px 12px; font-size: 12px; border-radius: 4px; cursor: pointer;">All</button>
-            <button title="Working" class="ops-status-pill" data-status="working" onclick="FleetNavigator.setOperationsStatusFilter('working')" style="background: transparent; border: none; color: var(--text-muted); padding: 6px 12px; font-size: 12px; border-radius: 4px; cursor: pointer;">Working</button>
-            <button title="Idle" class="ops-status-pill" data-status="idle" onclick="FleetNavigator.setOperationsStatusFilter('idle')" style="background: transparent; border: none; color: var(--text-muted); padding: 6px 12px; font-size: 12px; border-radius: 4px; cursor: pointer;">Idle</button>
-            <button title="Disabled" class="ops-status-pill" data-status="disabled" onclick="FleetNavigator.setOperationsStatusFilter('disabled')" style="background: transparent; border: none; color: var(--text-muted); padding: 6px 12px; font-size: 12px; border-radius: 4px; cursor: pointer;">Disabled</button>
-          </div>
-          <div style="display: flex; background: rgba(255, 255, 255, 0.04); border-radius: 6px; padding: 2px; border: 1px solid var(--border-color);">
-            <button class="ops-mode-btn active" data-mode="matrix" onclick="FleetNavigator.setOperationsViewMode('matrix')" title="Matrix Cards Grid" style="background: transparent; border: none; color: var(--text); padding: 6px 10px; font-size: 13px; border-radius: 4px; cursor: pointer;">⊞</button>
-            <button class="ops-mode-btn" data-mode="dense" onclick="FleetNavigator.setOperationsViewMode('dense')" title="Dense Data Table" style="background: transparent; border: none; color: var(--text-muted); padding: 6px 10px; font-size: 13px; border-radius: 4px; cursor: pointer;">☰</button>
-            <button class="ops-mode-btn" data-mode="category" onclick="FleetNavigator.setOperationsViewMode('category')" title="Domain Category Accordions" style="background: transparent; border: none; color: var(--text-muted); padding: 6px 10px; font-size: 13px; border-radius: 4px; cursor: pointer;">📁</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Operations Agent Grid / Table Container -->
-      <div id="fleetOperationsContainer">
-        <!-- Rendered via fleet_navigator.js -->
-      </div>
-
-      <!-- Pagination Toolbar -->
-      <div id="fleetOperationsPagination" style="margin-top: 14px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 12px 18px; display: flex; justify-content: space-between; align-items: center;">
-        <!-- Rendered via fleet_navigator.js -->
       </div>
     </div>
 
@@ -1770,7 +1737,7 @@
           <span style="font-size: 22px;">📜</span>
           <div>
             <strong style="font-size: 16px; color: var(--text);">Fleet Release Notes & Version History</strong>
-            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.15.5</div>
+            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.15.6</div>
           </div>
         </div>
         <button title="Close Release Notes modal" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeReleaseNotesModal()">✕</button>
