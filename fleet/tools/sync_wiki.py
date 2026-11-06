@@ -120,6 +120,7 @@ def sync_github_wiki(remote_url: str = DEFAULT_WIKI_REMOTE, dry_run: bool = Fals
     subprocess.run(["git", "commit", "-m", "docs(wiki): update documentation pages from main repository"], cwd=str(staging_dir), check=True, **_hidden_subprocess_kwargs())
     
     print("Pushing updates to GitHub Wiki...")
+    subprocess.run(["git", "pull", "--rebase", "origin", "master"], cwd=str(staging_dir), capture_output=True, text=True, check=False, **_hidden_subprocess_kwargs())
     push_res = subprocess.run(["git", "push", "origin", "master"], cwd=str(staging_dir), capture_output=True, text=True, **_hidden_subprocess_kwargs())
     if push_res.returncode != 0:
         # Some wikis use 'main' instead of 'master'
