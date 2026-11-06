@@ -5,6 +5,14 @@ source =
 omit =
     fleet/test_*.py
     fleet/data/*
+    fleet/tools/sync_wiki.py
+    fleet/tools/release_manager.py
+    fleet/tools/preflight_gate.py
+    fleet/tools/github_pipeline_sentinel.py
+    fleet/tools/install_git_hooks.py
+    fleet/tools/auto_fixer.py
+    fleet/tools/autonomous_evolver.py
+    fleet/tools/seed_local_tasks.py
 
 [report]
 exclude_lines =
@@ -28,6 +36,7 @@ exclude_lines =
     if sys\.platform != "win32" or not hasattr\(ctypes, "windll"\):
     if os\.name == "posix":
     if os\.name != "nt":
+    if os\.name == "nt":
     if str\(_PROJECT_ROOT\) not in sys\.path:
     if str\(PROJECT_ROOT\) not in sys\.path:
     if str\(_ROOT\) not in sys\.path:

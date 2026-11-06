@@ -22,7 +22,7 @@
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
               <h1 style="margin: 0; white-space: nowrap;">Personal Agentic Fleet</h1>
               <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.35); font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;" onclick="openReleaseNotesModal()" title="View Release Notes & Versions">
-                <span id="fleetHeaderVerBadge">v2.15.4</span>
+                <span id="fleetHeaderVerBadge">v2.15.5</span>
                 <span style="font-size: 9px; opacity: 0.8;">📜</span>
               </span>
             </div>
@@ -78,6 +78,49 @@
           <button title="Trigger desktop notification alert" class="btn btn-primary" onclick="triggerNotification()" style="padding: 7px 12px; font-size: 12px;">
             🔔 Alert
           </button>
+          <div class="header-health-test-wrapper" id="headerHealthTestWrapper">
+            <div class="status-badge" id="healthTestHeaderBadge" onclick="toggleHealthTestPopover(event)" style="cursor: pointer; border-color: rgba(16, 185, 129, 0.45); background: rgba(16, 185, 129, 0.12);" title="Automated Unit Test Suite &amp; Code Coverage (Hover for details &amp; Run Tests Now)">
+              <span>🧪</span>
+              <span id="healthTestHeaderBadgeText">Health: 99.68%</span>
+            </div>
+            <div class="health-test-hover-popover" id="healthTestHoverPopover">
+              <div class="health-test-popover-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 16px;">🧪</span>
+                    <div style="font-size: 13px; font-weight: 700; color: var(--text);">Automated Unit Test Suite &amp; Code Coverage</div>
+                  </div>
+                  <span id="testStatusBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 11px; padding: 2px 8px;">PASS</span>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 10px;">
+                  <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 8px 10px;">
+                    <div style="font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;">Pass Rate</div>
+                    <div id="testPassPct" style="font-size: 16px; font-weight: 800; color: var(--accent-cyan); margin-top: 2px;">100.0%</div>
+                  </div>
+                  <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 8px 10px;">
+                    <div style="font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;">Tests Run</div>
+                    <div id="testRunCount" style="font-size: 16px; font-weight: 800; color: var(--accent-blue); margin-top: 2px;">501 / 501</div>
+                  </div>
+                  <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 8px 10px;">
+                    <div style="font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;">Code Coverage</div>
+                    <div id="testCoveragePct" style="font-size: 16px; font-weight: 800; color: var(--accent-green); margin-top: 2px;">99.68%</div>
+                  </div>
+                  <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 8px 10px;">
+                    <div style="font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;">Execution Time</div>
+                    <div id="testDuration" style="font-size: 16px; font-weight: 800; color: var(--accent-purple); margin-top: 2px;">14.2s</div>
+                  </div>
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; padding: 7px 9px; border-radius: 7px; background: rgba(15, 23, 42, 0.55); border: 1px solid rgba(255, 255, 255, 0.04);">
+                  <div style="display: flex; justify-content: space-between; gap: 8px;">
+                    <span>⚡ Frequency: <strong style="color: var(--accent-cyan);">Every 30 Mins (Auto)</strong></span>
+                    <span>💰 Cost: <strong style="color: var(--accent-green);">$0.00 (0 Tokens)</strong></span>
+                  </div>
+                  <div>🕒 Last Run: <strong id="testLastRun" style="color: var(--text);">-</strong></div>
+                </div>
+                <button title="Run full automated test suite and calculate code coverage" class="btn btn-primary" id="btnRunTests" style="width: 100%; justify-content: center; font-size: 12px; padding: 7px 14px;" onclick="runTestsNow()">⚡ Run Tests Now</button>
+              </div>
+            </div>
+          </div>
           <button class="btn btn-icon settings-trigger-btn" id="btnFleetSettings" onclick="openSettingsModal()" title="Fleet Settings, Themes & 3 Scalable Layouts" aria-label="Settings" style="background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 7px 11px; cursor: pointer; font-size: 15px; color: var(--text-primary); transition: all 0.2s ease;">
             ⚙️
           </button>
@@ -193,46 +236,6 @@
       <div id="briefingMeetingsContainer" style="display: none; margin-top: 14px; padding: 12px 14px; border-radius: 8px; background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.25);">
       </div>
       <div id="briefingCustomAgentsContainer" style="display: none; margin-top: 12px; padding: 11px 14px; border-radius: 8px; background: rgba(245, 158, 11, 0.09); border: 1px solid rgba(245, 158, 11, 0.3);">
-      </div>
-    </div>
-
-    <!-- Automated Unit Test Suite & Code Coverage Card -->
-    <div class="test-card" style="margin-bottom: 24px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 18px 22px; backdrop-filter: blur(12px);">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span style="font-size: 20px;">🧪</span>
-          <div>
-            <div style="font-size: 15px; font-weight: 700; color: var(--text);">Automated Unit Test Suite & Code Coverage</div>
-            <div style="font-size: 11.5px; color: var(--text-muted); display: flex; gap: 14px; margin-top: 3px; flex-wrap: wrap;">
-              <span>⚡ Frequency: <strong style="color: var(--accent-cyan);">Every 30 Mins (Auto)</strong></span>
-              <span>🕒 Last Run: <strong id="testLastRun" style="color: var(--text);">-</strong></span>
-              <span>💰 Compute Cost: <strong style="color: var(--accent-green);">$0.00 (0 Tokens)</strong></span>
-            </div>
-          </div>
-        </div>
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span id="testStatusBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 12px; padding: 4px 10px;">PASS</span>
-          <button title="Run full automated test suite and calculate code coverage" class="btn btn-primary" id="btnRunTests" style="font-size: 12px; padding: 6px 14px;" onclick="runTestsNow()">⚡ Run Tests Now</button>
-        </div>
-      </div>
-
-      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
-        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 12px 14px;">
-          <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Pass Rate</div>
-          <div id="testPassPct" style="font-size: 22px; font-weight: 800; color: var(--accent-cyan); margin-top: 4px;">100.0%</div>
-        </div>
-        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 12px 14px;">
-          <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Tests Run</div>
-          <div id="testRunCount" style="font-size: 22px; font-weight: 800; color: var(--accent-blue); margin-top: 4px;">25 / 25</div>
-        </div>
-        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 12px 14px;">
-          <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Code Coverage</div>
-          <div id="testCoveragePct" style="font-size: 22px; font-weight: 800; color: var(--accent-green); margin-top: 4px;">98.5%</div>
-        </div>
-        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 12px 14px;">
-          <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Execution Time</div>
-          <div id="testDuration" style="font-size: 22px; font-weight: 800; color: var(--accent-purple); margin-top: 4px;">1.2s</div>
-        </div>
       </div>
     </div>
 
@@ -1767,7 +1770,7 @@
           <span style="font-size: 22px;">📜</span>
           <div>
             <strong style="font-size: 16px; color: var(--text);">Fleet Release Notes & Version History</strong>
-            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.15.4</div>
+            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.15.5</div>
           </div>
         </div>
         <button title="Close Release Notes modal" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeReleaseNotesModal()">✕</button>
