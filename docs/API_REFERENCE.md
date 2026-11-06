@@ -235,7 +235,7 @@ The Personal Agentic Fleet provides a comprehensive terminal interface accessibl
 | `fleet version` | None | Displays version, Python interpreter details, and operating system platform. |
 
 <!-- AUTO-API-ROUTES:START -->
-## 🔄 Complete Live REST API Route Inventory (`151` Endpoints — `v2.15.9`)
+## 🔄 Complete Live REST API Route Inventory (`153` Endpoints — `v2.15.10`)
 
 This table is **automatically introspected from `fleet/api/*.py` AST decorators** on every release by `fleet.tools.doc_wiki_enhancer`:
 
@@ -387,6 +387,8 @@ This table is **automatically introspected from `fleet/api/*.py` AST decorators*
 | `GET` | `/api/mcp/tools` | `get_mcp_tools_endpoint` ([`fleet/api/system_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/system_api.py)) | Lists all registered FastMCP tools and their parameter schemas over HTTP JSON. |
 | `POST` | `/api/mcp/call` | `post_mcp_call_endpoint` ([`fleet/api/system_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/system_api.py)) | Invokes any registered `fleet_*` FastMCP tool over HTTP JSON. |
 | `GET` | `/api/tasks` | `get_tasks` ([`fleet/api/tasks_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/tasks_api.py)) | Handler `get_tasks` in `fleet/api/tasks_api.py`. |
+| `GET` | `/api/tasks/unified` | `get_unified_tasks` ([`fleet/api/tasks_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/tasks_api.py)) | Handler `get_unified_tasks` in `fleet/api/tasks_api.py`. |
+| `POST` | `/api/tasks/unified_action` | `post_unified_task_action` ([`fleet/api/tasks_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/tasks_api.py)) | Handler `post_unified_task_action` in `fleet/api/tasks_api.py`. |
 | `POST` | `/api/tasks` | `create_task` ([`fleet/api/tasks_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/tasks_api.py)) | Handler `create_task` in `fleet/api/tasks_api.py`. |
 | `POST` | `/api/tasks/toggle` | `toggle_task` ([`fleet/api/tasks_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/tasks_api.py)) | Handler `toggle_task` in `fleet/api/tasks_api.py`. |
 | `POST` | `/api/tasks/delete` | `delete_task` ([`fleet/api/tasks_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/tasks_api.py)) | Handler `delete_task` in `fleet/api/tasks_api.py`. |

@@ -1,6 +1,7 @@
-// --- Daily, Monthly & Yearly Tasks Engine (100% Local-Only Storage) ---
+// --- Daily, Monthly & Yearly Unified Cross-Agent Tasks Engine (100% Local-Only Storage) ---
     window._cachedTasksList = [];
     window._activeTaskFilter = 'ALL';
+    window._activeTaskAgentFilter = 'ALL';
     window._maskSensitiveTaskData = localStorage.getItem('afcc_mask_sensitive_tasks') !== 'false';
 
     function maskSensitiveTaskText(text) {
@@ -59,6 +60,19 @@
         });
       }
       renderTasksList();
+    }
+
+    function filterTasksByAgent(agentId) {
+      window._activeTaskAgentFilter = agentId || 'ALL';
+      renderTasksList();
+    }
+
+    function _getTaskCadence(t) {
+      if (t.cadence) return String(t.cadence);
+      const s = String(t.source || '').toLowerCase();
+      if (s === 'monthly') return 'Monthly';
+      if (s === 'yearly') return 'Yearly';
+      return 'Daily';
     }
 
     const _MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -175,16 +189,24 @@
       const bar = document.getElementById('taskFilterBar');
       if (!bar) return;
       const cyc = _getCurrentCycleParts();
-      const allCount = tasks.length;
-      const monthlyTasks = tasks.filter(t => String(t.source || '').toLowerCase() === 'monthly');
+      const agentFilter = window._activeTaskAgentFilter || 'ALL';
+      const scopedTasks = agentFilter === 'ALL'
+        ? tasks
+        : tasks.filter(t => String(t.agent_id || 'overview') === agentFilter);
+
+      const allCount = scopedTasks.length;
+      const dailyTasks = scopedTasks.filter(t => _getTaskCadence(t).toLowerCase() === 'daily');
+      const dailyPending = dailyTasks.filter(t => t.status !== 'completed').length;
+      const monthlyTasks = scopedTasks.filter(t => _getTaskCadence(t).toLowerCase() === 'monthly');
       const monthlyPending = monthlyTasks.filter(t => t.status !== 'completed').length;
-      const yearlyTasks = tasks.filter(t => String(t.source || '').toLowerCase() === 'yearly');
+      const yearlyTasks = scopedTasks.filter(t => _getTaskCadence(t).toLowerCase() === 'yearly');
       const yearlyPending = yearlyTasks.filter(t => t.status !== 'completed').length;
-      const pendingCount = tasks.filter(t => t.status !== 'completed').length;
-      const completedCount = tasks.filter(t => t.status === 'completed').length;
+      const pendingCount = scopedTasks.filter(t => t.status !== 'completed').length;
+      const completedCount = scopedTasks.filter(t => t.status === 'completed').length;
 
       const labels = {
         'ALL': `All (${allCount} • ${pendingCount} Pending)`,
+        'Daily': `☀️ Daily (${dailyPending} Pending / ${dailyTasks.length})`,
         'Monthly': `📅 Monthly: ${cyc.shortMonthYear} (${monthlyPending} Pending / ${monthlyTasks.length})`,
         'Yearly': `🗓️ Yearly: ${cyc.year}–${cyc.nextYearShort} (${yearlyPending} Pending / ${yearlyTasks.length})`,
         'PENDING': `⏳ Pending (${pendingCount})`,
@@ -196,6 +218,30 @@
           btn.textContent = labels[key];
         }
       });
+
+      const sel = document.getElementById('taskAgentFilterSelect');
+      if (sel) {
+        const agentCounts = {};
+        const agentMeta = {};
+        tasks.forEach(t => {
+          const aid = String(t.agent_id || 'overview');
+          agentCounts[aid] = (agentCounts[aid] || 0) + 1;
+          if (!agentMeta[aid]) {
+            agentMeta[aid] = {
+              name: t.agent_name || 'Overview & Tasks',
+              icon: t.agent_icon || '⚡'
+            };
+          }
+        });
+        const curVal = sel.value || 'ALL';
+        let optsHtml = `<option value="ALL">🤖 All Agents (${tasks.length} Tasks)</option>`;
+        Object.keys(agentCounts).forEach(aid => {
+          const m = agentMeta[aid];
+          optsHtml += `<option value="${escapeHtml(aid)}">${escapeHtml(m.icon)} ${escapeHtml(m.name)} (${agentCounts[aid]})</option>`;
+        });
+        sel.innerHTML = optsHtml;
+        sel.value = agentCounts[curVal] || curVal === 'ALL' ? curVal : 'ALL';
+      }
     }
 
     function renderTasksList() {
@@ -206,17 +252,19 @@
       updateTaskFilterBarCounts(allTasks);
 
       const filter = window._activeTaskFilter || 'ALL';
+      const agentFilter = window._activeTaskAgentFilter || 'ALL';
       const tasks = allTasks.filter(t => {
+        if (agentFilter !== 'ALL' && String(t.agent_id || 'overview') !== agentFilter) return false;
         if (filter === 'ALL') return true;
         if (filter === 'PENDING') return t.status !== 'completed';
         if (filter === 'COMPLETED') return t.status === 'completed';
-        return String(t.source || '').toLowerCase() === String(filter).toLowerCase();
+        return _getTaskCadence(t).toLowerCase() === String(filter).toLowerCase();
       });
 
       const counterEl = document.getElementById('taskCounter');
       if (counterEl) {
         const pendingShown = tasks.filter(t => t.status !== 'completed').length;
-        counterEl.innerText = filter === 'ALL'
+        counterEl.innerText = (filter === 'ALL' && agentFilter === 'ALL')
           ? `${allTasks.length} Total (${pendingShown} Pending)`
           : `${tasks.length} / ${allTasks.length} Shown (${pendingShown} Pending)`;
       }
@@ -229,29 +277,59 @@
       list.innerHTML = tasks.map(t => {
         const isDone = t.status === 'completed';
         const badgeClass = t.priority === 'P1' ? 'badge-p1' : (t.priority === 'P2' ? 'badge-p2' : 'badge-p3');
-        const sourceText = t.source || t.assigned_agent || 'Manual';
-        const srcLower = String(sourceText).toLowerCase();
-        const sourceIcon = srcLower === 'monthly' ? '📅' : (srcLower === 'yearly' ? '🗓️' : '📍');
+        const cadenceText = _getTaskCadence(t);
+        const srcLower = cadenceText.toLowerCase();
+        const sourceIcon = srcLower === 'monthly' ? '📅' : (srcLower === 'yearly' ? '🗓️' : '☀️');
         const sourceBadgeStyle = srcLower === 'monthly'
           ? 'background: rgba(56, 189, 248, 0.14); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35);'
           : (srcLower === 'yearly'
             ? 'background: rgba(168, 85, 247, 0.14); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35);'
-            : 'background: rgba(0, 242, 254, 0.1); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.25);');
+            : 'background: rgba(245, 158, 11, 0.14); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35);');
+        const agentName = t.agent_name || 'Overview & Tasks';
+        const agentIcon = t.agent_icon || '⚡';
+        const agentId = t.agent_id || 'overview';
+        const actionType = t.action_type || 'core_task';
+        const rawId = t.raw_id !== undefined ? t.raw_id : t.id;
         const maskedTitle = maskSensitiveTaskText(t.title || '');
-        const temporal = resolveTaskTemporalMeta(t);
+        const temporal = resolveTaskTemporalMeta({ ...t, source: cadenceText });
         const statusPillStyle = isDone
           ? 'background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);'
           : 'background: rgba(245, 158, 11, 0.16); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);';
+
+        let inlineActionsHtml = '';
+        if (actionType === 'hydration') {
+          inlineActionsHtml = `<button class="btn" style="font-size: 11px; padding: 3px 9px; background: rgba(56, 189, 248, 0.16); border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" onclick="executeUnifiedTaskAction('hydration', 'hyd_today', 'health', 'log_water')">💧 +1 Glass (+250ml)</button>`;
+        } else if (actionType === 'email_proposal') {
+          inlineActionsHtml = `
+            <button class="btn" style="font-size: 11px; padding: 3px 9px; background: rgba(16, 185, 129, 0.18); border-color: rgba(16, 185, 129, 0.45); color: #34d399;" onclick="executeUnifiedTaskAction('email_proposal', '${escapeHtml(String(rawId))}', 'gmail', 'approve')">✅ Approve</button>
+            <button class="btn" style="font-size: 11px; padding: 3px 9px; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #f87171;" onclick="executeUnifiedTaskAction('email_proposal', '${escapeHtml(String(rawId))}', 'gmail', 'reject')">✕ Reject</button>
+          `;
+        } else if (actionType === 'urgent_email') {
+          inlineActionsHtml = `<button class="btn" style="font-size: 11px; padding: 3px 9px; background: rgba(56, 189, 248, 0.15); border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" onclick="if(typeof openEmailModal==='function') openEmailModal('${escapeHtml(String(rawId))}')">📧 Read Email</button>`;
+        } else if (actionType === 'optimizer') {
+          inlineActionsHtml = `<button class="btn" style="font-size: 11px; padding: 3px 9px; background: rgba(168, 85, 247, 0.18); border-color: rgba(168, 85, 247, 0.45); color: #c084fc;" onclick="executeUnifiedTaskAction('optimizer', 'opt_workstation_health', 'optimizer', 'optimize')">⚡ 1-Click Optimize PC</button>`;
+        } else if (actionType === 'core_task') {
+          inlineActionsHtml = `<button class="btn-delete" title="Delete Task" onclick="deleteTask(${Number(rawId)})">✕</button>`;
+        }
+
+        const canToggleCheckbox = ['core_task', 'medication', 'routine', 'custom_agent_entry'].includes(actionType);
+        const checkboxHtml = canToggleCheckbox
+          ? `<input type="checkbox" class="task-checkbox" style="margin-top: 3px;" ${isDone ? 'checked' : ''} onchange="executeUnifiedTaskAction('${escapeHtml(actionType)}', '${escapeHtml(String(rawId))}', '${escapeHtml(agentId)}', 'toggle')">`
+          : `<span style="font-size: 15px; margin-top: 1px;">${escapeHtml(agentIcon)}</span>`;
+
         return `
           <div class="task-item ${isDone ? 'completed' : ''}">
             <div class="task-left" style="align-items: flex-start; width: 100%;">
-              <input type="checkbox" class="task-checkbox" style="margin-top: 3px;" ${isDone ? 'checked' : ''} onchange="toggleTask(${t.id})">
+              ${checkboxHtml}
               <span class="badge ${badgeClass}" style="margin-top: 1px;">${escapeHtml(t.priority || 'P2')}</span>
-              <span class="badge-source" style="font-size: 10px; padding: 2px 7px; border-radius: 4px; ${sourceBadgeStyle} font-weight: 600; white-space: nowrap; margin-top: 1px;">${sourceIcon} ${escapeHtml(sourceText)}</span>
+              <span class="badge-source" style="font-size: 10px; padding: 2px 7px; border-radius: 4px; ${sourceBadgeStyle} font-weight: 600; white-space: nowrap; margin-top: 1px;">${sourceIcon} ${escapeHtml(cadenceText)}</span>
               <div style="display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap;">
                   <span class="task-title" style="font-size: 13.5px; font-weight: 600;">${escapeHtml(maskedTitle)}</span>
-                  <span style="font-size: 10.5px; padding: 2px 8px; border-radius: 999px; font-weight: 600; white-space: nowrap; ${statusPillStyle}">${escapeHtml(temporal.statusLabel)}</span>
+                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <span style="font-size: 10.5px; padding: 2px 8px; border-radius: 999px; font-weight: 600; white-space: nowrap; background: rgba(99, 102, 241, 0.14); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.32); cursor: pointer;" title="Source Agent: ${escapeHtml(agentName)} (Click to view agent)" onclick="if(window.FleetNavigator) FleetNavigator.switchAgent('${escapeHtml(agentId)}')">${escapeHtml(agentIcon)} ${escapeHtml(agentName)}</span>
+                    <span style="font-size: 10.5px; padding: 2px 8px; border-radius: 999px; font-weight: 600; white-space: nowrap; ${statusPillStyle}">${escapeHtml(temporal.statusLabel)}</span>
+                  </div>
                 </div>
                 <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
                   <span style="font-size: 11px; padding: 1px 7px; border-radius: 4px; background: rgba(148, 163, 184, 0.12); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.25); font-weight: 500;">${escapeHtml(temporal.periodLabel)}</span>
@@ -260,15 +338,39 @@
                 <span class="task-desc" style="font-size: 12px; color: var(--text-muted); line-height: 1.45;">${formatTaskDescriptionHtml(t.description)}</span>
               </div>
             </div>
-            <button class="btn-delete" title="Delete Task" onclick="deleteTask(${t.id})">✕</button>
+            <div style="display: flex; align-items: center; gap: 6px; margin-left: 8px; flex-shrink: 0;">
+              ${inlineActionsHtml}
+            </div>
           </div>
         `;
       }).join('');
     }
 
+    async function executeUnifiedTaskAction(actionType, rawId, agentId, subAction) {
+      try {
+        await fetch('/api/tasks/unified_action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action_type: actionType,
+            raw_id: rawId,
+            agent_id: agentId,
+            sub_action: subAction || 'toggle',
+            glasses_delta: 1
+          })
+        });
+        fetchTasks();
+        if (typeof fetchBriefing === 'function') fetchBriefing();
+        if (typeof fetchRoutines === 'function') fetchRoutines();
+        if (typeof fetchLogs === 'function') fetchLogs();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
     async function fetchTasks() {
       try {
-        const res = await fetch('/api/tasks');
+        const res = await fetch('/api/tasks?unified=true');
         const rawTasks = await res.json();
         window._cachedTasksList = (Array.isArray(rawTasks) ? rawTasks : []).filter(t => {
           const s = (t.source || '').toLowerCase();
@@ -342,4 +444,6 @@ window.addTask = addTask;
 window.toggleTask = toggleTask;
 window.deleteTask = deleteTask;
 window.filterTasksBySource = filterTasksBySource;
+window.filterTasksByAgent = filterTasksByAgent;
+window.executeUnifiedTaskAction = executeUnifiedTaskAction;
 window.toggleTaskSensitiveMask = toggleTaskSensitiveMask;

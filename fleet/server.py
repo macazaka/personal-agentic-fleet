@@ -221,8 +221,13 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             self._send_json(data)
 
         elif path == "/api/tasks":
-            tasks = db.list_tasks(exclude_tests=True)
-            self._send_json(tasks)
+            query = urllib.parse.parse_qs(parsed.query)
+            if query.get("unified", ["false"])[0].lower() in ("true", "1"):
+                from fleet.api.tasks_api import collect_unified_fleet_tasks
+                self._send_json(collect_unified_fleet_tasks(db, agent_registry))
+            else:
+                tasks = db.list_tasks(exclude_tests=True)
+                self._send_json(tasks)
 
         elif path == "/api/backlog":
             query = urllib.parse.parse_qs(parsed.query)
@@ -676,13 +681,14 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             description = body.get("description", "").strip()
             priority = body.get("priority", "P2")
             source = body.get("source", "Dashboard").strip() or "Dashboard"
+            due_date = (body.get("due_date") or "").strip() or None
             if not title:
                 self._send_json({"error": "Title required"}, 400)
                 return
             if not description:
                 self._send_json({"error": "Description required"}, 400)
                 return
-            task_id = db.add_task(title, description=description, priority=priority, source=source)
+            task_id = db.add_task(title, description=description, priority=priority, due_date=due_date, source=source)
             self._send_json({"id": task_id, "status": "created"})
 
         elif path == "/api/tasks/toggle":

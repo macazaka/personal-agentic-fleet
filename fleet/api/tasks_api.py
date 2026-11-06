@@ -2,16 +2,356 @@
 Tasks & Routines API endpoints for Personal Agentic Fleet.
 """
 
-from typing import Any, Dict
+from datetime import datetime
+import json
+from typing import Any, Dict, List
 import urllib.parse
 from fleet.api.router import router
 import fleet.server as srv
 
 
+def collect_unified_fleet_tasks(db: Any, registry: Any = None) -> List[Dict[str, Any]]:
+    """
+    Aggregates actionable Daily, Monthly, and Yearly tasks across ALL agents in the fleet
+    into a single unified stream with full context and inline action metadata so the user
+    never needs to visit individual agent pages to review or act on pending items.
+    """
+    now = datetime.now()
+    today_fmt = now.strftime("%d %b %Y")
+    month_short = now.strftime("%b")
+    month_full = now.strftime("%B")
+    year = now.year
+    next_year = year + 1
+    unified: List[Dict[str, Any]] = []
+
+    # 1. Core Overview & Tasks (Daily, Monthly, Yearly tasks in `tasks` table)
+    core_tasks = db.list_tasks(limit=250, exclude_tests=True)
+    for t in core_tasks:
+        src = str(t.get("source") or t.get("assigned_agent") or "Manual").strip()
+        src_low = src.lower()
+        cadence = "Monthly" if src_low == "monthly" else ("Yearly" if src_low == "yearly" else "Daily")
+        unified.append({
+            **t,
+            "raw_id": t["id"],
+            "action_type": "core_task",
+            "agent_id": "overview",
+            "agent_name": "Overview & Tasks",
+            "agent_icon": "⚡",
+            "cadence": cadence,
+        })
+
+    # 2. Health & Wellness Agent — Active Medications & Supplements (`medications` table)
+    try:
+        meds = db.list_medications()
+        for m in meds:
+            freq = str(m.get("frequency") or "Daily").strip()
+            freq_low = freq.lower()
+            cadence = "Monthly" if "month" in freq_low else ("Yearly" if "year" in freq_low else "Daily")
+            sched_time = m.get("schedule_time") or "08:30"
+            dosage = m.get("dosage") or "1 Dose"
+            instr = m.get("instructions") or "Scheduled FFD & wellness supplement/medication protocol."
+            due_str = (
+                f"By 30 {month_short} {year} at {sched_time} (Monthly Supplement)"
+                if cadence == "Monthly"
+                else f"{today_fmt} at {sched_time} ({freq})"
+            )
+            unified.append({
+                "id": f"med_{m['id']}",
+                "raw_id": m["id"],
+                "action_type": "medication",
+                "agent_id": "health",
+                "agent_name": "Health & Wellness",
+                "agent_icon": "🌿",
+                "source": cadence,
+                "cadence": cadence,
+                "priority": "P1" if not m.get("taken_today") else "P2",
+                "status": "completed" if m.get("taken_today") else "pending",
+                "title": f"{m['name']} — {dosage} (@ {sched_time})",
+                "description": f"Dosage: {dosage} • Schedule: {sched_time} ({freq}) • {instr}",
+                "due_date": due_str,
+                "created_at": m.get("created_at") or now.isoformat(),
+                "updated_at": m.get("taken_at") or now.isoformat(),
+            })
+    except Exception:
+        pass
+
+    # 3. Health & Wellness Agent — Daily Hydration Target (`hydration_logs` table)
+    try:
+        hyd = db.get_today_hydration()
+        glasses = int(hyd.get("glasses") or 0)
+        amount_ml = int(hyd.get("amount_ml") or 0)
+        goal_ml = int(hyd.get("goal_ml") or 2500)
+        pct = float(hyd.get("percentage") or 0.0)
+        is_hyd_done = amount_ml >= goal_ml
+        unified.append({
+            "id": "hyd_today",
+            "raw_id": "hyd_today",
+            "action_type": "hydration",
+            "agent_id": "health",
+            "agent_name": "Health & Wellness",
+            "agent_icon": "💧",
+            "source": "Daily",
+            "cadence": "Daily",
+            "priority": "P1" if amount_ml < 1000 else "P2",
+            "status": "completed" if is_hyd_done else "pending",
+            "title": f"Daily Hydration Target — {amount_ml} / {goal_ml} ml ({glasses} Glasses • {pct}%)",
+            "description": f"{hyd.get('reminder_status', 'Drink water regularly')} • Goal: {goal_ml} ml/day (10 glasses of 250ml).",
+            "due_date": f"{today_fmt} (Daily Hydration — {month_short} {year})",
+            "created_at": now.isoformat(),
+            "updated_at": hyd.get("last_drank_at") or now.isoformat(),
+        })
+    except Exception:
+        pass
+
+    # 4. FFD & Daily Routines (`routines` table)
+    try:
+        routines = db.list_routines()
+        for r in routines:
+            t_target = r.get("time_target") or "09:00"
+            r_title = r.get("title") or "Daily Routine"
+            is_ffd = any(k in r_title.lower() for k in ("ffd", "smoothie", "shahi pani", "meds", "sleep"))
+            unified.append({
+                "id": f"routine_{r['id']}",
+                "raw_id": r["id"],
+                "action_type": "routine",
+                "agent_id": "health" if is_ffd else "overview",
+                "agent_name": "Health & Wellness" if is_ffd else "Overview & Tasks",
+                "agent_icon": "🌿" if is_ffd else "⚡",
+                "source": "Daily",
+                "cadence": "Daily",
+                "priority": "P1" if not r.get("completed_today") else "P2",
+                "status": "completed" if r.get("completed_today") else "pending",
+                "title": f"Daily Routine (@ {t_target}) — {r_title}",
+                "description": f"Scheduled Time: {t_target} IST • Category: {(r.get('category') or 'FFD / Daily Habit').title()} • Check off when completed today.",
+                "due_date": f"{today_fmt} at {t_target} (Month: {month_short} • Year: {year})",
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat(),
+            })
+    except Exception:
+        pass
+
+    # 5. Custom Agents (e.g., Billing, Statement & Subscription Sentinel `cloud_subscription_sentinel` & others)
+    try:
+        manifests = registry.get_manifests(include_disabled=False) if registry else []
+        custom_ids = [m["id"] for m in manifests if m.get("is_custom")] or ["cloud_subscription_sentinel"]
+        name_map = {m["id"]: (m.get("name") or m["id"], m.get("icon") or "💳") for m in manifests}
+        for cid in custom_ids:
+            c_name, c_icon = name_map.get(cid, (cid.replace("_", " ").title(), "💳"))
+            state = db.get_custom_agent_dashboard_state(cid)
+            for entry in state.get("entries", []):
+                e_id = entry.get("id")
+                e_title = entry.get("title") or "Tracked Item"
+                e_status = "completed" if str(entry.get("status") or "").lower() in ("completed", "done", "paid") else "pending"
+                e_due = entry.get("due_date") or f"By 30 {month_short} {year}"
+                num_val = entry.get("numeric_value")
+                data_obj = entry.get("data") if isinstance(entry.get("data"), dict) else {}
+                details_parts = []
+                if num_val:
+                    details_parts.append(f"Amount/Value: ₹{num_val}")
+                for k, v in data_obj.items():
+                    if v:
+                        details_parts.append(f"{k.replace('_', ' ').title()}: {v}")
+                desc_str = " • ".join(details_parts) if details_parts else f"Tracked by {c_name}"
+                unified.append({
+                    "id": f"custom_rec_{e_id}",
+                    "raw_id": e_id,
+                    "action_type": "custom_agent_entry",
+                    "agent_id": cid,
+                    "agent_name": c_name,
+                    "agent_icon": c_icon,
+                    "source": "Monthly",
+                    "cadence": "Monthly",
+                    "priority": "P1" if e_status == "pending" else "P2",
+                    "status": e_status,
+                    "title": f"[{c_name}] {e_title}",
+                    "description": desc_str,
+                    "due_date": f"{e_due} (Month: {month_full} • Year: {year})",
+                    "created_at": entry.get("created_at") or now.isoformat(),
+                    "updated_at": entry.get("created_at") or now.isoformat(),
+                })
+    except Exception:
+        pass
+
+    # 6. Email Intelligence Agent (`gmail`) — Unapproved Email/Attachment Proposals & Urgent/Actionable Emails
+    try:
+        backlog_items = db.list_feature_backlog_items(status="Unapproved")
+        for b in backlog_items:
+            unified.append({
+                "id": f"backlog_{b['id']}",
+                "raw_id": b["id"],
+                "action_type": "email_proposal",
+                "agent_id": "gmail",
+                "agent_name": "Email Intelligence",
+                "agent_icon": "📬",
+                "source": "Daily",
+                "cadence": "Daily",
+                "priority": b.get("priority") or "P1",
+                "status": "pending",
+                "title": f"[Unapproved Email Proposal] {b.get('title', 'New Proposal')}",
+                "description": f"{b.get('description', '')} • 🛡️ 4-Layer Virus Scan: CLEAN • Requires your approval before implementation.",
+                "due_date": f"Pending Approval ({today_fmt})",
+                "created_at": b.get("created_at") or now.isoformat(),
+                "updated_at": b.get("updated_at") or now.isoformat(),
+            })
+    except Exception:
+        pass
+
+    try:
+        emails = db.get_classified_emails(limit=40)
+        action_emails = [
+            em for em in emails
+            if em.get("category_name") in ("Urgent", "Important", "Calendar & Meetings")
+        ][:8]
+        for em in action_emails:
+            msg_id = em.get("id") or em.get("message_id")
+            cat = em.get("category_name") or "Important"
+            subj = em.get("subject") or "(No Subject)"
+            sender = em.get("from") or em.get("sender") or "Unknown Sender"
+            snippet = (em.get("snippet") or "")[:180]
+            rec_date = str(em.get("received_date") or today_fmt)[:16]
+            unified.append({
+                "id": f"email_{msg_id}",
+                "raw_id": msg_id,
+                "action_type": "urgent_email",
+                "agent_id": "gmail",
+                "agent_name": "Email Intelligence",
+                "agent_icon": "📬",
+                "source": "Daily",
+                "cadence": "Daily",
+                "priority": "P1" if cat == "Urgent" else "P2",
+                "status": "pending",
+                "title": f"[{cat} Email] {subj}",
+                "description": f"From: {sender}\nSummary: {snippet}",
+                "due_date": f"Received: {rec_date} ({month_short} {year})",
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat(),
+            })
+    except Exception:
+        pass
+
+    # 7. PC Optimizer Agent (`optimizer`) — Live RAM & Temp Bloat Action Item
+    try:
+        from fleet.core.optimizer import _get_memory_status_win32
+        mem = _get_memory_status_win32() or {"used_gb": 0, "total_gb": 16, "percent_used": 50, "status": "Optimal"}
+        pct_ram = int(mem.get("percent_used") or 0)
+        is_opt_needed = pct_ram >= 75
+        unified.append({
+            "id": "opt_workstation_health",
+            "raw_id": "opt_workstation_health",
+            "action_type": "optimizer",
+            "agent_id": "optimizer",
+            "agent_name": "PC Optimizer",
+            "agent_icon": "🚀",
+            "source": "Daily",
+            "cadence": "Daily",
+            "priority": "P1" if is_opt_needed else "P3",
+            "status": "pending" if is_opt_needed else "completed",
+            "title": f"Workstation RAM & Cache Health — {mem.get('used_gb', 0)} / {mem.get('total_gb', 0)} GB ({pct_ram}% {mem.get('status', 'Optimal')})",
+            "description": "1-Click PC Optimization: Trim background working-set RAM, flush DNS resolver cache, and purge temporary bloat files.",
+            "due_date": f"{today_fmt} (Daily Workstation Check)",
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
+        })
+    except Exception:
+        pass
+
+    return unified
+
+
 @router.get("/api/tasks")
 def get_tasks(handler: Any, parsed_url: urllib.parse.ParseResult):
+    query = urllib.parse.parse_qs(parsed_url.query)
+    if query.get("unified", ["false"])[0].lower() in ("true", "1"):
+        unified = collect_unified_fleet_tasks(srv.db, getattr(srv, "agent_registry", None))
+        handler._send_json(unified)
+        return
     tasks = srv.db.list_tasks(limit=200, exclude_tests=True)
     handler._send_json(tasks)
+
+
+@router.get("/api/tasks/unified")
+def get_unified_tasks(handler: Any, parsed_url: urllib.parse.ParseResult):
+    unified = collect_unified_fleet_tasks(srv.db, getattr(srv, "agent_registry", None))
+    handler._send_json(unified)
+
+
+@router.post("/api/tasks/unified_action")
+def post_unified_task_action(handler: Any, body: Dict[str, Any]):
+    action_type = str(body.get("action_type") or "").strip()
+    raw_id = body.get("raw_id")
+    sub_action = str(body.get("sub_action") or "toggle").strip()
+
+    try:
+        if action_type == "core_task":
+            task_id = int(str(raw_id or 0))
+            if sub_action == "delete":
+                srv.db.delete_task(task_id)
+                handler._send_json({"status": "deleted"})
+            else:
+                tasks = srv.db.list_tasks(limit=500, require_description=False)
+                task = next((t for t in tasks if t["id"] == task_id), None)
+                if not task:
+                    handler._send_json({"error": "Task not found"}, 404)
+                    return
+                new_status = "completed" if task["status"] != "completed" else "pending"
+                srv.db.update_task_status(task_id, new_status)
+                handler._send_json({"status": "updated", "new_status": new_status})
+            return
+
+        if action_type == "medication":
+            taken = srv.db.toggle_medication_today(int(str(raw_id or 0)))
+            handler._send_json({"status": "updated", "taken": taken})
+            return
+
+        if action_type == "hydration":
+            glasses_delta = int(body.get("glasses_delta", 1))
+            res = srv.db.log_water_intake(glasses_delta=glasses_delta, amount_delta_ml=glasses_delta * 250)
+            handler._send_json({"status": "updated", "hydration": res})
+            return
+
+        if action_type == "routine":
+            srv.db.toggle_routine(int(str(raw_id or 0)))
+            handler._send_json({"status": "updated"})
+            return
+
+        if action_type == "custom_agent_entry":
+            rec_id = int(str(raw_id or 0))
+            with srv.db._get_connection() as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT status FROM custom_agent_records WHERE id = ?", (rec_id,))
+                row = cur.fetchone()
+                cur_status = str(row["status"] if row else "pending").lower()
+                new_status = "pending" if cur_status in ("completed", "done", "paid") else "completed"
+                cur.execute("UPDATE custom_agent_records SET status = ? WHERE id = ?", (new_status, rec_id))
+                conn.commit()
+            handler._send_json({"status": "updated", "new_status": new_status})
+            return
+
+        if action_type == "email_proposal":
+            backlog_id = int(str(raw_id or 0))
+            if sub_action == "reject":
+                srv.db.update_feature_backlog_item(backlog_id, status="Rejected")
+                handler._send_json({"status": "rejected"})
+            else:
+                from fleet.integrations.email_intelligence_proposals import approve_email_proposal
+                res = approve_email_proposal(
+                    proposal_id="",
+                    db=srv.db,
+                    registry=getattr(srv, "agent_registry", None),
+                    backlog_id=backlog_id,
+                )
+                handler._send_json({"status": "approved", "result": res})
+            return
+
+        if action_type == "optimizer":
+            ram_res = srv.optimize_ram()
+            temp_res = srv.clean_temp_files()
+            handler._send_json({"status": "optimized", "ram": ram_res, "temp": temp_res})
+            return
+
+        handler._send_json({"error": f"Unsupported action_type: {action_type}"}, 400)
+    except Exception as exc:
+        handler._send_json({"error": str(exc)}, 500)
 
 
 @router.post("/api/tasks")

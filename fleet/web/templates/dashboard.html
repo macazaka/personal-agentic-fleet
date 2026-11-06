@@ -22,7 +22,7 @@
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
               <h1 style="margin: 0; white-space: nowrap;">Personal Agentic Fleet</h1>
               <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.35); font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;" onclick="openReleaseNotesModal()" title="View Release Notes & Versions">
-                <span id="fleetHeaderVerBadge">v2.15.9</span>
+                <span id="fleetHeaderVerBadge">v2.15.10</span>
                 <span style="font-size: 9px; opacity: 0.8;">📜</span>
               </span>
             </div>
@@ -312,13 +312,19 @@
             <button title="Add new task to your local-only task vault" class="btn btn-primary" onclick="addTask()">+ Add</button>
           </div>
 
-          <!-- Cadence & Status Filter Pills -->
-          <div id="taskFilterBar" style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;">
-            <button title="Show all local tasks across Daily, Monthly, and Yearly cadences" class="filter-btn active" data-task-filter="ALL" onclick="filterTasksBySource('ALL')">All</button>
-            <button title="Filter Monthly recurring financial, compliance, domain, and utility tasks" class="filter-btn" data-task-filter="Monthly" onclick="filterTasksBySource('Monthly')">📅 Monthly</button>
-            <button title="Filter Yearly recurring tax and insurance tasks" class="filter-btn" data-task-filter="Yearly" onclick="filterTasksBySource('Yearly')">🗓️ Yearly</button>
-            <button title="Show only Pending tasks" class="filter-btn" data-task-filter="PENDING" onclick="filterTasksBySource('PENDING')">⏳ Pending</button>
-            <button title="Show Completed (✔) tasks" class="filter-btn" data-task-filter="COMPLETED" onclick="filterTasksBySource('COMPLETED')">✓ Completed</button>
+          <!-- Cadence, Agent & Status Filter Pills -->
+          <div id="taskFilterBar" style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+            <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+              <button title="Show all unified tasks across all agents and cadences" class="filter-btn active" data-task-filter="ALL" onclick="filterTasksBySource('ALL')">All</button>
+              <button title="Filter Daily tasks (Medications, Hydration, FFD Routines, Urgent Emails, PC Health)" class="filter-btn" data-task-filter="Daily" onclick="filterTasksBySource('Daily')">☀️ Daily</button>
+              <button title="Filter Monthly recurring financial, compliance, domain, utility, and subscription tasks" class="filter-btn" data-task-filter="Monthly" onclick="filterTasksBySource('Monthly')">📅 Monthly</button>
+              <button title="Filter Yearly recurring tax and insurance tasks" class="filter-btn" data-task-filter="Yearly" onclick="filterTasksBySource('Yearly')">🗓️ Yearly</button>
+              <button title="Show only Pending tasks across all agents" class="filter-btn" data-task-filter="PENDING" onclick="filterTasksBySource('PENDING')">⏳ Pending</button>
+              <button title="Show Completed (✔) tasks across all agents" class="filter-btn" data-task-filter="COMPLETED" onclick="filterTasksBySource('COMPLETED')">✓ Completed</button>
+            </div>
+            <select id="taskAgentFilterSelect" title="Filter unified tasks by originating Fleet Agent" style="font-size: 11.5px; padding: 4px 10px; border-radius: 6px; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--border-color); color: var(--text);" onchange="filterTasksByAgent(this.value)">
+              <option value="ALL">🤖 All Agents (Unified)</option>
+            </select>
           </div>
 
           <!-- Task List -->
@@ -1738,7 +1744,7 @@
           <span style="font-size: 22px;">📜</span>
           <div>
             <strong style="font-size: 16px; color: var(--text);">Fleet Release Notes & Version History</strong>
-            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.15.9</div>
+            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.15.10</div>
           </div>
         </div>
         <button title="Close Release Notes modal" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeReleaseNotesModal()">✕</button>
