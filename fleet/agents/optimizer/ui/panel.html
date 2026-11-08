@@ -9,10 +9,13 @@
           <span id="optimizerScoreBadge" class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); font-size: 12px; font-weight: 700;">Health Score: --/100</span>
         </div>
         <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
-          Hardware diagnostics, memory working set optimization, junk temporary file cleaner, DNS resolver flushing, and Windows startup management.
+          Hardware diagnostics, autonomous OS &amp; software upgrade management, memory working set optimization, junk temporary file cleaner, DNS resolver flushing, and Windows startup management.
         </div>
       </div>
       <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <button title="Scan for available OS patches and software package upgrades" class="btn" onclick="scanOptimizerUpgradesNow()" id="btnScanUpgradesTop" style="font-size: 12px; padding: 8px 14px; border-color: rgba(56, 189, 248, 0.45); color: #38bdf8; background: rgba(56, 189, 248, 0.1);">
+          ⬆️ Check Upgrades
+        </button>
         <button title="Run 1-click complete workstation performance tuning" class="btn btn-primary" onclick="runCompleteOptimization()" id="btnAutoTune" style="font-size: 12px; padding: 8px 16px;">
           ⚡ 1-Click Complete Tuning
         </button>
@@ -28,8 +31,8 @@
       <button title="Close dialog" onclick="document.getElementById('optimizerActionBanner').style.display='none'" style="background:none; border:none; color:inherit; cursor:pointer; font-size:14px;">✕</button>
     </div>
 
-    <!-- Real-Time Hardware & System Diagnostics Grid (4 Cards) -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;" id="optMetricsGrid">
+    <!-- Real-Time Hardware & System Diagnostics Grid (5 Cards) -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;" id="optMetricsGrid">
       <!-- RAM / Memory Card -->
       <div class="card" style="margin: 0; padding: 16px 18px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -89,6 +92,20 @@
           <span style="font-size: 11px; color: #c084fc;">Registry & Startup</span>
         </div>
       </div>
+
+      <!-- OS & Software Upgrades Card -->
+      <div class="card" style="margin: 0; padding: 16px 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">⬆️ OS &amp; Software Upgrades</span>
+          <span id="optUpgradesBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green);">Up to Date</span>
+        </div>
+        <div style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px;" id="optUpgradesCount">0 Pending</div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;" id="optUpgradesOsSub">OS &amp; Winget / Package Manager</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; color: var(--text-muted);" id="optUpgradesSecuritySub">0 Security / Critical</span>
+          <span style="font-size: 11px; color: var(--accent-cyan);" id="optUpgradesPolicyBadge">Auto-Managed (12h)</span>
+        </div>
+      </div>
     </div>
 
     <!-- Optimization Recommendations Section -->
@@ -102,6 +119,53 @@
       </div>
       <div id="optRecommendationsList" style="display: flex; flex-direction: column; gap: 12px;">
         <!-- Rendered via JS -->
+      </div>
+    </div>
+
+    <!-- Autonomous OS & Software Upgrade Management Hub -->
+    <div class="card" id="optUpgradeManagerCard">
+      <div class="card-title" style="flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <span>🛡️ Autonomous OS &amp; Software Upgrade Manager</span>
+          <span id="optOsVersionPill" class="badge" style="background: rgba(56, 189, 248, 0.14); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 11px;">OS: Detecting...</span>
+          <span id="optRebootPill" class="badge" style="display: none; background: rgba(244, 63, 94, 0.16); color: #f87171; border: 1px solid rgba(244, 63, 94, 0.35); font-size: 11px;">⚠️ Pending Reboot Required</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <button title="Scan Windows Update and installed software packages for available upgrades" class="btn" id="btnOptScanUpgrades" onclick="scanOptimizerUpgradesNow()" style="font-size: 11.5px; padding: 6px 12px; border-color: var(--accent-cyan); color: var(--accent-cyan);">
+            🔍 Scan Upgrades Now
+          </button>
+          <button title="Automatically install all eligible pending OS and software upgrades silently in the background" class="btn btn-primary" id="btnOptRunAutoUpgrade" onclick="runAutoUpgradeNow()" style="font-size: 11.5px; padding: 6px 14px;">
+            ⬆️ Auto-Upgrade All Now
+          </button>
+        </div>
+      </div>
+
+      <!-- Autonomous Policy Controls Bar -->
+      <div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; padding: 10px 14px; margin-bottom: 14px; background: rgba(255,255,255,0.025); border: 1px solid var(--card-border); border-radius: 8px;">
+        <div style="font-size: 12px; color: var(--text-muted);">
+          <strong style="color: #fff;">🤖 Autonomous Policy:</strong> Scheduled background check every 12h + silent zero-window installation (never forces reboot).
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: center; font-size: 12px;">
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text);">
+            <input type="checkbox" id="optPolicySecurity" checked onchange="toggleUpgradePolicySetting('auto_install_security_and_patch', this.checked)">
+            <span>Auto-Install Security &amp; Dev Tools</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text);">
+            <input type="checkbox" id="optPolicyAllApps" onchange="toggleUpgradePolicySetting('auto_install_all_software', this.checked)">
+            <span>Auto-Install All App Upgrades</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text);">
+            <input type="checkbox" id="optPolicyOsPatches" checked onchange="toggleUpgradePolicySetting('auto_install_os_patches', this.checked)">
+            <span>Auto-Stage OS Patches</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Pending OS & Software Upgrades List -->
+      <div id="optUpgradesList" style="display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto;">
+        <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 12.5px;">
+          Scanning OS &amp; software repositories...
+        </div>
       </div>
     </div>
 

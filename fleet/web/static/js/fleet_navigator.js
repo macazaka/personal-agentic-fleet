@@ -1111,10 +1111,67 @@ const FleetNavigator = {
     }
   },
 
+  _selfImprovePanelOpen: {},
   _selfImproveMonitorOpen: {},
   _selfImproveSelectedIdx: {},
   _selfImproveLiveJob: {},
   _originalImproviseDrafts: {},
+
+  filterActiveSelfImprovements(rawImps) {
+    if (!Array.isArray(rawImps)) return [];
+    const nowMs = Date.now();
+    const maxAgeMs = 24 * 60 * 60 * 1000; // 1 day (24 hours)
+    return rawImps.filter(it => {
+      if (!it || typeof it !== 'object') return true;
+      const statusStr = String(it.status || 'completed').toLowerCase();
+      const prog = Number(it.progress ?? 100);
+      const isCompleted = statusStr === 'completed' || prog >= 100;
+      const tsStr = String(it.completed_at || it.undertaken_at || '').trim();
+      if (isCompleted && tsStr) {
+        const isoNormalized = tsStr.includes('T') ? tsStr : tsStr.replace(' ', 'T');
+        const parsedMs = Date.parse(isoNormalized);
+        if (!Number.isNaN(parsedMs) && (nowMs - parsedMs) >= maxAgeMs) {
+          return false;
+        }
+      }
+      return true;
+    });
+  },
+
+  toggleSelfImprovePanel(agentId) {
+    const aid = agentId || this.activeAgentId || 'overview';
+    this._selfImprovePanelOpen[aid] = !Boolean(this._selfImprovePanelOpen[aid]);
+    this.renderActiveAgentSelfImprovementsBanner(aid);
+    if (this._selfImprovePanelOpen[aid]) {
+      setTimeout(() => {
+        const inp = document.getElementById(`inlineSelfImproveInput_${aid}_0`);
+        if (inp) inp.focus();
+      }, 40);
+    }
+  },
+
+  async dismissSelfImproveItem(agentId, itemId, itemTitle, ev) {
+    if (ev && typeof ev.stopPropagation === 'function') ev.stopPropagation();
+    try {
+      const res = await fetch('/api/studio/evolve/dismiss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: agentId, item_id: itemId || '', title: itemTitle || '' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      const agent = this.agents.find(a => a.id === agentId);
+      if (agent && Array.isArray(data.improvements)) {
+        agent.evolution_improvements = data.improvements;
+      } else if (agent && Array.isArray(agent.evolution_improvements)) {
+        agent.evolution_improvements = agent.evolution_improvements.filter(it => {
+          const t = String(it?.title || it || '').trim().toLowerCase();
+          const id = String(it?.id || '').trim();
+          return (itemId ? id !== itemId : true) && (itemTitle ? t !== String(itemTitle).trim().toLowerCase() : true);
+        });
+      }
+      this.renderActiveAgentSelfImprovementsBanner(agentId);
+    } catch (_) {}
+  },
 
   renderActiveAgentSelfImprovementsBanner(agentId) {
     const targetIds = new Set(['overview', 'health', 'antigravity', 'backlog', 'optimizer']);
@@ -1124,6 +1181,30 @@ const FleetNavigator = {
       const agent = this.agents.find(a => a.id === aid);
       if (!agent) return;
 
+      const rawImps = Array.isArray(agent.evolution_improvements) ? agent.evolution_improvements : [];
+      const imps = this.filterActiveSelfImprovements(rawImps);
+      agent.evolution_improvements = imps;
+
+      const liveJob = this._selfImproveLiveJob[aid] || null;
+      const isPanelOpen = Boolean(this._selfImprovePanelOpen[aid] || liveJob);
+
+      // Update compact ✨ icon button in the page header
+      const iconBtns = [
+        document.getElementById(`btnSelfImproveIcon_${aid}`),
+        (this.activeAgentId === aid && !STATIC_CORE_TAB_IDS.has(aid)) ? document.getElementById('btnStageEvolveAgent') : null,
+      ].filter(Boolean);
+
+      iconBtns.forEach(btn => {
+        const countBadge = imps.length > 0
+          ? `<span style="padding: 0 5px; border-radius: 999px; font-size: 10px; font-weight: 700; background: rgba(16, 185, 129, 0.25); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.45);">${imps.length}</span>`
+          : '';
+        btn.innerHTML = `<span>✨</span>${countBadge}`;
+        btn.title = `Self-Improvement & Feature Evolution (${agent.name})${imps.length > 0 ? ' • ' + imps.length + ' recent item(s) (<24h)' : ''} — Click to ${isPanelOpen ? 'hide' : 'open'} panel (Shift+Click: 10 Ways to Improve)`;
+        btn.style.background = isPanelOpen ? 'rgba(168, 85, 247, 0.32)' : 'rgba(168, 85, 247, 0.14)';
+        btn.style.borderColor = isPanelOpen ? '#c084fc' : 'rgba(168, 85, 247, 0.45)';
+        btn.style.boxShadow = isPanelOpen ? '0 0 0 2px rgba(168, 85, 247, 0.25)' : 'none';
+      });
+
       const coreContainer = document.getElementById(`coreSelfImproveBanner_${aid}`);
       const stageContainer = (this.activeAgentId === aid && !STATIC_CORE_TAB_IDS.has(aid))
         ? document.getElementById('stageSelfImproveBanner')
@@ -1132,9 +1213,15 @@ const FleetNavigator = {
       const containers = [coreContainer, stageContainer].filter(Boolean);
       if (containers.length === 0) return;
 
-      const imps = Array.isArray(agent.evolution_improvements) ? agent.evolution_improvements : [];
+      if (!isPanelOpen) {
+        containers.forEach(box => {
+          box.style.display = 'none';
+          box.innerHTML = '';
+        });
+        return;
+      }
+
       const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-      const liveJob = this._selfImproveLiveJob[aid] || null;
       const isMonitorOpen = Boolean(this._selfImproveMonitorOpen[aid] || liveJob);
       const selIdx = (typeof this._selfImproveSelectedIdx[aid] === 'number' && this._selfImproveSelectedIdx[aid] >= 0 && this._selfImproveSelectedIdx[aid] < imps.length)
         ? this._selfImproveSelectedIdx[aid]
@@ -1145,16 +1232,22 @@ const FleetNavigator = {
             ${imps.map((it, idx) => {
               const obj = typeof it === 'object' && it ? it : { title: String(it) };
               const t = obj.title || '';
+              const itemId = obj.id || '';
               const isCust = Boolean(obj.is_custom);
               const blId = Number(obj.backlog_id || 0);
               const isSelected = isMonitorOpen && !liveJob && idx === selIdx;
               const prog = Number(obj.progress || 100);
-              return `<button type="button" onclick="FleetNavigator.selectSelfImproveItemForMonitor('${aid}', ${idx})" title="Click to inspect live lifecycle status, Feature Backlog link, and LLM textual response for: ${esc(obj.description || t)}" style="cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 11px; padding: 4px 10px; border-radius: 999px; background: ${isSelected ? 'rgba(168, 85, 247, 0.28)' : (isCust ? 'rgba(56, 189, 248, 0.16)' : 'rgba(16, 185, 129, 0.16)')}; border: 1px solid ${isSelected ? '#c084fc' : (isCust ? 'rgba(56, 189, 248, 0.42)' : 'rgba(16, 185, 129, 0.42)')}; color: ${isCust ? '#7dd3fc' : '#6ee7b7'}; font-weight: 600; box-shadow: ${isSelected ? '0 0 0 2px rgba(168, 85, 247, 0.25)' : 'none'};">
-                <span>✅ ${esc(t)}</span>
-                ${blId > 0 ? `<span style="padding: 1px 6px; border-radius: 999px; background: rgba(15, 23, 42, 0.78); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.4); font-size: 9.5px;">📋 #BL-${blId}</span>` : ''}
-                <span style="padding: 1px 6px; border-radius: 999px; background: rgba(16, 185, 129, 0.22); color: #34d399; font-size: 9.5px;">${prog}%</span>
-                <span style="font-size: 10px; color: #e9d5ff; opacity: 0.9;">📜 Status &amp; LLM</span>
-              </button>`;
+              const safeTitleJs = esc(t).replace(/'/g, "\\'");
+              const safeIdJs = esc(itemId).replace(/'/g, "\\'");
+              return `<div style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px 3px 10px; border-radius: 999px; background: ${isSelected ? 'rgba(168, 85, 247, 0.28)' : (isCust ? 'rgba(56, 189, 248, 0.16)' : 'rgba(16, 185, 129, 0.16)')}; border: 1px solid ${isSelected ? '#c084fc' : (isCust ? 'rgba(56, 189, 248, 0.42)' : 'rgba(16, 185, 129, 0.42)')}; box-shadow: ${isSelected ? '0 0 0 2px rgba(168, 85, 247, 0.25)' : 'none'};">
+                <button type="button" onclick="FleetNavigator.selectSelfImproveItemForMonitor('${aid}', ${idx})" title="Shown for 24h after completion (logged in Feature Backlog). Click to inspect status &amp; LLM response: ${esc(obj.description || t)}" style="cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 11px; background: transparent; border: none; padding: 0; color: ${isCust ? '#7dd3fc' : '#6ee7b7'}; font-weight: 600;">
+                  <span>✅ ${esc(t)}</span>
+                  ${blId > 0 ? `<span style="padding: 1px 6px; border-radius: 999px; background: rgba(15, 23, 42, 0.78); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.4); font-size: 9.5px;">📋 #BL-${blId}</span>` : ''}
+                  <span style="padding: 1px 6px; border-radius: 999px; background: rgba(16, 185, 129, 0.22); color: #34d399; font-size: 9.5px;">${prog}%</span>
+                  <span style="font-size: 10px; color: #e9d5ff; opacity: 0.9;">📜 Status &amp; LLM</span>
+                </button>
+                <button type="button" onclick="FleetNavigator.dismissSelfImproveItem('${aid}', '${safeIdJs}', '${safeTitleJs}', event)" title="Dismiss from banner (already logged in Feature Backlog)" style="cursor: pointer; background: transparent; border: none; color: #94a3b8; font-size: 11px; padding: 0 3px; line-height: 1;">✕</button>
+              </div>`;
             }).join('')}
            </div>`
         : '';
@@ -1253,6 +1346,7 @@ const FleetNavigator = {
       }
 
       containers.forEach((box, boxIdx) => {
+        box.style.display = 'block';
         const inpId = `inlineSelfImproveInput_${aid}_${boxIdx}`;
         const btnId = `btnInlineSelfImprove_${aid}_${boxIdx}`;
         const impBtnId = `btnImproviseInline_${aid}_${boxIdx}`;
@@ -1265,7 +1359,7 @@ const FleetNavigator = {
                 <span style="font-size: 14px;">✨</span>
                 <strong style="font-size: 12.5px; color: #e9d5ff;">Self-Improvement &amp; Feature Evolution (${esc(agent.name)})</strong>
                 <span class="badge" style="background: ${imps.length > 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(168, 85, 247, 0.2)'}; color: ${imps.length > 0 ? '#6ee7b7' : '#d8b4fe'}; border: 1px solid ${imps.length > 0 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(168, 85, 247, 0.4)'}; font-size: 10.5px;">
-                  ${imps.length} Undertaken
+                  ${imps.length} Active (24h)
                 </span>
                 ${imps.length > 0 ? `<button type="button" class="btn" onclick="FleetNavigator.toggleSelfImproveStatusMonitor('${aid}')" title="Toggle Live Status &amp; Connected LLM Textual Response Monitor" style="padding: 3px 9px; font-size: 10.5px; font-weight: 600; border-color: rgba(168, 85, 247, 0.5); background: ${isMonitorOpen ? 'rgba(168, 85, 247, 0.28)' : 'rgba(15, 23, 42, 0.7)'}; color: #e9d5ff;">📡 ${isMonitorOpen ? 'Hide' : 'Live Status &amp; LLM Response'}</button>` : ''}
               </div>
@@ -1275,6 +1369,7 @@ const FleetNavigator = {
                   <button id="${impBtnId}" title="Improvise and enhance your draft text with the connected LLM using '${esc(agent.name)}' context so you can review it before submitting" type="button" class="btn" onclick="FleetNavigator.improviseManualImprovementInline('${aid}', '${inpId}', '${impBtnId}', '${metaBarId}')" style="padding: 6px 10px; font-size: 11px; border-color: rgba(168, 85, 247, 0.55); background: rgba(88, 28, 135, 0.28); color: #e9d5ff; font-weight: 700; white-space: nowrap;">🪄 Improvise Prompt</button>
                   <button id="${btnId}" title="Add to Feature Backlog first and execute to completion for '${esc(agent.name)}'" type="button" class="btn" onclick="FleetNavigator.quickAddManualImprovementInline('${aid}', '${inpId}', '${btnId}')" style="padding: 6px 10px; font-size: 11px; border-color: rgba(56, 189, 248, 0.45); color: #38bdf8; font-weight: 700; white-space: nowrap;">➕ Undertake Manual Item</button>
                   <button title="Open 10 AI-generated feature improvements for '${esc(agent.name)}' and select which ones to apply" type="button" class="btn btn-primary" onclick="openEvolveAgentModal('${aid}')" style="padding: 6px 11px; font-size: 11px; font-weight: 700; background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(6, 182, 212, 0.35)); border: 1px solid rgba(168, 85, 247, 0.6); color: #f8fafc; white-space: nowrap;">✨ 10 Ways to Improve</button>
+                  <button title="Collapse Self-Improvement panel back into ✨ header icon" type="button" class="btn" onclick="FleetNavigator.toggleSelfImprovePanel('${aid}')" style="padding: 6px 9px; font-size: 11px; border-color: rgba(148, 163, 184, 0.3); color: #94a3b8;">✕</button>
                 </div>
               </div>
             </div>
@@ -1399,6 +1494,7 @@ const FleetNavigator = {
     }
 
     // Activate live real-time execution status monitor immediately so user sees every stage
+    this._selfImprovePanelOpen[agentId] = true;
     this._selfImproveMonitorOpen[agentId] = true;
     this._selfImproveLiveJob[agentId] = {
       step: 1,

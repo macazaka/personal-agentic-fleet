@@ -82,6 +82,11 @@
         const startupCount = document.getElementById('optStartupCount');
         if (startupCount) startupCount.innerText = `${data.startup_apps_count || 0} Active on Boot`;
 
+        // 5. OS & Software Upgrades
+        if (data.upgrades) {
+          renderOptimizerUpgrades(data.upgrades);
+        }
+
         // Render Recommendations
         const recomCount = document.getElementById('optRecomCount');
         if (recomCount) recomCount.innerText = `${data.recommendations ? data.recommendations.length : 0} Actions Available`;
@@ -96,6 +101,195 @@
         console.error('Error fetching optimizer diagnostics:', e);
       } finally {
         if (refreshBtn) refreshBtn.innerText = '🔄 Rescan System';
+      }
+    }
+
+    function renderOptimizerUpgrades(upg) {
+      if (!upg) return;
+      const osInfo = upg.os_info || {};
+      const osUpdates = Array.isArray(upg.os_updates)
+        ? upg.os_updates
+        : (Array.isArray(osInfo.pending_os_updates) ? osInfo.pending_os_updates : []);
+      const swPackages = Array.isArray(upg.software_upgrades)
+        ? upg.software_upgrades
+        : (upg.software_upgrades && Array.isArray(upg.software_upgrades.packages) ? upg.software_upgrades.packages : []);
+      const policy = upg.policy || {};
+      const totalPending = Number(upg.total_pending_count !== undefined ? upg.total_pending_count : (upg.total_pending || (osUpdates.length + swPackages.length)));
+      const secCount = Number(upg.security_critical_count !== undefined ? upg.security_critical_count : (upg.security_or_critical_count || 0));
+      const osDisplayName = osInfo.display_version || osInfo.os_name || osInfo.os_family || 'OS';
+      const osBuildStr = osInfo.build_number || osInfo.os_build || osInfo.os_version || 'Current';
+
+      // Metric Card
+      const upgBadge = document.getElementById('optUpgradesBadge');
+      if (upgBadge) {
+        if (totalPending === 0 && !osInfo.pending_reboot) {
+          upgBadge.innerText = 'Up to Date';
+          upgBadge.style.color = 'var(--accent-green)';
+          upgBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+        } else if (secCount > 0 || osInfo.pending_reboot) {
+          upgBadge.innerText = osInfo.pending_reboot ? 'Reboot Needed' : `${secCount} Critical`;
+          upgBadge.style.color = 'var(--accent-pink)';
+          upgBadge.style.background = 'rgba(244, 63, 94, 0.15)';
+        } else {
+          upgBadge.innerText = `${totalPending} Available`;
+          upgBadge.style.color = 'var(--accent-amber)';
+          upgBadge.style.background = 'rgba(245, 158, 11, 0.15)';
+        }
+      }
+
+      const upgCount = document.getElementById('optUpgradesCount');
+      if (upgCount) {
+        upgCount.innerText = `${totalPending} Pending`;
+      }
+      const upgOsSub = document.getElementById('optUpgradesOsSub');
+      if (upgOsSub) {
+        upgOsSub.innerText = `${osDisplayName} (Build ${osBuildStr})`;
+      }
+      const upgSecSub = document.getElementById('optUpgradesSecuritySub');
+      if (upgSecSub) {
+        upgSecSub.innerText = `${secCount} Security / Critical`;
+      }
+
+      // Hub Pills & Policy Checkboxes
+      const osPill = document.getElementById('optOsVersionPill');
+      if (osPill) {
+        osPill.innerText = `🖥 ${osDisplayName} • Build ${osBuildStr}`;
+      }
+      const rebootPill = document.getElementById('optRebootPill');
+      if (rebootPill) {
+        rebootPill.style.display = osInfo.pending_reboot ? 'inline-block' : 'none';
+      }
+
+      const chkSec = document.getElementById('optPolicySecurity');
+      if (chkSec && policy.auto_install_security_and_patch !== undefined) {
+        chkSec.checked = !!policy.auto_install_security_and_patch;
+      }
+      const chkAll = document.getElementById('optPolicyAllApps');
+      if (chkAll && policy.auto_install_all_software !== undefined) {
+        chkAll.checked = !!policy.auto_install_all_software;
+      }
+      const chkOs = document.getElementById('optPolicyOsPatches');
+      if (chkOs && policy.auto_install_os_patches !== undefined) {
+        chkOs.checked = !!policy.auto_install_os_patches;
+      }
+
+      // Render Pending OS + Software Upgrades List
+      const listEl = document.getElementById('optUpgradesList');
+      if (!listEl) return;
+
+      if (osUpdates.length === 0 && swPackages.length === 0) {
+        listEl.innerHTML = `
+          <div style="text-align: center; padding: 20px; color: var(--accent-green); background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.22); border-radius: 8px; font-size: 12.5px;">
+            ✅ <strong>OS &amp; All Installed Software Up to Date!</strong> Autonomous manager checks every 12 hours silently.
+          </div>
+        `;
+        return;
+      }
+
+      const rows = [];
+      osUpdates.forEach(u => {
+        const kbId = u.id || u.kb || '';
+        const kbLabel = kbId ? ` (${escapeHtml(String(kbId))})` : '';
+        rows.push(`
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: rgba(244, 63, 94, 0.06); border: 1px solid rgba(244, 63, 94, 0.25); border-radius: 8px; gap: 10px; flex-wrap: wrap;">
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span class="badge" style="background: rgba(244, 63, 94, 0.18); color: #f87171; font-size: 10.5px;">🛡 OS Update</span>
+                <strong style="color: #fff; font-size: 13px;">${escapeHtml(String(u.title || 'OS System Update'))}${kbLabel}</strong>
+              </div>
+              <span style="font-size: 11.5px; color: var(--text-muted);">Severity: ${escapeHtml(String(u.severity || 'Important'))} • Source: ${escapeHtml(String(u.source || 'System Update'))}</span>
+            </div>
+            <button class="btn" style="font-size: 11.5px; padding: 5px 12px; border-color: #f87171; color: #f87171;" onclick="runAutoUpgradeNow()">⬆️ Stage OS Patch</button>
+          </div>
+        `);
+      });
+
+      swPackages.forEach(pkg => {
+        const isSec = pkg.category === 'Security & Critical' || pkg.is_security_or_critical;
+        const isDev = pkg.category === 'Developer Tools';
+        const catStyle = isSec
+          ? 'background: rgba(244, 63, 94, 0.18); color: #f87171;'
+          : (isDev ? 'background: rgba(56, 189, 248, 0.16); color: #38bdf8;' : 'background: rgba(168, 85, 247, 0.15); color: #c084fc;');
+        const pkgId = String(pkg.id || pkg.name || '');
+        rows.push(`
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: rgba(255,255,255,0.025); border: 1px solid var(--card-border); border-radius: 8px; gap: 10px; flex-wrap: wrap;">
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span class="badge" style="${catStyle} font-size: 10.5px;">${escapeHtml(String(pkg.category || 'Application'))}</span>
+                <strong style="color: #fff; font-size: 13px;">${escapeHtml(String(pkg.name || pkgId))}</strong>
+                <span style="font-size: 11px; color: var(--text-muted); font-family: monospace;">(${escapeHtml(pkgId)})</span>
+              </div>
+              <span style="font-size: 11.5px; color: var(--text-muted);">Installed: <code style="color: #cbd5e1;">${escapeHtml(String(pkg.current_version || '?'))}</code> → Available: <code style="color: var(--accent-green); font-weight: 600;">${escapeHtml(String(pkg.available_version || 'Latest'))}</code> • Source: ${escapeHtml(String(pkg.source || 'winget'))}</span>
+            </div>
+            <button class="btn" style="font-size: 11.5px; padding: 5px 12px; border-color: var(--accent-cyan); color: var(--accent-cyan);" onclick="runAutoUpgradeNow('${escapeHtml(pkgId)}')">⬆️ Upgrade</button>
+          </div>
+        `);
+      });
+
+      listEl.innerHTML = rows.join('');
+    }
+
+    async function scanOptimizerUpgradesNow() {
+      const btn = document.getElementById('btnOptScanUpgrades');
+      const topBtn = document.getElementById('btnScanUpgradesTop');
+      if (btn) { btn.innerText = '🔍 Scanning...'; btn.disabled = true; }
+      if (topBtn) { topBtn.innerText = '⬆️ Scanning...'; topBtn.disabled = true; }
+      try {
+        const res = await fetch('/api/optimizer/upgrades?refresh=1');
+        const data = await res.json();
+        if (data.status === 'success') {
+          renderOptimizerUpgrades(data);
+          showOptimizerToast(`Upgrade scan complete: ${data.overall_status || 'Up to Date'}`, true);
+        } else {
+          showOptimizerToast(data.message || 'Upgrade scan returned an error.', false);
+        }
+      } catch (e) {
+        showOptimizerToast('Failed to scan upgrades: ' + e.message, false);
+      } finally {
+        if (btn) { btn.innerText = '🔍 Scan Upgrades Now'; btn.disabled = false; }
+        if (topBtn) { topBtn.innerText = '⬆️ Check Upgrades'; topBtn.disabled = false; }
+      }
+    }
+
+    async function runAutoUpgradeNow(packageId = '') {
+      const btn = document.getElementById('btnOptRunAutoUpgrade');
+      if (btn) { btn.innerText = '⬆️ Upgrading Silently...'; btn.disabled = true; }
+      try {
+        const payload = packageId
+          ? { mode: 'install_specific', package_ids: [packageId] }
+          : { mode: 'auto_manage', force_scan: true };
+        const res = await fetch('/api/optimizer/upgrades/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        showOptimizerToast(data.message || 'Autonomous upgrade run completed!', data.status === 'success' || data.status === 'partial');
+        await scanOptimizerUpgradesNow();
+        fetchOptimizerDiagnostics();
+        if (typeof fetchLogs === 'function') fetchLogs();
+      } catch (e) {
+        showOptimizerToast('Failed to run upgrades: ' + e.message, false);
+      } finally {
+        if (btn) { btn.innerText = '⬆️ Auto-Upgrade All Now'; btn.disabled = false; }
+      }
+    }
+
+    async function toggleUpgradePolicySetting(key, enabled) {
+      try {
+        const payload = {};
+        payload[key] = !!enabled;
+        const res = await fetch('/api/optimizer/upgrades/policy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          showOptimizerToast('Autonomous upgrade policy saved.', true);
+        }
+      } catch (e) {
+        showOptimizerToast('Failed to update upgrade policy: ' + e.message, false);
       }
     }
 
@@ -178,6 +372,7 @@
       if (actionId === 'purge_caches') return runPurgeDevCaches();
       if (actionId === 'optimize_ram') return runOptimizeRam();
       if (actionId === 'open_startup') return runOpenStartupSettings();
+      if (actionId === 'manage_upgrades') return runAutoUpgradeNow();
     }
 
     async function runCleanTemp() {
@@ -264,6 +459,10 @@
     // --- Health & Wellness Engine ---
 
 window.fetchOptimizerDiagnostics = fetchOptimizerDiagnostics;
+window.renderOptimizerUpgrades = renderOptimizerUpgrades;
+window.scanOptimizerUpgradesNow = scanOptimizerUpgradesNow;
+window.runAutoUpgradeNow = runAutoUpgradeNow;
+window.toggleUpgradePolicySetting = toggleUpgradePolicySetting;
 window.renderOptimizerRecommendations = renderOptimizerRecommendations;
 window.renderOptimizerProcesses = renderOptimizerProcesses;
 window.showOptimizerToast = showOptimizerToast;

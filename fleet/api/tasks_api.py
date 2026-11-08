@@ -229,9 +229,9 @@ def collect_unified_fleet_tasks(db: Any, registry: Any = None) -> List[Dict[str,
     except Exception:
         pass
 
-    # 7. PC Optimizer Agent (`optimizer`) — Live RAM & Temp Bloat Action Item
+    # 7. PC Optimizer Agent (`optimizer`) — Live RAM, Temp Bloat & Autonomous OS/Software Upgrades
     try:
-        from fleet.core.optimizer import _get_memory_status_win32
+        from fleet.core.optimizer import _get_memory_status_win32, check_os_and_software_upgrades
         mem = _get_memory_status_win32() or {"used_gb": 0, "total_gb": 16, "percent_used": 50, "status": "Optimal"}
         pct_ram = int(mem.get("percent_used") or 0)
         is_opt_needed = pct_ram >= 75
@@ -249,6 +249,34 @@ def collect_unified_fleet_tasks(db: Any, registry: Any = None) -> List[Dict[str,
             "title": f"Workstation RAM & Cache Health — {mem.get('used_gb', 0)} / {mem.get('total_gb', 0)} GB ({pct_ram}% {mem.get('status', 'Optimal')})",
             "description": "1-Click PC Optimization: Trim background working-set RAM, flush DNS resolver cache, and purge temporary bloat files.",
             "due_date": f"{today_fmt} (Daily Workstation Check)",
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
+        })
+
+        upg_info = check_os_and_software_upgrades(force_refresh=False)
+        pending_upg = int(upg_info.get("total_pending_count") or 0)
+        os_ver_label = str(upg_info.get("os_info", {}).get("display_version") or "Windows")
+        unified.append({
+            "id": "opt_os_software_upgrades",
+            "raw_id": "opt_os_software_upgrades",
+            "action_type": "optimizer_upgrade",
+            "agent_id": "optimizer",
+            "agent_name": "PC Optimizer",
+            "agent_icon": "🚀",
+            "source": "Daily",
+            "cadence": "Daily",
+            "priority": "P1" if upg_info.get("security_critical_count", 0) > 0 else ("P2" if pending_upg > 0 else "P3"),
+            "status": "pending" if pending_upg > 0 else "completed",
+            "title": (
+                f"OS & Software Upgrades ({os_ver_label}) — {pending_upg} Pending Upgrade(s)"
+                if pending_upg > 0
+                else f"OS & Software Upgrades ({os_ver_label}) — Up to Date (Auto-Managed)"
+            ),
+            "description": (
+                f"OS Updates: {upg_info.get('os_updates_count', 0)} • Software Upgrades: {upg_info.get('eligible_software_count', 0)} "
+                f"• Auto-Pilot: {'ON' if upg_info.get('policy', {}).get('auto_install_all_software', True) else 'Security Only'}"
+            ),
+            "due_date": f"{today_fmt} (Auto-Upgrade Check)",
             "created_at": now.isoformat(),
             "updated_at": now.isoformat(),
         })
@@ -277,7 +305,7 @@ def get_unified_tasks(handler: Any, parsed_url: urllib.parse.ParseResult):
 
 @router.post("/api/tasks/unified_action")
 def post_unified_task_action(handler: Any, body: Dict[str, Any]):
-    action_type = str(body.get("action_type") or "").strip()
+    action_type = str(body.get("action_type") or body.get("origin_type") or "").strip()
     raw_id = body.get("raw_id")
     sub_action = str(body.get("sub_action") or "toggle").strip()
 
@@ -287,6 +315,27 @@ def post_unified_task_action(handler: Any, body: Dict[str, Any]):
             if sub_action == "delete":
                 srv.db.delete_task(task_id)
                 handler._send_json({"status": "deleted"})
+            elif sub_action == "edit":
+                title = str(body.get("title") or "").strip()
+                description = str(body.get("description") or "").strip()
+                priority = str(body.get("priority") or "P2").strip()
+                source = str(body.get("source") or "").strip() or None
+                due_date = str(body.get("due_date") or "").strip() or None
+                if not title or not description:
+                    handler._send_json({"error": "Both title and description are required"}, 400)
+                    return
+                ok = srv.db.update_task(
+                    task_id,
+                    title=title,
+                    description=description,
+                    priority=priority,
+                    source=source,
+                    due_date=due_date,
+                )
+                if not ok:
+                    handler._send_json({"error": "Task not found"}, 404)
+                    return
+                handler._send_json({"status": "updated", "id": task_id})
             else:
                 tasks = srv.db.list_tasks(limit=500, require_description=False)
                 task = next((t for t in tasks if t["id"] == task_id), None)
@@ -299,7 +348,20 @@ def post_unified_task_action(handler: Any, body: Dict[str, Any]):
             return
 
         if action_type == "medication":
-            taken = srv.db.toggle_medication_today(int(str(raw_id or 0)))
+            med_id = int(str(raw_id or 0))
+            if sub_action == "edit":
+                title = str(body.get("title") or "").strip()
+                description = str(body.get("description") or "").strip()
+                with srv.db._get_connection() as conn:
+                    cur = conn.cursor()
+                    cur.execute(
+                        "UPDATE medications SET name = ?, instructions = ? WHERE id = ?",
+                        (title.split("—")[0].strip() or title, description, med_id),
+                    )
+                    conn.commit()
+                handler._send_json({"status": "updated", "id": med_id})
+                return
+            taken = srv.db.toggle_medication_today(med_id)
             handler._send_json({"status": "updated", "taken": taken})
             return
 
@@ -310,7 +372,18 @@ def post_unified_task_action(handler: Any, body: Dict[str, Any]):
             return
 
         if action_type == "routine":
-            srv.db.toggle_routine(int(str(raw_id or 0)))
+            routine_id = int(str(raw_id or 0))
+            if sub_action == "edit":
+                title = str(body.get("title") or "").strip()
+                if "—" in title:
+                    title = title.split("—", 1)[1].strip()
+                with srv.db._get_connection() as conn:
+                    cur = conn.cursor()
+                    cur.execute("UPDATE routines SET title = ? WHERE id = ?", (title, routine_id))
+                    conn.commit()
+                handler._send_json({"status": "updated", "id": routine_id})
+                return
+            srv.db.toggle_routine(routine_id)
             handler._send_json({"status": "updated"})
             return
 
@@ -318,6 +391,18 @@ def post_unified_task_action(handler: Any, body: Dict[str, Any]):
             rec_id = int(str(raw_id or 0))
             with srv.db._get_connection() as conn:
                 cur = conn.cursor()
+                if sub_action == "edit":
+                    title = str(body.get("title") or "").strip()
+                    if title.startswith("[") and "]" in title:
+                        title = title.split("]", 1)[1].strip()
+                    due_date = str(body.get("due_date") or "").strip()
+                    cur.execute(
+                        "UPDATE custom_agent_records SET title = ?, due_date = ? WHERE id = ?",
+                        (title, due_date, rec_id),
+                    )
+                    conn.commit()
+                    handler._send_json({"status": "updated", "id": rec_id})
+                    return
                 cur.execute("SELECT status FROM custom_agent_records WHERE id = ?", (rec_id,))
                 row = cur.fetchone()
                 cur_status = str(row["status"] if row else "pending").lower()
@@ -347,6 +432,11 @@ def post_unified_task_action(handler: Any, body: Dict[str, Any]):
             ram_res = srv.optimize_ram()
             temp_res = srv.clean_temp_files()
             handler._send_json({"status": "optimized", "ram": ram_res, "temp": temp_res})
+            return
+
+        if action_type == "optimizer_upgrade":
+            upg_res = srv.run_automatic_upgrade_manager(force_scan=True, dry_run=False)
+            handler._send_json({"status": "upgraded", "upgrades": upg_res})
             return
 
         handler._send_json({"error": f"Unsupported action_type: {action_type}"}, 400)
@@ -386,6 +476,34 @@ def toggle_task(handler: Any, body: Dict[str, Any]):
     new_status = "completed" if task["status"] != "completed" else "pending"
     srv.db.update_task_status(task_id, new_status)
     handler._send_json({"status": "updated", "new_status": new_status})
+
+
+@router.post("/api/tasks/update")
+def update_task_endpoint(handler: Any, body: Dict[str, Any]):
+    raw_id = body.get("id") if body.get("id") is not None else body.get("task_id")
+    if raw_id is None:
+        handler._send_json({"error": "Missing task ID"}, 400)
+        return
+    title = str(body.get("title") or "").strip()
+    description = str(body.get("description") or "").strip()
+    priority = str(body.get("priority") or "P2").strip()
+    source = str(body.get("source") or "").strip() or None
+    due_date = str(body.get("due_date") or "").strip() or None
+    if not title or not description:
+        handler._send_json({"error": "Both title and description are required"}, 400)
+        return
+    ok = srv.db.update_task(
+        int(raw_id),
+        title=title,
+        description=description,
+        priority=priority,
+        source=source,
+        due_date=due_date,
+    )
+    if not ok:
+        handler._send_json({"error": "Task not found"}, 404)
+        return
+    handler._send_json({"status": "updated", "id": int(raw_id)})
 
 
 @router.post("/api/tasks/delete")

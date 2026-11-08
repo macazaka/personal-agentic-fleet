@@ -41,7 +41,20 @@ function Find-ValidPython {
     $venvPy = Join-Path $RepoRoot ".venv\Scripts\python.exe"
     if (Test-PythonVersion310Plus $venvPy) { return $venvPy }
 
-    # 2. Check standard C:\Python3* and User AppData Python installations (newest first)
+    # 2. Check Windows Python Launcher (py.exe) across all supported versions (3.14 down to 3.10)
+    if (Get-Command py -ErrorAction SilentlyContinue) {
+        foreach ($verTag in @("-3.14", "-3.13", "-3.12", "-3.11", "-3.10")) {
+            try {
+                $pyPath = (& py $verTag -c "import sys; print(sys.executable)" 2>$null)
+                if ($pyPath) {
+                    $pyTrim = ("$pyPath").Trim()
+                    if (Test-PythonVersion310Plus $pyTrim) { return $pyTrim }
+                }
+            } catch {}
+        }
+    }
+
+    # 3. Check standard C:\Python3* and User AppData Python installations (newest first)
     $candidates = @()
     $candidates += Get-ChildItem -Path "C:\Python3*\python.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -ExpandProperty FullName
     $candidates += Get-ChildItem -Path "$env:LOCALAPPDATA\Programs\Python\Python3*\python.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -ExpandProperty FullName

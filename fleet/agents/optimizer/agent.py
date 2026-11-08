@@ -71,6 +71,20 @@ class OptimizerAgent(FleetAgent):
                 "type": "number",
                 "default": 6,
                 "description": "Number of top memory-consuming processes to inspect in-process"
+            },
+            {
+                "id": "auto_install_all_software",
+                "label": "Auto-Install Software Upgrades (Winget/Brew/Apt)",
+                "type": "boolean",
+                "default": True,
+                "description": "Automatically upgrade outdated software packages silently in the background"
+            },
+            {
+                "id": "auto_install_os_patches",
+                "label": "Auto-Stage OS Security & Cumulative Updates",
+                "type": "boolean",
+                "default": True,
+                "description": "Automatically scan and stage OS security patches without forcing a reboot"
             }
         ]
 
@@ -78,7 +92,10 @@ class OptimizerAgent(FleetAgent):
         router.include_router(optimizer_api.router)
 
     def execute_task(self, task: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        if task == "scan_logs_and_heal":
+        t_low = (task or "").strip().lower()
+        p = payload if isinstance(payload, dict) else {}
+
+        if t_low == "scan_logs_and_heal":
             from fleet.core.auto_healer import run_proactive_log_scan_and_heal
             report = run_proactive_log_scan_and_heal()
             return {
@@ -90,6 +107,31 @@ class OptimizerAgent(FleetAgent):
                     f"Health score: {report.get('system_health_index', 100.0)}/100."
                 ),
                 "report": report,
+            }
+
+        if "upgrade" in t_low or t_low in ("manage_upgrades", "check_upgrades"):
+            from fleet.core.optimizer import check_os_and_software_upgrades, run_automatic_upgrade_manager
+            if t_low == "check_upgrades":
+                scan_res = check_os_and_software_upgrades(force_refresh=bool(p.get("force_refresh", True)))
+                return {
+                    "status": "success",
+                    "title": "🔄 OS & Software Upgrade Scan Complete",
+                    "message": (
+                        f"OS: {scan_res.get('os_info', {}).get('display_version', 'Windows')} — "
+                        f"{scan_res.get('os_updates_count', 0)} OS update(s), "
+                        f"{scan_res.get('eligible_software_count', 0)} software upgrade(s) available."
+                    ),
+                    "upgrades": scan_res,
+                }
+            upg_res = run_automatic_upgrade_manager(
+                force_scan=bool(p.get("force_scan", True)),
+                dry_run=bool(p.get("dry_run", False)),
+            )
+            return {
+                "status": "success",
+                "title": "⬆️ Autonomous OS & Software Upgrade Complete",
+                "message": upg_res.get("message", "Completed automatic OS & software upgrade management."),
+                "upgrades": upg_res,
             }
 
         from fleet.core.optimizer import flush_dns_cache, get_memory_status, optimize_ram

@@ -1015,12 +1015,39 @@ def test_api_first_and_mcp_ready_architecture(mock_fleet_env):
     assert arch["privacy"] == "100% Local-First DPAPI"
     assert arch["security_audit"] == "100/100 [12 Layers]"
     assert arch["wiki"] == "17 Deep-Dive Guides"
+    assert arch["python"] == "3.10 | 3.11 | 3.12 | 3.13 | 3.14"
+    assert arch["python_versions"] == ["3.10", "3.11", "3.12", "3.13", "3.14"]
     assert "Google" in arch["hyperscalers"] and "Ollama" in arch["hyperscalers"]
     assert "Copilot" in arch["dev_tools"] and "Amazon Q" in arch["dev_tools"]
     assert arch["api_first"]["enabled"] is True
     assert arch["api_first"]["rest_endpoints_count"] >= 40
     assert arch["mcp_ready"]["enabled"] is True
     assert arch["mcp_ready"]["mcp_tools_count"] >= 28
+
+    # Verify README.md & wiki/Home.md badge icons and multi-version Python parity
+    import re
+    from fleet.config import BASE_DIR, SUPPORTED_PYTHON_VERSIONS
+
+    repo_root = BASE_DIR.parent
+    assert SUPPORTED_PYTHON_VERSIONS == ("3.10", "3.11", "3.12", "3.13", "3.14")
+    py_ver_lines = [
+        ln.strip()
+        for ln in (repo_root / ".python-version").read_text(encoding="utf-8").splitlines()
+        if ln.strip()
+    ]
+    for pv in SUPPORTED_PYTHON_VERSIONS:
+        assert pv in py_ver_lines
+
+    for md_rel in ("README.md", "wiki/Home.md"):
+        md_txt = (repo_root / md_rel).read_text(encoding="utf-8")
+        badge_urls = re.findall(r"\[\!\[[^\]]+\]\((https://img\.shields\.io/badge/[^\)]+)\)\]", md_txt)
+        assert len(badge_urls) >= 18, f"Expected >= 18 badges in {md_rel}"
+        assert any("Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14" in u for u in badge_urls)
+        for u in badge_urls:
+            path_part = u.split("?", 1)[0]
+            assert "?logo=" in u, f"Missing ?logo= icon parameter in {md_rel}: {u}"
+            assert "?logo=windows" not in u, f"Removed Simple Icons ?logo=windows used in {md_rel}: {u}"
+            assert "%25" not in path_part and "%2B" not in path_part, f"Camo-breaking %25/%2B in badge path: {u}"
 
     # 2. OpenAPI 3.1.0 live spec endpoint
     handler.reset_mock()

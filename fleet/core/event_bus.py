@@ -281,12 +281,17 @@ class DeterministicEventBus:
 
     def _handle_system(self, event: FleetEvent) -> Dict[str, Any]:
         from fleet.core.optimizer import (
+            check_os_and_software_upgrades,
             clean_temp_files,
             flush_dns_cache,
             get_pc_performance_diagnostics,
+            get_upgrade_policy,
+            install_software_upgrades,
             open_startup_settings,
             optimize_ram,
             purge_dev_caches,
+            run_automatic_upgrade_manager,
+            set_upgrade_policy,
         )
         action = event.action.upper()
         p = event.payload
@@ -303,6 +308,27 @@ class DeterministicEventBus:
             return optimize_ram()
         elif action in ("OPEN_STARTUP", "OPEN_STARTUP_SETTINGS"):
             return open_startup_settings()
+        elif action in ("CHECK_UPGRADES", "GET_UPGRADES"):
+            return check_os_and_software_upgrades(force_refresh=bool(p.get("force_refresh", False)))
+        elif action in ("AUTO_UPGRADE", "MANAGE_UPGRADES", "RUN_AUTO_UPGRADE"):
+            return run_automatic_upgrade_manager(
+                force_scan=bool(p.get("force_scan", True)),
+                dry_run=bool(p.get("dry_run", False)),
+            )
+        elif action in ("INSTALL_UPGRADES", "UPGRADE_PACKAGES"):
+            raw_ids = p.get("package_ids")
+            if isinstance(raw_ids, str):
+                raw_ids = [x.strip() for x in raw_ids.split(",") if x.strip()]
+            return install_software_upgrades(
+                package_ids=raw_ids if isinstance(raw_ids, list) else [],
+                upgrade_all=bool(p.get("upgrade_all", False)),
+                include_os=bool(p.get("include_os", False)),
+                dry_run=bool(p.get("dry_run", False)),
+            )
+        elif action == "GET_UPGRADE_POLICY":
+            return get_upgrade_policy()
+        elif action in ("SET_UPGRADE_POLICY", "UPDATE_UPGRADE_POLICY"):
+            return set_upgrade_policy(p)
         elif action in ("PROACTIVE_SCAN", "AUTO_HEAL", "RUN_AUTO_HEAL"):
             from fleet.core.auto_healer import run_proactive_log_scan_and_heal
             return run_proactive_log_scan_and_heal(db=self.db)

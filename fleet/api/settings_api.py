@@ -1030,6 +1030,66 @@ def get_agent_evolve_status_endpoint(handler: Any, parsed_url_or_query: Any):
         handler._send_json({"status": "error", "message": str(e)}, status=500)
 
 
+@router.post("/api/studio/evolve/dismiss")
+def dismiss_agent_self_improvement_endpoint(handler: Any, body: Dict[str, Any]):
+    """
+    Removes a completed self-improvement item from the active agent_evolution list
+    (while keeping it permanently logged in the Personal Fleet Feature Backlog).
+    """
+    agent_id = str(body.get("id") or body.get("agent_id") or "").strip()
+    item_id = str(body.get("item_id") or "").strip()
+    item_title = str(body.get("title") or "").strip().lower()
+    dismiss_all = bool(body.get("dismiss_all_completed", False))
+
+    if not agent_id:
+        handler._send_json({"status": "error", "message": "Missing agent_id"}, status=400)
+        return
+    try:
+        import fleet.server as srv
+        reg = getattr(srv, "agent_registry", None)
+        agent = reg.get_agent(agent_id) if reg else None
+        if not agent:
+            handler._send_json({"status": "error", "message": f"Agent '{agent_id}' not found"}, status=404)
+            return
+
+        mf = agent.get_ui_manifest()
+        cur_list = mf.get("evolution_improvements") or []
+        kept = []
+        for it in cur_list:
+            if not isinstance(it, dict):
+                continue
+            it_id = str(it.get("id") or "").strip()
+            it_title = str(it.get("title") or "").strip().lower()
+            if dismiss_all and str(it.get("status") or "completed").lower() == "completed":
+                continue
+            if item_id and it_id == item_id:
+                continue
+            if item_title and it_title == item_title:
+                continue
+            kept.append(it)
+
+        agent.manifest_meta["evolution_improvements"] = kept
+        agent.config["evolution_improvements"] = kept
+        db = getattr(srv, "db", None)
+        if db is not None and hasattr(db, "set_setting"):
+            raw_evo = db.get_setting(f"agent_evolution_{agent.id}")
+            evo_obj = json.loads(raw_evo) if isinstance(raw_evo, str) and raw_evo else {}
+            if not isinstance(evo_obj, dict):
+                evo_obj = {}
+            evo_obj["evolution_improvements"] = kept
+            db.set_setting(f"agent_evolution_{agent.id}", json.dumps(evo_obj))
+
+        handler._send_json({
+            "status": "ok",
+            "agent_id": agent.id,
+            "improvements": kept,
+            "undertaken_count": len(kept),
+        })
+    except Exception as e:
+        handler._send_json({"status": "error", "message": str(e)}, status=500)
+
+
+
 @router.post("/api/settings/agents/create")
 def create_new_agent_endpoint(handler: Any, body: Dict[str, Any]):
     """Scaffolds, registers, schedules, and activates a brand-new custom agent package."""

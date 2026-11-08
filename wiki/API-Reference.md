@@ -404,7 +404,7 @@ Lists all `@agent` slash commands across active agents or executes a Unified `Ct
 ```
 
 <!-- AUTO-API-ROUTES:START -->
-## 🔄 Complete Live REST API Route Inventory (`153` Endpoints — `v2.15.11`)
+## 🔄 Complete Live REST API Route Inventory (`158` Endpoints — `v2.16.0`)
 
 This table is **automatically introspected from `fleet/api/*.py` AST decorators** on every release by `fleet.tools.doc_wiki_enhancer`:
 
@@ -470,6 +470,9 @@ This table is **automatically introspected from `fleet/api/*.py` AST decorators*
 | `POST` | `/api/optimizer/purge_caches` | `post_purge_caches` ([`fleet/api/optimizer_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/optimizer_api.py)) | Handler `post_purge_caches` in `fleet/api/optimizer_api.py`. |
 | `POST` | `/api/optimizer/optimize_ram` | `post_optimize_ram` ([`fleet/api/optimizer_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/optimizer_api.py)) | Handler `post_optimize_ram` in `fleet/api/optimizer_api.py`. |
 | `POST` | `/api/optimizer/open_startup` | `post_open_startup` ([`fleet/api/optimizer_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/optimizer_api.py)) | Handler `post_open_startup` in `fleet/api/optimizer_api.py`. |
+| `GET` | `/api/optimizer/upgrades` | `get_upgrades` ([`fleet/api/optimizer_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/optimizer_api.py)) | Handler `get_upgrades` in `fleet/api/optimizer_api.py`. |
+| `POST` | `/api/optimizer/upgrades/run` | `post_run_upgrades` ([`fleet/api/optimizer_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/optimizer_api.py)) | Handler `post_run_upgrades` in `fleet/api/optimizer_api.py`. |
+| `POST` | `/api/optimizer/upgrades/policy` | `post_upgrade_policy` ([`fleet/api/optimizer_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/optimizer_api.py)) | Handler `post_upgrade_policy` in `fleet/api/optimizer_api.py`. |
 | `POST` | `/api/optimizer/auto_tune` | `post_auto_tune` ([`fleet/api/optimizer_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/optimizer_api.py)) | Handler `post_auto_tune` in `fleet/api/optimizer_api.py`. |
 | `GET` | `/api/settings` | `get_fleet_settings` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Returns global fleet settings, preferences, and all discovered agents with activation state. |
 | `POST` | `/api/settings` | `update_fleet_settings` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Updates global fleet settings and preferences in the database. |
@@ -492,6 +495,7 @@ This table is **automatically introspected from `fleet/api/*.py` AST decorators*
 | `POST` | `/api/studio/evolve/parse_custom` | `parse_custom_evolve_improvement_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Parses a user-entered custom evolution improvement into a structured Studio blueprint patch |
 | `POST` | `/api/studio/evolve/improvise` | `improvise_evolve_prompt_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Context-Aware Prompt Improviser: Enhances/improvises the user's manual improvement text |
 | `GET` | `/api/studio/evolve/status` | `get_agent_evolve_status_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Returns live self-improvement status, Feature Backlog linkage (#BL-id), step-by-step execution |
+| `POST` | `/api/studio/evolve/dismiss` | `dismiss_agent_self_improvement_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Removes a completed self-improvement item from the active agent_evolution list |
 | `POST` | `/api/settings/agents/create` | `create_new_agent_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Scaffolds, registers, schedules, and activates a brand-new custom agent package. |
 | `POST` | `/api/settings/agents/evolve` | `evolve_custom_agent_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Phase 2 & 3: Evolves an existing custom agent's UI blocks, fields, schedule, triggers, and code in-place. |
 | `GET` | `/api/settings/agents/revisions` | `list_custom_agent_revisions_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Phase 4: Lists saved blueprint revision snapshots for an evolved custom agent. |
@@ -560,6 +564,7 @@ This table is **automatically introspected from `fleet/api/*.py` AST decorators*
 | `POST` | `/api/tasks/unified_action` | `post_unified_task_action` ([`fleet/api/tasks_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/tasks_api.py)) | Handler `post_unified_task_action` in `fleet/api/tasks_api.py`. |
 | `POST` | `/api/tasks` | `create_task` ([`fleet/api/tasks_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/tasks_api.py)) | Handler `create_task` in `fleet/api/tasks_api.py`. |
 | `POST` | `/api/tasks/toggle` | `toggle_task` ([`fleet/api/tasks_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/tasks_api.py)) | Handler `toggle_task` in `fleet/api/tasks_api.py`. |
+| `POST` | `/api/tasks/update` | `update_task_endpoint` ([`fleet/api/tasks_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/tasks_api.py)) | Handler `update_task_endpoint` in `fleet/api/tasks_api.py`. |
 | `POST` | `/api/tasks/delete` | `delete_task` ([`fleet/api/tasks_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/tasks_api.py)) | Handler `delete_task` in `fleet/api/tasks_api.py`. |
 | `GET` | `/api/routines` | `get_routines` ([`fleet/api/tasks_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/tasks_api.py)) | Handler `get_routines` in `fleet/api/tasks_api.py`. |
 | `POST` | `/api/routines/toggle` | `toggle_routine` ([`fleet/api/tasks_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/tasks_api.py)) | Handler `toggle_routine` in `fleet/api/tasks_api.py`. |

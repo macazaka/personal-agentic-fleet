@@ -137,8 +137,10 @@
       if (srcLower === 'monthly') {
         let dueText = rawDue;
         if (!dueText) {
-          if (titleLower.includes('credit card') && descLower.includes('27th')) {
-            dueText = `04 ${cyc.monthShort} ${cyc.year} (Axis) & 27 ${cyc.monthShort} ${cyc.year} (ICICI)`;
+          if (titleLower.includes('axis') || descLower.includes('4th of every month')) {
+            dueText = `04 ${cyc.monthShort} ${cyc.year} (4th of every month)`;
+          } else if (titleLower.includes('icici') || descLower.includes('27th of every month')) {
+            dueText = `27 ${cyc.monthShort} ${cyc.year} (27th of every month)`;
           } else if (titleLower.includes('websites') || descLower.includes('ojas.world')) {
             dueText = `By ${cyc.endOfMonthDate} • GoDaddy (Ojas.world): Jan ${cyc.nextYearFull}`;
           } else {
@@ -296,6 +298,14 @@
           ? 'background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);'
           : 'background: rgba(245, 158, 11, 0.16); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);';
 
+        const canToggleCheckbox = ['core_task', 'medication', 'routine', 'custom_agent_entry'].includes(actionType);
+        const canEditTask = ['core_task', 'medication', 'routine', 'custom_agent_entry'].includes(actionType);
+        const taskDomKey = String(t.id !== undefined ? t.id : rawId);
+        const isEditingThis = String(window._editingTaskId || '') === taskDomKey;
+        const editBtnHtml = canEditTask
+          ? `<button class="btn-delete" title="Edit Task" style="color: #38bdf8; font-size: 13px; padding: 2px 6px;" onclick="openEditTaskInline('${escapeHtml(taskDomKey)}')">✏️</button>`
+          : '';
+
         let inlineActionsHtml = '';
         if (actionType === 'hydration') {
           inlineActionsHtml = `<button class="btn" style="font-size: 11px; padding: 3px 9px; background: rgba(56, 189, 248, 0.16); border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" onclick="executeUnifiedTaskAction('hydration', 'hyd_today', 'health', 'log_water')">💧 +1 Glass (+250ml)</button>`;
@@ -308,14 +318,44 @@
           inlineActionsHtml = `<button class="btn" style="font-size: 11px; padding: 3px 9px; background: rgba(56, 189, 248, 0.15); border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" onclick="if(typeof openEmailModal==='function') openEmailModal('${escapeHtml(String(rawId))}')">📧 Read Email</button>`;
         } else if (actionType === 'optimizer') {
           inlineActionsHtml = `<button class="btn" style="font-size: 11px; padding: 3px 9px; background: rgba(168, 85, 247, 0.18); border-color: rgba(168, 85, 247, 0.45); color: #c084fc;" onclick="executeUnifiedTaskAction('optimizer', 'opt_workstation_health', 'optimizer', 'optimize')">⚡ 1-Click Optimize PC</button>`;
+        } else if (actionType === 'optimizer_upgrade') {
+          inlineActionsHtml = `<button class="btn" style="font-size: 11px; padding: 3px 9px; background: rgba(56, 189, 248, 0.18); border-color: rgba(56, 189, 248, 0.45); color: #38bdf8;" onclick="executeUnifiedTaskAction('optimizer_upgrade', 'opt_os_software_upgrades', 'optimizer', 'upgrade')">⬆️ Auto-Upgrade</button>`;
         } else if (actionType === 'core_task') {
-          inlineActionsHtml = `<button class="btn-delete" title="Delete Task" onclick="deleteTask(${Number(rawId)})">✕</button>`;
+          inlineActionsHtml = `${editBtnHtml}<button class="btn-delete" title="Delete Task" onclick="deleteTask(${Number(rawId)})">✕</button>`;
+        } else {
+          inlineActionsHtml = editBtnHtml;
         }
 
-        const canToggleCheckbox = ['core_task', 'medication', 'routine', 'custom_agent_entry'].includes(actionType);
         const checkboxHtml = canToggleCheckbox
           ? `<input type="checkbox" class="task-checkbox" style="margin-top: 3px;" ${isDone ? 'checked' : ''} onchange="executeUnifiedTaskAction('${escapeHtml(actionType)}', '${escapeHtml(String(rawId))}', '${escapeHtml(agentId)}', 'toggle')">`
           : `<span style="font-size: 15px; margin-top: 1px;">${escapeHtml(agentIcon)}</span>`;
+
+        const curPrio = (t.priority || 'P2').toUpperCase();
+        const curSrc = t.source || cadenceText || 'Monthly';
+        const editFormHtml = isEditingThis ? `
+          <div style="margin-top: 8px; padding: 10px 12px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 8px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <input type="text" id="editTaskTitle_${escapeHtml(taskDomKey)}" value="${escapeHtml(t.title || '')}" placeholder="Task title" style="flex: 2; min-width: 200px; font-size: 12.5px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text);">
+              <input type="text" id="editTaskDue_${escapeHtml(taskDomKey)}" value="${escapeHtml(t.due_date || '')}" placeholder="Due date (e.g. 04 Nov 2026)" style="flex: 1; min-width: 160px; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text);">
+              <select id="editTaskPrio_${escapeHtml(taskDomKey)}" style="font-size: 12px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(15,23,42,0.95); color: var(--text);">
+                <option value="P1" ${curPrio === 'P1' ? 'selected' : ''}>🔴 P1 High</option>
+                <option value="P2" ${curPrio === 'P2' ? 'selected' : ''}>🟡 P2 Medium</option>
+                <option value="P3" ${curPrio === 'P3' ? 'selected' : ''}>🔵 P3 Low</option>
+              </select>
+              <select id="editTaskSource_${escapeHtml(taskDomKey)}" style="font-size: 12px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(15,23,42,0.95); color: var(--text);">
+                <option value="Daily" ${curSrc.toLowerCase() === 'daily' ? 'selected' : ''}>☀️ Daily</option>
+                <option value="Monthly" ${curSrc.toLowerCase() === 'monthly' ? 'selected' : ''}>📅 Monthly</option>
+                <option value="Yearly" ${curSrc.toLowerCase() === 'yearly' ? 'selected' : ''}>🗓️ Yearly</option>
+                <option value="Dashboard" ${!['daily','monthly','yearly'].includes(curSrc.toLowerCase()) ? 'selected' : ''}>💻 Dashboard</option>
+              </select>
+            </div>
+            <textarea id="editTaskDesc_${escapeHtml(taskDomKey)}" rows="2" placeholder="Task description / details" style="width: 100%; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text); resize: vertical;">${escapeHtml(t.description || '')}</textarea>
+            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+              <button class="btn" style="font-size: 11.5px; padding: 4px 12px;" onclick="cancelEditTaskInline()">Cancel</button>
+              <button class="btn btn-primary" style="font-size: 11.5px; padding: 4px 14px;" onclick="saveEditedTask('${escapeHtml(taskDomKey)}', '${escapeHtml(actionType)}', '${escapeHtml(String(rawId))}', '${escapeHtml(agentId)}')">💾 Save Changes</button>
+            </div>
+          </div>
+        ` : '';
 
         return `
           <div class="task-item ${isDone ? 'completed' : ''}">
@@ -336,6 +376,7 @@
                   <span style="font-size: 11px; padding: 1px 7px; border-radius: 4px; background: rgba(56, 189, 248, 0.08); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.22); font-weight: 500;">${escapeHtml(temporal.dueLabel)}</span>
                 </div>
                 <span class="task-desc" style="font-size: 12px; color: var(--text-muted); line-height: 1.45;">${formatTaskDescriptionHtml(t.description)}</span>
+                ${editFormHtml}
               </div>
             </div>
             <div style="display: flex; align-items: center; gap: 6px; margin-left: 8px; flex-shrink: 0;">
@@ -344,6 +385,56 @@
           </div>
         `;
       }).join('');
+    }
+
+    function openEditTaskInline(taskDomKey) {
+      window._editingTaskId = String(taskDomKey || '');
+      renderTasksList();
+    }
+
+    function cancelEditTaskInline() {
+      window._editingTaskId = '';
+      renderTasksList();
+    }
+
+    async function saveEditedTask(taskDomKey, actionType, rawId, agentId) {
+      const titleEl = document.getElementById(`editTaskTitle_${taskDomKey}`);
+      const descEl = document.getElementById(`editTaskDesc_${taskDomKey}`);
+      const dueEl = document.getElementById(`editTaskDue_${taskDomKey}`);
+      const prioEl = document.getElementById(`editTaskPrio_${taskDomKey}`);
+      const srcEl = document.getElementById(`editTaskSource_${taskDomKey}`);
+      const title = titleEl ? titleEl.value.trim() : '';
+      const description = descEl ? descEl.value.trim() : '';
+      const due_date = dueEl ? dueEl.value.trim() : '';
+      const priority = prioEl ? prioEl.value : 'P2';
+      const source = srcEl ? srcEl.value : 'Monthly';
+      if (!title || !description) {
+        alert('Both a task title and description are required.');
+        return;
+      }
+      try {
+        await fetch('/api/tasks/unified_action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action_type: actionType || 'core_task',
+            raw_id: rawId,
+            agent_id: agentId || 'overview',
+            sub_action: 'edit',
+            title,
+            description,
+            due_date,
+            priority,
+            source
+          })
+        });
+        window._editingTaskId = '';
+        await fetchTasks();
+        if (typeof fetchBriefing === 'function') fetchBriefing();
+        if (typeof fetchLogs === 'function') fetchLogs();
+      } catch (e) {
+        console.error('Failed to save edited task:', e);
+      }
     }
 
     async function executeUnifiedTaskAction(actionType, rawId, agentId, subAction) {
@@ -443,6 +534,9 @@ window.fetchTasks = fetchTasks;
 window.addTask = addTask;
 window.toggleTask = toggleTask;
 window.deleteTask = deleteTask;
+window.openEditTaskInline = openEditTaskInline;
+window.cancelEditTaskInline = cancelEditTaskInline;
+window.saveEditedTask = saveEditedTask;
 window.filterTasksBySource = filterTasksBySource;
 window.filterTasksByAgent = filterTasksByAgent;
 window.executeUnifiedTaskAction = executeUnifiedTaskAction;

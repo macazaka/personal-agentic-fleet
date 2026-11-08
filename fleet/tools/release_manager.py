@@ -133,7 +133,7 @@ def get_latest_git_tag(repo_root: Path = REPO_ROOT) -> str:
         tags: List[str] = []
         if res.returncode == 0 and res.stdout.strip():
             tags = [t.strip() for t in res.stdout.splitlines() if re.match(r"^v\d+\.\d+\.\d+$", t.strip())]
-        if head_ver:
+        if head_ver and os.environ.get("FLEET_EXPLICIT_RELEASE") == "1":
             head_tag = f"v{head_ver}"
             if head_tag not in tags and (not tags or parse_semver(head_tag) > max(parse_semver(t) for t in tags)):
                 if ensure_git_tag(repo_root, head_ver):
@@ -411,7 +411,7 @@ def sync_version_everywhere(repo_root: Path = REPO_ROOT, target_version: str = "
     readme_path = repo_root / "README.md"
     if readme_path.is_file():
         txt = readme_path.read_text(encoding="utf-8", errors="ignore")
-        badge_md = f"[![Release: v{clean_ver}](https://img.shields.io/badge/Release-v{clean_ver}-00b4d8.svg)](CHANGELOG.md)"
+        badge_md = f"[![Release: v{clean_ver}](https://img.shields.io/badge/Release-v{clean_ver}-00b4d8.svg?logo=github&logoColor=white)](CHANGELOG.md)"
         if "img.shields.io/badge/Release-v" in txt:
             new_txt = re.sub(
                 r"\[!\[Release:\s*v[^\]]+\]\(https://img\.shields\.io/badge/Release-v[^)]+\)\]\(CHANGELOG\.md\)",
@@ -420,10 +420,11 @@ def sync_version_everywhere(repo_root: Path = REPO_ROOT, target_version: str = "
             )
         else:
             # Insert right before Python badge
-            new_txt = txt.replace(
-                "[![Python](https://img.shields.io/badge/Python-",
-                badge_md + "\n[![Python](https://img.shields.io/badge/Python-",
-                1,
+            new_txt = re.sub(
+                r"(\[!\[Python[^\]]*\]\(https://img\.shields\.io/badge/Python-)",
+                badge_md + "\n\\1",
+                txt,
+                count=1,
             )
         if new_txt != txt:
             readme_path.write_text(new_txt, encoding="utf-8", newline="\n")
@@ -441,7 +442,7 @@ def sync_version_everywhere(repo_root: Path = REPO_ROOT, target_version: str = "
     wiki_home = repo_root / "wiki" / "Home.md"
     if wiki_home.is_file():
         txt = wiki_home.read_text(encoding="utf-8", errors="ignore")
-        w_badge = f"[![Release: v{clean_ver}](https://img.shields.io/badge/Release-v{clean_ver}-00b4d8.svg)](Release-Notes)"
+        w_badge = f"[![Release: v{clean_ver}](https://img.shields.io/badge/Release-v{clean_ver}-00b4d8.svg?logo=github&logoColor=white)](Release-Notes)"
         if "img.shields.io/badge/Release-v" in txt:
             new_txt = re.sub(
                 r"\[!\[Release:\s*v[^\]]+\]\(https://img\.shields\.io/badge/Release-v[^)]+\)\]\([^)]+\)",
@@ -449,10 +450,11 @@ def sync_version_everywhere(repo_root: Path = REPO_ROOT, target_version: str = "
                 txt,
             )
         else:
-            new_txt = txt.replace(
-                "[![Python](https://img.shields.io/badge/Python-",
-                w_badge + "\n[![Python](https://img.shields.io/badge/Python-",
-                1,
+            new_txt = re.sub(
+                r"(\[!\[Python[^\]]*\]\(https://img\.shields\.io/badge/Python-)",
+                w_badge + "\n\\1",
+                txt,
+                count=1,
             )
         if new_txt != txt:
             wiki_home.write_text(new_txt, encoding="utf-8", newline="\n")
@@ -531,7 +533,7 @@ def verify_git_tag_signed(repo_root: Path = REPO_ROOT, tag_name: str = "") -> bo
             [_git_exe(), "-C", str(repo_root), "cat-file", "-t", ref_name],
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=20,
             check=False,
             **_hidden_subprocess_kwargs(),
         )
@@ -543,7 +545,7 @@ def verify_git_tag_signed(repo_root: Path = REPO_ROOT, tag_name: str = "") -> bo
             text=True,
             encoding="utf-8",
             errors="replace",
-            timeout=5,
+            timeout=20,
             check=False,
             **_hidden_subprocess_kwargs(),
         )
@@ -593,7 +595,7 @@ def _is_git_signing_available(repo_root: Path = REPO_ROOT) -> bool:
             for cfg_key, cfg_val in (
                 ("commit.gpgsign", "true"),
                 ("tag.gpgSign", "true"),
-                ("push.followTags", "true"),
+                ("push.followTags", "false"),
             ):
                 subprocess.run(
                     [_git_exe(), "-C", str(repo_root), "config", cfg_key, cfg_val],
@@ -625,7 +627,7 @@ def ensure_git_tag(
             [_git_exe(), "-C", str(repo_root), "rev-parse", "-q", "--verify", f"refs/tags/{tag_name}"],
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=20,
             check=False,
             **_hidden_subprocess_kwargs(),
         )
@@ -646,7 +648,7 @@ def ensure_git_tag(
             cmd,
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=30,
             check=False,
             **_hidden_subprocess_kwargs(),
         )
@@ -779,11 +781,8 @@ def run_proactive_release_check(
         bump_applied = force_bump.lower()
         base_ver = latest_tag.lstrip("v") if latest_tag and parse_semver(latest_tag) > parse_semver(current_ver) else current_ver
         target_ver = bump_semver(base_ver, bump_applied)
-    else:
-        # Automatic proactive mode:
-        # 1. If local version is behind the latest Git tag, sync up to latest_tag immediately.
-        # 2. If local version equals latest_tag and a new feature (minor) or breaking change (major)
-        #    landed since latest_tag, bump automatically so release.yml publishes the new GitHub Release.
+    elif os.environ.get("FLEET_EXPLICIT_RELEASE") == "1":
+        # Explicit release mode: only bump automatically when FLEET_EXPLICIT_RELEASE=1 is set.
         if latest_tag:
             if parse_semver(current_ver) < parse_semver(latest_tag):
                 target_ver = format_semver(parse_semver(latest_tag))
@@ -795,6 +794,11 @@ def run_proactive_release_check(
                     target_ver = bump_semver(latest_tag, auto_level)
         elif not latest_tag and commits:
             target_ver = current_ver
+    else:
+        # Default non-release mode: keep current version synchronized without bumping or creating releases.
+        if latest_tag and parse_semver(current_ver) < parse_semver(latest_tag):
+            target_ver = format_semver(parse_semver(latest_tag))
+            bump_applied = "sync_to_tag"
 
     updates = sync_version_everywhere(repo_root, target_ver)
 
@@ -834,11 +838,11 @@ def run_proactive_release_check(
 def run_daily_git_sync_and_release(
     repo_root: Path = REPO_ROOT,
     push_remote: bool = True,
+    force: bool = False,
 ) -> Dict[str, Any]:
     """
-    Daily End-of-Day Batched GitHub Commit, Semantic Release & Wiki Sync.
-    Allows Local-First Live Mode throughout the day without per-tweak Git overhead,
-    then bundles all modified local files into a single clean daily release.
+    On-Demand Batched GitHub Commit, Semantic Release & Wiki Sync.
+    Disabled from automatic background execution unless explicitly invoked (`force=True` or `FLEET_EXPLICIT_RELEASE=1`).
     """
     if is_test_environment() and repo_root == REPO_ROOT:  # type: ignore[reportUndefinedVariable]
         return {
@@ -846,6 +850,15 @@ def run_daily_git_sync_and_release(
             "committed": False,
             "pushed": False,
             "message": "Skipped live Git sync in test environment.",
+        }
+
+    if not force and os.environ.get("FLEET_EXPLICIT_RELEASE") != "1":
+        return {
+            "status": "MANUAL_RELEASE_ONLY",
+            "committed": False,
+            "pushed": False,
+            "version": get_current_configured_version(repo_root),
+            "message": "Automatic Git releases are disabled; release only happens when explicitly requested.",
         }
 
     try:

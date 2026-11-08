@@ -57,12 +57,17 @@ from fleet.core.antigravity_mirror import (
 )
 from fleet.tools.system_tools import get_disk_usage, send_windows_notification
 from fleet.core.optimizer import (
+    check_os_and_software_upgrades,
     clean_temp_files,
     flush_dns_cache,
     get_pc_performance_diagnostics,
+    get_upgrade_policy,
+    install_software_upgrades,
     open_startup_settings,
     optimize_ram,
     purge_dev_caches,
+    run_automatic_upgrade_manager,
+    set_upgrade_policy,
 )
 from fleet.web.builder import STATIC_DIR, get_dashboard_html
 

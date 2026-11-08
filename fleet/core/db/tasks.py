@@ -82,6 +82,22 @@ class TasksMixin(_DbBase):
             now = datetime.now().isoformat()
             with self._get_connection() as conn:
                 cursor = conn.cursor()
+                # Remove legacy combined Credit Card Bill Payments task once split into individual cards
+                vault_titles_low = {
+                    str(it.get("title") or "").strip().lower()
+                    for it in items
+                    if isinstance(it, dict)
+                }
+                if (
+                    "monthly — credit card bill payments" not in vault_titles_low
+                    and any("credit card bill payment:" in vt for vt in vault_titles_low)
+                ):
+                    cursor.execute(
+                        "DELETE FROM tasks WHERE LOWER(TRIM(title)) = 'monthly — credit card bill payments'"
+                    )
+                    if cursor.rowcount > 0:
+                        inserted += cursor.rowcount
+
                 cursor.execute("SELECT title, source FROM tasks")
                 existing = {(str(r["title"]).strip().lower(), str(r["source"] or "").strip().lower()) for r in cursor.fetchall()}
                 for item in items:
@@ -187,13 +203,102 @@ class TasksMixin(_DbBase):
                 self.log_activity("AgendaAgent", "update_task", f"Task #{task_id} marked as {status}")
             return updated
 
-    def delete_task(self, task_id: int) -> bool:
+    def update_task(
+        self,
+        task_id: int,
+        title: str,
+        description: str,
+        priority: str = "P2",
+        source: Optional[str] = None,
+        due_date: Optional[str] = None,
+    ) -> bool:
+        now = datetime.now().isoformat()
+        clean_title = (title or "").strip()
+        clean_desc = (description or "").strip()
+        clean_prio = (priority or "P2").strip().upper()
+        if clean_prio not in ("P1", "P2", "P3"):
+            clean_prio = "P2"
+        clean_due = (due_date or "").strip() or None
+
+        old_title = ""
+        old_source = ""
         with self._get_connection() as conn:
             cursor = conn.cursor()
+            cursor.execute("SELECT title, source FROM tasks WHERE id = ?", (task_id,))
+            row = cursor.fetchone()
+            if not row:
+                return False
+            old_title = str(row["title"] or "").strip()
+            old_source = str(row["source"] or "Manual").strip()
+            clean_source = (source or old_source or "Manual").strip()
+
+            cursor.execute(
+                """
+                UPDATE tasks
+                SET title = ?, description = ?, priority = ?, source = ?, due_date = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (clean_title, clean_desc, clean_prio, clean_source, clean_due, now, task_id),
+            )
+            conn.commit()
+            updated = cursor.rowcount > 0
+
+        if updated:
+            # Synchronize edit with personal_tasks_vault.json if running on production local DB
+            db_path_norm = str(getattr(self, "db_path", "")).replace("\\", "/")
+            if db_path_norm.endswith("fleet/data/fleet_memory.db"):
+                try:
+                    from pathlib import Path
+                    vault_path = Path(self.db_path).resolve().parent / "user" / "personal_tasks_vault.json"
+                    if vault_path.exists():
+                        raw = json.loads(vault_path.read_text(encoding="utf-8"))
+                        items = raw.get("tasks", []) if isinstance(raw, dict) else []
+                        changed_vault = False
+                        for it in items:
+                            if isinstance(it, dict) and str(it.get("title") or "").strip().lower() == old_title.lower():
+                                it["title"] = clean_title
+                                it["description"] = clean_desc
+                                it["priority"] = clean_prio
+                                it["source"] = clean_source
+                                it["due_date"] = clean_due or ""
+                                changed_vault = True
+                                break
+                        if changed_vault and isinstance(raw, dict):
+                            vault_path.write_text(json.dumps(raw, indent=2, ensure_ascii=False), encoding="utf-8")
+                except Exception:
+                    pass
+            self.log_activity("AgendaAgent", "edit_task", f"Edited task #{task_id}: {clean_title}")
+        return updated
+
+    def delete_task(self, task_id: int) -> bool:
+        old_title = ""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT title FROM tasks WHERE id = ?", (task_id,))
+            row = cursor.fetchone()
+            if row:
+                old_title = str(row["title"] or "").strip()
             cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
             conn.commit()
             deleted = cursor.rowcount > 0
             if deleted:
+                db_path_norm = str(getattr(self, "db_path", "")).replace("\\", "/")
+                if old_title and db_path_norm.endswith("fleet/data/fleet_memory.db"):
+                    try:
+                        from pathlib import Path
+                        vault_path = Path(self.db_path).resolve().parent / "user" / "personal_tasks_vault.json"
+                        if vault_path.exists():
+                            raw = json.loads(vault_path.read_text(encoding="utf-8"))
+                            if isinstance(raw, dict) and isinstance(raw.get("tasks"), list):
+                                before_len = len(raw["tasks"])
+                                raw["tasks"] = [
+                                    it for it in raw["tasks"]
+                                    if not (isinstance(it, dict) and str(it.get("title") or "").strip().lower() == old_title.lower())
+                                ]
+                                if len(raw["tasks"]) != before_len:
+                                    vault_path.write_text(json.dumps(raw, indent=2, ensure_ascii=False), encoding="utf-8")
+                    except Exception:
+                        pass
                 self.log_activity("AgendaAgent", "delete_task", f"Task #{task_id} deleted")
             return deleted
 

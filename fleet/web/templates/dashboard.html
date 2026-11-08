@@ -22,7 +22,7 @@
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
               <h1 style="margin: 0; white-space: nowrap;">Personal Agentic Fleet</h1>
               <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.35); font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;" onclick="openReleaseNotesModal()" title="View Release Notes & Versions">
-                <span id="fleetHeaderVerBadge">v2.15.11</span>
+                <span id="fleetHeaderVerBadge">v2.16.0</span>
                 <span style="font-size: 9px; opacity: 0.8;">📜</span>
               </span>
             </div>
@@ -223,13 +223,13 @@
           <span style="font-size: 12px; font-weight: 600; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 1px;" id="greetingText">Good Morning</span>
           <div class="briefing-headline" id="briefingHeadline">Loading today's briefing...</div>
         </div>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-          <button title="Auto-generate 10 ways to improve Overview &amp; Briefing features or add manual self-improvements" class="btn" style="font-size: 12px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.12);" onclick="openEvolveAgentModal('overview')">✨ 10 Ways to Improve</button>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+          <button id="btnSelfImproveIcon_overview" title="Self-Improvement &amp; Feature Evolution (Overview &amp; Tasks) — Click to open/close panel (Shift+Click: 10 Ways to Improve)" class="btn btn-icon" style="font-size: 13px; padding: 5px 9px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.14); display: inline-flex; align-items: center; gap: 4px;" onclick="if(event.shiftKey){openEvolveAgentModal('overview');}else{FleetNavigator.toggleSelfImprovePanel('overview');}">✨</button>
           <button class="btn" style="font-size: 12px;" onclick="speakBriefing()" title="Listen to spoken audio briefing">🔊 Speak</button>
           <button title="Refresh today's morning briefing" class="btn" style="font-size: 12px;" onclick="fetchBriefing()">🔄 Refresh</button>
         </div>
       </div>
-      <div id="coreSelfImproveBanner_overview" style="margin-top: 10px;"></div>
+      <div id="coreSelfImproveBanner_overview" style="display: none; margin-top: 10px;"></div>
       <div class="briefing-stats" id="statsContainer">
         <!-- Rendered via JS -->
       </div>
@@ -452,12 +452,12 @@
           <button title="⚙️ Agent Settings" class="btn" style="font-size: 12px; padding: 6px 12px;" onclick="openAgentSettingsDrawer(FleetNavigator.activeAgentId)">⚙️ Agent Settings</button>
           <button id="btnStageCloneAgent" title="Duplicate Agent Blueprint into a Fresh Custom Agent" class="btn" style="font-size: 12px; padding: 6px 11px; border-color: rgba(56, 189, 248, 0.4); color: var(--accent-cyan);" onclick="cloneCustomAgentFromUI(FleetNavigator.activeAgentId)">📋 Clone</button>
           <button id="btnStageExportAgent" title="Export Portable SHA-256 Verified .fleetagent Pack" class="btn" style="font-size: 12px; padding: 6px 11px; border-color: rgba(16, 185, 129, 0.4); color: #34d399;" onclick="exportAgentPackFromUI(FleetNavigator.activeAgentId)">📤 Export</button>
-          <button id="btnStageEvolveAgent" title="Auto-generate 10 ways to improve this agent's features or add manual self-improvements" class="btn" style="display: inline-flex; font-size: 12px; padding: 6px 12px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.12);" onclick="openEvolveAgentModal(FleetNavigator.activeAgentId)">✨ 10 Ways to Improve</button>
+          <button id="btnStageEvolveAgent" title="Self-Improvement &amp; Feature Evolution — Click to open/close panel (Shift+Click: 10 Ways to Improve)" class="btn btn-icon" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; padding: 5px 9px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.14);" onclick="if(event.shiftKey){openEvolveAgentModal(FleetNavigator.activeAgentId);}else{FleetNavigator.toggleSelfImprovePanel(FleetNavigator.activeAgentId);}">✨</button>
           <button id="btnStageDeleteAgent" title="Permanently Delete Custom Agent" class="btn" style="display: none; font-size: 12px; padding: 6px 12px; border-color: rgba(239, 68, 68, 0.45); color: #f87171; background: rgba(239, 68, 68, 0.1);" onclick="FleetNavigator.deleteAgent(FleetNavigator.activeAgentId, event)">🗑️ Delete Agent</button>
           <button title="← Return to Overview" class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;" onclick="FleetNavigator.switchAgent('overview')">← Return to Overview</button>
         </div>
       </div>
-      <div id="stageSelfImproveBanner" style="margin-bottom: 12px;"></div>
+      <div id="stageSelfImproveBanner" style="display: none; margin-bottom: 12px;"></div>
       <div id="stagePanelContainer">
         <!-- Dynamic agent UI mounted here on demand -->
       </div>
@@ -482,8 +482,8 @@
         </div>
       </div>
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <button title="Auto-generate 10 ways to improve Health &amp; Wellness features or add manual self-improvements" class="btn" onclick="openEvolveAgentModal('health')" style="font-size: 12px; padding: 7px 12px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.12);">
-          ✨ 10 Ways to Improve
+        <button id="btnSelfImproveIcon_health" title="Self-Improvement &amp; Feature Evolution (Health &amp; Wellness) — Click to open/close panel (Shift+Click: 10 Ways to Improve)" class="btn btn-icon" onclick="if(event.shiftKey){openEvolveAgentModal('health');}else{FleetNavigator.toggleSelfImprovePanel('health');}" style="font-size: 13px; padding: 6px 10px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.14); display: inline-flex; align-items: center; gap: 4px;">
+          ✨
         </button>
         <button title="Open Diagnostic Lab Report" class="btn" onclick="openApolloModal()" style="font-size: 12px; padding: 7px 12px; border-color: rgba(0, 242, 254, 0.4);">
           🔬 Diagnostic Lab Report
@@ -502,7 +502,7 @@
         </button>
       </div>
     </div>
-    <div id="coreSelfImproveBanner_health"></div>
+    <div id="coreSelfImproveBanner_health" style="display: none;"></div>
 
     <!-- FFD Metabolic Health Goal & Diagnostic Baseline Banner -->
     <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(0, 242, 254, 0.06)); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius); padding: 18px 22px;">
@@ -1084,15 +1084,15 @@
         </div>
       </div>
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <button title="Auto-generate 10 ways to improve Feature Backlog capabilities or add manual self-improvements" class="btn" onclick="openEvolveAgentModal('backlog')" style="font-size: 12px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.12);">
-          ✨ 10 Ways to Improve
+        <button id="btnSelfImproveIcon_backlog" title="Self-Improvement &amp; Feature Evolution (Feature Backlog) — Click to open/close panel (Shift+Click: 10 Ways to Improve)" class="btn btn-icon" onclick="if(event.shiftKey){openEvolveAgentModal('backlog');}else{FleetNavigator.toggleSelfImprovePanel('backlog');}" style="font-size: 13px; padding: 6px 10px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.14); display: inline-flex; align-items: center; gap: 4px;">
+          ✨
         </button>
         <button title="Toggle Add New Feature form" class="btn btn-primary" onclick="toggleAddBacklogCard()" id="btnToggleAddBacklog" style="font-size: 12px;">
           + Add New Feature
         </button>
       </div>
     </div>
-    <div id="coreSelfImproveBanner_backlog"></div>
+    <div id="coreSelfImproveBanner_backlog" style="display: none;"></div>
 
     <!-- Backlog Statistics Metrics Grid -->
     <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px;" id="backlogStatsGrid">
@@ -1264,12 +1264,15 @@
           <span id="optimizerScoreBadge" class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); font-size: 12px; font-weight: 700;">Health Score: --/100</span>
         </div>
         <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
-          Hardware diagnostics, memory working set optimization, junk temporary file cleaner, DNS resolver flushing, and system startup app management across Windows, Linux, and macOS.
+          Hardware diagnostics, autonomous OS &amp; software upgrade management, memory working set optimization, junk temporary file cleaner, DNS resolver flushing, and system startup app management across Windows, Linux, and macOS.
         </div>
       </div>
       <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-        <button title="Auto-generate 10 ways to improve PC Optimizer features or add manual self-improvements" class="btn" onclick="openEvolveAgentModal('optimizer')" style="font-size: 12px; padding: 8px 14px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.12);">
-          ✨ 10 Ways to Improve
+        <button id="btnSelfImproveIcon_optimizer" title="Self-Improvement &amp; Feature Evolution (PC Optimizer) — Click to open/close panel (Shift+Click: 10 Ways to Improve)" class="btn btn-icon" onclick="if(event.shiftKey){openEvolveAgentModal('optimizer');}else{FleetNavigator.toggleSelfImprovePanel('optimizer');}" style="font-size: 13px; padding: 7px 11px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.14); display: inline-flex; align-items: center; gap: 4px;">
+          ✨
+        </button>
+        <button title="Scan for available OS patches and software package upgrades" class="btn" onclick="scanOptimizerUpgradesNow()" id="btnScanUpgradesTop" style="font-size: 12px; padding: 8px 14px; border-color: rgba(56, 189, 248, 0.45); color: #38bdf8; background: rgba(56, 189, 248, 0.1);">
+          ⬆️ Check Upgrades
         </button>
         <button title="Run 1-click complete workstation performance tuning" class="btn btn-primary" onclick="runCompleteOptimization()" id="btnAutoTune" style="font-size: 12px; padding: 8px 16px;">
           ⚡ 1-Click Complete Tuning
@@ -1279,7 +1282,7 @@
         </button>
       </div>
     </div>
-    <div id="coreSelfImproveBanner_optimizer"></div>
+    <div id="coreSelfImproveBanner_optimizer" style="display: none;"></div>
 
     <!-- Optimization Status Toast / Banner -->
     <div id="optimizerActionBanner" style="display: none; padding: 12px 16px; border-radius: 10px; font-size: 13px; font-weight: 500; align-items: center; justify-content: space-between;">
@@ -1287,8 +1290,8 @@
       <button title="Close dialog" onclick="document.getElementById('optimizerActionBanner').style.display='none'" style="background:none; border:none; color:inherit; cursor:pointer; font-size:14px;">✕</button>
     </div>
 
-    <!-- Real-Time Hardware & System Diagnostics Grid (4 Cards) -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;" id="optMetricsGrid">
+    <!-- Real-Time Hardware & System Diagnostics Grid (5 Cards) -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;" id="optMetricsGrid">
       <!-- RAM / Memory Card -->
       <div class="card" style="margin: 0; padding: 16px 18px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -1348,6 +1351,20 @@
           <span style="font-size: 11px; color: #c084fc;">Registry & Startup</span>
         </div>
       </div>
+
+      <!-- OS & Software Upgrades Card -->
+      <div class="card" style="margin: 0; padding: 16px 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">⬆️ OS &amp; Software Upgrades</span>
+          <span id="optUpgradesBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green);">Up to Date</span>
+        </div>
+        <div style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px;" id="optUpgradesCount">0 Pending</div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;" id="optUpgradesOsSub">OS &amp; Winget / Package Manager</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; color: var(--text-muted);" id="optUpgradesSecuritySub">0 Security / Critical</span>
+          <span style="font-size: 11px; color: var(--accent-cyan);" id="optUpgradesPolicyBadge">Auto-Managed (12h)</span>
+        </div>
+      </div>
     </div>
 
     <!-- Optimization Recommendations Section -->
@@ -1361,6 +1378,53 @@
       </div>
       <div id="optRecommendationsList" style="display: flex; flex-direction: column; gap: 12px;">
         <!-- Rendered via JS -->
+      </div>
+    </div>
+
+    <!-- Autonomous OS & Software Upgrade Management Hub -->
+    <div class="card" id="optUpgradeManagerCard">
+      <div class="card-title" style="flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <span>🛡️ Autonomous OS &amp; Software Upgrade Manager</span>
+          <span id="optOsVersionPill" class="badge" style="background: rgba(56, 189, 248, 0.14); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 11px;">OS: Detecting...</span>
+          <span id="optRebootPill" class="badge" style="display: none; background: rgba(244, 63, 94, 0.16); color: #f87171; border: 1px solid rgba(244, 63, 94, 0.35); font-size: 11px;">⚠️ Pending Reboot Required</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <button title="Scan Windows Update and installed software packages for available upgrades" class="btn" id="btnOptScanUpgrades" onclick="scanOptimizerUpgradesNow()" style="font-size: 11.5px; padding: 6px 12px; border-color: var(--accent-cyan); color: var(--accent-cyan);">
+            🔍 Scan Upgrades Now
+          </button>
+          <button title="Automatically install all eligible pending OS and software upgrades silently in the background" class="btn btn-primary" id="btnOptRunAutoUpgrade" onclick="runAutoUpgradeNow()" style="font-size: 11.5px; padding: 6px 14px;">
+            ⬆️ Auto-Upgrade All Now
+          </button>
+        </div>
+      </div>
+
+      <!-- Autonomous Policy Controls Bar -->
+      <div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; padding: 10px 14px; margin-bottom: 14px; background: rgba(255,255,255,0.025); border: 1px solid var(--card-border); border-radius: 8px;">
+        <div style="font-size: 12px; color: var(--text-muted);">
+          <strong style="color: #fff;">🤖 Autonomous Policy:</strong> Scheduled background check every 12h + silent zero-window installation (never forces reboot).
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: center; font-size: 12px;">
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text);">
+            <input type="checkbox" id="optPolicySecurity" checked onchange="toggleUpgradePolicySetting('auto_install_security_and_patch', this.checked)">
+            <span>Auto-Install Security &amp; Dev Tools</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text);">
+            <input type="checkbox" id="optPolicyAllApps" onchange="toggleUpgradePolicySetting('auto_install_all_software', this.checked)">
+            <span>Auto-Install All App Upgrades</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text);">
+            <input type="checkbox" id="optPolicyOsPatches" checked onchange="toggleUpgradePolicySetting('auto_install_os_patches', this.checked)">
+            <span>Auto-Stage OS Patches</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Pending OS & Software Upgrades List -->
+      <div id="optUpgradesList" style="display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto;">
+        <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 12.5px;">
+          Scanning OS &amp; software repositories...
+        </div>
       </div>
     </div>
 
@@ -1449,7 +1513,7 @@
                 </div>
                 <span id="agTokenCountLabel" style="font-size: 11px; color: var(--accent-cyan); font-family: monospace;">0%</span>
               </div>
-              <button title="Auto-generate 10 ways to improve Antigravity Live features or add manual self-improvements" class="btn" style="font-size: 11.5px; padding: 5px 9px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.12);" onclick="openEvolveAgentModal('antigravity')">✨ 10 Ways to Improve</button>
+              <button id="btnSelfImproveIcon_antigravity" title="Self-Improvement &amp; Feature Evolution (Antigravity Live) — Click to open/close panel (Shift+Click: 10 Ways to Improve)" class="btn btn-icon" style="font-size: 12.5px; padding: 5px 8px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.14); display: inline-flex; align-items: center; gap: 4px;" onclick="if(event.shiftKey){openEvolveAgentModal('antigravity');}else{FleetNavigator.toggleSelfImprovePanel('antigravity');}">✨</button>
               <button title="View LLM model details and token quota metrics" class="btn" id="btnAgLlmDetails" style="font-size: 11.5px; padding: 5px 8px;" onclick="openUsageModal()">⚡ LLM</button>
               <button class="btn" style="font-size: 11.5px; padding: 5px 8px;" onclick="fetchTranscript(true)" title="Refresh stream">🔄</button>
               <button class="btn btn-primary" id="btnToggleAgRightDock" style="font-size: 11.5px; padding: 5px 10px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(6, 182, 212, 0.22)); border: 1px solid var(--accent-cyan); color: var(--accent-cyan);" onclick="toggleAntigravityFullPageOrDock()" title="Expand chatbot to full page tab">
@@ -1461,7 +1525,7 @@
               </label>
             </div>
           </div>
-          <div id="coreSelfImproveBanner_antigravity"></div>
+          <div id="coreSelfImproveBanner_antigravity" style="display: none;"></div>
 
           <!-- Unified Chat Engine Switcher: Antigravity Live (LLM) <-> Chat with Fleet ($0.00 Zero-Token) <-> Voice Live -->
           <div id="agChatEngineToggleBar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; padding: 7px 10px; border-radius: 10px; background: rgba(15, 23, 42, 0.72); border: 1px solid var(--card-border);">
@@ -1744,7 +1808,7 @@
           <span style="font-size: 22px;">📜</span>
           <div>
             <strong style="font-size: 16px; color: var(--text);">Fleet Release Notes & Version History</strong>
-            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.15.11</div>
+            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.16.0</div>
           </div>
         </div>
         <button title="Close Release Notes modal" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeReleaseNotesModal()">✕</button>

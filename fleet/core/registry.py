@@ -594,8 +594,15 @@ class AgentRegistry:
         if default_recurrence and default_recurrence != "none":
             new_manifest["default_recurrence"] = default_recurrence
 
+        from fleet.core.agent_studio import prune_expired_completed_improvements
         raw_prev_evo = existing_meta.get("evolution_improvements")
         prev_evo_list: List[Any] = raw_prev_evo if isinstance(raw_prev_evo, list) else []
+        prev_evo_list, _ = prune_expired_completed_improvements(
+            prev_evo_list,
+            max_age_hours=24.0,
+            db=self.db,
+            agent_name=name,
+        )
         raw_new_evo = updates.get("evolution_improvements") if "evolution_improvements" in updates else None
         merged_evo: List[Dict[str, Any]] = []
         seen_evo_titles: set[str] = set()

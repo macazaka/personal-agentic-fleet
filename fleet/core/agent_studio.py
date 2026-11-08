@@ -3785,6 +3785,83 @@ def _execute_improvement_with_llm_feedback(
     }
 
 
+def prune_expired_completed_improvements(
+    improvements: List[Any],
+    max_age_hours: float = 24.0,
+    db: Any = None,
+    agent_name: str = "",
+    backlog_category: str = "Core",
+) -> tuple[List[Dict[str, Any]], bool]:
+    """
+    Removes completed self-improvement items once they have been shown for 1 day (24 hours),
+    since completed improvements are permanently logged in the Personal Fleet Feature Backlog.
+    Returns (active_improvements, was_pruned).
+    """
+    if not isinstance(improvements, list) or not improvements:
+        return [], False
+
+    now = datetime.now()
+    max_age_sec = max(0.0, float(max_age_hours) * 3600.0)
+    kept: List[Dict[str, Any]] = []
+    pruned = False
+
+    for raw_item in improvements:
+        if not isinstance(raw_item, dict):
+            continue
+        status_str = str(raw_item.get("status") or "completed").strip().lower()
+        prog = int(raw_item.get("progress") or 100)
+        is_completed = status_str == "completed" or prog >= 100
+        ts_str = str(raw_item.get("completed_at") or raw_item.get("undertaken_at") or "").strip()
+
+        if is_completed and ts_str:
+            parsed_dt: Optional[datetime] = None
+            for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+                try:
+                    parsed_dt = datetime.strptime(ts_str[:19], fmt)
+                    break
+                except Exception:
+                    continue
+            if parsed_dt is None:
+                try:
+                    parsed_dt = datetime.fromisoformat(ts_str.replace("Z", ""))
+                    if parsed_dt.tzinfo is not None:
+                        parsed_dt = parsed_dt.replace(tzinfo=None)
+                except Exception:
+                    parsed_dt = None
+
+            if parsed_dt is not None and (now - parsed_dt).total_seconds() >= max_age_sec:
+                # Ensure it is logged in feature_backlog before pruning from active UI list
+                if db is not None and int(raw_item.get("backlog_id") or 0) <= 0:
+                    try:
+                        title = str(raw_item.get("title") or "").strip()
+                        desc = str(raw_item.get("description") or title).strip()
+                        if title:
+                            prefix = f"[{agent_name}] {title}" if agent_name and not title.lower().startswith(f"[{agent_name.lower()}]") else title
+                            existing = (
+                                db.find_feature_backlog_item_by_title(prefix)
+                                if hasattr(db, "find_feature_backlog_item_by_title")
+                                else None
+                            )
+                            if not existing and hasattr(db, "add_feature_backlog_item"):
+                                db.add_feature_backlog_item(
+                                    title=prefix[:180],
+                                    description=desc,
+                                    category=backlog_category,
+                                    priority="P1",
+                                    status="Completed",
+                                    target_version="v2.14.3",
+                                )
+                    except Exception:
+                        pass
+                pruned = True
+                continue
+
+        kept.append(raw_item)
+
+    return kept, pruned
+
+
+
 def undertake_agent_self_improvements(
     agent: Any,
     improvements: List[Dict[str, Any]],

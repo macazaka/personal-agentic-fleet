@@ -225,6 +225,16 @@ DEFAULT_SCHEDULES: List[Dict[str, Any]] = [
         "notify": False,
     },
     {
+        "id": "optimizer_auto_upgrades",
+        "agent": "optimizer",
+        "task": "manage_upgrades",
+        "description": "Autonomous OS security patch & software package upgrade check and silent background installation",
+        "schedule_type": "interval",
+        "interval_hours": 12,
+        "enabled": True,
+        "notify": True,
+    },
+    {
         "id": "gmail_sync_and_classify",
         "agent": "gmail",
         "task": "sync_and_classify",
@@ -271,11 +281,11 @@ DEFAULT_SCHEDULES: List[Dict[str, Any]] = [
         "id": "daily_github_release_sync",
         "agent": "pr_review",
         "task": "daily_github_release_sync",
-        "description": "End-of-day batched GitHub commit, semantic release, and Wiki synchronization (Local-First Mode)",
+        "description": "On-demand batched GitHub commit, semantic release, and Wiki synchronization (Manual Only - disabled by default)",
         "schedule_type": "time_of_day",
         "time": "21:30",
-        "enabled": True,
-        "notify": True,
+        "enabled": False,
+        "notify": False,
     },
 ]
 
@@ -878,6 +888,15 @@ class FleetScheduler:
 
         # 3. PC Optimizer Agent Tasks
         elif a_low == "optimizer":
+            if "upgrade" in t_low:
+                from fleet.core.optimizer import run_automatic_upgrade_manager
+                upg = run_automatic_upgrade_manager(force_scan=True, dry_run=False)
+                return {
+                    "status": "success",
+                    "title": "⬆️ Autonomous OS & Software Upgrade Pulse",
+                    "message": upg.get("message", "Completed automatic OS & software upgrade check."),
+                    "upgrades": upg,
+                }
             from fleet.core.optimizer import flush_dns_cache, get_memory_status, optimize_ram
             res_opt = optimize_ram()
             res_dns = flush_dns_cache()

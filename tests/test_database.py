@@ -554,4 +554,94 @@ def test_production_server_isolation_and_purge(monkeypatch):
         assert "p1" in stats and "p2" in stats and "p3" in stats
 
 
+def test_task_editing_and_split_credit_cards():
+    """Verifies task inline editing (DB + API) and split credit card tasks in personal_tasks_vault."""
+    import json
+    from unittest.mock import MagicMock, patch
+    import fleet.server as srv
+    from fleet.api.tasks_api import update_task_endpoint, post_unified_task_action
+
+    vault_path = Path(__file__).resolve().parent.parent / "fleet" / "data" / "user" / "personal_tasks_vault.json"
+    if vault_path.exists():
+        vault_data = json.loads(vault_path.read_text(encoding="utf-8"))
+        vault_items = vault_data.get("tasks", []) if isinstance(vault_data, dict) else vault_data
+        titles = [item.get("title", "") for item in vault_items if isinstance(item, dict)]
+        assert "Monthly — Credit Card Bill Payments" not in titles
+        assert "Monthly — Credit Card Bill Payment: Axis Bank" in titles
+        assert "Monthly — Credit Card Bill Payment: ICICI Bank" in titles
+        assert "Monthly — Credit Card Bill Payment: ICICI Amazon Card" in titles
+        assert "Monthly — Credit Card Bill Payment: SBI Card" in titles
+
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
+        db = FleetDatabase(db_path=Path(tmpdir) / "task_edit_test.db")
+        tid = db.add_task(
+            title="Monthly — Credit Card Bill Payment: Axis Bank",
+            description="• Axis Bank Credit Card (Due: 4th of every month)",
+            priority="P1",
+            source="Monthly",
+            due_date="04 Nov 2026"
+        )
+        assert tid > 0
+
+        # Update task fields
+        updated = db.update_task(
+            task_id=tid,
+            title="Monthly — Credit Card Bill Payment: Axis Bank (Updated)",
+            description="• Axis Bank Credit Card (Due: 4th of every month) • Auto-debit check",
+            priority="P1",
+            source="Monthly",
+            due_date="04 Nov 2026 (4th of every month)"
+        )
+        assert updated is True
+
+        tasks = db.list_tasks(require_description=False)
+        matching = [t for t in tasks if t["id"] == tid]
+        assert len(matching) == 1
+        assert matching[0]["title"] == "Monthly — Credit Card Bill Payment: Axis Bank (Updated)"
+        assert "Auto-debit check" in matching[0]["description"]
+        assert matching[0]["due_date"] == "04 Nov 2026 (4th of every month)"
+
+        # Partial update with empty title preserves existing title; invalid task ID returns False
+        assert db.update_task(tid, "", "desc") is True
+        assert db.update_task(99999, "Valid Title", "desc") is False
+
+        # Test API endpoints /api/tasks/update and /api/tasks/unified_action (sub_action="edit")
+        with patch.object(srv, "db", db):
+            handler = MagicMock()
+            update_task_endpoint(handler, {"task_id": tid, "title": ""})
+            assert "error" in handler._send_json.call_args[0][0]
+
+            handler.reset_mock()
+            update_task_endpoint(handler, {
+                "id": tid,
+                "title": "Axis Bank Card Bill v2",
+                "description": "Updated description v2",
+                "priority": "P1",
+                "source": "Monthly",
+                "due_date": "04 Nov 2026"
+            })
+            assert handler._send_json.call_args[0][0]["status"] == "updated"
+
+            handler.reset_mock()
+            post_unified_task_action(handler, {
+                "unified_id": f"task_{tid}",
+                "action_type": "core_task",
+                "raw_id": tid,
+                "sub_action": "edit",
+                "title": "Axis Bank Card Bill v3",
+                "description": "Updated via unified_action",
+                "priority": "P1",
+                "source": "Monthly",
+                "due_date": "04 Nov 2026"
+            })
+            assert handler._send_json.call_args[0][0]["status"] == "updated"
+
+            tasks_after = db.list_tasks(require_description=False)
+            t_after = next(t for t in tasks_after if t["id"] == tid)
+            assert t_after["title"] == "Axis Bank Card Bill v3"
+            assert t_after["description"] == "Updated via unified_action"
+
+
+
+
 

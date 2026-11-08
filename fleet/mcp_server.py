@@ -984,15 +984,23 @@ def fleet_evolve_agent(
     return json.dumps(res.get("data", res), indent=2)
 
 
-@mcp.tool(description="Run PC Optimizer actions ('diagnostics', 'optimize_ram', 'clean_temp', 'flush_dns', 'purge_pycache') or the 12-Layer Security Scanner ('security_scan').")
+@mcp.tool(
+    description=(
+        "Run PC Optimizer actions ('diagnostics', 'optimize_ram', 'clean_temp', 'flush_dns', 'purge_pycache', "
+        "'check_upgrades', 'auto_upgrade', 'upgrade_policy') or the 12-Layer Security Scanner ('security_scan')."
+    )
+)
 def fleet_optimize_and_audit(action: str = "diagnostics") -> str:
-    """Execute PC Optimizer and 12-Layer Security Audit operations via MCP."""
+    """Execute PC Optimizer, OS/Software Upgrade Manager, and 12-Layer Security Audit operations via MCP."""
     from fleet.core.optimizer import (
+        check_os_and_software_upgrades,
         clean_temp_files,
         flush_dns_cache,
         get_pc_performance_diagnostics,
+        get_upgrade_policy,
         optimize_ram,
         purge_dev_caches,
+        run_automatic_upgrade_manager,
     )
     act = (action or "diagnostics").strip().lower()
     if act == "optimize_ram":
@@ -1003,10 +1011,80 @@ def fleet_optimize_and_audit(action: str = "diagnostics") -> str:
         return json.dumps(flush_dns_cache(), indent=2)
     if act == "purge_pycache":
         return json.dumps(purge_dev_caches(), indent=2)
+    if act in ("check_upgrades", "upgrades"):
+        return json.dumps(check_os_and_software_upgrades(force_refresh=True), indent=2)
+    if act in ("auto_upgrade", "manage_upgrades"):
+        return json.dumps(run_automatic_upgrade_manager(force_scan=True, dry_run=False), indent=2)
+    if act == "upgrade_policy":
+        return json.dumps(get_upgrade_policy(), indent=2)
     if act == "security_scan":
         from fleet.tools.security_scanner import run_security_scan
         return json.dumps(run_security_scan(), indent=2)
     return json.dumps(get_pc_performance_diagnostics(), indent=2)
+
+
+@mcp.tool(
+    description=(
+        "Check for necessary OS and software upgrades, run automatic silent upgrade management, "
+        "install specific package upgrades (via winget/brew/apt), or configure the PC Optimizer "
+        "automatic upgrade policy ('check', 'auto_manage', 'upgrade_packages', 'get_policy', 'set_policy')."
+    )
+)
+def fleet_manage_os_and_software_upgrades(
+    action: str = "check",
+    package_ids: str = "",
+    upgrade_all: bool = False,
+    include_os: bool = True,
+    force_refresh: bool = True,
+    dry_run: bool = False,
+    auto_install_all_software: Optional[bool] = None,
+    auto_install_security_and_patch: Optional[bool] = None,
+    auto_install_os_patches: Optional[bool] = None,
+    never_auto_reboot: Optional[bool] = None,
+    excluded_packages: str = "",
+) -> str:
+    """Inspect and automatically manage OS security updates and software upgrades via PC Optimizer."""
+    from fleet.core.optimizer import (
+        check_os_and_software_upgrades,
+        get_upgrade_policy,
+        install_software_upgrades,
+        run_automatic_upgrade_manager,
+        set_upgrade_policy,
+    )
+    act = (action or "check").strip().lower()
+    if act in ("get_policy", "policy"):
+        return json.dumps({"status": "success", "policy": get_upgrade_policy()}, indent=2)
+
+    if act in ("set_policy", "update_policy"):
+        updates: Dict[str, Any] = {}
+        if auto_install_all_software is not None:
+            updates["auto_install_all_software"] = bool(auto_install_all_software)
+        if auto_install_security_and_patch is not None:
+            updates["auto_install_security_and_patch"] = bool(auto_install_security_and_patch)
+        if auto_install_os_patches is not None:
+            updates["auto_install_os_patches"] = bool(auto_install_os_patches)
+        if never_auto_reboot is not None:
+            updates["never_auto_reboot"] = bool(never_auto_reboot)
+        if excluded_packages:
+            updates["excluded_packages"] = [x.strip() for x in excluded_packages.split(",") if x.strip()]
+        updated_pol = set_upgrade_policy(updates)
+        return json.dumps({"status": "success", "policy": updated_pol}, indent=2)
+
+    if act in ("upgrade_packages", "install"):
+        ids_list = [x.strip() for x in package_ids.split(",") if x.strip()] if package_ids else []
+        res = install_software_upgrades(
+            package_ids=ids_list,
+            upgrade_all=upgrade_all,
+            include_os=include_os,
+            dry_run=dry_run,
+        )
+        return json.dumps(res, indent=2)
+
+    if act in ("auto_manage", "auto_upgrade", "run"):
+        res = run_automatic_upgrade_manager(force_scan=force_refresh, dry_run=dry_run)
+        return json.dumps(res, indent=2)
+
+    return json.dumps(check_os_and_software_upgrades(force_refresh=force_refresh), indent=2)
 
 
 @mcp.tool(description="Universal API-First Bridge: Invoke any registered AFCC & Agentic Fleet REST endpoint ('GET' or 'POST') in-process via MCP.")

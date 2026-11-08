@@ -108,6 +108,15 @@ schedules:
     enabled: true
     notify: false
 
+  - id: optimizer_auto_upgrades
+    agent: optimizer
+    task: manage_upgrades
+    description: "Autonomous OS security patch & software package upgrade check and silent background installation"
+    schedule_type: interval
+    interval_hours: 12
+    enabled: true
+    notify: true
+
   # ==============================================================================
   # 4. Gmail Intelligence Agent
   # ==============================================================================

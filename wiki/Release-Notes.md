@@ -1,4 +1,4 @@
-# Release Notes & Version History (Current: `v2.15.11`)
+# Release Notes & Version History (Current: `v2.16.0`)
 
 This page is **automatically synchronized** from [`CHANGELOG.md`](https://github.com/macazaka/personal-agentic-fleet/blob/main/CHANGELOG.md) by `fleet.tools.doc_wiki_enhancer` whenever release versions or release notes are updated.
 
@@ -8,6 +8,20 @@ All notable changes to the **Personal Agentic Fleet** project will be documented
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [2.16.0] - 2026-11-08
+
+### Added
+- **PC Optimizer — Autonomous OS & Software Upgrade Manager**: Cross-platform detection and execution of pending OS updates and software package upgrades (`winget` / Windows Update, `apt`, `brew`) with autonomous policy engine (`notify_only`, `auto_security_only`, `auto_all_safe`), REST endpoints (`/api/optimizer/upgrades*`), Unified Tasks integration (`optimizer_upgrade`), and FastMCP tool #29 (`fleet_manage_os_and_software_upgrades`).
+- **Individual Credit Card Monthly Tasks & Inline Task Editor (`✏️`)**: Split the combined credit card bill payment task into 4 individual monthly `P1` tasks (`Axis Bank`, `ICICI Bank`, `ICICI Amazon Card`, `SBI Card`) with automatic database migration, and added an inline task editor (`✏️` button, `POST /api/tasks/update`, `sub_action="edit"` on `/api/tasks/unified_action`) synchronized with `personal_tasks_vault.json`.
+- **Compact `✨` Self-Improvement Header Icon & 24-Hour Auto-Cleanup**: Converted the full-width `Self-Improvement & Feature Evolution` banner into a compact `✨` header icon across all pages so zero vertical space is lost, automatically pruning completed self-improvements after 24 hours (1 day) once logged in the Feature Backlog, plus added `POST /api/studio/evolve/dismiss` (`✕` button) for immediate dismissal.
+- **Multi-Version Python Support (`3.10 | 3.11 | 3.12 | 3.13 | 3.14`)**: Full multi-version Python runtime parity across `SUPPORTED_PYTHON_VERSIONS`, `/api/system/python`, `bootstrap.ps1`, `.python-version`, and GitHub Actions CI matrix.
+
+### Fixed
+- **README & Wiki Badge Icons**: Repaired all 18 Shields.io badge URLs and embedded icons across `README.md` and `wiki/Home.md` (including custom base64 SVG logos for Windows and Voice Copilot and proper URL encoding).
+- **Explicit-Only Git Releases Guard**: Disabled automatic background Git commits/releases (`run_daily_git_sync_and_release`) so releases only execute when explicitly requested.
 
 ---
 

@@ -679,9 +679,53 @@ def test_all_10_builtin_agents_generate_10_ways_to_improve_and_undertake_manual_
     for core_id in ("overview", "health", "antigravity", "backlog", "optimizer"):
         assert f"openEvolveAgentModal('{core_id}')" in dashboard_html
         assert f'id="coreSelfImproveBanner_{core_id}"' in dashboard_html
+        assert f'id="btnSelfImproveIcon_{core_id}"' in dashboard_html
     assert 'id="stageSelfImproveBanner"' in dashboard_html
     assert "renderActiveAgentSelfImprovementsBanner" in fleet_nav_js
+    assert "toggleSelfImprovePanel" in fleet_nav_js
+    assert "filterActiveSelfImprovements" in fleet_nav_js
     assert "quickAddManualImprovementInline" in fleet_nav_js
+
+    # Verify completed items older than 24 hours (1 day) are automatically pruned while recent (<24h) items remain
+    from datetime import datetime, timedelta
+    from fleet.core.agent_studio import prune_expired_completed_improvements
+    from fleet.api.settings_api import dismiss_agent_self_improvement_endpoint
+
+    old_ts = (datetime.now() - timedelta(hours=30)).strftime("%Y-%m-%d %H:%M:%S")
+    recent_ts = (datetime.now() - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
+    sample_imps = [
+        {
+            "id": "imp_old",
+            "title": "Enhance code coverage to over 99.5%",
+            "status": "completed",
+            "progress": 100,
+            "completed_at": old_ts,
+            "backlog_id": 157,
+        },
+        {
+            "id": "imp_recent",
+            "title": "Fresh improvement within 24h",
+            "status": "completed",
+            "progress": 100,
+            "completed_at": recent_ts,
+            "backlog_id": 158,
+        },
+    ]
+    kept, was_pruned = prune_expired_completed_improvements(sample_imps, max_age_hours=24.0, db=db, agent_name="Overview & Tasks")
+    assert was_pruned is True
+    assert len(kept) == 1
+    assert kept[0]["id"] == "imp_recent"
+
+    # Verify manual dismiss endpoint removes an item on demand
+    h_dismiss = _MockJsonHandler()
+    dismiss_agent_self_improvement_endpoint(
+        h_dismiss,
+        {"id": "health", "title": selected_items[0]["title"]},
+    )
+    assert h_dismiss.last_status == 200
+    assert h_dismiss.last_payload["status"] == "ok"
+    assert len(h_dismiss.last_payload["improvements"]) == 2
+
 
 
 

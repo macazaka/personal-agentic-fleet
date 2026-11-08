@@ -253,7 +253,8 @@ repo_root = Path(__file__).resolve().parent.parent.parent
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
-if os.environ.get("FLEET_TEST_MODE") != "1":
+# Only create release Git tags when explicitly requested via FLEET_EXPLICIT_RELEASE=1
+if os.environ.get("FLEET_TEST_MODE") != "1" and os.environ.get("FLEET_EXPLICIT_RELEASE") == "1":
     try:
         from fleet.tools.release_manager import ensure_git_tag, get_current_configured_version
         active_ver = get_current_configured_version(repo_root)
@@ -262,7 +263,7 @@ if os.environ.get("FLEET_TEST_MODE") != "1":
     except Exception:
         pass
 
-if os.environ.get("FLEET_TEST_MODE") != "1" and os.environ.get("FLEET_DISABLE_BG_SENTINEL") != "1":
+if os.environ.get("FLEET_TEST_MODE") != "1" and os.environ.get("FLEET_EXPLICIT_RELEASE") == "1" and os.environ.get("FLEET_DISABLE_BG_SENTINEL") != "1":
     try:
         from fleet.tools.github_pipeline_sentinel import spawn_detached_post_push_sentinel
         spawn_detached_post_push_sentinel(repo_root=repo_root, initial_delay_sec=60)
@@ -292,7 +293,7 @@ def _configure_git_branch_protection(repo_root: Path) -> None:
         ("receive.denyNonFastForwards", "true"),
         ("user.name", "macazaka"),
         ("user.email", "102894891+macazaka@users.noreply.github.com"),
-        ("push.followTags", "true"),
+        ("push.followTags", "false"),
     ]
     try:
         subprocess.run(

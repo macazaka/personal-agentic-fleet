@@ -478,3 +478,336 @@ Pages purgeable:                           262144.
             assert "teams" in app_names
             assert "updater" in app_names
             assert user_apps[0]["scope"] == "User"
+
+
+def test_winget_parser_and_package_classification():
+    from fleet.core.optimizer import (
+        _classify_package_category,
+        _parse_winget_upgrade_output,
+    )
+
+    assert _classify_package_category("Firefox Browser", "Mozilla.Firefox") == "Security & Critical"
+    assert _classify_package_category("Python 3.12", "Python.Python.3.12") == "Developer Tools"
+    assert _classify_package_category("Spotify Music", "Spotify.Spotify") == "Application"
+
+    sample_winget = """Name                                  Id                                Version        Available      Source
+-------------------------------------------------------------------------------------------------------------
+Python 3.12                           Python.Python.3.12                3.12.2         3.12.7         winget
+Google Chrome                         Google.Chrome                     124.0.6367.60  125.0.6422.76  winget
+Notepad++                             Notepad++.Notepad++               8.6.4          8.6.7          winget
+3 upgrades available.
+"""
+    parsed = _parse_winget_upgrade_output(sample_winget)
+    assert len(parsed) == 3
+    assert parsed[0]["id"] == "Python.Python.3.12"
+    assert parsed[0]["category"] == "Developer Tools"
+    assert parsed[1]["id"] == "Google.Chrome"
+    assert parsed[1]["category"] == "Security & Critical"
+    assert parsed[2]["id"] == "Notepad++.Notepad++"
+    assert parsed[2]["category"] == "Application"
+
+    # Regex fallback without dashed separator
+    fallback_out = "Docker Desktop  Docker.DockerDesktop  4.28.0  4.30.0  winget\n"
+    parsed_fb = _parse_winget_upgrade_output(fallback_out)
+    assert len(parsed_fb) == 1
+    assert parsed_fb[0]["id"] == "Docker.DockerDesktop"
+    assert _parse_winget_upgrade_output("") == []
+
+
+def test_upgrade_policy_persistence():
+    import fleet.core.optimizer as opt_mod
+    from fleet.core.optimizer import get_upgrade_policy, set_upgrade_policy
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        policy_file = Path(tmp_dir) / "optimizer_upgrade_policy.json"
+        with patch.object(opt_mod, "_get_upgrade_policy_file", return_value=policy_file):
+            pol = get_upgrade_policy()
+            assert pol["auto_check_enabled"] is True
+            assert pol["auto_install_security_and_patch"] is True
+            assert pol["never_auto_reboot"] is True
+
+            res = set_upgrade_policy({
+                "auto_install_all_software": False,
+                "check_interval_hours": 6,
+                "excluded_packages": [" Some.Pkg ", ""],
+            })
+            assert res["auto_install_all_software"] is False
+            assert res["check_interval_hours"] == 6
+            assert res["excluded_packages"] == ["Some.Pkg"]
+
+            # Corrupt file fallback
+            policy_file.write_text("{corrupt json", encoding="utf-8")
+            pol_fallback = get_upgrade_policy()
+            assert pol_fallback["auto_check_enabled"] is True
+
+
+def test_os_and_software_upgrade_scanning_cross_platform():
+    import fleet.core.optimizer as opt_mod
+    from fleet.core.optimizer import (
+        _get_os_version_and_update_status,
+        _scan_software_upgrades,
+        check_os_and_software_upgrades,
+    )
+
+    # 1. Windows OS & Software Scan
+    ps_json = '[{"title": "2026-11 Cumulative Security Update", "kb": "KB5039212", "mandatory": true}]'
+    winget_out = (
+        "Name           Id                    Version  Available  Source\n"
+        "----------------------------------------------------------------\n"
+        "OpenSSL Light  ShiningLight.OpenSSL  3.1.0    3.1.4      winget\n"
+        "VS Code        Microsoft.VSCode      1.88.0   1.89.1     winget\n"
+    )
+
+    def win_subproc(cmd, *args, **kwargs):
+        if cmd[0] == "powershell":
+            return MagicMock(returncode=0, stdout=ps_json)
+        if cmd[0] == "winget":
+            return MagicMock(returncode=0, stdout=winget_out)
+        return MagicMock(returncode=0, stdout="")
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        state_file = Path(tmp_dir) / "optimizer_upgrade_state.json"
+        policy_file = Path(tmp_dir) / "optimizer_upgrade_policy.json"
+        with patch.object(opt_mod, "_get_upgrade_state_file", return_value=state_file), \
+             patch.object(opt_mod, "_get_upgrade_policy_file", return_value=policy_file), \
+             patch("os.name", "nt"), \
+             patch("sys.platform", "win32"), \
+             patch("subprocess.run", side_effect=win_subproc):
+            os_win = _get_os_version_and_update_status(scan_live=True)
+            assert os_win["os_updates_count"] == 1
+            assert os_win["os_updates"][0]["id"] == "KB5039212"
+
+            sw_win = _scan_software_upgrades(scan_live=True)
+            assert len(sw_win) == 2
+            assert sw_win[0]["category"] == "Security & Critical"
+            assert sw_win[1]["category"] == "Developer Tools"
+
+            opt_mod._UPGRADE_SCAN_CACHE["timestamp"] = 0.0
+            opt_mod._UPGRADE_SCAN_CACHE["data"] = None
+            summary = check_os_and_software_upgrades(force_refresh=True)
+            assert summary["status"] == "success"
+            assert summary["total_pending_count"] == 3
+            assert summary["security_critical_count"] == 2
+            assert summary["overall_status"] == "Action Recommended"
+
+            # Cached read
+            summary_cached = check_os_and_software_upgrades(force_refresh=False)
+            assert summary_cached["total_pending_count"] == 3
+
+    # 2. macOS OS & Software Scan
+    def mac_subproc(cmd, *args, **kwargs):
+        if cmd[:2] == ["softwareupdate", "-l"]:
+            return MagicMock(returncode=0, stdout="* Label: macOS Sequoia 15.1.1-24B91\n")
+        if cmd[:2] == ["brew", "outdated"]:
+            return MagicMock(
+                returncode=0,
+                stdout='{"formulae":[{"name":"git","installed_versions":["2.44.0"],"current_version":"2.45.0"}],"casks":[]}',
+            )
+        return MagicMock(returncode=0, stdout="")
+
+    with patch("os.name", "posix"), \
+         patch("sys.platform", "darwin"), \
+         patch("subprocess.run", side_effect=mac_subproc):
+        os_mac = _get_os_version_and_update_status(scan_live=True)
+        assert os_mac["os_family"] == "macOS"
+        assert os_mac["os_updates_count"] == 1
+        sw_mac = _scan_software_upgrades(scan_live=True)
+        assert len(sw_mac) == 1
+        assert sw_mac[0]["source"] == "homebrew"
+
+    # 3. Linux OS & Software Scan
+    apt_sample = (
+        "Listing... Done\n"
+        "openssl/noble-security 3.0.13-0ubuntu3.1 amd64 [upgradable from: 3.0.13-0ubuntu3]\n"
+        "curl/noble-updates 8.5.0-2ubuntu10.1 amd64 [upgradable from: 8.5.0-2ubuntu10]\n"
+    )
+    with patch("os.name", "posix"), \
+         patch("sys.platform", "linux"), \
+         patch("subprocess.run", return_value=MagicMock(returncode=0, stdout=apt_sample)):
+        os_lin = _get_os_version_and_update_status(scan_live=True)
+        assert os_lin["os_updates_count"] == 1
+        sw_lin = _scan_software_upgrades(scan_live=True)
+        assert len(sw_lin) == 2
+        assert sw_lin[0]["source"] == "apt"
+
+
+def test_install_software_and_auto_upgrade_manager():
+    import fleet.core.optimizer as opt_mod
+    from fleet.core.optimizer import (
+        install_software_upgrades,
+        run_automatic_upgrade_manager,
+        set_upgrade_policy,
+    )
+
+    mock_scan_data = {
+        "status": "success",
+        "overall_status": "Action Recommended",
+        "os_info": {
+            "os_family": "Windows",
+            "display_version": "Windows 11 (24H2)",
+            "build_number": "26200.1",
+            "pending_reboot": False,
+            "os_up_to_date": False,
+        },
+        "os_updates": [{"id": "KB2267602", "title": "Security Intelligence Update", "severity": "Critical", "source": "Windows Update"}],
+        "os_updates_count": 1,
+        "software_upgrades": [
+            {
+                "name": "Git",
+                "id": "Git.Git",
+                "current_version": "2.44.0",
+                "available_version": "2.45.1",
+                "source": "winget",
+                "category": "Security & Critical",
+                "is_security_or_critical": True,
+            },
+            {
+                "name": "VLC",
+                "id": "VideoLAN.VLC",
+                "current_version": "3.0.18",
+                "available_version": "3.0.20",
+                "source": "winget",
+                "category": "Application",
+                "is_security_or_critical": False,
+            },
+        ],
+        "software_upgrades_count": 2,
+        "eligible_software_count": 2,
+        "security_critical_count": 2,
+        "total_pending_count": 3,
+    }
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        policy_file = Path(tmp_dir) / "optimizer_upgrade_policy.json"
+        state_file = Path(tmp_dir) / "optimizer_upgrade_state.json"
+        with patch.object(opt_mod, "_get_upgrade_policy_file", return_value=policy_file), \
+             patch.object(opt_mod, "_get_upgrade_state_file", return_value=state_file), \
+             patch("fleet.core.optimizer.check_os_and_software_upgrades", return_value=mock_scan_data):
+
+            # 1. Install on Windows via winget
+            with patch("os.name", "nt"), \
+                 patch("sys.platform", "win32"), \
+                 patch("subprocess.run", return_value=MagicMock(returncode=0, stdout="Successfully installed")):
+                res_inst = install_software_upgrades(package_ids=["Git.Git"], include_os=True)
+                assert res_inst["status"] == "success"
+                assert res_inst["upgraded_count"] == 1
+                assert res_inst["upgraded_packages"][0]["id"] == "Git.Git"
+                assert res_inst["os_patch_result"] is not None
+
+                # Run full automatic upgrade manager (security only vs all software)
+                set_upgrade_policy({"auto_install_all_software": False, "auto_install_security_and_patch": True})
+                res_auto = run_automatic_upgrade_manager(force_scan=False)
+                assert res_auto["status"] == "success"
+                assert res_auto["selected_for_upgrade_count"] == 1
+                assert res_auto["upgraded_count"] == 1
+                assert "VideoLAN.VLC" in res_auto["skipped_by_policy"]
+
+            # 2. Install on macOS via brew
+            with patch("os.name", "posix"), \
+                 patch("sys.platform", "darwin"), \
+                 patch("subprocess.run", return_value=MagicMock(returncode=0, stdout="Upgraded")):
+                res_mac = install_software_upgrades(package_ids=["Git.Git"], include_os=True)
+                assert res_mac["status"] == "success"
+                assert res_mac["upgraded_count"] == 1
+
+            # 3. Install on Linux via apt-get
+            with patch("os.name", "posix"), \
+                 patch("sys.platform", "linux"), \
+                 patch("subprocess.run", return_value=MagicMock(returncode=0, stdout="Upgraded")):
+                res_lin = install_software_upgrades(package_ids=["Git.Git"], include_os=True)
+                assert res_lin["status"] == "success"
+                assert res_lin["upgraded_count"] == 1
+
+
+def test_optimizer_agent_and_event_bus_upgrades_and_mcp():
+    import json
+    import urllib.parse
+    from fleet.agents.optimizer.agent import OptimizerAgent
+    from fleet.api.optimizer_api import get_upgrades, post_run_upgrades, post_upgrade_policy
+    from fleet.mcp_server import (
+        fleet_manage_os_and_software_upgrades,
+        fleet_optimize_and_audit,
+    )
+
+    mock_upg_status = {
+        "status": "success",
+        "overall_status": "Up to Date",
+        "os_info": {
+            "os_family": "Windows",
+            "display_version": "Windows 11 (24H2)",
+            "build_number": "26200.1",
+            "pending_reboot": False,
+            "os_up_to_date": True,
+        },
+        "os_updates": [],
+        "os_updates_count": 0,
+        "software_upgrades": [],
+        "software_upgrades_count": 0,
+        "eligible_software_count": 0,
+        "security_critical_count": 0,
+        "total_pending_count": 0,
+        "policy": {
+            "auto_check_enabled": True,
+            "auto_install_security_and_patch": True,
+            "auto_install_all_software": True,
+            "auto_install_os_patches": True,
+            "never_auto_reboot": True,
+            "check_interval_hours": 12,
+            "excluded_packages": [],
+        },
+    }
+    mock_auto_res = {
+        "status": "success",
+        "message": "System OS and software packages are already up to date.",
+        "upgraded_count": 0,
+        "upgraded_packages": [],
+        "failed_packages": [],
+        "pending_reboot": False,
+        "tokens_used": 0,
+    }
+
+    with patch("fleet.core.optimizer.check_os_and_software_upgrades", return_value=mock_upg_status), \
+         patch("fleet.core.optimizer.run_automatic_upgrade_manager", return_value=mock_auto_res), \
+         patch("fleet.server.check_os_and_software_upgrades", return_value=mock_upg_status), \
+         patch("fleet.server.run_automatic_upgrade_manager", return_value=mock_auto_res):
+
+        # 1. OptimizerAgent tasks
+        bus = DeterministicEventBus()
+        agent = OptimizerAgent(event_bus=bus)
+        r_check = agent.execute_task("check_upgrades")
+        assert r_check["status"] == "success"
+        r_manage = agent.execute_task("manage_upgrades")
+        assert r_manage["status"] == "success"
+
+        # 2. EventBus actions
+        assert bus.dispatch(FleetEvent(sender="test", target="system", action="CHECK_UPGRADES"))["status"] == "success"
+        assert bus.dispatch(FleetEvent(sender="test", target="system", action="AUTO_UPGRADE"))["status"] == "success"
+        assert bus.dispatch(FleetEvent(sender="test", target="system", action="GET_UPGRADE_POLICY"))["status"] == "success"
+        assert bus.dispatch(
+            FleetEvent(sender="test", target="system", action="SET_UPGRADE_POLICY", payload={"auto_install_all_software": True})
+        )["status"] == "success"
+
+        # 3. API Route Handlers
+        mock_handler = MagicMock()
+        get_upgrades(mock_handler, urllib.parse.urlparse("/api/optimizer/upgrades?refresh=1"))
+        assert mock_handler._send_json.call_args[0][0]["status"] == "success"
+
+        post_run_upgrades(mock_handler, {"mode": "auto_manage", "force_scan": False})
+        assert mock_handler._send_json.call_args[0][0]["status"] == "success"
+
+        post_upgrade_policy(mock_handler, {"auto_install_os_patches": True})
+        assert mock_handler._send_json.call_args[0][0]["status"] == "success"
+
+        # 4. MCP Tools
+        out_status = json.loads(fleet_manage_os_and_software_upgrades(action="check"))
+        assert out_status["status"] == "success"
+        out_auto = json.loads(fleet_manage_os_and_software_upgrades(action="auto_manage"))
+        assert out_auto["status"] == "success"
+        out_pol = json.loads(fleet_manage_os_and_software_upgrades(action="get_policy"))
+        assert out_pol["status"] == "success"
+        out_set = json.loads(fleet_manage_os_and_software_upgrades(action="set_policy", auto_install_all_software=False))
+        assert out_set["status"] == "success"
+        out_audit = json.loads(fleet_optimize_and_audit(action="check_upgrades"))
+        assert out_audit["status"] == "success"
+
+

@@ -1,23 +1,23 @@
 # ⚡ Personal Agentic Fleet
 
-[![Release: v2.15.11](https://img.shields.io/badge/Release-v2.15.11-00b4d8.svg)](CHANGELOG.md)
-[![GitHub Wiki: 17 Deep-Dive Guides](https://img.shields.io/badge/GitHub%20Wiki-17%20Deep--Dive%20Guides-0284c7.svg?logo=github)](https://github.com/macazaka/personal-agentic-fleet/wiki)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%5B12%20Layers%5D-brightgreen.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Security-Model)
-[![Zero-Token Engine](https://img.shields.io/badge/Architecture-Zero--Token%20Microkernel-orange.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Architecture)
-[![API-First: OpenAPI 3.1.0](https://img.shields.io/badge/API--First-OpenAPI%203.1.0%20%7C%20150%2B%20REST%20Endpoints-6366f1.svg)](docs/API_REFERENCE.md)
-[![MCP Ready: 29 Tools](https://img.shields.io/badge/MCP%20Ready-29%20FastMCP%20Tools%20%7C%20Stdio%20%2B%20HTTP-059669.svg)](docs/API_REFERENCE.md)
-[![Persistence: SQLite WAL](https://img.shields.io/badge/Persistence-SQLite%203%20WAL%20%7C%20Scoped%20ACLs-0ea5e9.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Architecture)
-[![Privacy: Local-First](https://img.shields.io/badge/Privacy-100%25%20Local--First%20DPAPI%20%2B%20PII%20Vault-teal.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Security-Model)
-[![Cognitive Mind: 4-Layer Gestalt](https://img.shields.io/badge/Cognitive%20Mind-4--Layer%20Gestalt%20%2B%20Self--Critique-ec4899.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Cognitive-Fleet-Mind)
-[![Email Guard: 4-Layer AV](https://img.shields.io/badge/Email%20Guard-4--Layer%20AV%20%2B%20Approval%20Gate-ef4444.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents)
-[![Voice Copilot: Bi-Directional](https://img.shields.io/badge/Voice%20Copilot-Bi--Directional%20STT%20%2B%20TTS-d97706.svg)](wiki/AFCC-and-UI-Features.md)
-[![Hyperscalers](https://img.shields.io/badge/Hyperscalers-Google%20%7C%20Azure%20%7C%20AWS%20%7C%20Claude%20%7C%20Ollama-purple.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Hyperscalers-Token-Optimizer-and-Scheduler)
-[![Windows: 10 / 11](https://img.shields.io/badge/Windows-10%20%7C%2011%20(64--bit)-0078D6.svg?logo=windows)](https://github.com/macazaka/personal-agentic-fleet/wiki/Installation-and-Quick-Start)
-[![macOS: Universal](https://img.shields.io/badge/macOS-Apple%20Silicon%20%7C%20Intel-black.svg?logo=apple)](https://github.com/macazaka/personal-agentic-fleet/wiki/Installation-and-Quick-Start)
-[![Linux: Native](https://img.shields.io/badge/Linux-Ubuntu%20%7C%20Debian%20%7C%20Fedora%20%7C%20Arch-orange.svg?logo=linux)](https://github.com/macazaka/personal-agentic-fleet/wiki/Installation-and-Quick-Start)
-[![Dev Tools](https://img.shields.io/badge/Dev%20Tools-Copilot%20%7C%20Claude%20Code%20%7C%20Gemini%20%7C%20Amazon%20Q-blueviolet.svg)](https://github.com/macazaka/personal-agentic-fleet/wiki/Hyperscalers-Token-Optimizer-and-Scheduler)
+[![Release: v2.16.0](https://img.shields.io/badge/Release-v2.16.0-00b4d8.svg?logo=github&logoColor=white)](CHANGELOG.md)
+[![GitHub Wiki: 17 Deep-Dive Guides](https://img.shields.io/badge/GitHub%20Wiki-17%20Deep--Dive%20Guides-0284c7.svg?logo=github&logoColor=white)](https://github.com/macazaka/personal-agentic-fleet/wiki)
+[![Python: 3.10 | 3.11 | 3.12 | 3.13 | 3.14](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-10b981.svg?logo=apache&logoColor=white)](https://opensource.org/licenses/Apache-2.0)
+[![Security: 100/100 PASS](https://img.shields.io/badge/Security%20Audit-100%2F100%20%7C%2012%20Layers-16a34a.svg?logo=letsencrypt&logoColor=white)](https://github.com/macazaka/personal-agentic-fleet/wiki/Security-Model)
+[![Zero-Token Engine](https://img.shields.io/badge/Architecture-Zero--Token%20Microkernel-ea580c.svg?logo=fastapi&logoColor=white)](https://github.com/macazaka/personal-agentic-fleet/wiki/Architecture)
+[![API-First: OpenAPI 3.1.0](https://img.shields.io/badge/API--First-OpenAPI%203.1.0%20%7C%20150%20Endpoints-6366f1.svg?logo=openapiinitiative&logoColor=white)](docs/API_REFERENCE.md)
+[![MCP Ready: 30 Tools](https://img.shields.io/badge/MCP%20Ready-30%20FastMCP%20Tools%20%7C%20Stdio%20%7C%20HTTP-059669.svg?logo=modelcontextprotocol&logoColor=white)](docs/API_REFERENCE.md)
+[![Persistence: SQLite WAL](https://img.shields.io/badge/Persistence-SQLite%203%20WAL%20%7C%20Scoped%20ACLs-0ea5e9.svg?logo=sqlite&logoColor=white)](https://github.com/macazaka/personal-agentic-fleet/wiki/Architecture)
+[![Privacy: Local-First](https://img.shields.io/badge/Privacy-Local--First%20DPAPI%20%7C%20PII%20Vault-0d9488.svg?logo=proton&logoColor=white)](https://github.com/macazaka/personal-agentic-fleet/wiki/Security-Model)
+[![Cognitive Mind: 4-Layer Gestalt](https://img.shields.io/badge/Cognitive%20Mind-4--Layer%20Gestalt%20%7C%20Self--Critique-ec4899.svg?logo=anthropic&logoColor=white)](https://github.com/macazaka/personal-agentic-fleet/wiki/Cognitive-Fleet-Mind)
+[![Email Guard: 4-Layer AV](https://img.shields.io/badge/Email%20Guard-4--Layer%20AV%20%7C%20Approval%20Gate-ef4444.svg?logo=cloudflare&logoColor=white)](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents)
+[![Voice Copilot: Bi-Directional](https://img.shields.io/badge/Voice%20Copilot-Bi--Directional%20STT%20%7C%20TTS-d97706.svg?logo=data:image/svg%2Bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAxNGMxLjY2IDAgMy0xLjM0IDMtM1Y1YzAtMS42Ni0xLjM0LTMtMy0zUzkgMy4zNCA5IDV2NmMwIDEuNjYgMS4zNCAzIDMgM3ptNS45MS0zYy0uNDkgMC0uOS4zNi0uOTguODVDMTYuNTIgMTQuMiAxNC40NyAxNiAxMiAxNnMtNC41Mi0xLjgtNC45My00LjE1Yy0uMDgtLjQ5LS40OS0uODUtLjk4LS44NS0uNjEgMC0xLjA5LjU0LTEgMS4xNC40OSAzIDIuODkgNS4zNSA1LjkxIDUuNzhWMjBjMCAuNTUuNDUgMSAxIDFzMS0uNDUgMS0xdi0yLjA4YzMuMDItLjQzIDUuNDItMi43OCA1LjkxLTUuNzguMS0uNi0uMzktMS4xNC0xLTEuMTR6Ii8+PC9zdmc+)](wiki/AFCC-and-UI-Features.md)
+[![Hyperscalers](https://img.shields.io/badge/Hyperscalers-Google%20%7C%20Azure%20%7C%20AWS%20%7C%20Claude%20%7C%20Ollama-9333ea.svg?logo=googlecloud&logoColor=white)](https://github.com/macazaka/personal-agentic-fleet/wiki/Hyperscalers-Token-Optimizer-and-Scheduler)
+[![Windows: 10 / 11](https://img.shields.io/badge/Windows-10%20%7C%2011%20%2864--bit%29-0078D6.svg?logo=data:image/svg%2Bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0wIDMuNDQ5TDkuNzUgMi4xdjkuNDUxSDBtMTAuOTQ5LTkuNjAyTDI0IDB2MTEuNEgxMC45NDlNMCAxMi42aDkuNzV2OS40NTFMMCAyMC42OTlNMTAuOTQ5IDEyLjZIMjRWMjRsLTEyLjktMS44MDEiLz48L3N2Zz4=)](https://github.com/macazaka/personal-agentic-fleet/wiki/Installation-and-Quick-Start)
+[![macOS: Universal](https://img.shields.io/badge/macOS-Apple%20Silicon%20%7C%20Intel-111827.svg?logo=apple&logoColor=white)](https://github.com/macazaka/personal-agentic-fleet/wiki/Installation-and-Quick-Start)
+[![Linux: Native](https://img.shields.io/badge/Linux-Ubuntu%20%7C%20Debian%20%7C%20Fedora%20%7C%20Arch-f97316.svg?logo=linux&logoColor=white)](https://github.com/macazaka/personal-agentic-fleet/wiki/Installation-and-Quick-Start)
+[![Dev Tools](https://img.shields.io/badge/Dev%20Tools-Copilot%20%7C%20Claude%20Code%20%7C%20Gemini%20%7C%20Amazon%20Q-8b5cf6.svg?logo=githubcopilot&logoColor=white)](https://github.com/macazaka/personal-agentic-fleet/wiki/Hyperscalers-Token-Optimizer-and-Scheduler)
 
 > **An open-source, local-first agentic operating system with an API-First, MCP-Ready, plug-and-play microkernel architecture.**
 > Run personal intelligence, metabolic & strength tracking, PC optimizations, email threat scanning, bi-directional voice control, and autonomous routines with **0 cloud token spend (`$0.00`)** and 100% deterministic local Python & SQLite execution.
@@ -74,7 +74,7 @@ The documentation follows a **Two-Tier Progressive Disclosure Model**: this `REA
 | **Windows 11 (64-bit)** | 🟢 **Officially Supported (Primary)** | Native Win32 `Kernel32`/`PSAPI` (zero popup windows), at-rest **DPAPI `crypt32.dll`** hardware-bound encryption, WinRT Toast Notifications, NTFS User ACLs (`icacls`), and dual PowerShell 7 / 5.1 support. |
 | **Windows 10 (64-bit, v1903+)** | 🟢 **Officially Supported (Primary)** | Full parity with Windows 11: in-process PSAPI memory enumeration, DPAPI crypto vault, WinRT toast alerts, and silent windowless background execution (`CREATE_NO_WINDOW`). |
 | **macOS (12+ Monterey / Ventura / Sonoma / Sequoia on Apple Silicon & Intel)** | 🟢 **Officially Supported (Primary)** | Native AppleScript Notification Center alerts (`osascript`), hardware-backed **Apple Keychain Services** (`/usr/bin/security`), native `sysctl` (`hw.memsize`) & `vm_stat` memory telemetry, Directory Services DNS flush (`dscacheutil`), RAM cache purge (`purge`), LaunchAgents auto-start auditing, and Homebrew (`/opt/homebrew` & `/usr/local`) CLI discovery. |
-| **Linux (Ubuntu 20.04+, Debian 11+, Fedora 38+, Arch)** | 🟢 **Officially Supported (Primary)** | First-class native Linux integration: systemd user units (`systemctl --user`), `resolvectl` DNS cache flush, FreeDesktop SecretService (`secret-tool` / libsecret) keyring encryption, `notify-send` (libnotify) / Zenity / KDialog desktop notifications, in-process `/proc` telemetry, XDG autostart, POSIX `RLIMIT_AS` memory containment, and POSIX `chmod 0700` vault hardening. Continuous 9-matrix verification across Python 3.10, 3.11, and 3.12. |
+| **Linux (Ubuntu 20.04+, Debian 11+, Fedora 38+, Arch)** | 🟢 **Officially Supported (Primary)** | First-class native Linux integration: systemd user units (`systemctl --user`), `resolvectl` DNS cache flush, FreeDesktop SecretService (`secret-tool` / libsecret) keyring encryption, `notify-send` (libnotify) / Zenity / KDialog desktop notifications, in-process `/proc` telemetry, XDG autostart, POSIX `RLIMIT_AS` memory containment, and POSIX `chmod 0700` vault hardening. Continuous multi-version verification across Python 3.10, 3.11, 3.12, 3.13, and 3.14. |
 | **Windows 7 / 8 / 8.1 / 32-bit (x86)** | 🔴 **Not Supported** | Missing modern WinRT notification subsystems, TLS 1.3 cryptographic cipher suites, and modern Python 3.10+ runtimes. Do not deploy on legacy Windows. |
 | **Mobile / Android / iOS** | 🔴 **Not Supported** | Designed as a local Agentic Fleet Control Center (AFCC), not a mobile app. Access remotely via desktop browser over local LAN/VPN. |
 
@@ -119,12 +119,19 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
 ## 🌟 Key Highlights
 
 <!-- AUTO-LATEST-RELEASE:START -->
-### 🆕 What's New in Release `v2.15.11` (Auto-Synchronized)
+### 🆕 What's New in Release `v2.16.0` (Auto-Synchronized)
 
-> **Live Telemetry**: `10` Core Agents • `153` REST API Endpoints • `35` Microkernel Engines • `21` Automation Tools • `502` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
+> **Live Telemetry**: `10` Core Agents • `158` REST API Endpoints • `35` Microkernel Engines • `21` Automation Tools • `508` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
+
+### Added
+- **PC Optimizer — Autonomous OS & Software Upgrade Manager**: Cross-platform detection and execution of pending OS updates and software package upgrades (`winget` / Windows Update, `apt`, `brew`) with autonomous policy engine (`notify_only`, `auto_security_only`, `auto_all_safe`), REST endpoints (`/api/optimizer/upgrades*`), Unified Tasks integration (`optimizer_upgrade`), and FastMCP tool #29 (`fleet_manage_os_and_software_upgrades`).
+- **Individual Credit Card Monthly Tasks & Inline Task Editor (`✏️`)**: Split the combined credit card bill payment task into 4 individual monthly `P1` tasks (`Axis Bank`, `ICICI Bank`, `ICICI Amazon Card`, `SBI Card`) with automatic database migration, and added an inline task editor (`✏️` button, `POST /api/tasks/update`, `sub_action="edit"` on `/api/tasks/unified_action`) synchronized with `personal_tasks_vault.json`.
+- **Compact `✨` Self-Improvement Header Icon & 24-Hour Auto-Cleanup**: Converted the full-width `Self-Improvement & Feature Evolution` banner into a compact `✨` header icon across all pages so zero vertical space is lost, automatically pruning completed self-improvements after 24 hours (1 day) once logged in the Feature Backlog, plus added `POST /api/studio/evolve/dismiss` (`✕` button) for immediate dismissal.
+- **Multi-Version Python Support (`3.10 | 3.11 | 3.12 | 3.13 | 3.14`)**: Full multi-version Python runtime parity across `SUPPORTED_PYTHON_VERSIONS`, `/api/system/python`, `bootstrap.ps1`, `.python-version`, and GitHub Actions CI matrix.
 
 ### Fixed
-- Proactive release synchronization, static type verification, and documentation maintenance.
+- **README & Wiki Badge Icons**: Repaired all 18 Shields.io badge URLs and embedded icons across `README.md` and `wiki/Home.md` (including custom base64 SVG logos for Windows and Voice Copilot and proper URL encoding).
+- **Explicit-Only Git Releases Guard**: Disabled automatic background Git commits/releases (`run_daily_git_sync_and_release`) so releases only execute when explicitly requested.
 <!-- AUTO-LATEST-RELEASE:END -->
 
 - **🔌 Modular Plug-and-Play Agents**: Every dashboard view is a standalone, self-contained agent package inside `fleet/agents/` with least-privilege capability manifests (`manifest.json`) enforced by `ScopedDatabaseProxy`. See **[Wiki: 7 Built-in Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents)** and **[Wiki: Customizing Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Customizing-Agents)**.
