@@ -308,3 +308,165 @@ def get_strength_plan(handler: Any, parsed_url: urllib.parse.ParseResult):
 def get_exercise_plan(handler: Any, parsed_url: urllib.parse.ParseResult):
     plan = get_ffd_exercise_protocol()
     handler._send_json(plan)
+
+
+def _get_video_playlists_file() -> Path:
+    """Returns path to the local user video playlists store."""
+    custom_path = os.environ.get("FLEET_VIDEO_PLAYLISTS_PATH")
+    if custom_path:
+        return Path(custom_path)
+    return Path(__file__).resolve().parent.parent / "data" / "user" / "video_playlists.json"
+
+
+def _default_video_playlists() -> list[Dict[str, Any]]:
+    return [
+        {
+            "id": "pl_ffd_daily_warmup_nod",
+            "name": "Daily FFD Warm-Up & Glucose Drop",
+            "videos": [
+                {
+                    "filename": "Get your whole body warmed up in just 10 mins.mp4",
+                    "title": "Get your whole body warmed up in just 10 mins",
+                    "category": "World's Best Warm-Up & Mobility",
+                },
+                {
+                    "filename": "01 - Super Brain Yoga for Diabetes.mp4",
+                    "title": "Super Brain Yoga for Diabetes",
+                    "category": "Super Brain Yoga & Flexibility",
+                },
+                {
+                    "filename": "04 - Modified Nitric Oxide Dump Exercise for Diabetes.mp4",
+                    "title": "Modified Nitric Oxide Dump Exercise for Diabetes",
+                    "category": "Nitric Oxide Dump (NOD)",
+                },
+            ],
+            "updated_at": "2026-11-12T09:00:00",
+        }
+    ]
+
+
+def load_video_playlists() -> list[Dict[str, Any]]:
+    import json
+    path = _get_video_playlists_file()
+    if not path.exists():
+        defaults = _default_video_playlists()
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps({"playlists": defaults}, indent=2, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            pass
+        return defaults
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(raw, dict) and isinstance(raw.get("playlists"), list):
+            return raw["playlists"]
+        if isinstance(raw, list):
+            return raw
+    except Exception:
+        pass
+    return _default_video_playlists()
+
+
+def save_video_playlists(playlists: list[Dict[str, Any]]) -> None:
+    import json
+    path = _get_video_playlists_file()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"playlists": playlists}, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+@router.get("/api/health/playlists")
+def get_video_playlists(handler: Any, parsed_url: urllib.parse.ParseResult):
+    playlists = load_video_playlists()
+    handler._send_json({"status": "ok", "playlists": playlists})
+
+
+@router.post("/api/health/playlists/save")
+def save_video_playlist_endpoint(handler: Any, body: Dict[str, Any]):
+    from datetime import datetime
+    import re
+    name = str(body.get("name") or "").strip()
+    if not name:
+        handler._send_json({"error": "Playlist name is required"}, 400)
+        return
+    raw_videos = body.get("videos")
+    if not isinstance(raw_videos, list) or len(raw_videos) == 0:
+        handler._send_json({"error": "At least one video is required in the playlist"}, 400)
+        return
+
+    clean_videos = []
+    for item in raw_videos:
+        if isinstance(item, str):
+            fn = Path(item).name.strip()
+            if fn:
+                clean_videos.append({"filename": fn, "title": Path(fn).stem, "category": "FFD Video"})
+        elif isinstance(item, dict):
+            fn = Path(str(item.get("filename") or item.get("file") or "")).name.strip()
+            if fn:
+                clean_videos.append({
+                    "filename": fn,
+                    "title": str(item.get("title") or Path(fn).stem).strip(),
+                    "category": str(item.get("category") or "FFD Video").strip(),
+                })
+    if not clean_videos:
+        handler._send_json({"error": "No valid videos provided"}, 400)
+        return
+
+    playlist_id = str(body.get("id") or "").strip()
+    if not playlist_id:
+        slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_") or "custom"
+        playlist_id = f"pl_{slug}"
+
+    playlists = load_video_playlists()
+    now_iso = datetime.now().isoformat()
+    updated_entry = {
+        "id": playlist_id,
+        "name": name,
+        "videos": clean_videos,
+        "updated_at": now_iso,
+    }
+
+    replaced = False
+    for idx, existing in enumerate(playlists):
+        if (
+            isinstance(existing, dict)
+            and (
+                str(existing.get("id") or "") == playlist_id
+                or str(existing.get("name") or "").strip().lower() == name.lower()
+            )
+        ):
+            updated_entry["id"] = str(existing.get("id") or playlist_id)
+            playlists[idx] = updated_entry
+            replaced = True
+            break
+    if not replaced:
+        playlists.append(updated_entry)
+
+    save_video_playlists(playlists)
+    handler._send_json({"status": "saved", "playlist": updated_entry, "playlists": playlists})
+
+
+@router.post("/api/health/playlists/delete")
+def delete_video_playlist_endpoint(handler: Any, body: Dict[str, Any]):
+    playlist_id = str(body.get("id") or "").strip()
+    name = str(body.get("name") or "").strip().lower()
+    if not playlist_id and not name:
+        handler._send_json({"error": "Playlist id or name required"}, 400)
+        return
+    playlists = load_video_playlists()
+    before_count = len(playlists)
+    remaining = [
+        p for p in playlists
+        if not (
+            isinstance(p, dict)
+            and (
+                (playlist_id and str(p.get("id") or "") == playlist_id)
+                or (name and str(p.get("name") or "").strip().lower() == name)
+            )
+        )
+    ]
+    save_video_playlists(remaining)
+    handler._send_json({
+        "status": "deleted",
+        "deleted": len(remaining) < before_count,
+        "playlists": remaining,
+    })

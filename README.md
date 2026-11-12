@@ -1,6 +1,6 @@
 # ⚡ Personal Agentic Fleet
 
-[![Release: v2.16.0](https://img.shields.io/badge/Release-v2.16.0-00b4d8.svg?logo=github&logoColor=white)](CHANGELOG.md)
+[![Release: v2.16.1](https://img.shields.io/badge/Release-v2.16.1-00b4d8.svg?logo=github&logoColor=white)](CHANGELOG.md)
 [![GitHub Wiki: 17 Deep-Dive Guides](https://img.shields.io/badge/GitHub%20Wiki-17%20Deep--Dive%20Guides-0284c7.svg?logo=github&logoColor=white)](https://github.com/macazaka/personal-agentic-fleet/wiki)
 [![Python: 3.10 | 3.11 | 3.12 | 3.13 | 3.14](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-10b981.svg?logo=apache&logoColor=white)](https://opensource.org/licenses/Apache-2.0)
@@ -119,19 +119,16 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
 ## 🌟 Key Highlights
 
 <!-- AUTO-LATEST-RELEASE:START -->
-### 🆕 What's New in Release `v2.16.0` (Auto-Synchronized)
+### 🆕 What's New in Release `v2.16.1` (Auto-Synchronized)
 
-> **Live Telemetry**: `10` Core Agents • `158` REST API Endpoints • `35` Microkernel Engines • `21` Automation Tools • `508` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
+> **Live Telemetry**: `10` Core Agents • `161` REST API Endpoints • `35` Microkernel Engines • `21` Automation Tools • `509` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
 
 ### Added
-- **PC Optimizer — Autonomous OS & Software Upgrade Manager**: Cross-platform detection and execution of pending OS updates and software package upgrades (`winget` / Windows Update, `apt`, `brew`) with autonomous policy engine (`notify_only`, `auto_security_only`, `auto_all_safe`), REST endpoints (`/api/optimizer/upgrades*`), Unified Tasks integration (`optimizer_upgrade`), and FastMCP tool #29 (`fleet_manage_os_and_software_upgrades`).
-- **Individual Credit Card Monthly Tasks & Inline Task Editor (`✏️`)**: Split the combined credit card bill payment task into 4 individual monthly `P1` tasks (`Axis Bank`, `ICICI Bank`, `ICICI Amazon Card`, `SBI Card`) with automatic database migration, and added an inline task editor (`✏️` button, `POST /api/tasks/update`, `sub_action="edit"` on `/api/tasks/unified_action`) synchronized with `personal_tasks_vault.json`.
-- **Compact `✨` Self-Improvement Header Icon & 24-Hour Auto-Cleanup**: Converted the full-width `Self-Improvement & Feature Evolution` banner into a compact `✨` header icon across all pages so zero vertical space is lost, automatically pruning completed self-improvements after 24 hours (1 day) once logged in the Feature Backlog, plus added `POST /api/studio/evolve/dismiss` (`✕` button) for immediate dismissal.
-- **Multi-Version Python Support (`3.10 | 3.11 | 3.12 | 3.13 | 3.14`)**: Full multi-version Python runtime parity across `SUPPORTED_PYTHON_VERSIONS`, `/api/system/python`, `bootstrap.ps1`, `.python-version`, and GitHub Actions CI matrix.
+- **Custom Video Playlists & Sequential One-by-One Playback**: Added an interactive playlist builder (`#videoPlaylistBar`, `#videoPlaylistBuilderPanel`), `+ Playlist` queueing on every video card in the **Exercise, Videos & Traditional Strength Training Hub**, persistent local playlist storage (`GET /api/health/playlists`, `POST /api/health/playlists/save`, `POST /api/health/playlists/delete`), and automatic one-by-one playback (`#videoModalPlaylistBar`, `⏮ Prev`, `⏭ Next Video`, `🔁 Auto-Play Next: ON`) in the Video Player Modal.
+- **Individual Monthly & Yearly Task Decomposition**: Split all combined Monthly and Yearly obligations (`Investments`, `Electricity Bill Payments`, `KINDUZ Operations & Compliance`, `KINDUZ US`, `Websites & Domains`, `AWS Updates`, `Credit Card Subscriptions`, `Stored Credit Card Tokens`, and `Insurance Renewals`) into individual trackable tasks with automatic legacy task cleanup in `sync_local_personal_tasks_vault()`.
 
 ### Fixed
-- **README & Wiki Badge Icons**: Repaired all 18 Shields.io badge URLs and embedded icons across `README.md` and `wiki/Home.md` (including custom base64 SVG logos for Windows and Voice Copilot and proper URL encoding).
-- **Explicit-Only Git Releases Guard**: Disabled automatic background Git commits/releases (`run_daily_git_sync_and_release`) so releases only execute when explicitly requested.
+- **Inline Task Editor Focus & Draft Preservation**: Prevented the 8-second background polling loop (`app.js`, `tasks.js`) from re-rendering `#taskList` or resetting unsaved text edits while an inline task edit (`isTaskEditingActive()`, `captureEditTaskDraft()`) is open.
 <!-- AUTO-LATEST-RELEASE:END -->
 
 - **🔌 Modular Plug-and-Play Agents**: Every dashboard view is a standalone, self-contained agent package inside `fleet/agents/` with least-privilege capability manifests (`manifest.json`) enforced by `ScopedDatabaseProxy`. See **[Wiki: 7 Built-in Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents)** and **[Wiki: Customizing Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Customizing-Agents)**.

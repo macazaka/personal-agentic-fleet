@@ -82,21 +82,33 @@ class TasksMixin(_DbBase):
             now = datetime.now().isoformat()
             with self._get_connection() as conn:
                 cursor = conn.cursor()
-                # Remove legacy combined Credit Card Bill Payments task once split into individual cards
+                # Remove legacy combined tasks once split into individual trackable tasks
                 vault_titles_low = {
                     str(it.get("title") or "").strip().lower()
                     for it in items
                     if isinstance(it, dict)
                 }
-                if (
-                    "monthly — credit card bill payments" not in vault_titles_low
-                    and any("credit card bill payment:" in vt for vt in vault_titles_low)
-                ):
-                    cursor.execute(
-                        "DELETE FROM tasks WHERE LOWER(TRIM(title)) = 'monthly — credit card bill payments'"
-                    )
-                    if cursor.rowcount > 0:
-                        inserted += cursor.rowcount
+                legacy_combined_titles = (
+                    "monthly — credit card bill payments",
+                    "monthly — kinduz operations & compliance",
+                    "monthly — electricity bill payments (pune & chandavane)",
+                    "monthly — investments (nps, ppf & stock)",
+                    "monthly — check websites & domains",
+                    "monthly — check aws update",
+                    "monthly — check credit card subscriptions at sihub.in",
+                    "monthly — check subscriptions at mandatehq.com",
+                    "monthly — delete credit card tokens stored",
+                    "monthly — kinduz us (incorp & tax reports)",
+                    "yearly — insurance renewals (vehicle & health)",
+                )
+                for legacy_title in legacy_combined_titles:
+                    if legacy_title not in vault_titles_low:
+                        cursor.execute(
+                            "DELETE FROM tasks WHERE LOWER(TRIM(title)) = ?",
+                            (legacy_title,),
+                        )
+                        if cursor.rowcount > 0:
+                            inserted += cursor.rowcount
 
                 cursor.execute("SELECT title, source FROM tasks")
                 existing = {(str(r["title"]).strip().lower(), str(r["source"] or "").strip().lower()) for r in cursor.fetchall()}

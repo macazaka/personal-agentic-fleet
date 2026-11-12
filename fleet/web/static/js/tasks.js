@@ -2,7 +2,42 @@
     window._cachedTasksList = [];
     window._activeTaskFilter = 'ALL';
     window._activeTaskAgentFilter = 'ALL';
+    window._editingTaskId = '';
+    window._editingTaskDrafts = {};
     window._maskSensitiveTaskData = localStorage.getItem('afcc_mask_sensitive_tasks') !== 'false';
+
+    function isTaskEditingActive() {
+      if (window._editingTaskId) return true;
+      const list = document.getElementById('taskList');
+      const active = document.activeElement;
+      if (list && active && typeof list.contains === 'function' && list.contains(active)) {
+        const tag = (active.tagName || '').toUpperCase();
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function captureEditTaskDraft(taskDomKey) {
+      const key = String(taskDomKey || window._editingTaskId || '');
+      if (!key) return;
+      const titleEl = document.getElementById(`editTaskTitle_${key}`);
+      const dueEl = document.getElementById(`editTaskDue_${key}`);
+      const prioEl = document.getElementById(`editTaskPrio_${key}`);
+      const srcEl = document.getElementById(`editTaskSource_${key}`);
+      const descEl = document.getElementById(`editTaskDesc_${key}`);
+      if (!titleEl && !dueEl && !prioEl && !srcEl && !descEl) return;
+      window._editingTaskDrafts = window._editingTaskDrafts || {};
+      const prev = window._editingTaskDrafts[key] || {};
+      window._editingTaskDrafts[key] = {
+        title: titleEl ? titleEl.value : (prev.title !== undefined ? prev.title : ''),
+        due_date: dueEl ? dueEl.value : (prev.due_date !== undefined ? prev.due_date : ''),
+        priority: prioEl ? prioEl.value : (prev.priority || 'P2'),
+        source: srcEl ? srcEl.value : (prev.source || 'Monthly'),
+        description: descEl ? descEl.value : (prev.description !== undefined ? prev.description : '')
+      };
+    }
 
     function maskSensitiveTaskText(text) {
       if (!text || !window._maskSensitiveTaskData) return text;
@@ -222,7 +257,7 @@
       });
 
       const sel = document.getElementById('taskAgentFilterSelect');
-      if (sel) {
+      if (sel && document.activeElement !== sel) {
         const agentCounts = {};
         const agentMeta = {};
         tasks.forEach(t => {
@@ -249,6 +284,23 @@
     function renderTasksList() {
       const list = document.getElementById('taskList');
       if (!list) return;
+
+      // Preserve active inline edit draft and cursor selection before re-rendering
+      let activeInputId = null;
+      let activeSelStart = null;
+      let activeSelEnd = null;
+      if (window._editingTaskId) {
+        captureEditTaskDraft(window._editingTaskId);
+        const activeEl = document.activeElement;
+        if (activeEl && typeof list.contains === 'function' && list.contains(activeEl) && activeEl.id) {
+          activeInputId = activeEl.id;
+          try {
+            activeSelStart = activeEl.selectionStart;
+            activeSelEnd = activeEl.selectionEnd;
+          } catch (_) {}
+        }
+      }
+
       updateTaskMaskButtonUI();
       const allTasks = Array.isArray(window._cachedTasksList) ? window._cachedTasksList : [];
       updateTaskFilterBarCounts(allTasks);
@@ -330,26 +382,30 @@
           ? `<input type="checkbox" class="task-checkbox" style="margin-top: 3px;" ${isDone ? 'checked' : ''} onchange="executeUnifiedTaskAction('${escapeHtml(actionType)}', '${escapeHtml(String(rawId))}', '${escapeHtml(agentId)}', 'toggle')">`
           : `<span style="font-size: 15px; margin-top: 1px;">${escapeHtml(agentIcon)}</span>`;
 
-        const curPrio = (t.priority || 'P2').toUpperCase();
-        const curSrc = t.source || cadenceText || 'Monthly';
+        const draft = (isEditingThis && window._editingTaskDrafts && window._editingTaskDrafts[taskDomKey]) || null;
+        const editTitleVal = draft && draft.title !== undefined ? draft.title : (t.title || '');
+        const editDueVal = draft && draft.due_date !== undefined ? draft.due_date : (t.due_date || '');
+        const curPrio = (draft && draft.priority ? draft.priority : (t.priority || 'P2')).toUpperCase();
+        const curSrc = draft && draft.source ? draft.source : (t.source || cadenceText || 'Monthly');
+        const editDescVal = draft && draft.description !== undefined ? draft.description : (t.description || '');
         const editFormHtml = isEditingThis ? `
           <div style="margin-top: 8px; padding: 10px 12px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 8px; display: flex; flex-direction: column; gap: 8px;">
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <input type="text" id="editTaskTitle_${escapeHtml(taskDomKey)}" value="${escapeHtml(t.title || '')}" placeholder="Task title" style="flex: 2; min-width: 200px; font-size: 12.5px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text);">
-              <input type="text" id="editTaskDue_${escapeHtml(taskDomKey)}" value="${escapeHtml(t.due_date || '')}" placeholder="Due date (e.g. 04 Nov 2026)" style="flex: 1; min-width: 160px; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text);">
-              <select id="editTaskPrio_${escapeHtml(taskDomKey)}" style="font-size: 12px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(15,23,42,0.95); color: var(--text);">
+              <input type="text" id="editTaskTitle_${escapeHtml(taskDomKey)}" value="${escapeHtml(editTitleVal)}" oninput="captureEditTaskDraft('${escapeHtml(taskDomKey)}')" placeholder="Task title" style="flex: 2; min-width: 200px; font-size: 12.5px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text);">
+              <input type="text" id="editTaskDue_${escapeHtml(taskDomKey)}" value="${escapeHtml(editDueVal)}" oninput="captureEditTaskDraft('${escapeHtml(taskDomKey)}')" placeholder="Due date (e.g. 04 Nov 2026)" style="flex: 1; min-width: 160px; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text);">
+              <select id="editTaskPrio_${escapeHtml(taskDomKey)}" onchange="captureEditTaskDraft('${escapeHtml(taskDomKey)}')" style="font-size: 12px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(15,23,42,0.95); color: var(--text);">
                 <option value="P1" ${curPrio === 'P1' ? 'selected' : ''}>🔴 P1 High</option>
                 <option value="P2" ${curPrio === 'P2' ? 'selected' : ''}>🟡 P2 Medium</option>
                 <option value="P3" ${curPrio === 'P3' ? 'selected' : ''}>🔵 P3 Low</option>
               </select>
-              <select id="editTaskSource_${escapeHtml(taskDomKey)}" style="font-size: 12px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(15,23,42,0.95); color: var(--text);">
+              <select id="editTaskSource_${escapeHtml(taskDomKey)}" onchange="captureEditTaskDraft('${escapeHtml(taskDomKey)}')" style="font-size: 12px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(15,23,42,0.95); color: var(--text);">
                 <option value="Daily" ${curSrc.toLowerCase() === 'daily' ? 'selected' : ''}>☀️ Daily</option>
                 <option value="Monthly" ${curSrc.toLowerCase() === 'monthly' ? 'selected' : ''}>📅 Monthly</option>
                 <option value="Yearly" ${curSrc.toLowerCase() === 'yearly' ? 'selected' : ''}>🗓️ Yearly</option>
                 <option value="Dashboard" ${!['daily','monthly','yearly'].includes(curSrc.toLowerCase()) ? 'selected' : ''}>💻 Dashboard</option>
               </select>
             </div>
-            <textarea id="editTaskDesc_${escapeHtml(taskDomKey)}" rows="2" placeholder="Task description / details" style="width: 100%; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text); resize: vertical;">${escapeHtml(t.description || '')}</textarea>
+            <textarea id="editTaskDesc_${escapeHtml(taskDomKey)}" rows="2" oninput="captureEditTaskDraft('${escapeHtml(taskDomKey)}')" placeholder="Task description / details" style="width: 100%; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text); resize: vertical;">${escapeHtml(editDescVal)}</textarea>
             <div style="display: flex; justify-content: flex-end; gap: 8px;">
               <button class="btn" style="font-size: 11.5px; padding: 4px 12px;" onclick="cancelEditTaskInline()">Cancel</button>
               <button class="btn btn-primary" style="font-size: 11.5px; padding: 4px 14px;" onclick="saveEditedTask('${escapeHtml(taskDomKey)}', '${escapeHtml(actionType)}', '${escapeHtml(String(rawId))}', '${escapeHtml(agentId)}')">💾 Save Changes</button>
@@ -385,14 +441,59 @@
           </div>
         `;
       }).join('');
+
+      if (activeInputId) {
+        const restoredEl = document.getElementById(activeInputId);
+        if (restoredEl && typeof restoredEl.focus === 'function') {
+          restoredEl.focus({ preventScroll: true });
+          if (typeof activeSelStart === 'number' && typeof restoredEl.setSelectionRange === 'function') {
+            try {
+              restoredEl.setSelectionRange(activeSelStart, typeof activeSelEnd === 'number' ? activeSelEnd : activeSelStart);
+            } catch (_) {}
+          }
+        }
+      }
     }
 
     function openEditTaskInline(taskDomKey) {
-      window._editingTaskId = String(taskDomKey || '');
+      const nextKey = String(taskDomKey || '');
+      if (window._editingTaskId && window._editingTaskId === nextKey) {
+        const existingInput = document.getElementById(`editTaskTitle_${nextKey}`);
+        if (existingInput && typeof existingInput.focus === 'function') {
+          existingInput.focus({ preventScroll: true });
+          return;
+        }
+      }
+      if (window._editingTaskId && window._editingTaskId !== nextKey) {
+        captureEditTaskDraft(window._editingTaskId);
+      }
+      window._editingTaskId = nextKey;
+      window._editingTaskDrafts = window._editingTaskDrafts || {};
+      if (!window._editingTaskDrafts[nextKey]) {
+        const allTasks = Array.isArray(window._cachedTasksList) ? window._cachedTasksList : [];
+        const found = allTasks.find(t => String(t.id !== undefined ? t.id : t.raw_id) === nextKey);
+        if (found) {
+          window._editingTaskDrafts[nextKey] = {
+            title: found.title || '',
+            due_date: found.due_date || '',
+            priority: (found.priority || 'P2').toUpperCase(),
+            source: found.source || _getTaskCadence(found) || 'Monthly',
+            description: found.description || ''
+          };
+        }
+      }
       renderTasksList();
+      const titleInput = document.getElementById(`editTaskTitle_${nextKey}`);
+      if (titleInput && typeof titleInput.focus === 'function') {
+        titleInput.focus({ preventScroll: true });
+      }
     }
 
     function cancelEditTaskInline() {
+      const prevKey = String(window._editingTaskId || '');
+      if (prevKey && window._editingTaskDrafts) {
+        delete window._editingTaskDrafts[prevKey];
+      }
       window._editingTaskId = '';
       renderTasksList();
     }
@@ -428,8 +529,11 @@
             source
           })
         });
+        if (window._editingTaskDrafts) {
+          delete window._editingTaskDrafts[String(taskDomKey || '')];
+        }
         window._editingTaskId = '';
-        await fetchTasks();
+        await fetchTasks(true);
         if (typeof fetchBriefing === 'function') fetchBriefing();
         if (typeof fetchLogs === 'function') fetchLogs();
       } catch (e) {
@@ -450,7 +554,7 @@
             glasses_delta: 1
           })
         });
-        fetchTasks();
+        fetchTasks(true);
         if (typeof fetchBriefing === 'function') fetchBriefing();
         if (typeof fetchRoutines === 'function') fetchRoutines();
         if (typeof fetchLogs === 'function') fetchLogs();
@@ -459,7 +563,7 @@
       }
     }
 
-    async function fetchTasks() {
+    async function fetchTasks(forceRender = false) {
       try {
         const res = await fetch('/api/tasks?unified=true');
         const rawTasks = await res.json();
@@ -468,6 +572,10 @@
           const title = (t.title || '').toLowerCase();
           return !s.includes('test') && !s.includes('e2e') && !title.includes('test task') && !title.includes('e2e deep');
         });
+        if (!forceRender && isTaskEditingActive()) {
+          captureEditTaskDraft(window._editingTaskId);
+          return;
+        }
         renderTasksList();
       } catch (e) {
         console.error(e);
@@ -498,7 +606,7 @@
         input.value = '';
         if (descInput) descInput.value = '';
         if (dueInput) dueInput.value = '';
-        fetchTasks();
+        fetchTasks(true);
         fetchBriefing();
         fetchLogs();
       } else {
@@ -513,7 +621,7 @@
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ id })
       });
-      fetchTasks();
+      fetchTasks(true);
       fetchBriefing();
       fetchLogs();
     }
@@ -524,7 +632,7 @@
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ id })
       });
-      fetchTasks();
+      fetchTasks(true);
       fetchBriefing();
       fetchLogs();
     }
@@ -537,6 +645,8 @@ window.deleteTask = deleteTask;
 window.openEditTaskInline = openEditTaskInline;
 window.cancelEditTaskInline = cancelEditTaskInline;
 window.saveEditedTask = saveEditedTask;
+window.isTaskEditingActive = isTaskEditingActive;
+window.captureEditTaskDraft = captureEditTaskDraft;
 window.filterTasksBySource = filterTasksBySource;
 window.filterTasksByAgent = filterTasksByAgent;
 window.executeUnifiedTaskAction = executeUnifiedTaskAction;

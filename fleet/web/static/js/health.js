@@ -596,6 +596,16 @@ let currentPlayingVideo = null;
 let currentVideoType = 'exercise';
 let currentExerciseCategory = 'all';
 
+// Custom Video Playlists & Sequential Playback State
+let savedVideoPlaylists = [];
+let selectedVideoPlaylistId = '';
+let editingPlaylistId = '';
+let draftPlaylistVideos = [];
+let isPlaylistBuilderOpen = false;
+let activePlaybackPlaylist = null;
+let activePlaybackIndex = -1;
+let playlistAutoAdvance = true;
+
 function switchExSubTab(tab) {
   const tabs = ['videos', 'strength', 'antigravity'];
   tabs.forEach(t => {
@@ -657,6 +667,7 @@ async function fetchExerciseVideos() {
     if (countExEl) countExEl.innerText = exCount;
     if (countDietEl) countDietEl.innerText = dietCount;
 
+    await fetchVideoPlaylists();
     renderVideoCategoryFilters();
     renderExerciseVideos();
   } catch (err) {
@@ -665,6 +676,379 @@ async function fetchExerciseVideos() {
     if (grid) {
       grid.innerHTML = '<div style="color: var(--text-muted); font-size: 12px; grid-column: 1/-1; padding: 12px;">No videos found or unable to access video directory.</div>';
     }
+  }
+}
+
+async function fetchVideoPlaylists() {
+  try {
+    const res = await fetch('/api/health/playlists');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.playlists)) {
+        savedVideoPlaylists = data.playlists;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load video playlists:', err);
+  }
+  if (!selectedVideoPlaylistId || !savedVideoPlaylists.some(p => p.id === selectedVideoPlaylistId)) {
+    selectedVideoPlaylistId = savedVideoPlaylists.length > 0 ? savedVideoPlaylists[0].id : '';
+  }
+  if (!isPlaylistBuilderOpen) {
+    const cur = savedVideoPlaylists.find(p => p.id === selectedVideoPlaylistId);
+    draftPlaylistVideos = cur && Array.isArray(cur.videos) ? cur.videos.map(v => ({ ...v })) : [];
+    editingPlaylistId = cur ? cur.id : '';
+  }
+  renderSavedVideoPlaylistsUI();
+}
+
+function getActivePlaylistVideosForCardState() {
+  if (isPlaylistBuilderOpen) {
+    return draftPlaylistVideos;
+  }
+  const cur = savedVideoPlaylists.find(p => p.id === selectedVideoPlaylistId);
+  return cur && Array.isArray(cur.videos) ? cur.videos : [];
+}
+
+function getVideoPlaylistPosition(filename) {
+  const list = getActivePlaylistVideosForCardState();
+  const idx = list.findIndex(item => item.filename === filename);
+  return idx >= 0 ? idx + 1 : 0;
+}
+
+function renderSavedVideoPlaylistsUI() {
+  const sel = document.getElementById('savedVideoPlaylistSelect');
+  const summaryEl = document.getElementById('playlistSummaryBadge');
+  if (sel) {
+    if (savedVideoPlaylists.length === 0) {
+      sel.innerHTML = '<option value="">No saved playlists yet — click + New Playlist</option>';
+    } else {
+      sel.innerHTML = savedVideoPlaylists.map(p => {
+        const count = Array.isArray(p.videos) ? p.videos.length : 0;
+        const selectedAttr = p.id === selectedVideoPlaylistId ? 'selected' : '';
+        return `<option value="${escapeHtml(p.id)}" ${selectedAttr}>🎵 ${escapeHtml(p.name)} (${count} video${count === 1 ? '' : 's'})</option>`;
+      }).join('');
+    }
+  }
+  if (summaryEl) {
+    const cur = savedVideoPlaylists.find(p => p.id === selectedVideoPlaylistId);
+    if (isPlaylistBuilderOpen) {
+      summaryEl.innerHTML = `<strong style="color: var(--accent-cyan);">Building Playlist (${draftPlaylistVideos.length} video${draftPlaylistVideos.length === 1 ? '' : 's'})</strong> • Click <strong style="color: #34d399;">+ Playlist</strong> on any card below to queue`;
+    } else if (cur && Array.isArray(cur.videos)) {
+      summaryEl.innerHTML = `Selected: <strong style="color: #fff;">${escapeHtml(cur.name)}</strong> (${cur.videos.length} video${cur.videos.length === 1 ? '' : 's'}) • Click <strong style="color: var(--accent-cyan);">+ Playlist</strong> on any video card to add`;
+    } else {
+      summaryEl.innerHTML = `Click <strong style="color: var(--accent-cyan);">+ Playlist</strong> on any video card below to build a custom playlist`;
+    }
+  }
+  renderPlaylistDraftBuilder();
+}
+
+function onSelectSavedVideoPlaylist(playlistId) {
+  selectedVideoPlaylistId = String(playlistId || '');
+  const cur = savedVideoPlaylists.find(p => p.id === selectedVideoPlaylistId);
+  if (cur) {
+    editingPlaylistId = cur.id;
+    draftPlaylistVideos = Array.isArray(cur.videos) ? cur.videos.map(v => ({ ...v })) : [];
+    const nameInput = document.getElementById('playlistNameInput');
+    if (nameInput && isPlaylistBuilderOpen) {
+      nameInput.value = cur.name || '';
+    }
+  }
+  renderSavedVideoPlaylistsUI();
+  renderExerciseVideos();
+}
+
+function openPlaylistBuilder(nameValue, playlistId, videosList) {
+  isPlaylistBuilderOpen = true;
+  editingPlaylistId = String(playlistId || '');
+  draftPlaylistVideos = Array.isArray(videosList) ? videosList.map(v => ({ ...v })) : [];
+  const panel = document.getElementById('videoPlaylistBuilderPanel');
+  const nameInput = document.getElementById('playlistNameInput');
+  if (panel) panel.style.display = 'flex';
+  if (nameInput) {
+    nameInput.value = nameValue || '';
+  }
+  renderSavedVideoPlaylistsUI();
+  renderExerciseVideos();
+}
+
+function closePlaylistBuilder() {
+  isPlaylistBuilderOpen = false;
+  const panel = document.getElementById('videoPlaylistBuilderPanel');
+  if (panel) panel.style.display = 'none';
+  const cur = savedVideoPlaylists.find(p => p.id === selectedVideoPlaylistId);
+  draftPlaylistVideos = cur && Array.isArray(cur.videos) ? cur.videos.map(v => ({ ...v })) : [];
+  editingPlaylistId = cur ? cur.id : '';
+  renderSavedVideoPlaylistsUI();
+  renderExerciseVideos();
+}
+
+function startNewVideoPlaylist() {
+  openPlaylistBuilder('', '', []);
+  const nameInput = document.getElementById('playlistNameInput');
+  if (nameInput && typeof nameInput.focus === 'function') {
+    nameInput.focus({ preventScroll: true });
+  }
+}
+
+function editSelectedPlaylist() {
+  const cur = savedVideoPlaylists.find(p => p.id === selectedVideoPlaylistId);
+  if (!cur) {
+    startNewVideoPlaylist();
+    return;
+  }
+  openPlaylistBuilder(cur.name || '', cur.id, cur.videos || []);
+}
+
+function clearDraftVideoPlaylist() {
+  draftPlaylistVideos = [];
+  renderSavedVideoPlaylistsUI();
+  renderExerciseVideos();
+}
+
+function renderPlaylistDraftBuilder() {
+  const container = document.getElementById('playlistDraftItemsList');
+  if (!container) return;
+  if (draftPlaylistVideos.length === 0) {
+    container.innerHTML = `<div style="padding: 10px 12px; border: 1px dashed rgba(56, 189, 248, 0.3); border-radius: 6px; font-size: 12px; color: var(--text-muted); text-align: center;">No videos in this playlist yet. Click <strong style="color: var(--accent-cyan);">+ Playlist</strong> on any video card below in the order you want them to play!</div>`;
+    return;
+  }
+  container.innerHTML = draftPlaylistVideos.map((v, idx) => {
+    const fnSafe = escapeJsAttrStr(v.filename);
+    return `
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px;">
+        <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+          <span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; background: rgba(56, 189, 248, 0.18); color: #38bdf8;">#${idx + 1}</span>
+          <span style="font-size: 12px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(v.title || v.filename)}</span>
+          <span style="font-size: 10.5px; color: var(--text-muted); white-space: nowrap;">(${escapeHtml(v.category || 'FFD Video')})</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+          <button class="btn" style="font-size: 10.5px; padding: 2px 7px;" onclick="playDraftPlaylistFromIndex(${idx})" title="Play playlist starting from this video">▶</button>
+          <button class="btn" style="font-size: 10.5px; padding: 2px 6px;" ${idx === 0 ? 'disabled' : ''} onclick="moveVideoInPlaylistDraft(${idx}, -1)" title="Move up">↑</button>
+          <button class="btn" style="font-size: 10.5px; padding: 2px 6px;" ${idx === draftPlaylistVideos.length - 1 ? 'disabled' : ''} onclick="moveVideoInPlaylistDraft(${idx}, 1)" title="Move down">↓</button>
+          <button class="btn-delete" style="font-size: 11px; padding: 2px 6px;" onclick="removeVideoFromPlaylistDraft('${fnSafe}')" title="Remove from playlist">✕</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function addVideoToPlaylistDraft(filename, title, category) {
+  if (!isPlaylistBuilderOpen) {
+    const cur = savedVideoPlaylists.find(p => p.id === selectedVideoPlaylistId);
+    if (cur) {
+      openPlaylistBuilder(cur.name, cur.id, cur.videos || []);
+    } else {
+      openPlaylistBuilder('My Custom Workout Playlist', '', []);
+    }
+  }
+  const existingIdx = draftPlaylistVideos.findIndex(v => v.filename === filename);
+  if (existingIdx >= 0) {
+    draftPlaylistVideos.splice(existingIdx, 1);
+  } else {
+    draftPlaylistVideos.push({
+      filename,
+      title: title || filename,
+      category: category || 'FFD Video'
+    });
+  }
+  renderSavedVideoPlaylistsUI();
+  renderExerciseVideos();
+}
+
+function removeVideoFromPlaylistDraft(filename) {
+  draftPlaylistVideos = draftPlaylistVideos.filter(v => v.filename !== filename);
+  renderSavedVideoPlaylistsUI();
+  renderExerciseVideos();
+}
+
+function moveVideoInPlaylistDraft(index, delta) {
+  const target = index + delta;
+  if (target < 0 || target >= draftPlaylistVideos.length) return;
+  const temp = draftPlaylistVideos[index];
+  draftPlaylistVideos[index] = draftPlaylistVideos[target];
+  draftPlaylistVideos[target] = temp;
+  renderSavedVideoPlaylistsUI();
+  renderExerciseVideos();
+}
+
+async function saveCurrentVideoPlaylist() {
+  const nameInput = document.getElementById('playlistNameInput');
+  const name = (nameInput ? nameInput.value : '').trim();
+  if (!name) {
+    alert('Please enter a name for your playlist.');
+    if (nameInput) nameInput.focus();
+    return null;
+  }
+  if (draftPlaylistVideos.length === 0) {
+    alert('Please add at least one video to your playlist by clicking "+ Playlist" on any video card below.');
+    return null;
+  }
+  try {
+    const res = await fetch('/api/health/playlists/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: editingPlaylistId || undefined,
+        name,
+        videos: draftPlaylistVideos
+      })
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      alert(data.error || 'Failed to save playlist');
+      return null;
+    }
+    if (Array.isArray(data.playlists)) {
+      savedVideoPlaylists = data.playlists;
+    }
+    if (data.playlist && data.playlist.id) {
+      selectedVideoPlaylistId = data.playlist.id;
+      editingPlaylistId = data.playlist.id;
+    }
+    isPlaylistBuilderOpen = false;
+    const panel = document.getElementById('videoPlaylistBuilderPanel');
+    if (panel) panel.style.display = 'none';
+    renderSavedVideoPlaylistsUI();
+    renderExerciseVideos();
+    if (typeof showToast === 'function') {
+      showToast(`✅ Saved playlist "${name}" (${draftPlaylistVideos.length} videos)`);
+    }
+    return data.playlist;
+  } catch (err) {
+    console.error('Error saving playlist:', err);
+    return null;
+  }
+}
+
+async function saveAndPlayVideoPlaylist() {
+  const saved = await saveCurrentVideoPlaylist();
+  if (saved && Array.isArray(saved.videos) && saved.videos.length > 0) {
+    startPlaylistPlayback(saved, 0);
+  }
+}
+
+async function deleteSelectedPlaylist() {
+  const cur = savedVideoPlaylists.find(p => p.id === selectedVideoPlaylistId);
+  if (!cur) return;
+  try {
+    const res = await fetch('/api/health/playlists/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: cur.id, name: cur.name })
+    });
+    const data = await res.json();
+    if (Array.isArray(data.playlists)) {
+      savedVideoPlaylists = data.playlists;
+    }
+    selectedVideoPlaylistId = savedVideoPlaylists.length > 0 ? savedVideoPlaylists[0].id : '';
+    closePlaylistBuilder();
+    if (typeof showToast === 'function') {
+      showToast(`🗑 Deleted playlist "${cur.name}"`);
+    }
+  } catch (err) {
+    console.error('Error deleting playlist:', err);
+  }
+}
+
+function playSelectedPlaylist() {
+  if (isPlaylistBuilderOpen && draftPlaylistVideos.length > 0) {
+    const nameInput = document.getElementById('playlistNameInput');
+    const tempName = (nameInput && nameInput.value.trim()) || 'Custom Playlist Queue';
+    startPlaylistPlayback({ id: editingPlaylistId || 'draft', name: tempName, videos: draftPlaylistVideos.slice() }, 0);
+    return;
+  }
+  const cur = savedVideoPlaylists.find(p => p.id === selectedVideoPlaylistId);
+  if (!cur || !Array.isArray(cur.videos) || cur.videos.length === 0) {
+    alert('Please select a playlist or click "+ New Playlist" to add videos first.');
+    return;
+  }
+  startPlaylistPlayback(cur, 0);
+}
+
+function playDraftPlaylistFromIndex(index) {
+  if (draftPlaylistVideos.length === 0) return;
+  const nameInput = document.getElementById('playlistNameInput');
+  const tempName = (nameInput && nameInput.value.trim()) || 'Custom Playlist Queue';
+  startPlaylistPlayback({ id: editingPlaylistId || 'draft', name: tempName, videos: draftPlaylistVideos.slice() }, index);
+}
+
+function startPlaylistPlayback(playlistObj, startIndex = 0) {
+  if (!playlistObj || !Array.isArray(playlistObj.videos) || playlistObj.videos.length === 0) return;
+  activePlaybackPlaylist = {
+    id: playlistObj.id || 'custom',
+    name: playlistObj.name || 'Video Playlist',
+    videos: playlistObj.videos.slice()
+  };
+  playPlaylistAtIndex(startIndex);
+}
+
+function playPlaylistAtIndex(index) {
+  if (!activePlaybackPlaylist || !Array.isArray(activePlaybackPlaylist.videos)) return;
+  const total = activePlaybackPlaylist.videos.length;
+  if (index < 0 || index >= total) return;
+  activePlaybackIndex = index;
+  const item = activePlaybackPlaylist.videos[index];
+  _launchVideoModal(item.filename, item.title || item.filename, item.category || 'FFD Video', true);
+  renderModalPlaylistBar();
+}
+
+function playNextInPlaylist() {
+  if (!activePlaybackPlaylist || !Array.isArray(activePlaybackPlaylist.videos)) return;
+  if (activePlaybackIndex + 1 < activePlaybackPlaylist.videos.length) {
+    playPlaylistAtIndex(activePlaybackIndex + 1);
+  }
+}
+
+function playPrevInPlaylist() {
+  if (!activePlaybackPlaylist || !Array.isArray(activePlaybackPlaylist.videos)) return;
+  if (activePlaybackIndex - 1 >= 0) {
+    playPlaylistAtIndex(activePlaybackIndex - 1);
+  }
+}
+
+function togglePlaylistAutoAdvance() {
+  playlistAutoAdvance = !playlistAutoAdvance;
+  renderModalPlaylistBar();
+}
+
+function renderModalPlaylistBar() {
+  const bar = document.getElementById('videoModalPlaylistBar');
+  const statusEl = document.getElementById('videoModalPlaylistStatus');
+  const prevBtn = document.getElementById('btnPlaylistPrev');
+  const nextBtn = document.getElementById('btnPlaylistNext');
+  const autoBtn = document.getElementById('btnPlaylistAutoAdvance');
+  const tracksEl = document.getElementById('videoModalPlaylistTracks');
+  if (!bar) return;
+
+  if (!activePlaybackPlaylist || !Array.isArray(activePlaybackPlaylist.videos) || activePlaybackPlaylist.videos.length === 0) {
+    bar.style.display = 'none';
+    return;
+  }
+
+  bar.style.display = 'flex';
+  const videos = activePlaybackPlaylist.videos;
+  const total = videos.length;
+  const curNum = activePlaybackIndex + 1;
+  if (statusEl) {
+    statusEl.innerText = `${activePlaybackPlaylist.name} • Playing ${curNum} of ${total}`;
+  }
+  if (prevBtn) prevBtn.disabled = activePlaybackIndex <= 0;
+  if (nextBtn) nextBtn.disabled = activePlaybackIndex >= total - 1;
+  if (autoBtn) {
+    autoBtn.innerText = `🔁 Auto-Play Next: ${playlistAutoAdvance ? 'ON' : 'OFF'}`;
+    autoBtn.style.background = playlistAutoAdvance ? 'rgba(16, 185, 129, 0.16)' : 'rgba(148, 163, 184, 0.12)';
+    autoBtn.style.borderColor = playlistAutoAdvance ? 'rgba(16, 185, 129, 0.45)' : 'rgba(148, 163, 184, 0.3)';
+    autoBtn.style.color = playlistAutoAdvance ? '#34d399' : 'var(--text-muted)';
+  }
+  if (tracksEl) {
+    tracksEl.innerHTML = videos.map((v, idx) => {
+      const isCur = idx === activePlaybackIndex;
+      const chipStyle = isCur
+        ? 'background: rgba(56, 189, 248, 0.24); border: 1px solid #38bdf8; color: #fff; font-weight: 700;'
+        : 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); color: var(--text-muted);';
+      return `<button class="btn" onclick="playPlaylistAtIndex(${idx})" style="font-size: 11px; padding: 3px 9px; white-space: nowrap; ${chipStyle}">${isCur ? '▶ ' : ''}${idx + 1}. ${escapeHtml(v.title || v.filename)}</button>`;
+    }).join('');
   }
 }
 
@@ -747,6 +1131,10 @@ function renderExerciseVideos() {
     const filenameSafe = escapeJsAttrStr(v.filename);
     const catSafe = escapeJsAttrStr(v.category || 'FFD Video');
     const streamUrl = '/api/health/video/stream?file=' + encodeURIComponent(v.filename);
+    const playlistPos = getVideoPlaylistPosition(v.filename);
+    const playlistBtnHtml = playlistPos > 0
+      ? `<button class="btn" title="In playlist (#${playlistPos}) — click to remove from queue" style="font-size: 11px; padding: 5px 8px; background: rgba(16, 185, 129, 0.16); border-color: rgba(16, 185, 129, 0.45); color: #34d399; font-weight: 600;" onclick="addVideoToPlaylistDraft('${filenameSafe}', '${cleanTitle}', '${catSafe}')">✓ #${playlistPos}</button>`
+      : `<button class="btn" title="Add video to playlist" style="font-size: 11px; padding: 5px 8px; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" onclick="addVideoToPlaylistDraft('${filenameSafe}', '${cleanTitle}', '${catSafe}')">+ Playlist</button>`;
 
     return `
       <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.15s, border-color 0.15s;">
@@ -770,6 +1158,7 @@ function renderExerciseVideos() {
           <button class="btn btn-primary" style="flex: 1; font-size: 11px; padding: 5px 8px; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="playExerciseVideo('${filenameSafe}', '${cleanTitle}', '${catSafe}')">
             ▶ Watch
           </button>
+          ${playlistBtnHtml}
           <button class="btn" title="Open in Windows Media Player" style="font-size: 11px; padding: 5px 8px;" onclick="openVideoInSystem('${filenameSafe}')">
             🖥 Open
           </button>
@@ -779,7 +1168,12 @@ function renderExerciseVideos() {
   }).join('');
 }
 
-function playExerciseVideo(filename, title, category) {
+function _launchVideoModal(filename, title, category, keepPlaylistMode = false) {
+  if (!keepPlaylistMode) {
+    activePlaybackPlaylist = null;
+    activePlaybackIndex = -1;
+    renderModalPlaylistBar();
+  }
   currentPlayingVideo = filename;
   const modal = document.getElementById('exerciseVideoModal');
   const modalTitle = document.getElementById('videoModalTitle');
@@ -794,6 +1188,16 @@ function playExerciseVideo(filename, title, category) {
   if (modal) modal.style.display = 'flex';
 
   if (player) {
+    player.onended = () => {
+      if (
+        activePlaybackPlaylist
+        && Array.isArray(activePlaybackPlaylist.videos)
+        && playlistAutoAdvance
+        && activePlaybackIndex + 1 < activePlaybackPlaylist.videos.length
+      ) {
+        playPlaylistAtIndex(activePlaybackIndex + 1);
+      }
+    };
     player.pause();
     player.src = '/api/health/video/stream?file=' + encodeURIComponent(filename);
     player.load();
@@ -801,16 +1205,23 @@ function playExerciseVideo(filename, title, category) {
   }
 }
 
+function playExerciseVideo(filename, title, category) {
+  _launchVideoModal(filename, title, category, false);
+}
+
 function closeVideoModal() {
   const modal = document.getElementById('exerciseVideoModal');
   const player = document.getElementById('exerciseVideoPlayer');
   if (player) {
+    player.onended = null;
     player.pause();
     player.removeAttribute('src');
     player.load();
   }
   if (modal) modal.style.display = 'none';
   currentPlayingVideo = null;
+  activePlaybackPlaylist = null;
+  activePlaybackIndex = -1;
 }
 
 async function openCurrentVideoInSystem() {
@@ -838,10 +1249,28 @@ async function openVideoInSystem(filename) {
   }
 }
 
-// Attach all video & strength functions to window
+// Attach all video, playlist & strength functions to window
 window.switchExSubTab = switchExSubTab;
 window.switchVideoType = switchVideoType;
 window.fetchExerciseVideos = fetchExerciseVideos;
+window.fetchVideoPlaylists = fetchVideoPlaylists;
+window.onSelectSavedVideoPlaylist = onSelectSavedVideoPlaylist;
+window.startNewVideoPlaylist = startNewVideoPlaylist;
+window.editSelectedPlaylist = editSelectedPlaylist;
+window.closePlaylistBuilder = closePlaylistBuilder;
+window.clearDraftVideoPlaylist = clearDraftVideoPlaylist;
+window.addVideoToPlaylistDraft = addVideoToPlaylistDraft;
+window.removeVideoFromPlaylistDraft = removeVideoFromPlaylistDraft;
+window.moveVideoInPlaylistDraft = moveVideoInPlaylistDraft;
+window.saveCurrentVideoPlaylist = saveCurrentVideoPlaylist;
+window.saveAndPlayVideoPlaylist = saveAndPlayVideoPlaylist;
+window.deleteSelectedPlaylist = deleteSelectedPlaylist;
+window.playSelectedPlaylist = playSelectedPlaylist;
+window.playDraftPlaylistFromIndex = playDraftPlaylistFromIndex;
+window.playPlaylistAtIndex = playPlaylistAtIndex;
+window.playNextInPlaylist = playNextInPlaylist;
+window.playPrevInPlaylist = playPrevInPlaylist;
+window.togglePlaylistAutoAdvance = togglePlaylistAutoAdvance;
 window.renderVideoCategoryFilters = renderVideoCategoryFilters;
 window.filterVideoCategory = filterVideoCategory;
 window.renderExerciseVideos = renderExerciseVideos;

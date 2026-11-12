@@ -23,7 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Auto poll updates every 8 seconds
   setInterval(() => {
     if (typeof fetchBriefing === 'function') fetchBriefing();
-    if (typeof fetchTasks === 'function') fetchTasks();
+    if (typeof fetchTasks === 'function' && (typeof isTaskEditingActive !== 'function' || !isTaskEditingActive())) {
+      fetchTasks();
+    }
     if (typeof fetchRoutines === 'function') fetchRoutines();
     if (typeof fetchSchedules === 'function') fetchSchedules();
     if (typeof fetchLogs === 'function') fetchLogs();

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.16.1] - 2026-11-12
+
+### Added
+- **Custom Video Playlists & Sequential One-by-One Playback**: Added an interactive playlist builder (`#videoPlaylistBar`, `#videoPlaylistBuilderPanel`), `+ Playlist` queueing on every video card in the **Exercise, Videos & Traditional Strength Training Hub**, persistent local playlist storage (`GET /api/health/playlists`, `POST /api/health/playlists/save`, `POST /api/health/playlists/delete`), and automatic one-by-one playback (`#videoModalPlaylistBar`, `⏮ Prev`, `⏭ Next Video`, `🔁 Auto-Play Next: ON`) in the Video Player Modal.
+- **Individual Monthly & Yearly Task Decomposition**: Split all combined Monthly and Yearly obligations (`Investments`, `Electricity Bill Payments`, `KINDUZ Operations & Compliance`, `KINDUZ US`, `Websites & Domains`, `AWS Updates`, `Credit Card Subscriptions`, `Stored Credit Card Tokens`, and `Insurance Renewals`) into individual trackable tasks with automatic legacy task cleanup in `sync_local_personal_tasks_vault()`.
+
+### Fixed
+- **Inline Task Editor Focus & Draft Preservation**: Prevented the 8-second background polling loop (`app.js`, `tasks.js`) from re-rendering `#taskList` or resetting unsaved text edits while an inline task edit (`isTaskEditingActive()`, `captureEditTaskDraft()`) is open.
+
+---
+
 ## [2.16.0] - 2026-11-08
 
 ### Added

@@ -197,3 +197,107 @@ def test_all_exercise_videos_accessible_stream_and_open_including_warmup_apostro
     assert "escapeJsAttrStr(v.category" in js_text
 
 
+def test_custom_video_playlists_crud_and_sequential_playback(tmp_path, monkeypatch):
+    """
+    Verifies custom video playlist creation, saving, updating, deletion, and
+    sequential one-by-one playback wiring across health_api.py, health.js, and dashboard.html.
+    """
+    from pathlib import Path
+    import urllib.parse
+    from unittest.mock import MagicMock
+    import fleet.api.health_api as health_api
+
+    playlist_file = tmp_path / "video_playlists.json"
+    monkeypatch.setenv("FLEET_VIDEO_PLAYLISTS_PATH", str(playlist_file))
+
+    # 1. Initial GET seeds default starter playlist
+    h = MagicMock()
+    health_api.get_video_playlists(h, urllib.parse.urlparse("/api/health/playlists"))
+    res_init = h._send_json.call_args[0][0]
+    assert res_init["status"] == "ok"
+    assert len(res_init["playlists"]) >= 1
+    assert playlist_file.exists()
+
+    # 2. Save a new custom playlist (mix of dict and string items)
+    h.reset_mock()
+    health_api.save_video_playlist_endpoint(h, {
+        "name": "Morning Warm-Up & Strength",
+        "videos": [
+            {
+                "filename": "Get your whole body warmed up in just 10 mins.mp4",
+                "title": "Get your whole body warmed up in just 10 mins",
+                "category": "World's Best Warm-Up & Mobility",
+            },
+            "04 - Modified Nitric Oxide Dump Exercise for Diabetes.mp4",
+        ],
+    })
+    res_save = h._send_json.call_args[0][0]
+    assert res_save["status"] == "saved"
+    saved_pl = res_save["playlist"]
+    assert saved_pl["name"] == "Morning Warm-Up & Strength"
+    assert len(saved_pl["videos"]) == 2
+    assert saved_pl["videos"][1]["filename"] == "04 - Modified Nitric Oxide Dump Exercise for Diabetes.mp4"
+
+    # 3. Update existing playlist by id
+    h.reset_mock()
+    health_api.save_video_playlist_endpoint(h, {
+        "id": saved_pl["id"],
+        "name": "Morning Warm-Up & Strength (Updated)",
+        "videos": [
+            {
+                "filename": "Get your whole body warmed up in just 10 mins.mp4",
+                "title": "Get your whole body warmed up in just 10 mins",
+                "category": "World's Best Warm-Up & Mobility",
+            },
+        ],
+    })
+    res_upd = h._send_json.call_args[0][0]
+    assert res_upd["status"] == "saved"
+    assert len(res_upd["playlist"]["videos"]) == 1
+
+    # 4. Validation errors on save and delete
+    h.reset_mock()
+    health_api.save_video_playlist_endpoint(h, {"name": "", "videos": []})
+    assert h._send_json.call_args[0][1] == 400
+
+    h.reset_mock()
+    health_api.save_video_playlist_endpoint(h, {"name": "Empty", "videos": []})
+    assert h._send_json.call_args[0][1] == 400
+
+    h.reset_mock()
+    health_api.save_video_playlist_endpoint(h, {"name": "Invalid Videos", "videos": [{}]})
+    assert h._send_json.call_args[0][1] == 400
+
+    h.reset_mock()
+    health_api.delete_video_playlist_endpoint(h, {})
+    assert h._send_json.call_args[0][1] == 400
+
+    # 5. Delete playlist by id
+    h.reset_mock()
+    health_api.delete_video_playlist_endpoint(h, {"id": saved_pl["id"]})
+    res_del = h._send_json.call_args[0][0]
+    assert res_del["status"] == "deleted"
+    assert res_del["deleted"] is True
+
+    # 6. Raw list JSON & corrupted JSON fallbacks
+    playlist_file.write_text('[{"id": "pl_raw", "name": "Raw List", "videos": []}]', encoding="utf-8")
+    assert len(health_api.load_video_playlists()) == 1
+    playlist_file.write_text("not-valid-json", encoding="utf-8")
+    assert len(health_api.load_video_playlists()) >= 1
+
+    # 7. Verify frontend sequential playback and playlist builder wiring
+    root_dir = Path(__file__).resolve().parent.parent
+    js_text = (root_dir / "fleet" / "web" / "static" / "js" / "health.js").read_text(encoding="utf-8")
+    html_text = (root_dir / "fleet" / "web" / "templates" / "dashboard.html").read_text(encoding="utf-8")
+    assert "function saveCurrentVideoPlaylist()" in js_text
+    assert "function playSelectedPlaylist()" in js_text
+    assert "function playPlaylistAtIndex(" in js_text
+    assert "function playNextInPlaylist()" in js_text
+    assert "function playPrevInPlaylist()" in js_text
+    assert "player.onended =" in js_text
+    assert 'id="videoPlaylistBar"' in html_text
+    assert 'id="videoPlaylistBuilderPanel"' in html_text
+    assert 'id="videoModalPlaylistBar"' in html_text
+
+
+

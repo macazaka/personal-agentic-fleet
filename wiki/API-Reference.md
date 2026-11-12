@@ -404,7 +404,7 @@ Lists all `@agent` slash commands across active agents or executes a Unified `Ct
 ```
 
 <!-- AUTO-API-ROUTES:START -->
-## 🔄 Complete Live REST API Route Inventory (`158` Endpoints — `v2.16.0`)
+## 🔄 Complete Live REST API Route Inventory (`161` Endpoints — `v2.16.1`)
 
 This table is **automatically introspected from `fleet/api/*.py` AST decorators** on every release by `fleet.tools.doc_wiki_enhancer`:
 
@@ -454,6 +454,9 @@ This table is **automatically introspected from `fleet/api/*.py` AST decorators*
 | `POST` | `/api/health/video/open_system` | `open_video_in_system` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `open_video_in_system` in `fleet/api/health_api.py`. |
 | `GET` | `/api/health/strength_plan` | `get_strength_plan` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `get_strength_plan` in `fleet/api/health_api.py`. |
 | `GET` | `/api/health/exercise_plan` | `get_exercise_plan` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `get_exercise_plan` in `fleet/api/health_api.py`. |
+| `GET` | `/api/health/playlists` | `get_video_playlists` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `get_video_playlists` in `fleet/api/health_api.py`. |
+| `POST` | `/api/health/playlists/save` | `save_video_playlist_endpoint` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `save_video_playlist_endpoint` in `fleet/api/health_api.py`. |
+| `POST` | `/api/health/playlists/delete` | `delete_video_playlist_endpoint` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `delete_video_playlist_endpoint` in `fleet/api/health_api.py`. |
 | `GET` | `/api/hyperscalers/providers` | `get_hyperscaler_providers` ([`fleet/api/hyperscalers_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/hyperscalers_api.py)) | Returns list of supported hyperscalers and their configured models. |
 | `GET` | `/api/hyperscalers/dev_tools` | `get_developer_tools_status` ([`fleet/api/hyperscalers_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/hyperscalers_api.py)) | Returns detection status for GitHub Copilot, Claude Code, Antigravity, Gemini CLI, Amazon Q, Cursor, VS Code, and Ollama. |
 | `POST` | `/api/hyperscalers/generate` | `post_hyperscaler_generate` ([`fleet/api/hyperscalers_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/hyperscalers_api.py)) | Executes a completion request through the unified HyperscalerGateway. |

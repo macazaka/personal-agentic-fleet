@@ -22,7 +22,7 @@
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
               <h1 style="margin: 0; white-space: nowrap;">Personal Agentic Fleet</h1>
               <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.35); font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;" onclick="openReleaseNotesModal()" title="View Release Notes & Versions">
-                <span id="fleetHeaderVerBadge">v2.16.0</span>
+                <span id="fleetHeaderVerBadge">v2.16.1</span>
                 <span style="font-size: 9px; opacity: 0.8;">📜</span>
               </span>
             </div>
@@ -830,8 +830,55 @@
         </div>
 
         <!-- Dynamic Category Filters based on active video type -->
-        <div id="videoCategoryFiltersRow" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px;">
+        <div id="videoCategoryFiltersRow" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">
           <!-- Populated dynamically via JS -->
+        </div>
+
+        <!-- Custom Video Playlists Bar & Interactive Playlist Builder -->
+        <div id="videoPlaylistBar" style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(56, 189, 248, 0.28); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <span style="font-size: 15px;">🎵</span>
+              <strong style="font-size: 12.5px; color: #fff;">My Video Playlists:</strong>
+              <select id="savedVideoPlaylistSelect" onchange="onSelectSavedVideoPlaylist(this.value)" style="font-size: 12px; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(15, 23, 42, 0.95); color: var(--text); min-width: 240px;">
+                <option value="">Loading playlists...</option>
+              </select>
+              <button class="btn btn-primary" id="btnPlaySelectedPlaylist" onclick="playSelectedPlaylist()" style="font-size: 11.5px; padding: 5px 12px; display: flex; align-items: center; gap: 5px;" title="Play all videos in this playlist one by one">
+                ▶ Play Playlist One-by-One
+              </button>
+              <button class="btn" id="btnEditSelectedPlaylist" onclick="editSelectedPlaylist()" style="font-size: 11.5px; padding: 5px 10px; border-color: rgba(56, 189, 248, 0.35); color: #38bdf8;" title="Edit the selected playlist">
+                ✏️ Edit
+              </button>
+              <button class="btn" id="btnNewVideoPlaylist" onclick="startNewVideoPlaylist()" style="font-size: 11.5px; padding: 5px 10px; border-color: rgba(16, 185, 129, 0.4); color: #34d399;" title="Create a brand-new video playlist">
+                ➕ New Playlist
+              </button>
+              <button class="btn" id="btnDeleteSelectedPlaylist" onclick="deleteSelectedPlaylist()" style="font-size: 11.5px; padding: 5px 9px; border-color: rgba(239, 68, 68, 0.35); color: #f87171;" title="Delete the selected playlist">
+                🗑
+              </button>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted);" id="playlistSummaryBadge">
+              Click <strong style="color: var(--accent-cyan);">+ Playlist</strong> on any video card below to add it to your playlist
+            </div>
+          </div>
+
+          <!-- Collapsible Playlist Builder / Editor Queue -->
+          <div id="videoPlaylistBuilderPanel" style="display: none; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px; flex-direction: column; gap: 10px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 240px;">
+                <span style="font-size: 12px; font-weight: 600; color: var(--accent-cyan); white-space: nowrap;">Playlist Name:</span>
+                <input type="text" id="playlistNameInput" placeholder="e.g. Morning Warm-Up & NOD Routine" style="flex: 1; font-size: 12.5px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text);">
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="saveCurrentVideoPlaylist()" style="font-size: 11.5px; padding: 5px 12px;" title="💾 Save Playlist">💾 Save Playlist</button>
+                <button class="btn" onclick="saveAndPlayVideoPlaylist()" style="font-size: 11.5px; padding: 5px 12px; background: rgba(16, 185, 129, 0.18); border-color: rgba(16, 185, 129, 0.45); color: #34d399;" title="▶ Save & Play All">▶ Save & Play All</button>
+                <button class="btn" onclick="clearDraftVideoPlaylist()" style="font-size: 11.5px; padding: 5px 10px;" title="Clear Queue">Clear Queue</button>
+                <button class="btn" onclick="closePlaylistBuilder()" style="font-size: 11.5px; padding: 5px 10px;" title="Close">Close</button>
+              </div>
+            </div>
+            <div id="playlistDraftItemsList" style="display: flex; flex-direction: column; gap: 6px; max-height: 190px; overflow-y: auto; padding-right: 4px;">
+              <!-- Populated dynamically via JS -->
+            </div>
+          </div>
         </div>
 
         <!-- Video Cards Grid with Live Video Thumbnails -->
@@ -1808,7 +1855,7 @@
           <span style="font-size: 22px;">📜</span>
           <div>
             <strong style="font-size: 16px; color: var(--text);">Fleet Release Notes & Version History</strong>
-            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.16.0</div>
+            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.16.1</div>
           </div>
         </div>
         <button title="Close Release Notes modal" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeReleaseNotesModal()">✕</button>
@@ -2016,10 +2063,27 @@
           <button title="Close exercise video modal" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeVideoModal()">✕</button>
         </div>
       </div>
-      <div style="background: #000; border-radius: 8px; overflow: hidden; display: flex; justify-content: center; align-items: center; max-height: 65vh;">
-        <video id="exerciseVideoPlayer" controls style="width: 100%; max-height: 65vh; display: block;" preload="metadata">
+      <div style="background: #000; border-radius: 8px; overflow: hidden; display: flex; justify-content: center; align-items: center; max-height: 62vh;">
+        <video id="exerciseVideoPlayer" controls style="width: 100%; max-height: 62vh; display: block;" preload="metadata">
           Your browser does not support HTML5 video streaming.
         </video>
+      </div>
+      <!-- Playlist Sequential Playback Bar (shown when playing a playlist) -->
+      <div id="videoModalPlaylistBar" style="display: none; margin-top: 10px; padding: 10px 12px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 8px; flex-direction: column; gap: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 14px;">🎵</span>
+            <strong id="videoModalPlaylistStatus" style="font-size: 12.5px; color: var(--accent-cyan);">Playlist (1 / 1)</strong>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <button class="btn" id="btnPlaylistPrev" onclick="playPrevInPlaylist()" style="font-size: 11.5px; padding: 4px 10px;" title="⏮ Prev">⏮ Prev</button>
+            <button class="btn btn-primary" id="btnPlaylistNext" onclick="playNextInPlaylist()" style="font-size: 11.5px; padding: 4px 10px;" title="⏭ Next Video">⏭ Next Video</button>
+            <button class="btn" id="btnPlaylistAutoAdvance" onclick="togglePlaylistAutoAdvance()" style="font-size: 11px; padding: 4px 10px; background: rgba(16, 185, 129, 0.16); border-color: rgba(16, 185, 129, 0.45); color: #34d399;" title="🔁 Auto-Play Next: ON">🔁 Auto-Play Next: ON</button>
+          </div>
+        </div>
+        <div id="videoModalPlaylistTracks" style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px;">
+          <!-- Populated dynamically via JS -->
+        </div>
       </div>
       <div style="margin-top: 10px; font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between;">
         <span id="videoModalPath">Path: ./data/videos/...</span>

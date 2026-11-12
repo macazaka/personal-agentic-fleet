@@ -567,10 +567,22 @@ def test_task_editing_and_split_credit_cards():
         vault_items = vault_data.get("tasks", []) if isinstance(vault_data, dict) else vault_data
         titles = [item.get("title", "") for item in vault_items if isinstance(item, dict)]
         assert "Monthly — Credit Card Bill Payments" not in titles
-        assert "Monthly — Credit Card Bill Payment: Axis Bank" in titles
-        assert "Monthly — Credit Card Bill Payment: ICICI Bank" in titles
-        assert "Monthly — Credit Card Bill Payment: ICICI Amazon Card" in titles
-        assert "Monthly — Credit Card Bill Payment: SBI Card" in titles
+        assert "Monthly — Investments (NPS, PPF & Stock)" not in titles
+        assert "Monthly — Electricity Bill Payments (Pune & Chandavane)" not in titles
+        assert "Monthly — KINDUZ Operations & Compliance" not in titles
+        assert "Yearly — Insurance Renewals (Vehicle & Health)" not in titles
+        cc_titles = [t for t in titles if "Credit Card Bill Payment:" in t]
+        assert len(cc_titles) >= 4
+        assert any("Axis" in t for t in cc_titles)
+        assert any("ICICI" in t for t in cc_titles)
+        assert any("Amazon" in t for t in cc_titles)
+        assert any("SBI" in t for t in cc_titles)
+        inv_titles = [t for t in titles if "Investment:" in t]
+        assert len(inv_titles) >= 3
+        elec_titles = [t for t in titles if "Electricity Bill Payment:" in t]
+        assert len(elec_titles) >= 2
+        kinduz_titles = [t for t in titles if "KINDUZ Operations & Compliance:" in t]
+        assert len(kinduz_titles) >= 3
 
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
         db = FleetDatabase(db_path=Path(tmpdir) / "task_edit_test.db")
@@ -640,6 +652,17 @@ def test_task_editing_and_split_credit_cards():
             t_after = next(t for t in tasks_after if t["id"] == tid)
             assert t_after["title"] == "Axis Bank Card Bill v3"
             assert t_after["description"] == "Updated via unified_action"
+
+        # Verify inline edit focus & draft preservation guards in tasks.js and app.js
+        root_dir = Path(__file__).resolve().parent.parent
+        tasks_js = (root_dir / "fleet" / "web" / "static" / "js" / "tasks.js").read_text(encoding="utf-8")
+        app_js = (root_dir / "fleet" / "web" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        assert "function isTaskEditingActive()" in tasks_js
+        assert "function captureEditTaskDraft(" in tasks_js
+        assert "window._editingTaskDrafts" in tasks_js
+        assert "!forceRender && isTaskEditingActive()" in tasks_js
+        assert "isTaskEditingActive()" in app_js
+
 
 
 
