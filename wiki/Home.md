@@ -2,7 +2,7 @@
 
 Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operations Wiki**!
 
-[![Release: v2.16.2](https://img.shields.io/badge/Release-v2.16.2-00b4d8.svg?logo=github&logoColor=white)](Release-Notes)
+[![Release: v2.16.3](https://img.shields.io/badge/Release-v2.16.3-00b4d8.svg?logo=github&logoColor=white)](Release-Notes)
 [![GitHub Wiki: 17 Deep-Dive Guides](https://img.shields.io/badge/GitHub%20Wiki-17%20Deep--Dive%20Guides-0284c7.svg?logo=github&logoColor=white)](Home)
 [![Python: 3.10 | 3.11 | 3.12 | 3.13 | 3.14](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-10b981.svg?logo=apache&logoColor=white)](https://opensource.org/licenses/Apache-2.0)
@@ -60,7 +60,7 @@ Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operat
 | **[[Release-Notes]]** | Complete semantic version history and categorized changelog notes (synchronized with `CHANGELOG.md` at `v2.8.6`). |
 
 <!-- AUTO-LATEST-RELEASE:START -->
-## 🆕 Latest Release Highlights (`v2.16.2`)
+## 🆕 Latest Release Highlights (`v2.16.3`)
 
 > **Live Codebase Inventory**: `10` Built-In Agents • `162` REST API Endpoints • `35` Core Microkernel Modules • `21` Automation Tools • `510` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
 

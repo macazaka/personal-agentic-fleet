@@ -1,4 +1,4 @@
-# Release Notes & Version History (Current: `v2.16.2`)
+# Release Notes & Version History (Current: `v2.16.3`)
 
 This page is **automatically synchronized** from [`CHANGELOG.md`](https://github.com/macazaka/personal-agentic-fleet/blob/main/CHANGELOG.md) by `fleet.tools.doc_wiki_enhancer` whenever release versions or release notes are updated.
 
@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.16.2] - 2026-11-12
+## [2.16.3] - 2026-11-12
 
 ### Added
 - **Multilingual Voice Copilot (`English`, `Hindi`, `Telugu`, `Marathi`) & Indian Lady's Accent Default**: Added interactive Language (`en-IN`, `hi-IN`, `te-IN`, `mr-IN`), Gender (`Female` / `Male`), and Accent (`🇮🇳 Indian`, `🇬🇧 UK`, `🇺🇸 US`) selectors to the Bi-Directional Audio Conversation & Live Activity Copilot (`dashboard.html`, `antigravity.js`, `briefing.js`, `settings_api.py`, `omnibar_dispatcher.py`), defaulting to an Indian lady's voice (`Heera` / `Neerja` / `female_indian`).
