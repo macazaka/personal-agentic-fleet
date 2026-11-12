@@ -1,4 +1,4 @@
-# Release Notes & Version History (Current: `v2.16.1`)
+# Release Notes & Version History (Current: `v2.16.2`)
 
 This page is **automatically synchronized** from [`CHANGELOG.md`](https://github.com/macazaka/personal-agentic-fleet/blob/main/CHANGELOG.md) by `fleet.tools.doc_wiki_enhancer` whenever release versions or release notes are updated.
 
@@ -8,6 +8,19 @@ All notable changes to the **Personal Agentic Fleet** project will be documented
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [2.16.2] - 2026-11-12
+
+### Added
+- **Multilingual Voice Copilot (`English`, `Hindi`, `Telugu`, `Marathi`) & Indian Lady's Accent Default**: Added interactive Language (`en-IN`, `hi-IN`, `te-IN`, `mr-IN`), Gender (`Female` / `Male`), and Accent (`🇮🇳 Indian`, `🇬🇧 UK`, `🇺🇸 US`) selectors to the Bi-Directional Audio Conversation & Live Activity Copilot (`dashboard.html`, `antigravity.js`, `briefing.js`, `settings_api.py`, `omnibar_dispatcher.py`), defaulting to an Indian lady's voice (`Heera` / `Neerja` / `female_indian`).
+- **Video Vault Folder Opener & Browser H.264 (`avc1`) Auto-Transcoding**: Added `POST /api/health/exercise/open_vault` (`📂 Video Vault`) to open the local exercise video folder in Windows Explorer and automatic FFmpeg H.264/AAC transcoding in `/api/health/exercise/video_stream` so MPEG-4 Part 2 (`mp4v`) and HEVC (`hvc1`) videos play smoothly inside the browser modal.
+- **Autonomous Delegated Payments (`#BL-231`) & QA Unit-Test Coverage Backlog (`#BL-232` – `#BL-241`)**: Added `#BL-231` (*Autonomous Delegated Bill & Subscription Payment Execution Engine — Pay on My Behalf*) and 10 comprehensive unit-test coverage backlog items (`[QA-01]` to `[QA-10]`) from a full codebase audit across all 162 REST routes, core modules, and frontend JS views.
+
+### Fixed
+- **Unified Task Inline Editing Across All Action Types (`medication`, `routine`, `custom_agent_entry`, `core_task`)**: Fixed `POST /api/tasks/unified_action` (`sub_action="edit"`) and `saveEditedTask()` (`tasks_api.py`, `tasks.js`) so editing dosage, schedule time, frequency, instructions, category, or custom description in **Daily, Monthly & Yearly Tasks** persists all fields to SQLite without prefix duplication and refreshes linked views immediately.
+- **Browser Microphone `Permissions-Policy` Header**: Updated `fleet/server.py` security headers from `microphone=()` to `microphone=(self)` so Chrome permits microphone access on `http://127.0.0.1:7890` when browser site permissions are granted.
 
 ---
 

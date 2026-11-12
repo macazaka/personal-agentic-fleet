@@ -510,5 +510,53 @@ def test_proactive_release_manager_and_doc_wiki_enhancer(tmp_path):
     assert lc_res["status"] == "PASS"
 
 
+def test_microphone_permissions_policy_and_multilingual_indian_voice_copilot():
+    repo_root = Path(__file__).resolve().parent.parent
+    srv_text = (repo_root / "fleet" / "server.py").read_text(encoding="utf-8")
+    assert "microphone=(self)" in srv_text
+    assert "microphone=()" not in srv_text
+
+    dash_html = (repo_root / "fleet" / "web" / "templates" / "dashboard.html").read_text(encoding="utf-8")
+    assert 'id="voiceLanguageSelect"' in dash_html
+    assert 'id="voiceGenderSelect"' in dash_html
+    assert 'id="voiceAccentSelect"' in dash_html
+    assert 'value="hi"' in dash_html
+    assert 'value="te"' in dash_html
+    assert 'value="mr"' in dash_html
+    assert "testAfccSelectedVoice()" in dash_html
+
+    ag_js = (repo_root / "fleet" / "web" / "static" / "js" / "antigravity.js").read_text(encoding="utf-8")
+    assert "resolveBestSpeechVoice" in ag_js
+    assert "voiceLanguage: localStorage.getItem('afcc_voice_lang') || 'en'" in ag_js
+    assert "voiceGender: localStorage.getItem('afcc_voice_gender') || 'female'" in ag_js
+    assert "voiceAccent: localStorage.getItem('afcc_voice_accent') || 'IN'" in ag_js
+
+    from fleet.core.omnibar_dispatcher import transcribe_and_dispatch_voice_command
+
+    res_en = transcribe_and_dispatch_voice_command("Mask sensitive IDs", language="en", gender="female", accent="IN")
+    assert res_en["status"] == "ok"
+    assert res_en["voice_profile"]["bcp47"] == "en-IN"
+    assert res_en["voice_profile"]["gender"] == "female"
+
+    res_hi = transcribe_and_dispatch_voice_command("मासिक कार्य", language="hi", gender="female", accent="IN")
+    assert res_hi["status"] == "ok"
+    assert res_hi["voice_profile"]["bcp47"] == "hi-IN"
+    assert "नमस्ते" in res_hi["spoken_reply"]
+    assert "Namaste" in res_hi["spoken_reply_phonetic"]
+
+    res_te = transcribe_and_dispatch_voice_command("నెలవారీ పనులు", language="te", gender="female", accent="IN")
+    assert res_te["status"] == "ok"
+    assert res_te["voice_profile"]["bcp47"] == "te-IN"
+    assert "నమస్కారం" in res_te["spoken_reply"]
+    assert "Namaskaram" in res_te["spoken_reply_phonetic"]
+
+    res_mr = transcribe_and_dispatch_voice_command("मासिक कामे", language="mr", gender="female", accent="IN")
+    assert res_mr["status"] == "ok"
+    assert res_mr["voice_profile"]["bcp47"] == "mr-IN"
+    assert "नमस्कार" in res_mr["spoken_reply"]
+    assert "Namaskar" in res_mr["spoken_reply_phonetic"]
+
+
+
 
 

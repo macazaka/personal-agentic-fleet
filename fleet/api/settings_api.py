@@ -2154,14 +2154,20 @@ def post_voice_converse_endpoint(handler: Any, body: Dict[str, Any]):
     if not transcript:
         handler._send_json({"status": "error", "message": "Field 'transcript' is required"}, status=400)
         return
+    language = str(payload.get("language") or "en").strip().lower()
+    gender = str(payload.get("gender") or "female").strip().lower()
+    accent = str(payload.get("accent") or "IN").strip().upper()
     res = transcribe_and_dispatch_voice_command(
         transcript=transcript,
         agent_registry=getattr(srv, "agent_registry", None),
         db=getattr(srv, "db", None),
+        language=language,
+        gender=gender,
+        accent=accent,
     )
     if hasattr(srv, "db") and srv.db:
         try:
-            srv.db.log_activity("VoiceCopilot", "voice_turn", f"Voice: '{transcript[:80]}' -> {res.get('title', 'OK')}")
+            srv.db.log_activity("VoiceCopilot", "voice_turn", f"Voice ({language}/{gender}/{accent}): '{transcript[:80]}' -> {res.get('title', 'OK')}")
         except Exception:
             pass
     handler._send_json(res)
@@ -2177,10 +2183,16 @@ def post_omnibar_voice_endpoint(handler: Any, body: Dict[str, Any]):
     if not transcript:
         handler._send_json({"status": "error", "message": "Field 'transcript' is required"}, status=400)
         return
+    language = str(payload.get("language") or "en").strip().lower()
+    gender = str(payload.get("gender") or "female").strip().lower()
+    accent = str(payload.get("accent") or "IN").strip().upper()
     res = transcribe_and_dispatch_voice_command(
         transcript=transcript,
         agent_registry=getattr(srv, "agent_registry", None),
         db=getattr(srv, "db", None),
+        language=language,
+        gender=gender,
+        accent=accent,
     )
     handler._send_json(res)
 

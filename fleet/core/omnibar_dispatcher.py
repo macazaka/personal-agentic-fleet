@@ -8,7 +8,7 @@ into a single responsive conversational interface.
 
 from datetime import datetime
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 
 BUILTIN_OMNIBAR_SHORTCUTS: List[Dict[str, Any]] = [
@@ -885,18 +885,214 @@ def get_voice_activities_catalog() -> List[Dict[str, Any]]:
     return list(VOICE_LINKED_ACTIVITIES_CATALOG)
 
 
+_MULTILINGUAL_VOICE_PHRASE_MAP: List[Tuple[List[str], str]] = [
+    (
+        ["दैनिक ब्रीफिंग", "ब्रीफिंग", "सुप्रभात", "आज की जानकारी", "బ్రీఫింగ్", "రోజువారీ బ్రీఫింగ్", "दैनिक माहिती", "आजची माहिती", "dainaik briefing", "roz ki briefing"],
+        "Give me my daily briefing",
+    ),
+    (
+        ["मासिक कार्य", "महीने के काम", "मासिक काम", "నెలవారీ పనులు", "నెల పనులు", "मासिक कामे", "महिन्याची कामे", "masik karya", "nelavari panulu"],
+        "Show my monthly tasks",
+    ),
+    (
+        ["वार्षिक कार्य", "साल के काम", "वार्षिक काम", "వార్షిక పనులు", "సంవత్సర పనులు", "वार्षिक कामे", "वर्षाची कामे", "varshik karya"],
+        "Show my yearly tasks",
+    ),
+    (
+        ["पानी", "एक गिलास पानी", "जल", "నీరు", "మంచినీళ్ళు", "ఒక గ్లాసు నీరు", "पाणी", "एक ग्लास पाणी", "pani log", "neeru"],
+        "Please log a glass of water",
+    ),
+    (
+        ["व्यायाम", "कसरत", "वर्कआउट", "వ్యాయామం", "వర్కౌట్", "व्यायाम काय आहे", "vyayam", "kasrat"],
+        "What is my workout today?",
+    ),
+    (
+        ["ईमेल", "मेल चेक", "मेल तपासणी", "ఈమెయిల్", "మెయిల్స్", "ईमेल तपासा"],
+        "Check my emails and scan attachments",
+    ),
+    (
+        ["रैम", "मेमोरी साफ", "पीसी ऑप्टिमाइज", "ర్యామ్", "मेमरी साफ करा"],
+        "Optimize my RAM",
+    ),
+    (
+        ["सुरक्षा जांच", "सिक्योरिटी स्कैन", "భద్రతా తనిఖీ", "सुरक्षा तपासणी"],
+        "Run security scan",
+    ),
+    (
+        ["आईडी छुपाएं", "मास्क", "ఐడి దాచు", "आयडी लपवा"],
+        "Mask sensitive IDs",
+    ),
+    (
+        ["आईडी दिखाएं", "खाता नंबर दिखाएं", "ఐడి చూపించు", "आयडी दाखवा"],
+        "Reveal account numbers",
+    ),
+]
+
+
+def _normalize_multilingual_voice_query(spoken: str) -> str:
+    """Maps Hindi (hi), Telugu (te), and Marathi (mr) spoken phrases to canonical AFCC commands."""
+    s_low = (spoken or "").lower().strip()
+    for triggers, canonical in _MULTILINGUAL_VOICE_PHRASE_MAP:
+        for trig in triggers:
+            if trig.lower() in s_low:
+                return canonical
+    return spoken
+
+
+def _apply_voice_localization(
+    res: Dict[str, Any],
+    language: str = "en",
+    gender: str = "female",
+    accent: str = "IN",
+) -> Dict[str, Any]:
+    """Attaches voice profile metadata and localized spoken replies for English, Hindi, Telugu, and Marathi."""
+    lang = (language or "en").lower().strip()
+    if lang not in ("en", "hi", "te", "mr"):
+        lang = "en"
+    gen = "male" if (gender or "").lower().strip() == "male" else "female"
+    acc = (accent or "IN").upper().strip()
+    if acc not in ("IN", "US", "GB"):
+        acc = "IN"
+
+    locale_map = {
+        "hi": "hi-IN",
+        "te": "te-IN",
+        "mr": "mr-IN",
+        "en": f"en-{acc}",
+    }
+    bcp47 = locale_map.get(lang, "en-IN")
+    english_reply = _clean_for_speech(res.get("spoken_reply") or res.get("message") or res.get("title") or "Done.")
+    cmd_key = str(res.get("normalized_command") or res.get("mode") or "").lower()
+
+    native_reply = english_reply
+    phonetic_reply = english_reply
+
+    if lang == "hi":
+        if "task_mask:off" in cmd_key:
+            native_reply = "नमस्ते! मैंने आपकी स्क्रीन पर खाता और उपभोक्ता नंबर दिखा दिए हैं। यह डेटा पूरी तरह सुरक्षित और लोकल है।"
+            phonetic_reply = "Namaste! Maine aapki screen par khaata aur consumer number dikha diye hain. Yeh data poori tarah local aur surakshit hai."
+        elif "task_mask:on" in cmd_key:
+            native_reply = "नमस्ते! मैंने आपके बैंक खाता और उपभोक्ता नंबर स्क्रीन पर सुरक्षित रूप से छुपा दिए हैं।"
+            phonetic_reply = "Namaste! Maine aapke bank khaata aur consumer number screen par surakshit roop se chhupa diye hain."
+        elif "monthly" in cmd_key:
+            native_reply = f"नमस्ते! मैंने आपके मासिक कार्य खोल दिए हैं। {english_reply}"
+            phonetic_reply = f"Namaste! Maine aapke maasik karya khol diye hain. {english_reply}"
+        elif "yearly" in cmd_key:
+            native_reply = f"नमस्ते! मैंने आपके वार्षिक कार्य खोल दिए हैं। {english_reply}"
+            phonetic_reply = f"Namaste! Maine aapke vaarshik karya khol diye hain. {english_reply}"
+        elif "hydration" in cmd_key or "water" in english_reply.lower():
+            native_reply = f"शाबाश! मैंने एक गिलास पानी (250 मिलीलीटर) आपके स्वास्थ्य रिकॉर्ड में दर्ज कर दिया है। {english_reply}"
+            phonetic_reply = f"Shabash! Maine ek glass paani aapke health record mein darj kar diya hai. {english_reply}"
+        elif "workout" in english_reply.lower() or "exercise" in cmd_key:
+            native_reply = f"नमस्ते! यहाँ आपकी आज की व्यायाम योजना है। {english_reply}"
+            phonetic_reply = f"Namaste! Yahan aapki aaj ki vyayam yojana hai. {english_reply}"
+        elif "optimizer" in cmd_key or "ram" in english_reply.lower():
+            native_reply = f"नमस्ते! मैंने आपके कंप्यूटर की मेमोरी को ऑप्टिमाइज़ कर दिया है। {english_reply}"
+            phonetic_reply = f"Namaste! Maine aapke computer ki memory ko optimize kar diya hai. {english_reply}"
+        elif "security:scan" in cmd_key:
+            native_reply = "नमस्ते! मैं आपके सिस्टम का 12-स्तरीय सुरक्षा और गोपनीयता ऑडिट चला रही हूँ।" if gen == "female" else "नमस्ते! मैं आपके सिस्टम का 12-स्तरीय सुरक्षा और गोपनीयता ऑडिट चला रहा हूँ।"
+            phonetic_reply = "Namaste! Main aapke system ka barah-stariya suraksha aur privacy scan chala rahi hoon." if gen == "female" else "Namaste! Main aapke system ka barah-stariya suraksha aur privacy scan chala raha hoon."
+        else:
+            native_reply = f"नमस्ते! आपका कार्य संपन्न हुआ। {english_reply}"
+            phonetic_reply = f"Namaste! Aapka karya sampann hua. {english_reply}"
+    elif lang == "te":
+        if "task_mask:off" in cmd_key:
+            native_reply = "నమస్కారం! మీ స్క్రీన్ పై ఖాతా మరియు కన్స్యూమర్ నంబర్లను చూపించాను. ఈ డేటా పూర్తిగా లోకల్ మాత్రమే."
+            phonetic_reply = "Namaskaram! Mee screen pai khaata mariyu consumer numberlanu choopinchanu. Ee data poortiga local matrame."
+        elif "task_mask:on" in cmd_key:
+            native_reply = "నమస్కారం! మీ బ్యాంక్ ఖాతా మరియు కన్స్యూమర్ నంబర్లను సురక్షితంగా దాచాను."
+            phonetic_reply = "Namaskaram! Mee bank khaata mariyu consumer numberlanu surakshitanga daachanu."
+        elif "monthly" in cmd_key:
+            native_reply = f"నమస్కారం! మీ నెలవారీ పనులను తెరిచాను. {english_reply}"
+            phonetic_reply = f"Namaskaram! Mee nelavaari panulanu terichanu. {english_reply}"
+        elif "yearly" in cmd_key:
+            native_reply = f"నమస్కారం! మీ వార్షిక పనులను తెరిచాను. {english_reply}"
+            phonetic_reply = f"Namaskaram! Mee vaarshika panulanu terichanu. {english_reply}"
+        elif "hydration" in cmd_key or "water" in english_reply.lower():
+            native_reply = f"చాలా మంచిది! ఒక గ్లాసు నీరు (250 మిల్లీలీటర్లు) మీ ఆరోగ్య ఖాతాలో నమోదు చేశాను. {english_reply}"
+            phonetic_reply = f"Chaala manchidi! Oka glassu neeru mee aarogya khaatalo namodu chesanu. {english_reply}"
+        elif "workout" in english_reply.lower() or "exercise" in cmd_key:
+            native_reply = f"నమస్కారం! ఈ రోజు మీ వ్యాయామ ప్రణాళిక ఇదిగో. {english_reply}"
+            phonetic_reply = f"Namaskaram! Ee roju mee vyayama pranalika idigo. {english_reply}"
+        elif "optimizer" in cmd_key or "ram" in english_reply.lower():
+            native_reply = f"నమస్కారం! మీ కంప్యూటర్ ర్యామ్ మరియు మెమరీని ఆప్టిమైజ్ చేశాను. {english_reply}"
+            phonetic_reply = f"Namaskaram! Mee computer RAM mariyu memory ni optimize chesanu. {english_reply}"
+        elif "security:scan" in cmd_key:
+            native_reply = "నమస్కారం! మీ 12-స్థాయిల భద్రత మరియు గోప్యతా తనిఖీని ప్రారంభిస్తున్నాను."
+            phonetic_reply = "Namaskaram! Mee pannendu sthayila bhadrata mariyu gopyata tanikhini prarambhistunnanu."
+        else:
+            native_reply = f"నమస్కారం! మీ పని పూర్తయింది. {english_reply}"
+            phonetic_reply = f"Namaskaram! Mee pani poortayindi. {english_reply}"
+    elif lang == "mr":
+        if "task_mask:off" in cmd_key:
+            native_reply = "नमस्कार! मी तुमच्या स्क्रीनवर खाते आणि ग्राहक क्रमांक दाखवले आहेत. हा डेटा पूर्णपणे लोकल आणि सुरक्षित आहे."
+            phonetic_reply = "Namaskar! Mi tumchya screenvar khaate aani grahak kramank dakhavle aahet. Ha data poornapane local aani surakshit aahe."
+        elif "task_mask:on" in cmd_key:
+            native_reply = "नमस्कार! मी तुमचे बँक खाते आणि ग्राहक क्रमांक स्क्रीनवर सुरक्षितपणे लपवले आहेत."
+            phonetic_reply = "Namaskar! Mi tumche bank khaate aani grahak kramank screenvar surakshitpane lapavle aahet."
+        elif "monthly" in cmd_key:
+            native_reply = f"नमस्कार! मी तुमची मासिक कामे उघडली आहेत. {english_reply}"
+            phonetic_reply = f"Namaskar! Mi tumchi maasik kaame ughadli aahet. {english_reply}"
+        elif "yearly" in cmd_key:
+            native_reply = f"नमस्कार! मी तुमची वार्षिक कामे उघडली आहेत. {english_reply}"
+            phonetic_reply = f"Namaskar! Mi tumchi vaarshik kaame ughadli aahet. {english_reply}"
+        elif "hydration" in cmd_key or "water" in english_reply.lower():
+            native_reply = f"छान! मी तुमच्या आरोग्य रेकॉर्डमध्ये एक ग्लास पाणी (250 मिली) नोंदवले आहे. {english_reply}"
+            phonetic_reply = f"Chhaan! Mi tumchya aarogya record madhye ek glass paani nondavle aahe. {english_reply}"
+        elif "workout" in english_reply.lower() or "exercise" in cmd_key:
+            native_reply = f"नमस्कार! हे तुमचे आजचे व्यायाम नियोजन आहे. {english_reply}"
+            phonetic_reply = f"Namaskar! He tumche aajche vyayam niyojan aahe. {english_reply}"
+        elif "optimizer" in cmd_key or "ram" in english_reply.lower():
+            native_reply = f"नमस्कार! मी तुमच्या संगणकाची रॅम मेमरी ऑप्टिमाइझ केली आहे. {english_reply}"
+            phonetic_reply = f"Namaskar! Mi tumchya sanganakachi RAM memory optimize keli aahe. {english_reply}"
+        elif "security:scan" in cmd_key:
+            native_reply = "नमस्कार! मी तुमची १२-स्तरीय सुरक्षा आणि गोपनीयता तपासणी सुरू करत आहे."
+            phonetic_reply = "Namaskar! Mi tumchi bara-stariya suraksha aani gopaniyata tapasani suru karat aahe."
+        else:
+            native_reply = f"नमस्कार! तुमचे काम पूर्ण झाले आहे. {english_reply}"
+            phonetic_reply = f"Namaskar! Tumche kaam poorna jhale aahe. {english_reply}"
+
+    res["spoken_reply_english"] = english_reply
+    res["spoken_reply"] = native_reply
+    res["spoken_reply_phonetic"] = phonetic_reply
+    res["voice_profile"] = {
+        "language": lang,
+        "gender": gen,
+        "accent": acc,
+        "bcp47": bcp47,
+    }
+    return res
+
+
 def transcribe_and_dispatch_voice_command(
     transcript: str,
     agent_registry: Optional[Any] = None,
     db: Optional[Any] = None,
+    language: str = "en",
+    gender: str = "female",
+    accent: str = "IN",
 ) -> Dict[str, Any]:
     """
     UX-10 & Bi-Directional Audio Conversation Engine:
-    Normalizes spoken natural-language voice commands, executes linked backend activities
-    (tasks, masking, hydration, vitals, email antivirus scan, RAM/temp/DNS optimization,
-    backlog filtering, agent navigation, and self-improvement), and returns structured
-    `ui_actions`, `executed_activities`, and a natural `spoken_reply` for TTS playback.
+    Normalizes spoken natural-language voice commands (in English, Hindi, Telugu, or Marathi),
+    executes linked backend activities, and returns structured `ui_actions`, `executed_activities`,
+    and localized `spoken_reply` + `spoken_reply_phonetic` for TTS playback.
     """
+    raw_spoken = (transcript or "").strip()
+    if not raw_spoken:
+        return {"status": "error", "message": "Empty voice transcript."}
+
+    canonical_spoken = _normalize_multilingual_voice_query(raw_spoken)
+    res = _dispatch_voice_command_core(canonical_spoken, agent_registry=agent_registry, db=db)
+    res["voice_transcript"] = raw_spoken
+    return _apply_voice_localization(res, language=language, gender=gender, accent=accent)
+
+
+def _dispatch_voice_command_core(
+    transcript: str,
+    agent_registry: Optional[Any] = None,
+    db: Optional[Any] = None,
+) -> Dict[str, Any]:
     spoken = (transcript or "").strip()
     if not spoken:
         return {"status": "error", "message": "Empty voice transcript."}

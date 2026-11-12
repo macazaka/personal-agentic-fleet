@@ -607,6 +607,8 @@ let activePlaybackIndex = -1;
 let playlistAutoAdvance = true;
 
 function switchExSubTab(tab) {
+  const videosPanel = document.getElementById('exPanelVideos');
+  const wasVideosActive = tab === 'videos' && videosPanel && videosPanel.style.display !== 'none';
   const tabs = ['videos', 'strength', 'antigravity'];
   tabs.forEach(t => {
     const btn = document.getElementById('exSubTab' + t.charAt(0).toUpperCase() + t.slice(1));
@@ -626,6 +628,19 @@ function switchExSubTab(tab) {
       }
     }
   });
+  if (tab === 'videos') {
+    if (!Array.isArray(allExerciseVideos) || allExerciseVideos.length === 0) {
+      fetchExerciseVideos();
+    } else {
+      renderExerciseVideos();
+    }
+    if (videosPanel && typeof videosPanel.scrollIntoView === 'function') {
+      videosPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    if (wasVideosActive) {
+      openVideoVaultFolder();
+    }
+  }
 }
 
 function switchVideoType(type) {
@@ -1105,6 +1120,27 @@ function filterVideoCategory(category) {
   renderExerciseVideos();
 }
 
+function _getVideoCardTheme(category, videoType) {
+  const map = {
+    "World's Best Warm-Up & Mobility": { icon: '🔥', bg: 'linear-gradient(135deg, #1e1b4b 0%, #7c2d12 55%, #0f172a 100%)', accent: '#fb923c' },
+    'Super Brain Yoga & Flexibility': { icon: '🧠', bg: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #020617 100%)', accent: '#38bdf8' },
+    'Surya Namaskar Series': { icon: '🧘', bg: 'linear-gradient(135deg, #064e3b 0%, #0f766e 55%, #0f172a 100%)', accent: '#34d399' },
+    'Nitric Oxide Dump (NOD)': { icon: '💨', bg: 'linear-gradient(135deg, #0c4a6e 0%, #0369a1 55%, #0f172a 100%)', accent: '#38bdf8' },
+    'Upper Body & Strength': { icon: '💪', bg: 'linear-gradient(135deg, #311042 0%, #6b21a8 55%, #0f172a 100%)', accent: '#c084fc' },
+    'Anti-Gravity & Glucose Drop': { icon: '🏃‍♂️', bg: 'linear-gradient(135deg, #064e3b 0%, #0284c7 55%, #0f172a 100%)', accent: '#2dd4bf' },
+    'Weighted Walking & Aerobic': { icon: '🚶‍♂️', bg: 'linear-gradient(135deg, #1e293b 0%, #0f766e 55%, #020617 100%)', accent: '#34d399' },
+    'Desk & Office Conditioning': { icon: '🪑', bg: 'linear-gradient(135deg, #1e1b4b 0%, #3730a3 55%, #0f172a 100%)', accent: '#818cf8' },
+    'Smoothies & Green Drinks': { icon: '🥤', bg: 'linear-gradient(135deg, #052e16 0%, #15803d 55%, #0f172a 100%)', accent: '#4ade80' },
+    'Vitamins & Micronutrients': { icon: '💊', bg: 'linear-gradient(135deg, #422006 0%, #b45309 55%, #0f172a 100%)', accent: '#fbbf24' },
+    'Tea, Coffee & Beverages': { icon: '☕', bg: 'linear-gradient(135deg, #27170e 0%, #78350f 55%, #0f172a 100%)', accent: '#f59e0b' }
+  };
+  return map[category] || {
+    icon: videoType === 'diet' ? '🥗' : '🏋️‍♂️',
+    bg: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #020617 100%)',
+    accent: '#38bdf8'
+  };
+}
+
 function renderExerciseVideos() {
   const grid = document.getElementById('exerciseVideosGrid');
   const countBadge = document.getElementById('videoCountBadge');
@@ -1130,7 +1166,7 @@ function renderExerciseVideos() {
     const cleanTitle = escapeJsAttrStr(title);
     const filenameSafe = escapeJsAttrStr(v.filename);
     const catSafe = escapeJsAttrStr(v.category || 'FFD Video');
-    const streamUrl = '/api/health/video/stream?file=' + encodeURIComponent(v.filename);
+    const theme = _getVideoCardTheme(v.category, v.video_type);
     const playlistPos = getVideoPlaylistPosition(v.filename);
     const playlistBtnHtml = playlistPos > 0
       ? `<button class="btn" title="In playlist (#${playlistPos}) — click to remove from queue" style="font-size: 11px; padding: 5px 8px; background: rgba(16, 185, 129, 0.16); border-color: rgba(16, 185, 129, 0.45); color: #34d399; font-weight: 600;" onclick="addVideoToPlaylistDraft('${filenameSafe}', '${cleanTitle}', '${catSafe}')">✓ #${playlistPos}</button>`
@@ -1139,14 +1175,14 @@ function renderExerciseVideos() {
     return `
       <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.15s, border-color 0.15s;">
         <div>
-          <!-- Live Video Thumbnail -->
-          <div onclick="playExerciseVideo('${filenameSafe}', '${cleanTitle}', '${catSafe}')" style="position: relative; width: 100%; height: 130px; background: #070d18; border-radius: 6px; overflow: hidden; margin-bottom: 10px; cursor: pointer; border: 1px solid rgba(255,255,255,0.08);" title="Click to play video">
-            <video src="${streamUrl}#t=1.0" preload="metadata" muted playsinline style="width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; opacity: 0.88;"></video>
-            <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.65) 100%); display: flex; align-items: center; justify-content: center;">
-              <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(0, 242, 254, 0.9); display: flex; align-items: center; justify-content: center; color: #000; font-size: 15px; font-weight: bold; box-shadow: 0 4px 14px rgba(0,0,0,0.6);">▶</div>
+          <!-- Zero-Stream Instant Visual Preview Card (prevents HTTP connection & decoder exhaustion) -->
+          <div onclick="playExerciseVideo('${filenameSafe}', '${cleanTitle}', '${catSafe}')" style="position: relative; width: 100%; height: 130px; background: ${theme.bg}; border-radius: 6px; overflow: hidden; margin-bottom: 10px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1);" title="Click to play video">
+            <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0.18; font-size: 64px; pointer-events: none;">${theme.icon}</div>
+            <div style="position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.55) 100%); display: flex; align-items: center; justify-content: center;">
+              <div style="width: 42px; height: 42px; border-radius: 50%; background: rgba(0, 242, 254, 0.92); display: flex; align-items: center; justify-content: center; color: #000; font-size: 16px; font-weight: bold; box-shadow: 0 4px 16px rgba(0,0,0,0.65);">▶</div>
             </div>
             <span style="position: absolute; bottom: 6px; right: 8px; font-size: 10px; background: rgba(0,0,0,0.85); color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: 600;">${v.size_mb || 0} MB</span>
-            <span style="position: absolute; top: 6px; left: 8px; font-size: 9.5px; background: rgba(0, 242, 254, 0.2); border: 1px solid rgba(0, 242, 254, 0.4); color: var(--accent-cyan); padding: 1px 6px; border-radius: 4px; font-weight: 600;">${escapeHtml(v.category)}</span>
+            <span style="position: absolute; top: 6px; left: 8px; font-size: 9.5px; background: rgba(0, 0, 0, 0.55); border: 1px solid ${theme.accent}; color: ${theme.accent}; padding: 1px 6px; border-radius: 4px; font-weight: 600;">${theme.icon} ${escapeHtml(v.category)}</span>
           </div>
 
           <!-- Title -->
@@ -1179,11 +1215,25 @@ function _launchVideoModal(filename, title, category, keepPlaylistMode = false) 
   const modalTitle = document.getElementById('videoModalTitle');
   const modalCat = document.getElementById('videoModalCategory');
   const modalPath = document.getElementById('videoModalPath');
+  const statusBanner = document.getElementById('videoModalStatusBanner');
+  const statusText = document.getElementById('videoModalStatusText');
   const player = document.getElementById('exerciseVideoPlayer');
 
   if (modalTitle) modalTitle.innerText = title || filename;
   if (modalCat) modalCat.innerText = category || 'FFD Video';
   if (modalPath) modalPath.innerText = './data/videos/' + filename;
+  if (statusBanner) statusBanner.style.display = 'none';
+
+  // Ensure any other video element on the page is paused/released so the modal player has exclusive decoder & HTTP access
+  document.querySelectorAll('video').forEach(vEl => {
+    if (vEl !== player) {
+      try {
+        vEl.pause();
+        vEl.removeAttribute('src');
+        vEl.load();
+      } catch (_) {}
+    }
+  });
 
   if (modal) modal.style.display = 'flex';
 
@@ -1198,10 +1248,24 @@ function _launchVideoModal(filename, title, category, keepPlaylistMode = false) 
         playPlaylistAtIndex(activePlaybackIndex + 1);
       }
     };
+    player.onerror = () => {
+      if (statusBanner && statusText) {
+        statusBanner.style.display = 'flex';
+        statusText.innerText = '⚠️ Browser HTML5 video decoder could not render this stream directly. Click "Play in Windows Media Player" to watch.';
+      }
+    };
+    player.onloadeddata = () => {
+      if (statusBanner) statusBanner.style.display = 'none';
+    };
     player.pause();
     player.src = '/api/health/video/stream?file=' + encodeURIComponent(filename);
     player.load();
-    player.play().catch(e => console.log('Autoplay prevented or paused:', e));
+    const playPromise = player.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+      playPromise.catch(e => {
+        console.log('Autoplay paused or awaiting user click:', e);
+      });
+    }
   }
 }
 
@@ -1212,16 +1276,40 @@ function playExerciseVideo(filename, title, category) {
 function closeVideoModal() {
   const modal = document.getElementById('exerciseVideoModal');
   const player = document.getElementById('exerciseVideoPlayer');
+  const statusBanner = document.getElementById('videoModalStatusBanner');
   if (player) {
     player.onended = null;
+    player.onerror = null;
+    player.onloadeddata = null;
     player.pause();
     player.removeAttribute('src');
     player.load();
   }
+  if (statusBanner) statusBanner.style.display = 'none';
   if (modal) modal.style.display = 'none';
   currentPlayingVideo = null;
   activePlaybackPlaylist = null;
   activePlaybackIndex = -1;
+}
+
+async function openVideoVaultFolder() {
+  try {
+    const res = await fetch('/api/health/video/open_folder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    const data = await res.json();
+    if (data.status === 'opened' || data.ok) {
+      if (typeof showToast === 'function') {
+        showToast('📂 Opened Video Vault folder in File Explorer');
+      }
+    } else {
+      alert('Could not open Video Vault folder: ' + (data.error || 'Unknown error'));
+    }
+  } catch (err) {
+    console.error('Error opening Video Vault folder:', err);
+  }
 }
 
 async function openCurrentVideoInSystem() {
@@ -1276,5 +1364,6 @@ window.filterVideoCategory = filterVideoCategory;
 window.renderExerciseVideos = renderExerciseVideos;
 window.playExerciseVideo = playExerciseVideo;
 window.closeVideoModal = closeVideoModal;
+window.openVideoVaultFolder = openVideoVaultFolder;
 window.openCurrentVideoInSystem = openCurrentVideoInSystem;
 window.openVideoInSystem = openVideoInSystem;

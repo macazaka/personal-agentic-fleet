@@ -119,7 +119,7 @@ class BaseDatabase:
         try:
             with conn:
                 conn.execute(
-                    "DELETE FROM feature_backlog WHERE LOWER(TRIM(title)) IN ('discord integration bot', 'test feature', 'unit test feature', 'sample backlog item', 'e2e test feature') OR LOWER(title) LIKE '%unit test%' OR LOWER(title) LIKE '%e2e test%'"
+                    "DELETE FROM feature_backlog WHERE LOWER(TRIM(title)) IN ('discord integration bot', 'test feature', 'unit test feature', 'sample backlog item', 'e2e test feature') OR LOWER(TRIM(title)) LIKE 'unit test feature%' OR LOWER(TRIM(title)) LIKE 'e2e test feature%'"
                 )
                 conn.execute(
                     "DELETE FROM medications WHERE LOWER(TRIM(name)) IN ('zinc sulfate 50mg', 'test med', 'unit test med')"

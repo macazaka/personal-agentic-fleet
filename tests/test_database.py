@@ -653,6 +653,93 @@ def test_task_editing_and_split_credit_cards():
             assert t_after["title"] == "Axis Bank Card Bill v3"
             assert t_after["description"] == "Updated via unified_action"
 
+            # 2. Test Medication unified_action edit (including editing Dosage inside description, schedule_time, and instructions)
+            from fleet.api.tasks_api import collect_unified_fleet_tasks
+            med_id = db.add_medication(
+                name="Vitamin C 500mg (Morning)",
+                dosage="1 Tab (500mg)",
+                schedule_time="08:30",
+                frequency="Daily",
+                instructions="After Breakfast. Immune support & antioxidant supplement.",
+            )
+            assert med_id > 0
+
+            handler.reset_mock()
+            post_unified_task_action(handler, {
+                "action_type": "medication",
+                "raw_id": med_id,
+                "sub_action": "edit",
+                "title": "Vitamin C 500mg (Morning) — 1 Tab (500mg) (@ 08:30)",
+                "description": "Dosage: 0.5 Tab (500mg) • Schedule: 08:30 (Daily) • After Breakfast. Immune support & antioxidant supplement.",
+                "due_date": "12 Nov 2026 at 08:30 (Daily) (Added 24 Oct 2026)",
+                "priority": "P1",
+                "source": "Daily",
+            })
+            med_resp = handler._send_json.call_args[0][0]
+            assert med_resp["status"] == "updated"
+            assert med_resp["medication"]["dosage"] == "0.5 Tab (500mg)"
+            assert med_resp["medication"]["instructions"] == "After Breakfast. Immune support & antioxidant supplement."
+
+            unified_after_med = collect_unified_fleet_tasks(db, None)
+            med_task = next(u for u in unified_after_med if u["id"] == f"med_{med_id}")
+            assert "0.5 Tab (500mg)" in med_task["title"]
+            assert med_task["description"] == "Dosage: 0.5 Tab (500mg) • Schedule: 08:30 (Daily) • After Breakfast. Immune support & antioxidant supplement."
+            assert med_task["description"].count("Dosage:") == 1
+
+            # 3. Test Routine unified_action edit (title, time_target, category)
+            routines_before = db.list_routines()
+            assert len(routines_before) >= 1
+            r_id = routines_before[0]["id"]
+            handler.reset_mock()
+            post_unified_task_action(handler, {
+                "action_type": "routine",
+                "raw_id": r_id,
+                "sub_action": "edit",
+                "title": "[@ 07:45] — Morning Mobility & Breathwork",
+                "description": "Daily Routine • Category: Wellness • Scheduled Time: 07:45",
+                "due_date": "12 Nov 2026 at 07:45 (Daily)",
+                "priority": "P2",
+                "source": "Daily",
+            })
+            r_resp = handler._send_json.call_args[0][0]
+            assert r_resp["status"] == "updated"
+            unified_after_routine = collect_unified_fleet_tasks(db, None)
+            r_task = next(u for u in unified_after_routine if u["id"] == f"routine_{r_id}")
+            assert "Morning Mobility & Breathwork" in r_task["title"]
+            assert "07:45" in r_task["title"]
+            assert "Category: Wellness" in r_task["description"]
+
+            # 4. Test Custom Agent Entry unified_action edit (title, due_date, custom_description)
+            rec_id = db.add_custom_agent_record(
+                agent_id="cloud_subscription_sentinel",
+                record_type="entry",
+                title="AWS Monthly Cloud Invoice",
+                status="pending",
+                due_date="By 05 Nov 2026",
+                numeric_value=4200.0,
+                data={"provider": "AWS"},
+            )
+            assert rec_id > 0
+            handler.reset_mock()
+            post_unified_task_action(handler, {
+                "action_type": "custom_agent_entry",
+                "raw_id": rec_id,
+                "sub_action": "edit",
+                "title": "[Billing Sentinel] AWS Monthly Cloud Invoice (Reviewed)",
+                "description": "Amount/Value: ₹4500 • Provider: AWS • Verified in Console",
+                "due_date": "By 07 Nov 2026 (Month: November • Year: 2026)",
+                "priority": "P1",
+                "source": "Monthly",
+            })
+            c_resp = handler._send_json.call_args[0][0]
+            assert c_resp["status"] == "updated"
+            unified_after_custom = collect_unified_fleet_tasks(db, None)
+            c_task = next(u for u in unified_after_custom if u["id"] == f"custom_rec_{rec_id}")
+            assert "AWS Monthly Cloud Invoice (Reviewed)" in c_task["title"]
+            assert c_task["description"] == "Amount/Value: ₹4500 • Provider: AWS • Verified in Console"
+            assert c_task["due_date"].startswith("By 07 Nov 2026 (Month:")
+            assert c_task["due_date"].count("(Month:") == 1
+
         # Verify inline edit focus & draft preservation guards in tasks.js and app.js
         root_dir = Path(__file__).resolve().parent.parent
         tasks_js = (root_dir / "fleet" / "web" / "static" / "js" / "tasks.js").read_text(encoding="utf-8")
@@ -660,6 +747,7 @@ def test_task_editing_and_split_credit_cards():
         assert "function isTaskEditingActive()" in tasks_js
         assert "function captureEditTaskDraft(" in tasks_js
         assert "window._editingTaskDrafts" in tasks_js
+        assert "window._savingEditedTaskInFlight" in tasks_js
         assert "!forceRender && isTaskEditingActive()" in tasks_js
         assert "isTaskEditingActive()" in app_js
 

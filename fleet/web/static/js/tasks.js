@@ -407,8 +407,8 @@
             </div>
             <textarea id="editTaskDesc_${escapeHtml(taskDomKey)}" rows="2" oninput="captureEditTaskDraft('${escapeHtml(taskDomKey)}')" placeholder="Task description / details" style="width: 100%; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text); resize: vertical;">${escapeHtml(editDescVal)}</textarea>
             <div style="display: flex; justify-content: flex-end; gap: 8px;">
-              <button class="btn" style="font-size: 11.5px; padding: 4px 12px;" onclick="cancelEditTaskInline()">Cancel</button>
-              <button class="btn btn-primary" style="font-size: 11.5px; padding: 4px 14px;" onclick="saveEditedTask('${escapeHtml(taskDomKey)}', '${escapeHtml(actionType)}', '${escapeHtml(String(rawId))}', '${escapeHtml(agentId)}')">💾 Save Changes</button>
+              <button type="button" class="btn" style="font-size: 11.5px; padding: 4px 12px;" onmousedown="event.preventDefault(); cancelEditTaskInline()" onclick="cancelEditTaskInline()">Cancel</button>
+              <button type="button" class="btn btn-primary" style="font-size: 11.5px; padding: 4px 14px;" onmousedown="event.preventDefault(); saveEditedTask('${escapeHtml(taskDomKey)}', '${escapeHtml(actionType)}', '${escapeHtml(String(rawId))}', '${escapeHtml(agentId)}')" onclick="saveEditedTask('${escapeHtml(taskDomKey)}', '${escapeHtml(actionType)}', '${escapeHtml(String(rawId))}', '${escapeHtml(agentId)}')">💾 Save Changes</button>
             </div>
           </div>
         ` : '';
@@ -499,22 +499,44 @@
     }
 
     async function saveEditedTask(taskDomKey, actionType, rawId, agentId) {
-      const titleEl = document.getElementById(`editTaskTitle_${taskDomKey}`);
-      const descEl = document.getElementById(`editTaskDesc_${taskDomKey}`);
-      const dueEl = document.getElementById(`editTaskDue_${taskDomKey}`);
-      const prioEl = document.getElementById(`editTaskPrio_${taskDomKey}`);
-      const srcEl = document.getElementById(`editTaskSource_${taskDomKey}`);
-      const title = titleEl ? titleEl.value.trim() : '';
-      const description = descEl ? descEl.value.trim() : '';
-      const due_date = dueEl ? dueEl.value.trim() : '';
-      const priority = prioEl ? prioEl.value : 'P2';
-      const source = srcEl ? srcEl.value : 'Monthly';
+      if (window._savingEditedTaskInFlight) return;
+      const keyStr = String(taskDomKey || '');
+      const draft = (window._editingTaskDrafts && window._editingTaskDrafts[keyStr]) ? window._editingTaskDrafts[keyStr] : {};
+      const titleEl = document.getElementById(`editTaskTitle_${keyStr}`);
+      const descEl = document.getElementById(`editTaskDesc_${keyStr}`);
+      const dueEl = document.getElementById(`editTaskDue_${keyStr}`);
+      const prioEl = document.getElementById(`editTaskPrio_${keyStr}`);
+      const srcEl = document.getElementById(`editTaskSource_${keyStr}`);
+      const title = (titleEl ? titleEl.value : (draft.title || '')).trim();
+      const description = (descEl ? descEl.value : (draft.description || '')).trim();
+      const due_date = (dueEl ? dueEl.value : (draft.due_date || '')).trim();
+      const priority = (prioEl ? prioEl.value : (draft.priority || 'P2')).trim();
+      const source = (srcEl ? srcEl.value : (draft.source || 'Monthly')).trim();
       if (!title || !description) {
         alert('Both a task title and description are required.');
         return;
       }
+      window._savingEditedTaskInFlight = true;
       try {
-        await fetch('/api/tasks/unified_action', {
+        if (Array.isArray(window._cachedTasksList)) {
+          const idx = window._cachedTasksList.findIndex(t => String(t.id !== undefined ? t.id : t.raw_id) === keyStr);
+          if (idx !== -1) {
+            window._cachedTasksList[idx] = Object.assign({}, window._cachedTasksList[idx], {
+              title,
+              description,
+              due_date,
+              priority,
+              source
+            });
+          }
+        }
+        if (window._editingTaskDrafts) {
+          delete window._editingTaskDrafts[keyStr];
+        }
+        window._editingTaskId = '';
+        renderTasksList();
+
+        const res = await fetch('/api/tasks/unified_action', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -529,15 +551,18 @@
             source
           })
         });
-        if (window._editingTaskDrafts) {
-          delete window._editingTaskDrafts[String(taskDomKey || '')];
+        if (!res.ok) {
+          console.error('Server returned non-OK status saving edited task:', res.status);
         }
-        window._editingTaskId = '';
         await fetchTasks(true);
+        if (typeof fetchHealthDashboard === 'function') fetchHealthDashboard();
+        if (typeof fetchRoutines === 'function') fetchRoutines();
         if (typeof fetchBriefing === 'function') fetchBriefing();
         if (typeof fetchLogs === 'function') fetchLogs();
       } catch (e) {
         console.error('Failed to save edited task:', e);
+      } finally {
+        window._savingEditedTaskInFlight = false;
       }
     }
 

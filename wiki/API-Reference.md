@@ -404,7 +404,7 @@ Lists all `@agent` slash commands across active agents or executes a Unified `Ct
 ```
 
 <!-- AUTO-API-ROUTES:START -->
-## 🔄 Complete Live REST API Route Inventory (`161` Endpoints — `v2.16.1`)
+## 🔄 Complete Live REST API Route Inventory (`162` Endpoints — `v2.16.2`)
 
 This table is **automatically introspected from `fleet/api/*.py` AST decorators** on every release by `fleet.tools.doc_wiki_enhancer`:
 
@@ -451,6 +451,7 @@ This table is **automatically introspected from `fleet/api/*.py` AST decorators*
 | `GET` | `/api/health/videos` | `get_exercise_videos` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `get_exercise_videos` in `fleet/api/health_api.py`. |
 | `GET` | `/api/health/image` | `get_health_image` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `get_health_image` in `fleet/api/health_api.py`. |
 | `GET` | `/api/health/video/stream` | `stream_video` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `stream_video` in `fleet/api/health_api.py`. |
+| `POST` | `/api/health/video/open_folder` | `open_video_vault_folder` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `open_video_vault_folder` in `fleet/api/health_api.py`. |
 | `POST` | `/api/health/video/open_system` | `open_video_in_system` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `open_video_in_system` in `fleet/api/health_api.py`. |
 | `GET` | `/api/health/strength_plan` | `get_strength_plan` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `get_strength_plan` in `fleet/api/health_api.py`. |
 | `GET` | `/api/health/exercise_plan` | `get_exercise_plan` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `get_exercise_plan` in `fleet/api/health_api.py`. |

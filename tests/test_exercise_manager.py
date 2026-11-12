@@ -285,7 +285,14 @@ def test_custom_video_playlists_crud_and_sequential_playback(tmp_path, monkeypat
     playlist_file.write_text("not-valid-json", encoding="utf-8")
     assert len(health_api.load_video_playlists()) >= 1
 
-    # 7. Verify frontend sequential playback and playlist builder wiring
+    # 7. Verify open_video_vault_folder (/api/health/video/open_folder)
+    h.reset_mock()
+    health_api.open_video_vault_folder(h, {})
+    res_folder = h._send_json.call_args[0][0]
+    assert res_folder["status"] == "opened"
+    assert res_folder["ok"] is True
+
+    # 8. Verify frontend sequential playback, zero-stream card thumbnails, and playlist builder wiring
     root_dir = Path(__file__).resolve().parent.parent
     js_text = (root_dir / "fleet" / "web" / "static" / "js" / "health.js").read_text(encoding="utf-8")
     html_text = (root_dir / "fleet" / "web" / "templates" / "dashboard.html").read_text(encoding="utf-8")
@@ -294,6 +301,9 @@ def test_custom_video_playlists_crud_and_sequential_playback(tmp_path, monkeypat
     assert "function playPlaylistAtIndex(" in js_text
     assert "function playNextInPlaylist()" in js_text
     assert "function playPrevInPlaylist()" in js_text
+    assert "function openVideoVaultFolder()" in js_text
+    assert "function _getVideoCardTheme(" in js_text
+    assert "src=\"${streamUrl}#t=1.0\"" not in js_text, "Grid cards must not open 11 simultaneous <video> streams"
     assert "player.onended =" in js_text
     assert 'id="videoPlaylistBar"' in html_text
     assert 'id="videoPlaylistBuilderPanel"' in html_text

@@ -4,10 +4,131 @@ Tasks & Routines API endpoints for Personal Agentic Fleet.
 
 from datetime import datetime
 import json
+import re
 from typing import Any, Dict, List
 import urllib.parse
 from fleet.api.router import router
 import fleet.server as srv
+
+
+def _parse_and_update_medication_from_task_edit(
+    db: Any,
+    med_id: int,
+    title: str,
+    description: str,
+    due_date: str = "",
+    source: str = "",
+) -> Dict[str, Any]:
+    """
+    Parses inline task edits on a medication item (from title, description, due_date, and source)
+    and updates `name`, `dosage`, `schedule_time`, `frequency`, and `instructions` in `medications`.
+    """
+    with db._get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT name, dosage, schedule_time, frequency, instructions FROM medications WHERE id = ?", (med_id,))
+        row = cur.fetchone()
+        if not row:
+            return {"updated": False, "id": med_id}
+        old_name = str(row["name"] or "").strip()
+        old_dosage = str(row["dosage"] or "1 Dose").strip()
+        old_sched = str(row["schedule_time"] or "08:30").strip()
+        old_freq = str(row["frequency"] or "Daily").strip()
+        old_instr = str(row["instructions"] or "").strip()
+
+    clean_title = (title or "").strip()
+    clean_desc = (description or "").strip()
+    clean_due = (due_date or "").strip()
+    clean_src = (source or "").strip()
+
+    # 1. Parse title: "{name} — {dosage} (@ {sched_time})"
+    title_dosage = None
+    title_sched = None
+    if "—" in clean_title:
+        left_part, right_part = clean_title.split("—", 1)
+        new_name = left_part.strip() or old_name
+        sched_m = re.search(r"\(@\s*([^)]+)\)", right_part)
+        if sched_m:
+            title_sched = sched_m.group(1).strip()
+        dos_candidate = re.sub(r"\(@[^)]*\)", "", right_part).strip()
+        if dos_candidate:
+            title_dosage = dos_candidate
+    else:
+        new_name = clean_title or old_name
+
+    # 2. Parse description: "Dosage: {dosage} • Schedule: {sched_time} ({freq}) • {instr}"
+    desc_dosage = None
+    desc_sched = None
+    desc_freq = None
+    dos_m = re.search(r"Dosage:\s*([^•\n]+)", clean_desc, re.IGNORECASE)
+    if dos_m:
+        desc_dosage = dos_m.group(1).strip()
+    sch_m = re.search(r"Schedule:\s*([0-9]{1,2}:[0-9]{2})(?:\s*\(([^)]+)\))?", clean_desc, re.IGNORECASE)
+    if sch_m:
+        desc_sched = sch_m.group(1).strip()
+        if sch_m.group(2):
+            desc_freq = sch_m.group(2).strip()
+
+    # Strip all leading "Dosage: ... •" and "Schedule: ... •" prefixes so instructions never duplicate
+    stripped_instr = clean_desc
+    while True:
+        next_instr = re.sub(
+            r"^(?:Dosage:\s*[^•\n]+•\s*|Schedule:\s*[^•\n]+•\s*)+",
+            "",
+            stripped_instr,
+            flags=re.IGNORECASE,
+        ).strip()
+        if next_instr == stripped_instr:
+            break
+        stripped_instr = next_instr
+    new_instr = stripped_instr if stripped_instr else old_instr
+
+    # 3. Parse due_date for schedule time if changed there
+    due_sched = None
+    due_m = re.search(r"\bat\s+([0-9]{1,2}:[0-9]{2})\b", clean_due, re.IGNORECASE)
+    if due_m:
+        due_sched = due_m.group(1).strip()
+
+    # 4. Prefer whichever field the user actually modified compared to old values
+    if desc_dosage and desc_dosage != old_dosage:
+        new_dosage = desc_dosage
+    elif title_dosage and title_dosage != old_dosage:
+        new_dosage = title_dosage
+    else:
+        new_dosage = desc_dosage or title_dosage or old_dosage
+
+    if desc_sched and desc_sched != old_sched:
+        new_sched = desc_sched
+    elif title_sched and title_sched != old_sched:
+        new_sched = title_sched
+    elif due_sched and due_sched != old_sched:
+        new_sched = due_sched
+    else:
+        new_sched = desc_sched or title_sched or due_sched or old_sched
+
+    if clean_src in ("Daily", "Monthly", "Yearly") and clean_src.lower() != old_freq.lower():
+        new_freq = clean_src
+    elif desc_freq and desc_freq != old_freq:
+        new_freq = desc_freq
+    else:
+        new_freq = old_freq or "Daily"
+
+    ok = db.update_medication(
+        med_id,
+        name=new_name,
+        dosage=new_dosage,
+        schedule_time=new_sched,
+        frequency=new_freq,
+        instructions=new_instr,
+    )
+    return {
+        "updated": ok,
+        "id": med_id,
+        "name": new_name,
+        "dosage": new_dosage,
+        "schedule_time": new_sched,
+        "frequency": new_freq,
+        "instructions": new_instr,
+    }
 
 
 def collect_unified_fleet_tasks(db: Any, registry: Any = None) -> List[Dict[str, Any]]:
@@ -145,13 +266,16 @@ def collect_unified_fleet_tasks(db: Any, registry: Any = None) -> List[Dict[str,
                 e_due = entry.get("due_date") or f"By 30 {month_short} {year}"
                 num_val = entry.get("numeric_value")
                 data_obj = entry.get("data") if isinstance(entry.get("data"), dict) else {}
-                details_parts = []
-                if num_val:
-                    details_parts.append(f"Amount/Value: ₹{num_val}")
-                for k, v in data_obj.items():
-                    if v:
-                        details_parts.append(f"{k.replace('_', ' ').title()}: {v}")
-                desc_str = " • ".join(details_parts) if details_parts else f"Tracked by {c_name}"
+                if data_obj.get("custom_description"):
+                    desc_str = str(data_obj.get("custom_description")).strip()
+                else:
+                    details_parts = []
+                    if num_val:
+                        details_parts.append(f"Amount/Value: ₹{num_val}")
+                    for k, v in data_obj.items():
+                        if v and k != "custom_description":
+                            details_parts.append(f"{k.replace('_', ' ').title()}: {v}")
+                    desc_str = " • ".join(details_parts) if details_parts else f"Tracked by {c_name}"
                 unified.append({
                     "id": f"custom_rec_{e_id}",
                     "raw_id": e_id,
@@ -321,6 +445,8 @@ def post_unified_task_action(handler: Any, body: Dict[str, Any]):
                 priority = str(body.get("priority") or "P2").strip()
                 source = str(body.get("source") or "").strip() or None
                 due_date = str(body.get("due_date") or "").strip() or None
+                if due_date:
+                    due_date = re.sub(r"\s*\(Added\s+[^)]+\)\s*$", "", due_date, flags=re.IGNORECASE).strip() or None
                 if not title or not description:
                     handler._send_json({"error": "Both title and description are required"}, 400)
                     return
@@ -352,14 +478,17 @@ def post_unified_task_action(handler: Any, body: Dict[str, Any]):
             if sub_action == "edit":
                 title = str(body.get("title") or "").strip()
                 description = str(body.get("description") or "").strip()
-                with srv.db._get_connection() as conn:
-                    cur = conn.cursor()
-                    cur.execute(
-                        "UPDATE medications SET name = ?, instructions = ? WHERE id = ?",
-                        (title.split("—")[0].strip() or title, description, med_id),
-                    )
-                    conn.commit()
-                handler._send_json({"status": "updated", "id": med_id})
+                due_date = str(body.get("due_date") or "").strip()
+                source = str(body.get("source") or "").strip()
+                updated_med = _parse_and_update_medication_from_task_edit(
+                    srv.db,
+                    med_id=med_id,
+                    title=title,
+                    description=description,
+                    due_date=due_date,
+                    source=source,
+                )
+                handler._send_json({"status": "updated", "id": med_id, "medication": updated_med})
                 return
             taken = srv.db.toggle_medication_today(med_id)
             handler._send_json({"status": "updated", "taken": taken})
@@ -375,13 +504,45 @@ def post_unified_task_action(handler: Any, body: Dict[str, Any]):
             routine_id = int(str(raw_id or 0))
             if sub_action == "edit":
                 title = str(body.get("title") or "").strip()
-                if "—" in title:
-                    title = title.split("—", 1)[1].strip()
+                description = str(body.get("description") or "").strip()
+                due_date = str(body.get("due_date") or "").strip()
                 with srv.db._get_connection() as conn:
                     cur = conn.cursor()
-                    cur.execute("UPDATE routines SET title = ? WHERE id = ?", (title, routine_id))
+                    cur.execute("SELECT title, time_target, category FROM routines WHERE id = ?", (routine_id,))
+                    row = cur.fetchone()
+                    cur_title = str(row["title"] if row else "Routine").strip()
+                    cur_time = str(row["time_target"] if row else "09:00").strip()
+                    cur_cat = str(row["category"] if row else "General").strip()
+
+                    new_time = cur_time
+                    m_title_time = re.search(r"\[\s*@\s*([0-9]{1,2}:[0-9]{2})\s*\]", title)
+                    if m_title_time:
+                        new_time = m_title_time.group(1).strip()
+                    m_desc_time = re.search(r"Scheduled\s+Time\s*:\s*([0-9]{1,2}:[0-9]{2})", description, flags=re.IGNORECASE)
+                    if m_desc_time and m_desc_time.group(1).strip() != cur_time:
+                        new_time = m_desc_time.group(1).strip()
+                    m_due_time = re.search(r"\bat\s+([0-9]{1,2}:[0-9]{2})\b", due_date, flags=re.IGNORECASE)
+                    if m_due_time and m_due_time.group(1).strip() != cur_time:
+                        new_time = m_due_time.group(1).strip()
+
+                    clean_title = title
+                    if "—" in clean_title:
+                        clean_title = clean_title.split("—", 1)[1].strip()
+                    clean_title = re.sub(r"^\[\s*@\s*[^\]]+\]\s*", "", clean_title).strip() or cur_title
+
+                    new_cat = cur_cat
+                    m_cat = re.search(r"Category\s*:\s*([^•\n]+)", description, flags=re.IGNORECASE)
+                    if m_cat:
+                        new_cat = m_cat.group(1).strip() or cur_cat
+                    elif description and "Scheduled Time:" not in description:
+                        new_cat = description.strip()
+
+                    cur.execute(
+                        "UPDATE routines SET title = ?, time_target = ?, category = ? WHERE id = ?",
+                        (clean_title, new_time, new_cat, routine_id),
+                    )
                     conn.commit()
-                handler._send_json({"status": "updated", "id": routine_id})
+                handler._send_json({"status": "updated", "id": routine_id, "title": clean_title, "time_target": new_time, "category": new_cat})
                 return
             srv.db.toggle_routine(routine_id)
             handler._send_json({"status": "updated"})
@@ -396,12 +557,27 @@ def post_unified_task_action(handler: Any, body: Dict[str, Any]):
                     if title.startswith("[") and "]" in title:
                         title = title.split("]", 1)[1].strip()
                     due_date = str(body.get("due_date") or "").strip()
+                    due_date = re.sub(r"\s*\(Month:\s*[^)]+\)\s*$", "", due_date, flags=re.IGNORECASE).strip()
+                    description = str(body.get("description") or "").strip()
+                    cur.execute("SELECT data_json FROM custom_agent_records WHERE id = ?", (rec_id,))
+                    rec_row = cur.fetchone()
+                    import json as _json
+                    data_obj: Dict[str, Any] = {}
+                    if rec_row and rec_row["data_json"]:
+                        try:
+                            parsed = _json.loads(rec_row["data_json"])
+                            if isinstance(parsed, dict):
+                                data_obj = parsed
+                        except Exception:
+                            data_obj = {}
+                    if description:
+                        data_obj["custom_description"] = description
                     cur.execute(
-                        "UPDATE custom_agent_records SET title = ?, due_date = ? WHERE id = ?",
-                        (title, due_date, rec_id),
+                        "UPDATE custom_agent_records SET title = ?, due_date = ?, data_json = ? WHERE id = ?",
+                        (title, due_date, _json.dumps(data_obj), rec_id),
                     )
                     conn.commit()
-                    handler._send_json({"status": "updated", "id": rec_id})
+                    handler._send_json({"status": "updated", "id": rec_id, "title": title, "due_date": due_date, "description": description})
                     return
                 cur.execute("SELECT status FROM custom_agent_records WHERE id = ?", (rec_id,))
                 row = cur.fetchone()

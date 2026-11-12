@@ -538,6 +538,94 @@ UX_ROADMAP_BACKLOG_ITEMS: List[Dict[str, str]] = [
         "status": "Completed",
         "target_version": "v2.14.0",
     },
+    {
+        "title": "Autonomous Delegated Bill & Subscription Payment Execution Engine (Pay on My Behalf)",
+        "description": "Enable AFCC to securely make payments on the user's behalf (Credit Card bills, Electricity bills, Broadband/Mobile bills, Loan EMIs, NPS/PPF investments, Insurance renewals, and KINDUZ compliance/vendor payments) with human-in-the-loop OTP/UPI/2FA approval, spend-limit guardrails, DPAPI vault security, receipt verification, and automatic task completion.",
+        "category": "Automation",
+        "priority": "P1",
+        "status": "Planned",
+        "target_version": "v2.17.0",
+    },
+    {
+        "title": "[QA-01] Unit Test Suite: Email Proposal Workflow & Attachment Virus Scan HTTP API Endpoints",
+        "description": "Add direct HTTP endpoint unit tests for fleet/api/email_api.py routes: GET /api/emails/proposals (get_email_proposals_endpoint), POST /api/emails/proposals/approve (approve_email_proposal_endpoint), POST /api/emails/proposals/reject (reject_email_proposal_endpoint), and POST /api/emails/attachments/scan (scan_email_attachment_endpoint).",
+        "category": "Security",
+        "priority": "P1",
+        "status": "Planned",
+        "target_version": "v2.17.0",
+    },
+    {
+        "title": "[QA-02] Unit Test Suite: Cognitive Mind Layer, Soul Audits & Diagnostics Health HTTP API Endpoints",
+        "description": "Add direct unit tests for fleet/api/system_api.py & fleet/core/mind/consciousness.py: GET /api/diagnostics/health (get_diagnostics_health), GET/POST /api/logs/analyze, GET /api/mind/status, /api/mind/insights, /api/mind/critiques, /api/mind/soul_audits, POST /api/mind/critique, /api/mind/dream, /api/mind/soul_audit, /api/mind/self_improve, /api/mind/heal, and ExecutiveAttention.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Planned",
+        "target_version": "v2.17.0",
+    },
+    {
+        "title": "[QA-03] Unit Test Suite: Focus Guard, Smart Nudges & Agent Dry-Run / Undo Time-Machine API Endpoints",
+        "description": "Add unit tests for fleet/api/settings_api.py, fleet/core/focus_guard.py, and fleet/core/plugin_sandbox.py: POST /api/notifications/nudge, POST /api/notifications/nudges/flush, POST /api/notifications/nudges/action, POST /api/notifications/focus, POST /api/agents/dry_run (simulate_agent_task_dry_run), POST /api/agents/undo, and build_default_nudge_actions.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Planned",
+        "target_version": "v2.17.0",
+    },
+    {
+        "title": "[QA-04] Unit Test Suite: Omnibar Voice Router, System Tray Companion Actions & Playbook/Onboarding APIs",
+        "description": "Add unit tests for fleet/api/settings_api.py, fleet/core/omnibar_dispatcher.py, and fleet/tools/tray_companion.py: POST /api/omnibar/voice (post_omnibar_voice_endpoint), POST /api/tray/action (post_tray_action_endpoint), POST /api/playbooks/save, POST /api/onboarding/apply, get_omnibar_chat_history, get_voice_activities_catalog, and launch_tray_companion_background.",
+        "category": "Integration",
+        "priority": "P2",
+        "status": "Planned",
+        "target_version": "v2.17.0",
+    },
+    {
+        "title": "[QA-05] Unit Test Suite: Unified Fleet Tasks Aggregation & Inline Task Edit Draft Preservation",
+        "description": "Add unit tests for fleet/api/tasks_api.py (collect_unified_fleet_tasks and GET /api/tasks/unified) and frontend inline task editor state preservation (isTaskEditingActive, captureEditTaskDraft, _editingTaskDrafts, maskSensitiveTaskText, resolveTaskTemporalMeta in fleet/web/static/js/tasks.js).",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Planned",
+        "target_version": "v2.17.0",
+    },
+    {
+        "title": "[QA-06] Unit Test Suite: Custom Video Playlists Persistence, Sequential Auto-Play & Zero-Stream Card Themes",
+        "description": "Add edge-case unit tests for save_video_playlists in fleet/api/health_api.py (corrupted JSON recovery, duplicate playlist ID update, empty video list rejection, path traversal guard on /api/health/video/open_folder) and sequential playlist auto-advance (playCustomPlaylistFromIndex, playNextInCustomPlaylist, _getVideoCardTheme in fleet/web/static/js/health.js).",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Planned",
+        "target_version": "v2.17.0",
+    },
+    {
+        "title": "[QA-07] Unit Test Suite: Agent Studio Phase 6 Runtime, Multi-Document Batch Extraction & Prompt Improviser",
+        "description": "Add unit tests for fleet/core/agent_studio.py (execute_studio_agent_runtime, generate_custom_agent_code, get_agent_improvement_context, improvise_agent_improvement_prompt, undertake_agent_self_improvements), fleet/core/studio_phase6.py (scan_and_ingest_agent_inbox, infer_recurrence_cycle, roll_forward_custom_agent_record, execute_outbound_action_hooks, answer_custom_agent_chat), and fleet/core/document_extractor.py batch extraction.",
+        "category": "AI/LLM",
+        "priority": "P2",
+        "status": "Planned",
+        "target_version": "v2.17.0",
+    },
+    {
+        "title": "[QA-08] Unit Test Suite: Unified Fleet CLI Subcommands (cmd_start..cmd_version) & Release/Auto-Fixer Tooling",
+        "description": "Add unit tests for all 16 CLI subcommand handlers in fleet/cli.py (cmd_start, cmd_stop, cmd_status, cmd_doctor, cmd_mind, cmd_agents, cmd_security, cmd_heal, cmd_test, cmd_wiki, cmd_autofix, cmd_release, cmd_docs, cmd_lifecycle, cmd_version), fleet/tools/release_manager.py (ensure_workstation_version_parity, run_proactive_release_check), and fleet/tools/auto_fixer.py.",
+        "category": "Automation",
+        "priority": "P2",
+        "status": "Planned",
+        "target_version": "v2.17.0",
+    },
+    {
+        "title": "[QA-09] Unit Test Suite: SQLite Schema Forward Migrations (v1-v5) & Event Playbook Trigger Engine",
+        "description": "Add isolated unit tests for individual schema migration steps in fleet/core/db/migrations.py (migration_v1_baseline through migration_v5_cognitive_mind) and event playbook synchronization in fleet/core/playbook_engine.py (save_playbooks, remove_custom_agent_playbooks, sync_custom_agent_event_playbooks, dispatch_event_trigger).",
+        "category": "Core",
+        "priority": "P2",
+        "status": "Planned",
+        "target_version": "v2.17.0",
+    },
+    {
+        "title": "[QA-10] Unit Test Suite: Compact Self-Improvement Header Popover, 24h Completed Task Expiry & Frontend JS Modules",
+        "description": "Add unit tests covering the compact Self-Improvement & Feature Evolution header popover (toggleEvolveHeaderPopover, closeEvolveHeaderPopover), 24-hour auto-expiry of completed evolution undertakings (_pruneExpiredCompletedUndertakings in create_agent.js), SemVer backlog sorting (backlog.js), and Settings agent drawer lifecycle (settings.js).",
+        "category": "UI/UX",
+        "priority": "P2",
+        "status": "Planned",
+        "target_version": "v2.17.0",
+    },
 ]
 
 ALL_CANONICAL_BACKLOG_ITEMS: List[Dict[str, str]] = (
@@ -608,7 +696,7 @@ class BacklogMixin(_DbBase):
         clean_desc = (description or "").strip()
         if not is_test_environment() or os.environ.get("FLEET_PRODUCTION_SERVER") == "1":
             t_low = clean_title.lower()
-            if t_low in _UNIT_TEST_BACKLOG_TITLES or t_low.startswith("unit test") or t_low.startswith("e2e test"):
+            if t_low in _UNIT_TEST_BACKLOG_TITLES or t_low.startswith("unit test feature") or t_low.startswith("e2e test feature"):
                 return -1
 
         now = datetime.now().isoformat()
@@ -630,8 +718,8 @@ class BacklogMixin(_DbBase):
         if not is_test_environment():
             query += (
                 " AND LOWER(TRIM(title)) NOT IN ('discord integration bot', 'test feature', 'unit test feature', 'sample backlog item', 'e2e test feature')"
-                " AND LOWER(title) NOT LIKE '%unit test%'"
-                " AND LOWER(title) NOT LIKE '%e2e test%'"
+                " AND LOWER(TRIM(title)) NOT LIKE 'unit test feature%'"
+                " AND LOWER(TRIM(title)) NOT LIKE 'e2e test feature%'"
             )
         if status and status.strip().lower() != "all":
             statuses = [s.strip() for s in status.split(",") if s.strip() and s.strip().lower() != "all"]

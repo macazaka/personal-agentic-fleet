@@ -1,6 +1,6 @@
 # ⚡ Personal Agentic Fleet
 
-[![Release: v2.16.1](https://img.shields.io/badge/Release-v2.16.1-00b4d8.svg?logo=github&logoColor=white)](CHANGELOG.md)
+[![Release: v2.16.2](https://img.shields.io/badge/Release-v2.16.2-00b4d8.svg?logo=github&logoColor=white)](CHANGELOG.md)
 [![GitHub Wiki: 17 Deep-Dive Guides](https://img.shields.io/badge/GitHub%20Wiki-17%20Deep--Dive%20Guides-0284c7.svg?logo=github&logoColor=white)](https://github.com/macazaka/personal-agentic-fleet/wiki)
 [![Python: 3.10 | 3.11 | 3.12 | 3.13 | 3.14](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-10b981.svg?logo=apache&logoColor=white)](https://opensource.org/licenses/Apache-2.0)
@@ -119,16 +119,18 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
 ## 🌟 Key Highlights
 
 <!-- AUTO-LATEST-RELEASE:START -->
-### 🆕 What's New in Release `v2.16.1` (Auto-Synchronized)
+### 🆕 What's New in Release `v2.16.2` (Auto-Synchronized)
 
-> **Live Telemetry**: `10` Core Agents • `161` REST API Endpoints • `35` Microkernel Engines • `21` Automation Tools • `509` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
+> **Live Telemetry**: `10` Core Agents • `162` REST API Endpoints • `35` Microkernel Engines • `21` Automation Tools • `510` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
 
 ### Added
-- **Custom Video Playlists & Sequential One-by-One Playback**: Added an interactive playlist builder (`#videoPlaylistBar`, `#videoPlaylistBuilderPanel`), `+ Playlist` queueing on every video card in the **Exercise, Videos & Traditional Strength Training Hub**, persistent local playlist storage (`GET /api/health/playlists`, `POST /api/health/playlists/save`, `POST /api/health/playlists/delete`), and automatic one-by-one playback (`#videoModalPlaylistBar`, `⏮ Prev`, `⏭ Next Video`, `🔁 Auto-Play Next: ON`) in the Video Player Modal.
-- **Individual Monthly & Yearly Task Decomposition**: Split all combined Monthly and Yearly obligations (`Investments`, `Electricity Bill Payments`, `KINDUZ Operations & Compliance`, `KINDUZ US`, `Websites & Domains`, `AWS Updates`, `Credit Card Subscriptions`, `Stored Credit Card Tokens`, and `Insurance Renewals`) into individual trackable tasks with automatic legacy task cleanup in `sync_local_personal_tasks_vault()`.
+- **Multilingual Voice Copilot (`English`, `Hindi`, `Telugu`, `Marathi`) & Indian Lady's Accent Default**: Added interactive Language (`en-IN`, `hi-IN`, `te-IN`, `mr-IN`), Gender (`Female` / `Male`), and Accent (`🇮🇳 Indian`, `🇬🇧 UK`, `🇺🇸 US`) selectors to the Bi-Directional Audio Conversation & Live Activity Copilot (`dashboard.html`, `antigravity.js`, `briefing.js`, `settings_api.py`, `omnibar_dispatcher.py`), defaulting to an Indian lady's voice (`Heera` / `Neerja` / `female_indian`).
+- **Video Vault Folder Opener & Browser H.264 (`avc1`) Auto-Transcoding**: Added `POST /api/health/exercise/open_vault` (`📂 Video Vault`) to open the local exercise video folder in Windows Explorer and automatic FFmpeg H.264/AAC transcoding in `/api/health/exercise/video_stream` so MPEG-4 Part 2 (`mp4v`) and HEVC (`hvc1`) videos play smoothly inside the browser modal.
+- **Autonomous Delegated Payments (`#BL-231`) & QA Unit-Test Coverage Backlog (`#BL-232` – `#BL-241`)**: Added `#BL-231` (*Autonomous Delegated Bill & Subscription Payment Execution Engine — Pay on My Behalf*) and 10 comprehensive unit-test coverage backlog items (`[QA-01]` to `[QA-10]`) from a full codebase audit across all 162 REST routes, core modules, and frontend JS views.
 
 ### Fixed
-- **Inline Task Editor Focus & Draft Preservation**: Prevented the 8-second background polling loop (`app.js`, `tasks.js`) from re-rendering `#taskList` or resetting unsaved text edits while an inline task edit (`isTaskEditingActive()`, `captureEditTaskDraft()`) is open.
+- **Unified Task Inline Editing Across All Action Types (`medication`, `routine`, `custom_agent_entry`, `core_task`)**: Fixed `POST /api/tasks/unified_action` (`sub_action="edit"`) and `saveEditedTask()` (`tasks_api.py`, `tasks.js`) so editing dosage, schedule time, frequency, instructions, category, or custom description in **Daily, Monthly & Yearly Tasks** persists all fields to SQLite without prefix duplication and refreshes linked views immediately.
+- **Browser Microphone `Permissions-Policy` Header**: Updated `fleet/server.py` security headers from `microphone=()` to `microphone=(self)` so Chrome permits microphone access on `http://127.0.0.1:7890` when browser site permissions are granted.
 <!-- AUTO-LATEST-RELEASE:END -->
 
 - **🔌 Modular Plug-and-Play Agents**: Every dashboard view is a standalone, self-contained agent package inside `fleet/agents/` with least-privilege capability manifests (`manifest.json`) enforced by `ScopedDatabaseProxy`. See **[Wiki: 7 Built-in Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents)** and **[Wiki: Customizing Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Customizing-Agents)**.

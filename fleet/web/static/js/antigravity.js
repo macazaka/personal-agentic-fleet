@@ -1198,9 +1198,254 @@ window.AFCCVoice = {
   continuousMode: localStorage.getItem('afcc_voice_continuous') !== 'false',
   spokenReplyEnabled: localStorage.getItem('afcc_voice_tts_enabled') !== 'false',
   speechRate: parseFloat(localStorage.getItem('afcc_voice_rate') || '1.05') || 1.05,
-  lastSpokenReply: 'Hello! I am your Personal Agentic Fleet Voice Copilot. Tell me what you would like to do.',
+  voiceLanguage: localStorage.getItem('afcc_voice_lang') || 'en',
+  voiceGender: localStorage.getItem('afcc_voice_gender') || 'female',
+  voiceAccent: localStorage.getItem('afcc_voice_accent') || 'IN',
+  lastSpokenReply: 'Namaste! I am your Personal Agentic Fleet Voice Copilot. Tell me what you would like to do.',
+  lastSpokenPhonetic: 'Namaste! I am your Personal Agentic Fleet Voice Copilot. Tell me what you would like to do.',
   recognition: null
 };
+
+function getTargetVoiceLocale() {
+  const lang = String(window.AFCCVoice.voiceLanguage || 'en').toLowerCase();
+  const acc = String(window.AFCCVoice.voiceAccent || 'IN').toUpperCase();
+  if (lang === 'hi') return 'hi-IN';
+  if (lang === 'te') return 'te-IN';
+  if (lang === 'mr') return 'mr-IN';
+  if (acc === 'US') return 'en-US';
+  if (acc === 'GB') return 'en-GB';
+  return 'en-IN';
+}
+
+function getVoiceProfileDisplayLabel() {
+  const lang = String(window.AFCCVoice.voiceLanguage || 'en').toLowerCase();
+  const gen = String(window.AFCCVoice.voiceGender || 'female').toLowerCase() === 'male' ? 'Male' : 'Lady';
+  const acc = String(window.AFCCVoice.voiceAccent || 'IN').toUpperCase();
+  const bcp47 = getTargetVoiceLocale();
+  const langNames = { en: 'English', hi: 'Hindi', te: 'Telugu', mr: 'Marathi' };
+  const accFlags = { IN: '🇮🇳 Indian', US: '🇺🇸 US', GB: '🇬🇧 UK' };
+  const flagLabel = (lang === 'en') ? (accFlags[acc] || '🇮🇳 Indian') : '🇮🇳 Indian';
+  return `${flagLabel} ${gen} • ${langNames[lang] || 'English'} (${bcp47})`;
+}
+
+function syncVoiceProfileSelectors() {
+  const langSel = document.getElementById('voiceLanguageSelect');
+  const genSel = document.getElementById('voiceGenderSelect');
+  const accSel = document.getElementById('voiceAccentSelect');
+  const rateSel = document.getElementById('voiceRateSelect');
+  const profBadge = document.getElementById('voiceActiveProfileBadge');
+
+  if (langSel && langSel.value !== window.AFCCVoice.voiceLanguage) {
+    langSel.value = window.AFCCVoice.voiceLanguage || 'en';
+  }
+  if (genSel && genSel.value !== window.AFCCVoice.voiceGender) {
+    genSel.value = window.AFCCVoice.voiceGender || 'female';
+  }
+  if (accSel && accSel.value !== window.AFCCVoice.voiceAccent) {
+    accSel.value = window.AFCCVoice.voiceAccent || 'IN';
+  }
+  if (rateSel && String(rateSel.value) !== String(window.AFCCVoice.speechRate)) {
+    rateSel.value = String(window.AFCCVoice.speechRate || 1.05);
+  }
+  if (profBadge) {
+    profBadge.textContent = getVoiceProfileDisplayLabel();
+  }
+}
+
+function resolveBestSpeechVoice(voices, langCode, gender, accent) {
+  if (!Array.isArray(voices) || voices.length === 0) return null;
+  const lang = String(langCode || 'en').toLowerCase();
+  const gen = String(gender || 'female').toLowerCase() === 'male' ? 'male' : 'female';
+  const acc = String(accent || 'IN').toUpperCase();
+
+  const femaleNameRegex = /Female|Heera|Neerja|Swara|Shruti|Aarohi|Kalpana|Pallavi|Kavya|Ananya|Vani|Zira|Hazel|Aria|Jenny|Sonia|Libby|Natasha|Clara|Google हिन्दी|Google తెలుగు|Google मराठी|Google UK English Female|Google US English/i;
+  const maleNameRegex = /\bMale\b|Ravi|Prabhat|Madhur|Mohan|Manohar|Hemant|Sagar|Valluvar|David|Guy|Ryan|George|Mark|Christopher|Eric|Google UK English Male/i;
+  const indianFemaleRegex = /Heera|Neerja|Swara|Shruti|Aarohi|Kalpana|Pallavi|Kavya|Ananya|Vani|Google हिन्दी|Google తెలుగు|Google मराठी/i;
+  const indianMaleRegex = /Ravi|Prabhat|Madhur|Mohan|Manohar|Hemant|Sagar|Valluvar/i;
+
+  let bestVoice = null;
+  let bestScore = -999;
+
+  for (const v of voices) {
+    const vName = String(v.name || '');
+    const vLang = String(v.lang || '').replace('_', '-');
+    let score = 0;
+
+    const isFemaleVoice = femaleNameRegex.test(vName) && !maleNameRegex.test(vName);
+    const isMaleVoice = maleNameRegex.test(vName);
+
+    // 1. Gender preference scoring
+    if (gen === 'female') {
+      if (isFemaleVoice) score += 80;
+      if (isMaleVoice) score -= 100;
+    } else {
+      if (isMaleVoice) score += 80;
+      if (isFemaleVoice) score -= 100;
+    }
+
+    // 2. Language & Accent scoring
+    if (lang === 'te') {
+      if (/^te/i.test(vLang) || /Telugu|తెలుగు|Shruti|Mohan/i.test(vName)) {
+        score += 220;
+      } else if (gen === 'female' && indianFemaleRegex.test(vName)) {
+        score += 140;
+      } else if (gen === 'male' && indianMaleRegex.test(vName)) {
+        score += 140;
+      } else if (/IN$/i.test(vLang)) {
+        score += 110;
+      }
+    } else if (lang === 'mr') {
+      if (/^mr/i.test(vLang) || /Marathi|मराठी|Aarohi|Manohar/i.test(vName)) {
+        score += 220;
+      } else if (/^hi/i.test(vLang) || /Google हिन्दी|Swara|Kalpana|Madhur|Hemant/i.test(vName)) {
+        // Devanagari script is shared between Marathi & Hindi, so hi-IN reads Marathi naturally
+        score += 180;
+      } else if (gen === 'female' && indianFemaleRegex.test(vName)) {
+        score += 130;
+      } else if (gen === 'male' && indianMaleRegex.test(vName)) {
+        score += 130;
+      }
+    } else if (lang === 'hi') {
+      if (/^hi/i.test(vLang) || /Hindi|हिन्दी|Swara|Kalpana|Madhur|Hemant/i.test(vName)) {
+        score += 220;
+      } else if (gen === 'female' && indianFemaleRegex.test(vName)) {
+        score += 145;
+      } else if (gen === 'male' && indianMaleRegex.test(vName)) {
+        score += 145;
+      } else if (/IN$/i.test(vLang)) {
+        score += 115;
+      }
+    } else {
+      // English ('en') with Accent ('IN', 'US', 'GB')
+      if (acc === 'IN') {
+        if (/^en-IN/i.test(vLang) || /Heera|Neerja|Ravi|Prabhat|India/i.test(vName)) {
+          score += 220;
+        } else if (gen === 'female' && (/Google हिन्दी/i.test(vName) || indianFemaleRegex.test(vName))) {
+          // Chrome's built-in Google हिन्दी (hi-IN) is a genuine Indian Lady neural voice that speaks English with an authentic Indian accent
+          score += 175;
+        } else if (gen === 'male' && indianMaleRegex.test(vName)) {
+          score += 165;
+        } else if (/^en-GB/i.test(vLang) || /Hazel|UK English/i.test(vName)) {
+          score += 95;
+        } else if (/^en/i.test(vLang)) {
+          score += 70;
+        }
+      } else if (acc === 'GB') {
+        if (/^en-GB/i.test(vLang) || /UK English|Great Britain|Hazel|Sonia|Ryan|George/i.test(vName)) {
+          score += 200;
+        } else if (/^en/i.test(vLang)) {
+          score += 80;
+        }
+      } else {
+        // US Accent
+        if (/^en-US/i.test(vLang) || /US English|United States|Zira|David|Aria|Jenny|Guy/i.test(vName)) {
+          score += 200;
+        } else if (/^en/i.test(vLang)) {
+          score += 80;
+        }
+      }
+    }
+
+    if (/Natural|Online|Google/i.test(vName)) {
+      score += 15;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestVoice = v;
+    }
+  }
+
+  return bestVoice || voices[0] || null;
+}
+
+function setAfccVoiceLanguage(lang) {
+  const clean = String(lang || 'en').toLowerCase();
+  if (['en', 'hi', 'te', 'mr'].includes(clean)) {
+    window.AFCCVoice.voiceLanguage = clean;
+    if (clean !== 'en') {
+      window.AFCCVoice.voiceAccent = 'IN';
+    }
+    try {
+      localStorage.setItem('afcc_voice_lang', clean);
+      localStorage.setItem('afcc_voice_accent', window.AFCCVoice.voiceAccent);
+    } catch (e) {}
+    syncVoiceProfileSelectors();
+    if (window.AFCCVoice.isListening) {
+      startBrowserSpeechRecognition();
+    }
+  }
+}
+
+function setAfccVoiceGender(gender) {
+  const clean = String(gender || 'female').toLowerCase() === 'male' ? 'male' : 'female';
+  window.AFCCVoice.voiceGender = clean;
+  try {
+    localStorage.setItem('afcc_voice_gender', clean);
+  } catch (e) {}
+  syncVoiceProfileSelectors();
+}
+
+function setAfccVoiceAccent(accent) {
+  const clean = String(accent || 'IN').toUpperCase();
+  if (['IN', 'US', 'GB'].includes(clean)) {
+    window.AFCCVoice.voiceAccent = clean;
+    try {
+      localStorage.setItem('afcc_voice_accent', clean);
+    } catch (e) {}
+    syncVoiceProfileSelectors();
+    if (window.AFCCVoice.isListening) {
+      startBrowserSpeechRecognition();
+    }
+  }
+}
+
+function testAfccSelectedVoice() {
+  const lang = String(window.AFCCVoice.voiceLanguage || 'en').toLowerCase();
+  const gen = String(window.AFCCVoice.voiceGender || 'female').toLowerCase();
+  const acc = String(window.AFCCVoice.voiceAccent || 'IN').toUpperCase();
+
+  let nativeSample = '';
+  let phoneticSample = '';
+
+  if (lang === 'hi') {
+    nativeSample = gen === 'male'
+      ? 'नमस्ते! मैं आपका पर्सनल एजेंटिक फ्लीट वॉयस कोपायलट हूँ। आज मैं आपकी क्या सहायता कर सकता हूँ?'
+      : 'नमस्ते! मैं आपकी पर्सनल एजेंटिक फ्लीट वॉयस कोपायलट हूँ। आज मैं आपकी क्या सहायता कर सकती हूँ?';
+    phoneticSample = gen === 'male'
+      ? 'Namaste! Main aapka Personal Agentic Fleet Voice Copilot hoon. Aaj main aapki kya sahayata kar sakta hoon?'
+      : 'Namaste! Main aapki Personal Agentic Fleet Voice Copilot hoon. Aaj main aapki kya sahayata kar sakti hoon?';
+  } else if (lang === 'te') {
+    nativeSample = 'నమస్కారం! నేను మీ పర్సనల్ ఏజెంటిక్ ఫ్లీట్ వాయిస్ కోపైలట్ ని. ఈ రోజు నేను మీకు ఎలా సహాయం చేయగలను?';
+    phoneticSample = 'Namaskaram! Nenu mee Personal Agentic Fleet Voice Copilot ni. Ee roju nenu meeku ela sahayam cheyagalanu?';
+  } else if (lang === 'mr') {
+    nativeSample = gen === 'male'
+      ? 'नमस्कार! मी तुमचा पर्सनल एजेंटिक फ्लीट व्हॉइस कोपायलट आहे. आज मी तुम्हाला कशी मदत करू शकतो?'
+      : 'नमस्कार! मी तुमची पर्सनल एजेंटिक फ्लीट व्हॉइस कोपायलट आहे. आज मी तुम्हाला कशी मदत करू शकते?';
+    phoneticSample = gen === 'male'
+      ? 'Namaskar! Mi tumcha Personal Agentic Fleet Voice Copilot aahe. Aaj mi tumhala kashi madat karu shakto?'
+      : 'Namaskar! Mi tumchi Personal Agentic Fleet Voice Copilot aahe. Aaj mi tumhala kashi madat karu shakte?';
+  } else {
+    const accLabel = acc === 'IN' ? 'Indian English' : (acc === 'GB' ? 'British English' : 'US English');
+    const greeting = acc === 'IN' ? 'Namaste!' : 'Hello!';
+    nativeSample = `${greeting} I am your Personal Agentic Fleet Voice Copilot, speaking in an ${accLabel} ${gen === 'male' ? 'male' : 'lady'} voice. How can I help you today?`;
+    phoneticSample = nativeSample;
+  }
+
+  const replyLineEl = document.getElementById('voiceAssistantReplyLine');
+  const replyTextEl = document.getElementById('voiceSpokenReplyText');
+  if (replyLineEl && replyTextEl) {
+    replyLineEl.style.display = 'block';
+    replyTextEl.textContent = nativeSample;
+  }
+  speakAfccVoiceText(nativeSample, null, phoneticSample);
+}
+
+if ('speechSynthesis' in window && typeof window.speechSynthesis.onvoiceschanged !== 'undefined') {
+  window.speechSynthesis.onvoiceschanged = () => {
+    syncVoiceProfileSelectors();
+  };
+}
 
 function updateVoiceCopilotUI(stateLabel, stateKind) {
   const badge = document.getElementById('voiceStateBadge');
@@ -1290,6 +1535,7 @@ function updateVoiceCopilotUI(stateLabel, stateKind) {
   if (btnStopSpeak) {
     btnStopSpeak.style.display = isSpeaking ? 'inline-flex' : 'none';
   }
+  syncVoiceProfileSelectors();
 }
 
 function toggleVoiceCopilotPanel(startListeningImmediately) {
@@ -1346,13 +1592,14 @@ function stopAfccVoiceSpeaking() {
   updateVoiceCopilotUI();
 }
 
-function speakAfccVoiceText(text, onDoneCallback) {
+function speakAfccVoiceText(text, onDoneCallback, altPhoneticText) {
   const cleanText = String(text || '').trim();
   if (!cleanText) {
     if (typeof onDoneCallback === 'function') onDoneCallback();
     return;
   }
   window.AFCCVoice.lastSpokenReply = cleanText;
+  window.AFCCVoice.lastSpokenPhonetic = String(altPhoneticText || cleanText).trim();
 
   if (!window.AFCCVoice.spokenReplyEnabled || !('speechSynthesis' in window)) {
     if (typeof onDoneCallback === 'function') onDoneCallback();
@@ -1361,21 +1608,47 @@ function speakAfccVoiceText(text, onDoneCallback) {
 
   try {
     window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(cleanText);
-    utter.rate = window.AFCCVoice.speechRate || 1.05;
-    utter.pitch = 1.0;
+    const langCode = String(window.AFCCVoice.voiceLanguage || 'en').toLowerCase();
+    const gender = String(window.AFCCVoice.voiceGender || 'female').toLowerCase();
+    const accent = String(window.AFCCVoice.voiceAccent || 'IN').toUpperCase();
+    const targetBcp47 = getTargetVoiceLocale();
 
-    // Select a natural English voice if available
     const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
-    const preferred = voices.find(v => /Natural|Aria|Jenny|Guy|Google US English|Zira/i.test(v.name) && /en/i.test(v.lang))
-      || voices.find(v => /en/i.test(v.lang));
+    const preferred = resolveBestSpeechVoice(voices, langCode, gender, accent);
+
+    // If speaking Telugu/Hindi/Marathi and the selected voice does not support the native script, use phonetic text so it speaks aloud clearly
+    let spokenPayload = cleanText;
+    if (preferred && altPhoneticText) {
+      const vLang = String(preferred.lang || '').toLowerCase();
+      const vName = String(preferred.name || '');
+      if (langCode === 'te' && !vLang.startsWith('te') && !/telugu|తెలుగు|shruti|mohan/i.test(vName)) {
+        spokenPayload = String(altPhoneticText).trim();
+      } else if ((langCode === 'hi' || langCode === 'mr') && !vLang.startsWith('hi') && !vLang.startsWith('mr') && !/hindi|marathi|हिन्दी|मराठी|swara|kalpana|aarohi|madhur|hemant|manohar/i.test(vName)) {
+        spokenPayload = String(altPhoneticText).trim();
+      }
+    }
+
+    const utter = new SpeechSynthesisUtterance(spokenPayload);
+    utter.rate = window.AFCCVoice.speechRate || 1.05;
+    utter.lang = preferred && preferred.lang ? preferred.lang : targetBcp47;
+
     if (preferred) {
       utter.voice = preferred;
+      const vName = String(preferred.name || '');
+      if (gender === 'female' && /\bMale\b|David|Guy|Ravi|Prabhat|Madhur|Mohan|Manohar|Hemant/i.test(vName)) {
+        utter.pitch = 1.18;
+      } else if (gender === 'male' && /Female|Zira|Hazel|Heera|Neerja|Swara|Shruti|Aarohi|Kalpana|Google हिन्दी/i.test(vName)) {
+        utter.pitch = 0.85;
+      } else {
+        utter.pitch = gender === 'female' ? 1.04 : 0.94;
+      }
+    } else {
+      utter.pitch = gender === 'female' ? 1.06 : 0.92;
     }
 
     utter.onstart = () => {
       window.AFCCVoice.isSpeaking = true;
-      updateVoiceCopilotUI('🔊 AFCC Speaking...', 'speaking');
+      updateVoiceCopilotUI(`🔊 Speaking (${getVoiceProfileDisplayLabel()})...`, 'speaking');
     };
     utter.onend = () => {
       window.AFCCVoice.isSpeaking = false;
@@ -1398,7 +1671,11 @@ function speakAfccVoiceText(text, onDoneCallback) {
 
 function replayLastAfccVoiceReply() {
   if (window.AFCCVoice.lastSpokenReply) {
-    speakAfccVoiceText(window.AFCCVoice.lastSpokenReply);
+    speakAfccVoiceText(
+      window.AFCCVoice.lastSpokenReply,
+      null,
+      window.AFCCVoice.lastSpokenPhonetic || window.AFCCVoice.lastSpokenReply
+    );
   }
 }
 
@@ -1484,11 +1761,17 @@ async function executeVoiceTurnText(transcriptText) {
     const res = await fetch('/api/voice/converse', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transcript: spoken })
+      body: JSON.stringify({
+        transcript: spoken,
+        language: window.AFCCVoice.voiceLanguage || 'en',
+        gender: window.AFCCVoice.voiceGender || 'female',
+        accent: window.AFCCVoice.voiceAccent || 'IN'
+      })
     });
     const data = await res.json();
 
     const spokenReply = data.spoken_reply || data.message || data.title || 'Done.';
+    const spokenPhonetic = data.spoken_reply_phonetic || spokenReply;
     if (replyLineEl && replyTextEl) {
       replyLineEl.style.display = 'block';
       replyTextEl.textContent = spokenReply;
@@ -1531,14 +1814,14 @@ async function executeVoiceTurnText(transcriptText) {
       if (window.AFCCVoice.userWantsListening && window.AFCCVoice.continuousMode) {
         startBrowserSpeechRecognition();
       }
-    });
+    }, spokenPhonetic);
   } catch (e) {
     console.error('Voice converse error:', e);
     updateVoiceCopilotUI();
   }
 }
 
-function startBrowserSpeechRecognition() {
+async function startBrowserSpeechRecognition() {
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
   const transcriptEl = document.getElementById('voiceTranscriptText');
   if (!SpeechRec) {
@@ -1556,12 +1839,32 @@ function startBrowserSpeechRecognition() {
     stopAfccVoiceSpeaking();
   }
 
+  // Pre-verify microphone stream access so Chrome wakes up the mic device cleanly
+  if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (stream && typeof stream.getTracks === 'function') {
+        stream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
+      }
+    } catch (micErr) {
+      window.AFCCVoice.isListening = false;
+      window.AFCCVoice.userWantsListening = false;
+      if (transcriptEl) {
+        const errName = micErr && micErr.name ? micErr.name : 'MicError';
+        transcriptEl.innerHTML = `<span style="color: #fb7185;">Microphone unavailable (${escapeHtml(errName)}). Ensure a microphone is connected and allowed in browser settings, or click any activity chip below.</span>`;
+      }
+      updateVoiceCopilotUI();
+      return;
+    }
+  }
+
   try {
     if (window.AFCCVoice.recognition) {
       try { window.AFCCVoice.recognition.abort(); } catch (e) {}
     }
     const rec = new SpeechRec();
-    rec.lang = 'en-US';
+    const targetBcp47 = getTargetVoiceLocale();
+    rec.lang = targetBcp47;
     rec.interimResults = true;
     rec.maxAlternatives = 1;
     rec.continuous = false;
@@ -1570,9 +1873,9 @@ function startBrowserSpeechRecognition() {
 
     rec.onstart = () => {
       window.AFCCVoice.isListening = true;
-      updateVoiceCopilotUI('🎙️ Listening... Speak to AFCC', 'listening');
+      updateVoiceCopilotUI(`🎙️ Listening (${targetBcp47})...`, 'listening');
       if (transcriptEl) {
-        transcriptEl.innerHTML = `<span style="color: #c084fc; font-style: italic;">Listening for your voice command...</span>`;
+        transcriptEl.innerHTML = `<span style="color: #c084fc; font-style: italic;">Listening in ${escapeHtml(getVoiceProfileDisplayLabel())}... Speak your command now.</span>`;
       }
     };
 
@@ -1598,10 +1901,15 @@ function startBrowserSpeechRecognition() {
 
     rec.onerror = (event) => {
       window.AFCCVoice.isListening = false;
-      if (event && event.error === 'not-allowed') {
+      if (event && (event.error === 'not-allowed' || event.error === 'service-not-allowed')) {
         window.AFCCVoice.userWantsListening = false;
         if (transcriptEl) {
-          transcriptEl.innerHTML = `<span style="color: #fb7185;">Microphone permission denied. Allow mic access in your browser or click any activity chip below.</span>`;
+          transcriptEl.innerHTML = `<span style="color: #fb7185;">Microphone permission blocked (${escapeHtml(event.error)}). Refresh the page (Ctrl+F5) so the updated Permissions-Policy header takes effect, or click any activity chip below.</span>`;
+        }
+      } else if (event && event.error === 'audio-capture') {
+        window.AFCCVoice.userWantsListening = false;
+        if (transcriptEl) {
+          transcriptEl.innerHTML = `<span style="color: #fbbf24;">No active microphone hardware detected by Windows. Connect/enable a microphone in Windows Sound Settings, or click any activity chip below.</span>`;
         }
       }
       updateVoiceCopilotUI();
@@ -1653,6 +1961,12 @@ window.toggleVoiceContinuousLoop = toggleVoiceContinuousLoop;
 window.toggleVoiceSpokenReply = toggleVoiceSpokenReply;
 window.stopAfccVoiceSpeaking = stopAfccVoiceSpeaking;
 window.setAfccVoiceRate = setAfccVoiceRate;
+window.setAfccVoiceLanguage = setAfccVoiceLanguage;
+window.setAfccVoiceGender = setAfccVoiceGender;
+window.setAfccVoiceAccent = setAfccVoiceAccent;
+window.testAfccSelectedVoice = testAfccSelectedVoice;
+window.resolveBestSpeechVoice = resolveBestSpeechVoice;
+window.getTargetVoiceLocale = getTargetVoiceLocale;
 window.replayLastAfccVoiceReply = replayLastAfccVoiceReply;
 window.executeVoiceTurnText = executeVoiceTurnText;
 window.executeVoiceUiActions = executeVoiceUiActions;

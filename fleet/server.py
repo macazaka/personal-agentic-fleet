@@ -81,6 +81,8 @@ briefing_engine = BriefingEngine(db)
 # Backwards-compatible standalone HTML_PAGE export for external consumers & offline tests
 HTML_PAGE = get_dashboard_html(standalone=True)
 
+if __name__ == "__main__" and "fleet.server" not in sys.modules:
+    sys.modules["fleet.server"] = sys.modules[__name__]
 
 # Import API route registry & Agent Registry
 import fleet.api
@@ -147,7 +149,7 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             "Content-Security-Policy",
             "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' http://127.0.0.1:7890 http://localhost:7890; object-src 'none'; frame-ancestors 'none'; base-uri 'self'",
         )
-        self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()")
+        self.send_header("Permissions-Policy", "camera=(), microphone=(self), geolocation=(), payment=(), usb=()")
         self.send_header("Cross-Origin-Opener-Policy", "same-origin")
         self.send_header("Cross-Origin-Resource-Policy", "same-origin")
         if set_session_cookie:

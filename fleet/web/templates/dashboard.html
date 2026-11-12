@@ -22,7 +22,7 @@
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
               <h1 style="margin: 0; white-space: nowrap;">Personal Agentic Fleet</h1>
               <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.35); font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;" onclick="openReleaseNotesModal()" title="View Release Notes & Versions">
-                <span id="fleetHeaderVerBadge">v2.16.1</span>
+                <span id="fleetHeaderVerBadge">v2.16.2</span>
                 <span style="font-size: 9px; opacity: 0.8;">📜</span>
               </span>
             </div>
@@ -825,6 +825,9 @@
             <button title="🥗 Diet & Nutrition (4)" class="filter-btn" id="vTypeBtnDiet" onclick="switchVideoType('diet')" style="padding: 5px 14px; font-size: 12px; border-radius: 6px;">
               🥗 Diet & Nutrition (<span id="countDietVideos">4</span>)
             </button>
+            <button title="Open Video Vault folder in File Explorer" class="btn" id="btnOpenVideoVaultFolder" onclick="openVideoVaultFolder()" style="padding: 4px 11px; font-size: 11.5px; border-color: rgba(56, 189, 248, 0.35); color: #38bdf8;">
+              📂 Open Vault Folder
+            </button>
           </div>
           <span style="font-size: 11.5px; color: var(--text-muted);" id="videoCountBadge">Loading videos...</span>
         </div>
@@ -1614,12 +1617,40 @@
                 <button id="btnVoiceStopSpeaking" title="Interrupt and stop AFCC spoken audio playback immediately" class="btn" onclick="stopAfccVoiceSpeaking()" style="font-size: 10.5px; padding: 4px 8px; display: none; border-color: rgba(244, 63, 94, 0.45); color: #fb7185;">
                   🤫 Stop Audio
                 </button>
-                <select id="voiceRateSelect" title="Adjust AFCC spoken voice speed" onchange="setAfccVoiceRate(this.value)" style="background: rgba(15, 23, 42, 0.8); border: 1px solid var(--card-border); color: var(--text); border-radius: 6px; padding: 3px 6px; font-size: 10.5px;">
+              </div>
+            </div>
+
+            <!-- Voice Language, Gender, Accent & Speed Selector Row -->
+            <div id="voiceProfileSelectorBar" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; padding: 6px 10px; border-radius: 8px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(168, 85, 247, 0.25);">
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <span style="font-size: 10.5px; color: #c084fc; font-weight: 600;">🗣️ Voice Profile:</span>
+                <select id="voiceLanguageSelect" title="Select Voice Language (English, Hindi, Telugu, Marathi)" onchange="setAfccVoiceLanguage(this.value)" style="background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(168, 85, 247, 0.4); color: #f8fafc; border-radius: 6px; padding: 3px 7px; font-size: 10.5px; font-weight: 600;">
+                  <option value="en" selected>🇮🇳 English</option>
+                  <option value="hi">🇮🇳 हिंदी (Hindi)</option>
+                  <option value="te">🇮🇳 తెలుగు (Telugu)</option>
+                  <option value="mr">🇮🇳 मराठी (Marathi)</option>
+                </select>
+                <select id="voiceGenderSelect" title="Select Voice Gender (Lady/Female or Male)" onchange="setAfccVoiceGender(this.value)" style="background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(236, 72, 153, 0.4); color: #f8fafc; border-radius: 6px; padding: 3px 7px; font-size: 10.5px; font-weight: 600;">
+                  <option value="female" selected>👩 Lady (Female)</option>
+                  <option value="male">👨 Male</option>
+                </select>
+                <select id="voiceAccentSelect" title="Select Voice Accent (Indian, US, UK)" onchange="setAfccVoiceAccent(this.value)" style="background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.4); color: #f8fafc; border-radius: 6px; padding: 3px 7px; font-size: 10.5px; font-weight: 600;">
+                  <option value="IN" selected>🇮🇳 Indian Accent</option>
+                  <option value="US">🇺🇸 US Accent</option>
+                  <option value="GB">🇬🇧 UK Accent</option>
+                </select>
+                <select id="voiceRateSelect" title="Adjust AFCC spoken voice speed" onchange="setAfccVoiceRate(this.value)" style="background: rgba(15, 23, 42, 0.9); border: 1px solid var(--card-border); color: var(--text); border-radius: 6px; padding: 3px 6px; font-size: 10.5px;">
                   <option value="0.95">0.95x</option>
                   <option value="1.05" selected>1.05x Natural</option>
                   <option value="1.15">1.15x Fast</option>
                   <option value="1.25">1.25x Rapid</option>
                 </select>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span id="voiceActiveProfileBadge" class="badge" style="background: rgba(236, 72, 153, 0.14); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.35); font-size: 10px;">🇮🇳 Indian Lady (en-IN)</span>
+                <button id="btnTestSelectedVoice" type="button" title="Hear a sample greeting in the selected language, gender, and accent" class="btn" onclick="testAfccSelectedVoice()" style="font-size: 10px; padding: 3px 8px; border-color: rgba(168, 85, 247, 0.45); color: #e9d5ff; background: rgba(168, 85, 247, 0.16);">
+                  🔊 Test Voice
+                </button>
               </div>
             </div>
 
@@ -1855,7 +1886,7 @@
           <span style="font-size: 22px;">📜</span>
           <div>
             <strong style="font-size: 16px; color: var(--text);">Fleet Release Notes & Version History</strong>
-            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.16.1</div>
+            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.16.2</div>
           </div>
         </div>
         <button title="Close Release Notes modal" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeReleaseNotesModal()">✕</button>
@@ -2063,10 +2094,14 @@
           <button title="Close exercise video modal" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeVideoModal()">✕</button>
         </div>
       </div>
-      <div style="background: #000; border-radius: 8px; overflow: hidden; display: flex; justify-content: center; align-items: center; max-height: 62vh;">
-        <video id="exerciseVideoPlayer" controls style="width: 100%; max-height: 62vh; display: block;" preload="metadata">
+      <div style="background: #000; border-radius: 8px; overflow: hidden; display: flex; justify-content: center; align-items: center; max-height: 62vh; min-height: 280px; position: relative;">
+        <video id="exerciseVideoPlayer" controls playsinline style="width: 100%; max-height: 62vh; display: block;" preload="auto">
           Your browser does not support HTML5 video streaming.
         </video>
+      </div>
+      <div id="videoModalStatusBanner" style="display: none; margin-top: 8px; padding: 8px 12px; border-radius: 6px; background: rgba(245, 158, 11, 0.14); border: 1px solid rgba(245, 158, 11, 0.4); font-size: 12px; color: #fbbf24; align-items: center; justify-content: space-between; gap: 10px;">
+        <span id="videoModalStatusText">Streaming video...</span>
+        <button class="btn btn-primary" style="font-size: 11px; padding: 4px 10px;" onclick="openCurrentVideoInSystem()" title="🖥 Play in Windows Media Player">🖥 Play in Windows Media Player</button>
       </div>
       <!-- Playlist Sequential Playback Bar (shown when playing a playlist) -->
       <div id="videoModalPlaylistBar" style="display: none; margin-top: 10px; padding: 10px 12px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 8px; flex-direction: column; gap: 8px;">

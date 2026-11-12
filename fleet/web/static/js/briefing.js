@@ -125,11 +125,16 @@ function speakBriefing() {
     alert('Text-to-speech is not supported in this browser.');
     return;
   }
-  window.speechSynthesis.cancel();
   const headline = document.getElementById('briefingHeadline')?.innerText || '';
   const greeting = document.getElementById('greetingText')?.innerText || '';
   const utterText = `${greeting}. ${headline}`;
+  if (typeof window.speakAfccVoiceText === 'function') {
+    window.speakAfccVoiceText(utterText);
+    return;
+  }
+  window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(utterText);
+  utterance.lang = 'en-IN';
   utterance.rate = 1.0;
   window.speechSynthesis.speak(utterance);
 }
