@@ -121,7 +121,7 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
 <!-- AUTO-LATEST-RELEASE:START -->
 ### 🆕 What's New in Release `v2.16.3` (Auto-Synchronized)
 
-> **Live Telemetry**: `10` Core Agents • `162` REST API Endpoints • `35` Microkernel Engines • `21` Automation Tools • `510` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
+> **Live Telemetry**: `10` Core Agents • `168` REST API Endpoints • `35` Microkernel Engines • `21` Automation Tools • `511` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
 
 ### Added
 - **Multilingual Voice Copilot (`English`, `Hindi`, `Telugu`, `Marathi`) & Indian Lady's Accent Default**: Added interactive Language (`en-IN`, `hi-IN`, `te-IN`, `mr-IN`), Gender (`Female` / `Male`), and Accent (`🇮🇳 Indian`, `🇬🇧 UK`, `🇺🇸 US`) selectors to the Bi-Directional Audio Conversation & Live Activity Copilot (`dashboard.html`, `antigravity.js`, `briefing.js`, `settings_api.py`, `omnibar_dispatcher.py`), defaulting to an Indian lady's voice (`Heera` / `Neerja` / `female_indian`).

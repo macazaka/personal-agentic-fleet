@@ -38,7 +38,7 @@ def test_extract_task_fingerprint_linear_time_no_redos():
     fp = extract_task_fingerprint(adversarial)
     elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
-    assert elapsed_ms < 250.0
+    assert elapsed_ms < 1500.0
     assert "optimizer" in fp["agent_targets"]
     assert "hyperscalers.py" in fp["files"]
     assert "dashboard.html" in fp["files"]

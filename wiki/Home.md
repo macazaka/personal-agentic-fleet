@@ -62,7 +62,7 @@ Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operat
 <!-- AUTO-LATEST-RELEASE:START -->
 ## 🆕 Latest Release Highlights (`v2.16.3`)
 
-> **Live Codebase Inventory**: `10` Built-In Agents • `162` REST API Endpoints • `35` Core Microkernel Modules • `21` Automation Tools • `510` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
+> **Live Codebase Inventory**: `10` Built-In Agents • `168` REST API Endpoints • `35` Core Microkernel Modules • `21` Automation Tools • `511` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
 
 ### Added
 - **Multilingual Voice Copilot (`English`, `Hindi`, `Telugu`, `Marathi`) & Indian Lady's Accent Default**: Added interactive Language (`en-IN`, `hi-IN`, `te-IN`, `mr-IN`), Gender (`Female` / `Male`), and Accent (`🇮🇳 Indian`, `🇬🇧 UK`, `🇺🇸 US`) selectors to the Bi-Directional Audio Conversation & Live Activity Copilot (`dashboard.html`, `antigravity.js`, `briefing.js`, `settings_api.py`, `omnibar_dispatcher.py`), defaulting to an Indian lady's voice (`Heera` / `Neerja` / `female_indian`).

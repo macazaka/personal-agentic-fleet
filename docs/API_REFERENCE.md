@@ -235,7 +235,7 @@ The Personal Agentic Fleet provides a comprehensive terminal interface accessibl
 | `fleet version` | None | Displays version, Python interpreter details, and operating system platform. |
 
 <!-- AUTO-API-ROUTES:START -->
-## 🔄 Complete Live REST API Route Inventory (`162` Endpoints — `v2.16.3`)
+## 🔄 Complete Live REST API Route Inventory (`168` Endpoints — `v2.16.3`)
 
 This table is **automatically introspected from `fleet/api/*.py` AST decorators** on every release by `fleet.tools.doc_wiki_enhancer`:
 
@@ -280,6 +280,8 @@ This table is **automatically introspected from `fleet/api/*.py` AST decorators*
 | `GET` | `/api/health/profile` | `get_health_profile` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `get_health_profile` in `fleet/api/health_api.py`. |
 | `POST` | `/api/health/profile` | `update_health_profile` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `update_health_profile` in `fleet/api/health_api.py`. |
 | `GET` | `/api/health/videos` | `get_exercise_videos` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `get_exercise_videos` in `fleet/api/health_api.py`. |
+| `GET` | `/api/health/video/thumbnail` | `get_video_thumbnail` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `get_video_thumbnail` in `fleet/api/health_api.py`. |
+| `POST` | `/api/health/video/thumbnail` | `save_video_thumbnail_endpoint` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `save_video_thumbnail_endpoint` in `fleet/api/health_api.py`. |
 | `GET` | `/api/health/image` | `get_health_image` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `get_health_image` in `fleet/api/health_api.py`. |
 | `GET` | `/api/health/video/stream` | `stream_video` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `stream_video` in `fleet/api/health_api.py`. |
 | `POST` | `/api/health/video/open_folder` | `open_video_vault_folder` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `open_video_vault_folder` in `fleet/api/health_api.py`. |
@@ -289,6 +291,10 @@ This table is **automatically introspected from `fleet/api/*.py` AST decorators*
 | `GET` | `/api/health/playlists` | `get_video_playlists` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `get_video_playlists` in `fleet/api/health_api.py`. |
 | `POST` | `/api/health/playlists/save` | `save_video_playlist_endpoint` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `save_video_playlist_endpoint` in `fleet/api/health_api.py`. |
 | `POST` | `/api/health/playlists/delete` | `delete_video_playlist_endpoint` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `delete_video_playlist_endpoint` in `fleet/api/health_api.py`. |
+| `POST` | `/api/health/videos/youtube/add` | `add_youtube_video_endpoint` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `add_youtube_video_endpoint` in `fleet/api/health_api.py`. |
+| `POST` | `/api/health/videos/youtube/delete` | `delete_youtube_video_endpoint` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `delete_youtube_video_endpoint` in `fleet/api/health_api.py`. |
+| `GET` | `/api/health/youtube/oauth/status` | `get_youtube_oauth_status` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `get_youtube_oauth_status` in `fleet/api/health_api.py`. |
+| `POST` | `/api/health/youtube/oauth/sync` | `sync_personal_youtube_playlists_oauth` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Authenticates with the user's personal Google login via OAuth2 (using fleet/data/credentials.json |
 | `GET` | `/api/hyperscalers/providers` | `get_hyperscaler_providers` ([`fleet/api/hyperscalers_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/hyperscalers_api.py)) | Returns list of supported hyperscalers and their configured models. |
 | `GET` | `/api/hyperscalers/dev_tools` | `get_developer_tools_status` ([`fleet/api/hyperscalers_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/hyperscalers_api.py)) | Returns detection status for GitHub Copilot, Claude Code, Antigravity, Gemini CLI, Amazon Q, Cursor, VS Code, and Ollama. |
 | `POST` | `/api/hyperscalers/generate` | `post_hyperscaler_generate` ([`fleet/api/hyperscalers_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/hyperscalers_api.py)) | Executes a completion request through the unified HyperscalerGateway. |

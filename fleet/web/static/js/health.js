@@ -717,6 +717,71 @@ async function fetchVideoPlaylists() {
   renderSavedVideoPlaylistsUI();
 }
 
+function _normalizeVideoMatchKey(name, stripPrefix = true) {
+  let s = String(name || '').trim();
+  s = s.replace(/\.mp4$/i, '').trim();
+  s = s.replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
+  if (stripPrefix) {
+    s = s.replace(/^\d+\s*[-_.]+\s*/, '').trim();
+  }
+  return s.replace(/\s+/g, ' ').toLowerCase().trim();
+}
+
+function _isSameVideoFilename(fnA, fnB) {
+  if (!fnA || !fnB) return false;
+  if (fnA === fnB) return true;
+  if (_normalizeVideoMatchKey(fnA, false) === _normalizeVideoMatchKey(fnB, false)) return true;
+  const kA = _normalizeVideoMatchKey(fnA, true);
+  const kB = _normalizeVideoMatchKey(fnB, true);
+  return Boolean(kA && kA === kB);
+}
+
+function _resolveCanonicalVideoItem(filename, title, category) {
+  const fnStr = String(filename || '').trim();
+  const titleStr = String(title || '').trim();
+  if (Array.isArray(allExerciseVideos) && allExerciseVideos.length > 0) {
+    const exact = allExerciseVideos.find(v => v.filename === fnStr);
+    if (exact) {
+      const isYt = Boolean(exact.is_youtube || exact.filename.startsWith('yt_'));
+      const ytId = exact.youtube_id || (exact.filename.startsWith('yt_') ? exact.filename.slice(3) : '');
+      return {
+        filename: exact.filename,
+        title: titleStr || exact.title || exact.filename,
+        category: category || exact.category || 'FFD Video',
+        file_path: exact.file_path || (isYt ? ('https://www.youtube.com/watch?v=' + ytId) : ('./data/videos/' + exact.filename)),
+        is_youtube: isYt,
+        youtube_id: ytId
+      };
+    }
+    const byKey = allExerciseVideos.find(v =>
+      _isSameVideoFilename(v.filename, fnStr) ||
+      (titleStr && _isSameVideoFilename(v.title || v.filename, titleStr))
+    );
+    if (byKey) {
+      const isYt = Boolean(byKey.is_youtube || byKey.filename.startsWith('yt_'));
+      const ytId = byKey.youtube_id || (byKey.filename.startsWith('yt_') ? byKey.filename.slice(3) : '');
+      return {
+        filename: byKey.filename,
+        title: titleStr || byKey.title || byKey.filename,
+        category: category || byKey.category || 'FFD Video',
+        file_path: byKey.file_path || (isYt ? ('https://www.youtube.com/watch?v=' + ytId) : ('./data/videos/' + byKey.filename)),
+        is_youtube: isYt,
+        youtube_id: ytId
+      };
+    }
+  }
+  const isYt = fnStr.startsWith('yt_');
+  const ytId = isYt ? fnStr.slice(3) : '';
+  return {
+    filename: fnStr,
+    title: titleStr || fnStr,
+    category: category || 'FFD Video',
+    file_path: isYt ? ('https://www.youtube.com/watch?v=' + ytId) : ('./data/videos/' + fnStr),
+    is_youtube: isYt,
+    youtube_id: ytId
+  };
+}
+
 function getActivePlaylistVideosForCardState() {
   if (isPlaylistBuilderOpen) {
     return draftPlaylistVideos;
@@ -727,7 +792,7 @@ function getActivePlaylistVideosForCardState() {
 
 function getVideoPlaylistPosition(filename) {
   const list = getActivePlaylistVideosForCardState();
-  const idx = list.findIndex(item => item.filename === filename);
+  const idx = list.findIndex(item => _isSameVideoFilename(item.filename, filename));
   return idx >= 0 ? idx + 1 : 0;
 }
 
@@ -857,14 +922,15 @@ function addVideoToPlaylistDraft(filename, title, category) {
       openPlaylistBuilder('My Custom Workout Playlist', '', []);
     }
   }
-  const existingIdx = draftPlaylistVideos.findIndex(v => v.filename === filename);
+  const existingIdx = draftPlaylistVideos.findIndex(v => _isSameVideoFilename(v.filename, filename));
   if (existingIdx >= 0) {
     draftPlaylistVideos.splice(existingIdx, 1);
   } else {
+    const resolved = _resolveCanonicalVideoItem(filename, title, category);
     draftPlaylistVideos.push({
-      filename,
-      title: title || filename,
-      category: category || 'FFD Video'
+      filename: resolved.filename,
+      title: resolved.title,
+      category: resolved.category
     });
   }
   renderSavedVideoPlaylistsUI();
@@ -872,7 +938,7 @@ function addVideoToPlaylistDraft(filename, title, category) {
 }
 
 function removeVideoFromPlaylistDraft(filename) {
-  draftPlaylistVideos = draftPlaylistVideos.filter(v => v.filename !== filename);
+  draftPlaylistVideos = draftPlaylistVideos.filter(v => !_isSameVideoFilename(v.filename, filename));
   renderSavedVideoPlaylistsUI();
   renderExerciseVideos();
 }
@@ -1141,6 +1207,13 @@ function _getVideoCardTheme(category, videoType) {
   };
 }
 
+function _videoCardThumbDomId(videoOrFilename) {
+  const raw = typeof videoOrFilename === 'string'
+    ? videoOrFilename
+    : (videoOrFilename.id || videoOrFilename.filename || '');
+  return 'videoCardThumb_' + String(raw).replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
 function renderExerciseVideos() {
   const grid = document.getElementById('exerciseVideosGrid');
   const countBadge = document.getElementById('videoCountBadge');
@@ -1161,6 +1234,10 @@ function renderExerciseVideos() {
     return;
   }
 
+  if (!window._videoThumbDataCache) {
+    window._videoThumbDataCache = {};
+  }
+
   grid.innerHTML = filtered.map(v => {
     const title = v.title || v.clean_title || v.filename;
     const cleanTitle = escapeJsAttrStr(title);
@@ -1168,21 +1245,35 @@ function renderExerciseVideos() {
     const catSafe = escapeJsAttrStr(v.category || 'FFD Video');
     const theme = _getVideoCardTheme(v.category, v.video_type);
     const playlistPos = getVideoPlaylistPosition(v.filename);
+    const isYt = Boolean(v.is_youtube || String(v.filename || '').startsWith('yt_'));
+    const ytId = v.youtube_id || (isYt ? String(v.filename || '').slice(3) : '');
+    const thumbDomId = _videoCardThumbDomId(v.filename);
+    const thumbUrl = v.thumbnail_url || window._videoThumbDataCache[v.filename] || (isYt && ytId ? `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg` : '');
+
     const playlistBtnHtml = playlistPos > 0
       ? `<button class="btn" title="In playlist (#${playlistPos}) — click to remove from queue" style="font-size: 11px; padding: 5px 8px; background: rgba(16, 185, 129, 0.16); border-color: rgba(16, 185, 129, 0.45); color: #34d399; font-weight: 600;" onclick="addVideoToPlaylistDraft('${filenameSafe}', '${cleanTitle}', '${catSafe}')">✓ #${playlistPos}</button>`
       : `<button class="btn" title="Add video to playlist" style="font-size: 11px; padding: 5px 8px; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" onclick="addVideoToPlaylistDraft('${filenameSafe}', '${cleanTitle}', '${catSafe}')">+ Playlist</button>`;
 
+    const badgeBottomRight = isYt
+      ? `<span style="position: absolute; bottom: 6px; right: 8px; z-index: 3; font-size: 10px; background: rgba(220, 38, 38, 0.92); color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: 600;">🔴 YouTube</span>`
+      : `<span style="position: absolute; bottom: 6px; right: 8px; z-index: 3; font-size: 10px; background: rgba(0,0,0,0.85); color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: 600;">${v.size_mb || 0} MB</span>`;
+
+    const deleteYtBtnHtml = isYt && ytId
+      ? `<button class="btn" title="Remove YouTube video" style="font-size: 11px; padding: 5px 7px; border-color: rgba(239, 68, 68, 0.35); color: #f87171;" onclick="deleteYoutubeVideo('${escapeJsAttrStr(ytId)}')">🗑</button>`
+      : '';
+
     return `
       <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.15s, border-color 0.15s;">
         <div>
-          <!-- Zero-Stream Instant Visual Preview Card (prevents HTTP connection & decoder exhaustion) -->
-          <div onclick="playExerciseVideo('${filenameSafe}', '${cleanTitle}', '${catSafe}')" style="position: relative; width: 100%; height: 130px; background: ${theme.bg}; border-radius: 6px; overflow: hidden; margin-bottom: 10px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1);" title="Click to play video">
+          <!-- Video Frame Thumbnail Preview Card -->
+          <div onclick="playExerciseVideo('${filenameSafe}', '${cleanTitle}', '${catSafe}')" style="position: relative; width: 100%; height: 138px; background: ${theme.bg}; border-radius: 6px; overflow: hidden; margin-bottom: 10px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1);" title="Click to play video">
             <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0.18; font-size: 64px; pointer-events: none;">${theme.icon}</div>
-            <div style="position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.55) 100%); display: flex; align-items: center; justify-content: center;">
-              <div style="width: 42px; height: 42px; border-radius: 50%; background: rgba(0, 242, 254, 0.92); display: flex; align-items: center; justify-content: center; color: #000; font-size: 16px; font-weight: bold; box-shadow: 0 4px 16px rgba(0,0,0,0.65);">▶</div>
+            <img id="${thumbDomId}" src="${escapeHtml(thumbUrl)}" alt="${escapeHtml(title)}" loading="lazy" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: ${thumbUrl ? 'block' : 'none'}; z-index: 1;" onload="this.style.display='block'" onerror="this.style.display='none'">
+            <div style="position: absolute; inset: 0; z-index: 2; background: radial-gradient(circle at center, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.52) 100%); display: flex; align-items: center; justify-content: center;">
+              <div style="width: 42px; height: 42px; border-radius: 50%; background: ${isYt ? 'rgba(239, 68, 68, 0.92)' : 'rgba(0, 242, 254, 0.92)'}; display: flex; align-items: center; justify-content: center; color: ${isYt ? '#fff' : '#000'}; font-size: 16px; font-weight: bold; box-shadow: 0 4px 16px rgba(0,0,0,0.65);">▶</div>
             </div>
-            <span style="position: absolute; bottom: 6px; right: 8px; font-size: 10px; background: rgba(0,0,0,0.85); color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: 600;">${v.size_mb || 0} MB</span>
-            <span style="position: absolute; top: 6px; left: 8px; font-size: 9.5px; background: rgba(0, 0, 0, 0.55); border: 1px solid ${theme.accent}; color: ${theme.accent}; padding: 1px 6px; border-radius: 4px; font-weight: 600;">${theme.icon} ${escapeHtml(v.category)}</span>
+            ${badgeBottomRight}
+            <span style="position: absolute; top: 6px; left: 8px; z-index: 3; font-size: 9.5px; background: rgba(0, 0, 0, 0.68); border: 1px solid ${theme.accent}; color: ${theme.accent}; padding: 1px 6px; border-radius: 4px; font-weight: 600;">${theme.icon} ${escapeHtml(v.category)}</span>
           </div>
 
           <!-- Title -->
@@ -1195,13 +1286,124 @@ function renderExerciseVideos() {
             ▶ Watch
           </button>
           ${playlistBtnHtml}
-          <button class="btn" title="Open in Windows Media Player" style="font-size: 11px; padding: 5px 8px;" onclick="openVideoInSystem('${filenameSafe}')">
-            🖥 Open
+          <button class="btn" title="${isYt ? 'Open on YouTube' : 'Open in Windows Media Player'}" style="font-size: 11px; padding: 5px 8px;" onclick="openVideoInSystem('${filenameSafe}')">
+            ${isYt ? '🌐 YT' : '🖥 Open'}
           </button>
+          ${deleteYtBtnHtml}
         </div>
       </div>
     `;
   }).join('');
+
+  _queueMissingVideoThumbnails(filtered);
+}
+
+let _thumbCaptureQueue = [];
+let _isCapturingThumb = false;
+
+function _queueMissingVideoThumbnails(videos) {
+  if (!Array.isArray(videos)) return;
+  if (!window._videoThumbDataCache) window._videoThumbDataCache = {};
+
+  videos.forEach(v => {
+    if (!v || v.is_youtube || String(v.filename || '').startsWith('yt_')) return;
+    if (v.thumbnail_url || window._videoThumbDataCache[v.filename]) return;
+    if (!_thumbCaptureQueue.some(q => q.filename === v.filename)) {
+      _thumbCaptureQueue.push(v);
+    }
+  });
+
+  if (!_isCapturingThumb) {
+    _processNextVideoThumbnail();
+  }
+}
+
+function _processNextVideoThumbnail() {
+  if (currentPlayingVideo) {
+    // Pause background thumbnail extraction while modal video player is open
+    _isCapturingThumb = false;
+    return;
+  }
+  if (_thumbCaptureQueue.length === 0) {
+    _isCapturingThumb = false;
+    return;
+  }
+
+  _isCapturingThumb = true;
+  const v = _thumbCaptureQueue.shift();
+  if (!v || !v.filename || v.thumbnail_url || (window._videoThumbDataCache && window._videoThumbDataCache[v.filename])) {
+    _processNextVideoThumbnail();
+    return;
+  }
+
+  const video = document.createElement('video');
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = 'auto';
+  video.crossOrigin = 'anonymous';
+
+  let finished = false;
+  const cleanupAndNext = () => {
+    if (finished) return;
+    finished = true;
+    try {
+      video.onloadedmetadata = null;
+      video.onseeked = null;
+      video.onerror = null;
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    } catch (_) {}
+    setTimeout(_processNextVideoThumbnail, 60);
+  };
+
+  const timeoutId = setTimeout(cleanupAndNext, 5500);
+
+  video.onloadedmetadata = () => {
+    try {
+      const targetTime = Math.min(1.5, Math.max(0.2, (video.duration || 3) * 0.12));
+      video.currentTime = targetTime;
+    } catch (_) {
+      clearTimeout(timeoutId);
+      cleanupAndNext();
+    }
+  };
+
+  video.onseeked = () => {
+    clearTimeout(timeoutId);
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 360;
+      canvas.height = 202;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        if (dataUrl && dataUrl.startsWith('data:image/jpeg')) {
+          window._videoThumbDataCache[v.filename] = dataUrl;
+          v.thumbnail_url = '/api/health/video/thumbnail?file=' + encodeURIComponent(v.filename);
+          const imgEl = document.getElementById(_videoCardThumbDomId(v.filename));
+          if (imgEl) {
+            imgEl.src = dataUrl;
+            imgEl.style.display = 'block';
+          }
+          fetch('/api/health/video/thumbnail', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: v.filename, data_url: dataUrl })
+          }).catch(() => {});
+        }
+      }
+    } catch (_) {}
+    cleanupAndNext();
+  };
+
+  video.onerror = () => {
+    clearTimeout(timeoutId);
+    cleanupAndNext();
+  };
+
+  video.src = '/api/health/video/stream?file=' + encodeURIComponent(v.filename);
 }
 
 function _launchVideoModal(filename, title, category, keepPlaylistMode = false) {
@@ -1210,7 +1412,9 @@ function _launchVideoModal(filename, title, category, keepPlaylistMode = false) 
     activePlaybackIndex = -1;
     renderModalPlaylistBar();
   }
-  currentPlayingVideo = filename;
+  const resolved = _resolveCanonicalVideoItem(filename, title, category);
+  const canonicalFilename = resolved.filename;
+  currentPlayingVideo = canonicalFilename;
   const modal = document.getElementById('exerciseVideoModal');
   const modalTitle = document.getElementById('videoModalTitle');
   const modalCat = document.getElementById('videoModalCategory');
@@ -1218,10 +1422,11 @@ function _launchVideoModal(filename, title, category, keepPlaylistMode = false) 
   const statusBanner = document.getElementById('videoModalStatusBanner');
   const statusText = document.getElementById('videoModalStatusText');
   const player = document.getElementById('exerciseVideoPlayer');
+  const ytIframe = document.getElementById('exerciseYoutubeIframe');
 
-  if (modalTitle) modalTitle.innerText = title || filename;
-  if (modalCat) modalCat.innerText = category || 'FFD Video';
-  if (modalPath) modalPath.innerText = './data/videos/' + filename;
+  if (modalTitle) modalTitle.innerText = resolved.title || canonicalFilename;
+  if (modalCat) modalCat.innerText = resolved.category || 'FFD Video';
+  if (modalPath) modalPath.innerText = resolved.file_path || ('./data/videos/' + canonicalFilename);
   if (statusBanner) statusBanner.style.display = 'none';
 
   // Ensure any other video element on the page is paused/released so the modal player has exclusive decoder & HTTP access
@@ -1237,7 +1442,32 @@ function _launchVideoModal(filename, title, category, keepPlaylistMode = false) 
 
   if (modal) modal.style.display = 'flex';
 
+  const isYt = Boolean(resolved.is_youtube || String(canonicalFilename).startsWith('yt_'));
+  if (isYt) {
+    const ytId = resolved.youtube_id || String(canonicalFilename).replace(/^yt_/, '');
+    if (player) {
+      player.onended = null;
+      player.onerror = null;
+      player.onloadeddata = null;
+      player.pause();
+      player.removeAttribute('src');
+      player.load();
+      player.style.display = 'none';
+    }
+    if (ytIframe) {
+      ytIframe.style.display = 'block';
+      ytIframe.src = 'https://www.youtube.com/embed/' + encodeURIComponent(ytId) + '?autoplay=1&rel=0';
+    }
+    return;
+  }
+
+  if (ytIframe) {
+    ytIframe.style.display = 'none';
+    ytIframe.src = '';
+  }
+
   if (player) {
+    player.style.display = 'block';
     player.onended = () => {
       if (
         activePlaybackPlaylist
@@ -1258,7 +1488,7 @@ function _launchVideoModal(filename, title, category, keepPlaylistMode = false) 
       if (statusBanner) statusBanner.style.display = 'none';
     };
     player.pause();
-    player.src = '/api/health/video/stream?file=' + encodeURIComponent(filename);
+    player.src = '/api/health/video/stream?file=' + encodeURIComponent(canonicalFilename);
     player.load();
     const playPromise = player.play();
     if (playPromise && typeof playPromise.catch === 'function') {
@@ -1276,6 +1506,7 @@ function playExerciseVideo(filename, title, category) {
 function closeVideoModal() {
   const modal = document.getElementById('exerciseVideoModal');
   const player = document.getElementById('exerciseVideoPlayer');
+  const ytIframe = document.getElementById('exerciseYoutubeIframe');
   const statusBanner = document.getElementById('videoModalStatusBanner');
   if (player) {
     player.onended = null;
@@ -1285,11 +1516,18 @@ function closeVideoModal() {
     player.removeAttribute('src');
     player.load();
   }
+  if (ytIframe) {
+    ytIframe.style.display = 'none';
+    ytIframe.src = '';
+  }
   if (statusBanner) statusBanner.style.display = 'none';
   if (modal) modal.style.display = 'none';
   currentPlayingVideo = null;
   activePlaybackPlaylist = null;
   activePlaybackIndex = -1;
+  if (_thumbCaptureQueue.length > 0 && !_isCapturingThumb) {
+    setTimeout(_processNextVideoThumbnail, 200);
+  }
 }
 
 async function openVideoVaultFolder() {
@@ -1318,6 +1556,11 @@ async function openCurrentVideoInSystem() {
 }
 
 async function openVideoInSystem(filename) {
+  if (String(filename || '').startsWith('yt_')) {
+    const ytId = String(filename).slice(3);
+    window.open('https://www.youtube.com/watch?v=' + encodeURIComponent(ytId), '_blank', 'noopener');
+    return;
+  }
   try {
     const res = await fetch('/api/health/video/open_system?file=' + encodeURIComponent(filename), {
       method: 'POST',
@@ -1334,6 +1577,175 @@ async function openVideoInSystem(filename) {
     }
   } catch (err) {
     console.error('Error opening video in system player:', err);
+  }
+}
+
+function toggleAddYoutubePanel(forceState) {
+  const panel = document.getElementById('addYoutubeVideoPanel');
+  if (!panel) return;
+  const shouldOpen = typeof forceState === 'boolean'
+    ? forceState
+    : (panel.style.display === 'none' || !panel.style.display);
+  panel.style.display = shouldOpen ? 'flex' : 'none';
+  if (shouldOpen) {
+    const urlInput = document.getElementById('ytVideoUrlInput');
+    if (urlInput) urlInput.focus();
+  }
+}
+
+async function submitAddYoutubeVideo() {
+  const urlInput = document.getElementById('ytVideoUrlInput');
+  const titleInput = document.getElementById('ytVideoTitleInput');
+  const typeSelect = document.getElementById('ytVideoTypeSelect');
+  const catSelect = document.getElementById('ytVideoCategorySelect');
+  const addToPlCheckbox = document.getElementById('ytAddToPlaylistCheckbox');
+  const statusMsg = document.getElementById('ytAddStatusMsg');
+
+  const url = urlInput ? urlInput.value.trim() : '';
+  if (!url) {
+    if (statusMsg) {
+      statusMsg.style.color = '#f87171';
+      statusMsg.innerText = '⚠️ Please paste a YouTube video or playlist URL first.';
+    }
+    return;
+  }
+
+  const payload = {
+    url,
+    title: titleInput ? titleInput.value.trim() : '',
+    video_type: typeSelect ? typeSelect.value : currentVideoType,
+    category: catSelect ? catSelect.value : '',
+    playlist_id: (addToPlCheckbox && addToPlCheckbox.checked && selectedVideoPlaylistId) ? selectedVideoPlaylistId : ''
+  };
+
+  if (statusMsg) {
+    statusMsg.style.color = '#38bdf8';
+    statusMsg.innerText = '⏳ Fetching YouTube metadata & adding to library...';
+  }
+
+  try {
+    const res = await fetch('/api/health/videos/youtube/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      if (statusMsg) {
+        statusMsg.style.color = '#f87171';
+        statusMsg.innerText = '❌ ' + (data.error || 'Could not add YouTube URL');
+      }
+      return;
+    }
+
+    if (urlInput) urlInput.value = '';
+    if (titleInput) titleInput.value = '';
+
+    if (payload.video_type && payload.video_type !== currentVideoType) {
+      currentVideoType = payload.video_type;
+      switchVideoType(currentVideoType);
+    }
+
+    await fetchExerciseVideos();
+    await fetchVideoPlaylists();
+
+    if (statusMsg) {
+      statusMsg.style.color = '#34d399';
+      if (data.status === 'imported_playlist' || data.added_type === 'playlist') {
+        statusMsg.innerText = `✅ Imported playlist "${data.playlist ? data.playlist.name : ''}" (${data.added_count || data.count || 0} videos)!`;
+      } else {
+        statusMsg.innerText = `✅ Added "${data.video ? data.video.title : 'YouTube Video'}" to library!`;
+      }
+    }
+    if (typeof showToast === 'function') {
+      showToast('🔴 YouTube video added to your library');
+    }
+  } catch (err) {
+    if (statusMsg) {
+      statusMsg.style.color = '#f87171';
+      statusMsg.innerText = '❌ Error adding YouTube URL: ' + err.message;
+    }
+  }
+}
+
+async function deleteYoutubeVideo(youtubeId) {
+  if (!youtubeId) return;
+  try {
+    const res = await fetch('/api/health/videos/youtube/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ youtube_id: youtubeId })
+    });
+    const data = await res.json();
+    if (res.ok && (data.status === 'deleted' || data.ok)) {
+      await fetchExerciseVideos();
+      await fetchVideoPlaylists();
+      if (typeof showToast === 'function') {
+        showToast('🗑 Removed YouTube video');
+      }
+    }
+  } catch (err) {
+    console.error('Failed to delete YouTube video:', err);
+  }
+}
+
+async function syncPersonalYoutubePlaylistsOAuth() {
+  const btn = document.getElementById('btnSyncGoogleYoutubePlaylists');
+  const statusMsg = document.getElementById('ytAddStatusMsg');
+  const panel = document.getElementById('addYoutubeVideoPanel');
+  if (panel && (panel.style.display === 'none' || !panel.style.display)) {
+    panel.style.display = 'flex';
+  }
+  const origHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Signing in with Google & Syncing...';
+  }
+  if (statusMsg) {
+    statusMsg.style.color = '#a78bfa';
+    statusMsg.innerText = '🔑 Opening Google OAuth login (if not already authorized) & fetching your personal YouTube playlists...';
+  }
+
+  try {
+    const res = await fetch('/api/health/youtube/oauth/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ authorize: true })
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      const errText = data.error || 'Could not sync YouTube playlists via Google login';
+      if (statusMsg) {
+        statusMsg.style.color = '#f87171';
+        statusMsg.innerText = '⚠️ ' + errText;
+      }
+      if (typeof showToast === 'function') {
+        showToast('⚠️ ' + errText);
+      }
+      return;
+    }
+
+    await fetchExerciseVideos();
+    await fetchVideoPlaylists();
+
+    const msg = `✅ Synced ${data.imported_playlists_count || 0} personal YouTube playlist(s) (${data.imported_videos_count || 0} videos) from your Google account!`;
+    if (statusMsg) {
+      statusMsg.style.color = '#34d399';
+      statusMsg.innerText = msg;
+    }
+    if (typeof showToast === 'function') {
+      showToast(msg);
+    }
+  } catch (err) {
+    if (statusMsg) {
+      statusMsg.style.color = '#f87171';
+      statusMsg.innerText = '❌ Google YouTube Sync error: ' + err.message;
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origHtml || '🔑 Sync My YouTube Playlists (Google Login)';
+    }
   }
 }
 
@@ -1367,3 +1779,7 @@ window.closeVideoModal = closeVideoModal;
 window.openVideoVaultFolder = openVideoVaultFolder;
 window.openCurrentVideoInSystem = openCurrentVideoInSystem;
 window.openVideoInSystem = openVideoInSystem;
+window.toggleAddYoutubePanel = toggleAddYoutubePanel;
+window.submitAddYoutubeVideo = submitAddYoutubeVideo;
+window.deleteYoutubeVideo = deleteYoutubeVideo;
+window.syncPersonalYoutubePlaylistsOAuth = syncPersonalYoutubePlaylistsOAuth;

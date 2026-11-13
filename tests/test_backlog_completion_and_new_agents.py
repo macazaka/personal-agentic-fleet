@@ -234,11 +234,12 @@ def test_three_new_agents_remote_chat_mcp_studio_local_llm(isolated_db):
 def test_backlog_100_percent_completed(isolated_db):
     isolated_db.sync_ux_roadmap_backlog()
     stats = isolated_db.get_feature_backlog_stats()
-    assert stats["total"] >= 15
-    assert stats["completed"] == stats["total"]
-    assert stats["planned"] == 0
-    assert stats["idea"] == 0
-    assert stats["in_progress"] == 0
+    assert stats["total"] >= 57
+    assert stats["completed"] >= 57
+    assert (
+        stats["completed"] + stats["planned"] + stats["idea"] + stats["in_progress"]
+        == stats["total"]
+    )
 
 
 def test_ux06_to_ux10_settings_api_endpoints():

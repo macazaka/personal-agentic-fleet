@@ -828,8 +828,63 @@
             <button title="Open Video Vault folder in File Explorer" class="btn" id="btnOpenVideoVaultFolder" onclick="openVideoVaultFolder()" style="padding: 4px 11px; font-size: 11.5px; border-color: rgba(56, 189, 248, 0.35); color: #38bdf8;">
               📂 Open Vault Folder
             </button>
+            <button title="Add a YouTube Video or YouTube Playlist to your library" class="btn" id="btnToggleAddYoutubePanel" onclick="toggleAddYoutubePanel()" style="padding: 4px 11px; font-size: 11.5px; border-color: rgba(244, 63, 94, 0.45); color: #fb7185; background: rgba(244, 63, 94, 0.1);">
+              🔴 + Add YouTube Video / Playlist
+            </button>
+            <button title="Connect your personal Google account (OAuth2) to import your personal YouTube playlists" class="btn" id="btnSyncGoogleYoutubePlaylists" onclick="syncPersonalYoutubePlaylistsOAuth()" style="padding: 4px 11px; font-size: 11.5px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.1);">
+              🔑 Sync My YouTube Playlists (Google Login)
+            </button>
           </div>
           <span style="font-size: 11.5px; color: var(--text-muted);" id="videoCountBadge">Loading videos...</span>
+        </div>
+
+        <!-- Collapsible Add YouTube Video / Playlist Panel -->
+        <div id="addYoutubeVideoPanel" style="display: none; background: rgba(15, 23, 42, 0.82); border: 1px solid rgba(244, 63, 94, 0.4); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; flex-direction: column; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">🔴</span>
+              <strong style="font-size: 12.5px; color: #fff;">Add YouTube Video or Import YouTube Playlist</strong>
+              <span style="font-size: 11px; color: var(--text-muted);">Paste any YouTube video link, Shorts link, playlist link (`?list=PL...`), or sync via Google Login</span>
+            </div>
+            <button title="Close Add YouTube panel" class="btn" onclick="toggleAddYoutubePanel(false)" style="font-size: 11px; padding: 2px 8px;">✕</button>
+          </div>
+          <div style="display: grid; grid-template-columns: 2fr 1.4fr 1fr 1.2fr; gap: 8px; align-items: center;">
+            <input type="text" id="ytVideoUrlInput" placeholder="Paste YouTube Video or Playlist URL (e.g. https://www.youtube.com/watch?v=... or playlist?list=...)" style="font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text);">
+            <input type="text" id="ytVideoTitleInput" placeholder="Optional custom title (auto-fetched if blank)" style="font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text);">
+            <select id="ytVideoTypeSelect" title="Select video library section" style="font-size: 12px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(15, 23, 42, 0.95); color: var(--text);">
+              <option value="exercise">🏋️‍♂️ Exercise &amp; Movement</option>
+              <option value="diet">🥗 Diet &amp; Nutrition</option>
+            </select>
+            <select id="ytVideoCategorySelect" title="Select video category" style="font-size: 12px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(15, 23, 42, 0.95); color: var(--text);">
+              <option value="">✨ Auto-Detect Category</option>
+              <option value="World's Best Warm-Up &amp; Mobility">🔥 World's Best Warm-Up &amp; Mobility</option>
+              <option value="Super Brain Yoga &amp; Flexibility">🧠 Super Brain Yoga &amp; Flexibility</option>
+              <option value="Surya Namaskar Series">🧘 Surya Namaskar Series</option>
+              <option value="Nitric Oxide Dump (NOD)">💨 Nitric Oxide Dump (NOD)</option>
+              <option value="Upper Body &amp; Strength">💪 Upper Body &amp; Strength</option>
+              <option value="Anti-Gravity &amp; Glucose Drop">🏃‍♂️ Anti-Gravity &amp; Glucose Drop</option>
+              <option value="Weighted Walking &amp; Aerobic">🚶‍♂️ Weighted Walking &amp; Aerobic</option>
+              <option value="Desk &amp; Office Conditioning">🪑 Desk &amp; Office Conditioning</option>
+              <option value="Smoothies &amp; Green Drinks">🥤 Smoothies &amp; Green Drinks</option>
+              <option value="Vitamins &amp; Micronutrients">💊 Vitamins &amp; Micronutrients</option>
+              <option value="Tea, Coffee &amp; Beverages">☕ Tea, Coffee &amp; Beverages</option>
+            </select>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-muted); cursor: pointer;">
+              <input type="checkbox" id="ytAddToPlaylistCheckbox" checked>
+              Also add directly to my currently selected playlist in <strong>My Video Playlists</strong>
+            </label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button title="Import all personal YouTube playlists from your Google Account via OAuth2" class="btn" onclick="syncPersonalYoutubePlaylistsOAuth()" style="font-size: 11.5px; padding: 5px 12px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe;">
+                🔑 Import From My Google YouTube Account
+              </button>
+              <button title="Add YouTube video or playlist to library" class="btn btn-primary" onclick="submitAddYoutubeVideo()" style="font-size: 11.5px; padding: 5px 14px; background: #e11d48; border-color: #e11d48;">
+                ➕ Add to Video Library
+              </button>
+            </div>
+          </div>
+          <div id="ytAddStatusMsg" style="font-size: 11.5px; color: var(--text-muted); min-height: 16px;"></div>
         </div>
 
         <!-- Dynamic Category Filters based on active video type -->
@@ -2098,6 +2153,7 @@
         <video id="exerciseVideoPlayer" controls playsinline style="width: 100%; max-height: 62vh; display: block;" preload="auto">
           Your browser does not support HTML5 video streaming.
         </video>
+        <iframe id="exerciseYoutubeIframe" title="YouTube Video Player" style="width: 100%; height: 440px; border: 0; display: none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
       </div>
       <div id="videoModalStatusBanner" style="display: none; margin-top: 8px; padding: 8px 12px; border-radius: 6px; background: rgba(245, 158, 11, 0.14); border: 1px solid rgba(245, 158, 11, 0.4); font-size: 12px; color: #fbbf24; align-items: center; justify-content: space-between; gap: 10px;">
         <span id="videoModalStatusText">Streaming video...</span>
