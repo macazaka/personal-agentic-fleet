@@ -22,7 +22,7 @@
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
               <h1 style="margin: 0; white-space: nowrap;">Personal Agentic Fleet</h1>
               <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.35); font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;" onclick="openReleaseNotesModal()" title="View Release Notes & Versions">
-                <span id="fleetHeaderVerBadge">v2.16.3</span>
+                <span id="fleetHeaderVerBadge">v2.17.0</span>
                 <span style="font-size: 9px; opacity: 0.8;">📜</span>
               </span>
             </div>
@@ -1651,12 +1651,12 @@
             </div>
           </div>
 
-          <!-- Bi-Directional Audio Conversation & Live Linked Activities HUD -->
-          <div id="afccVoiceCopilotHud" style="display: block; margin-top: 6px; margin-bottom: 6px; padding: 12px 14px; border-radius: 12px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(15, 23, 42, 0.88) 55%, rgba(16, 185, 129, 0.1) 100%); border: 1px solid rgba(168, 85, 247, 0.38); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);">
+          <!-- J.A.R.V.I.S. Bi-Directional Audio Conversation, Speaker Biometric Lock & Live Activity HUD -->
+          <div id="afccVoiceCopilotHud" style="display: block; margin-top: 6px; margin-bottom: 6px; padding: 12px 14px; border-radius: 12px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(15, 23, 42, 0.92) 55%, rgba(16, 185, 129, 0.1) 100%); border: 1px solid rgba(168, 85, 247, 0.38); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
               <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <span id="voiceHudOrb" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(168, 85, 247, 0.25); border: 1px solid rgba(168, 85, 247, 0.55); font-size: 14px;">🎙️</span>
-                <strong style="font-size: 12.5px; color: #f8fafc;">Bi-Directional Audio Conversation &amp; Live Activity Copilot</strong>
+                <strong style="font-size: 12.5px; color: #f8fafc;">J.A.R.V.I.S. Voice Command &amp; Biometric Speaker Cockpit</strong>
                 <span id="voiceStateBadge" class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 10.5px;">● Ready to Listen &amp; Speak</span>
               </div>
               <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
@@ -1672,6 +1672,30 @@
                 <button id="btnVoiceStopSpeaking" title="Interrupt and stop AFCC spoken audio playback immediately" class="btn" onclick="stopAfccVoiceSpeaking()" style="font-size: 10.5px; padding: 4px 8px; display: none; border-color: rgba(244, 63, 94, 0.45); color: #fb7185;">
                   🤫 Stop Audio
                 </button>
+              </div>
+            </div>
+
+            <!-- Jarvis Engine Routing & Biometric Speaker Isolation Controls -->
+            <div id="voiceJarvisArchitectureBar" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; padding: 6px 10px; border-radius: 8px; background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(56, 189, 248, 0.28);">
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <span style="font-size: 10.5px; color: var(--accent-cyan); font-weight: 700;">🧠 Brain Target:</span>
+                <select id="voiceRoutingModeSelect" title="Choose whether voice commands execute via $0.00 Zero-Token Jarvis or bridge directly to Antigravity Live" onchange="setAfccVoiceRoutingMode(this.value)" style="background: rgba(15, 23, 42, 0.92); border: 1px solid rgba(56, 189, 248, 0.45); color: #f8fafc; border-radius: 6px; padding: 3px 8px; font-size: 10.5px; font-weight: 600;">
+                  <option value="zero_token" selected>⚡ $0.00 Zero-Token Jarvis (All Fleet Agents)</option>
+                  <option value="antigravity">🤖 Direct Antigravity Live Bridge (Console)</option>
+                </select>
+                <button id="btnVoiceSpeakerLock" type="button" title="Toggle Biometric Speaker Isolation &amp; Background Noise Shield (85-3800Hz DSP + Vocal Pitch Lock)" class="btn" onclick="toggleVoiceSpeakerLock()" style="font-size: 10px; padding: 3px 8px; border-color: rgba(16, 185, 129, 0.45); color: #34d399; background: rgba(16, 185, 129, 0.14);">
+                  🛡️ My Voice Only: ON
+                </button>
+                <button id="btnEnrollVoiceprint" type="button" title="Calibrate a 3-second biometric voiceprint of your vocal pitch (Hz) &amp; timbre so background voices are rejected" class="btn" onclick="calibrateJarvisVoiceprint()" style="font-size: 10px; padding: 3px 8px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.14);">
+                  🧬 Calibrate My Voice (3s)
+                </button>
+                <button id="btnVoiceWakeWordMode" type="button" title="Require 'Jarvis' wake-word prefix in noisy multi-speaker rooms" class="btn" onclick="toggleVoiceWakeWordLock()" style="font-size: 10px; padding: 3px 8px; border-color: var(--card-border); color: var(--text-muted); background: rgba(255,255,255,0.04);">
+                  🟢 Wake Word: Optional
+                </button>
+              </div>
+              <div id="voiceAcousticTelemetryBar" style="display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--text-muted); font-family: monospace;">
+                <span id="voiceDspStatusBadge" class="badge" style="background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 9.5px;">DSP 85-3800Hz</span>
+                <span id="voiceBiometricMatchBadge" class="badge" style="background: rgba(56, 189, 248, 0.12); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.3); font-size: 9.5px;">Speaker: Ready</span>
               </div>
             </div>
 
@@ -1713,35 +1737,35 @@
             <div id="voiceLiveTranscriptBox" style="padding: 8px 11px; border-radius: 8px; background: rgba(15, 23, 42, 0.72); border: 1px solid rgba(255, 255, 255, 0.08); font-size: 11.5px; margin-bottom: 8px;">
               <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
                 <div id="voiceUserSaidLine" style="color: var(--text-muted); line-height: 1.4;">
-                  🎙️ <strong>You:</strong> <span id="voiceTranscriptText">Click "🎙️ Speak Now" or any activity chip below to talk to AFCC...</span>
+                  🎙️ <strong>You:</strong> <span id="voiceTranscriptText">Click "🎙️ Speak Now" or any Jarvis command chip below...</span>
                 </div>
                 <button title="Replay AFCC's last spoken response aloud" class="btn" onclick="replayLastAfccVoiceReply()" style="font-size: 10px; padding: 2px 7px; white-space: nowrap;">🔊 Replay</button>
               </div>
               <div id="voiceAssistantReplyLine" style="color: #e2e8f0; margin-top: 4px; line-height: 1.4; display: none;">
-                🔊 <strong style="color: #34d399;">AFCC:</strong> <span id="voiceSpokenReplyText"></span>
+                🔊 <strong style="color: #34d399;">J.A.R.V.I.S.:</strong> <span id="voiceSpokenReplyText"></span>
               </div>
               <div id="voiceExecutedActivitiesStrip" style="display: none; gap: 6px; flex-wrap: wrap; margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.1);"></div>
             </div>
 
             <!-- Linked Activities You Can Trigger While Speaking -->
             <div style="font-size: 10.5px; color: var(--text-muted); margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
-              <span>⚡ <strong>Say any phrase aloud</strong> (or click to execute &amp; hear AFCC respond):</span>
-              <span style="color: #c084fc;">🔒 100% Local-First</span>
+              <span>⚡ <strong>Jarvis Voice Commands</strong> (say aloud or click — $0.00 Zero-Token or Direct Antigravity):</span>
+              <span style="color: #34d399;">🛡️ Noise Shield Active</span>
             </div>
             <div id="voiceQuickActivitiesGrid" style="display: flex; gap: 5px; flex-wrap: wrap;">
+              <button title="Speak or click: Can you hear me?" type="button" class="quick-chip" style="border-color: rgba(56, 189, 248, 0.5); color: var(--accent-cyan);" onclick="executeVoiceTurnText('Can you hear me?')">🎙️ Can You Hear Me?</button>
+              <button title="Speak or click: What agents do I have?" type="button" class="quick-chip" style="border-color: rgba(168, 85, 247, 0.5); color: #d8b4fe;" onclick="executeVoiceTurnText('What agents do I have?')">🤖 What Agents Do I Have?</button>
+              <button title="Speak or click: Tell me about the Health agent" type="button" class="quick-chip" onclick="executeVoiceTurnText('Tell me about the Health agent')">🌿 About Health Agent</button>
+              <button title="Speak or click: What did my agents do recently?" type="button" class="quick-chip" onclick="executeVoiceTurnText('What did my agents do recently?')">📜 Recent Agent Activity</button>
               <button title="Speak or click: Give me my daily briefing" type="button" class="quick-chip" onclick="executeVoiceTurnText('Give me my daily briefing')">☀️ Daily Briefing</button>
-              <button title="Speak or click: Show my monthly tasks" type="button" class="quick-chip" onclick="executeVoiceTurnText('Show my monthly tasks')">📅 Monthly Tasks</button>
-              <button title="Speak or click: Show my yearly tasks" type="button" class="quick-chip" onclick="executeVoiceTurnText('Show my yearly tasks')">🗓️ Yearly Tasks</button>
-              <button title="Speak or click: Mask sensitive IDs" type="button" class="quick-chip" onclick="executeVoiceTurnText('Mask sensitive IDs')">🙈 Mask IDs</button>
-              <button title="Speak or click: Reveal account numbers" type="button" class="quick-chip" onclick="executeVoiceTurnText('Reveal account numbers')">👁️ Reveal IDs</button>
               <button title="Speak or click: Please log a glass of water" type="button" class="quick-chip" onclick="executeVoiceTurnText('Please log a glass of water')">💧 +1 Water</button>
               <button title="Speak or click: What is my workout today?" type="button" class="quick-chip" onclick="executeVoiceTurnText('What is my workout today?')">🏋️ Workout</button>
+              <button title="Speak or click: Play my workout playlist" type="button" class="quick-chip" onclick="executeVoiceTurnText('Play my workout playlist')">🎬 Play Workout Playlist</button>
               <button title="Speak or click: Check my emails and scan attachments" type="button" class="quick-chip" onclick="executeVoiceTurnText('Check my emails and scan attachments')">📬 Check Emails</button>
-              <button title="Speak or click: Run antivirus block test" type="button" class="quick-chip" onclick="executeVoiceTurnText('Run antivirus block test')">🛡️ Virus Test</button>
-              <button title="Speak or click: Optimize my RAM" type="button" class="quick-chip" onclick="executeVoiceTurnText('Optimize my RAM')">🚀 Optimize RAM</button>
+              <button title="Speak or click: Auto tune my PC" type="button" class="quick-chip" onclick="executeVoiceTurnText('Auto tune my PC')">🚀 Auto-Tune PC</button>
               <button title="Speak or click: Run security scan" type="button" class="quick-chip" onclick="executeVoiceTurnText('Run security scan')">🔒 Security Scan</button>
-              <button title="Speak or click: Show unapproved backlog items" type="button" class="quick-chip" onclick="executeVoiceTurnText('Show unapproved backlog items')">📋 Unapproved Backlog</button>
-              <button title="Speak or click: Suggest 10 ways to improve overview" type="button" class="quick-chip" onclick="executeVoiceTurnText('Suggest 10 ways to improve overview')">✨ 10 Ways to Improve</button>
+              <button title="Speak or click: Show unapproved backlog items" type="button" class="quick-chip" onclick="executeVoiceTurnText('Show unapproved backlog items')">📋 Backlog</button>
+              <button title="Speak or click: Ask Antigravity to check system health" type="button" class="quick-chip" style="border-color: rgba(16, 185, 129, 0.5); color: #34d399;" onclick="executeVoiceTurnText('Ask Antigravity to check system health')">🧠 Ask Antigravity</button>
             </div>
           </div>
 
@@ -1941,7 +1965,7 @@
           <span style="font-size: 22px;">📜</span>
           <div>
             <strong style="font-size: 16px; color: var(--text);">Fleet Release Notes & Version History</strong>
-            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.16.3</div>
+            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.17.0</div>
           </div>
         </div>
         <button title="Close Release Notes modal" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeReleaseNotesModal()">✕</button>

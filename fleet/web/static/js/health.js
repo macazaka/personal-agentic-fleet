@@ -1593,6 +1593,17 @@ function toggleAddYoutubePanel(forceState) {
   }
 }
 
+async function _safeParseJsonResponse(res) {
+  const rawText = await res.text();
+  try {
+    return JSON.parse(rawText);
+  } catch (_) {
+    return {
+      error: `Server returned HTTP ${res.status}. Please hard-refresh the dashboard (Ctrl+Shift+R) and try again.`
+    };
+  }
+}
+
 async function submitAddYoutubeVideo() {
   const urlInput = document.getElementById('ytVideoUrlInput');
   const titleInput = document.getElementById('ytVideoTitleInput');
@@ -1629,7 +1640,7 @@ async function submitAddYoutubeVideo() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await res.json();
+    const data = await _safeParseJsonResponse(res);
     if (!res.ok || data.error) {
       if (statusMsg) {
         statusMsg.style.color = '#f87171';
@@ -1676,7 +1687,7 @@ async function deleteYoutubeVideo(youtubeId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ youtube_id: youtubeId })
     });
-    const data = await res.json();
+    const data = await _safeParseJsonResponse(res);
     if (res.ok && (data.status === 'deleted' || data.ok)) {
       await fetchExerciseVideos();
       await fetchVideoPlaylists();
@@ -1689,6 +1700,18 @@ async function deleteYoutubeVideo(youtubeId) {
   }
 }
 
+let _ytOauthPollTimer = null;
+
+window.addEventListener('message', (ev) => {
+  if (ev && ev.data && ev.data.type === 'AFCC_YOUTUBE_OAUTH_SUCCESS') {
+    if (_ytOauthPollTimer) {
+      clearInterval(_ytOauthPollTimer);
+      _ytOauthPollTimer = null;
+    }
+    syncPersonalYoutubePlaylistsOAuth();
+  }
+});
+
 async function syncPersonalYoutubePlaylistsOAuth() {
   const btn = document.getElementById('btnSyncGoogleYoutubePlaylists');
   const statusMsg = document.getElementById('ytAddStatusMsg');
@@ -1696,14 +1719,14 @@ async function syncPersonalYoutubePlaylistsOAuth() {
   if (panel && (panel.style.display === 'none' || !panel.style.display)) {
     panel.style.display = 'flex';
   }
-  const origHtml = btn ? btn.innerHTML : '';
+  const origHtml = '🔑 Sync My YouTube Playlists (Google Login)';
   if (btn) {
     btn.disabled = true;
     btn.innerHTML = '⏳ Signing in with Google & Syncing...';
   }
   if (statusMsg) {
     statusMsg.style.color = '#a78bfa';
-    statusMsg.innerText = '🔑 Opening Google OAuth login (if not already authorized) & fetching your personal YouTube playlists...';
+    statusMsg.innerText = '🔑 Checking Google YouTube authorization & syncing your personal playlists...';
   }
 
   try {
@@ -1712,7 +1735,44 @@ async function syncPersonalYoutubePlaylistsOAuth() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ authorize: true })
     });
-    const data = await res.json();
+    const data = await _safeParseJsonResponse(res);
+
+    // Handle one-time browser OAuth consent popup
+    if (data && (data.status === 'needs_oauth_consent' || data.needs_oauth_consent) && data.auth_url) {
+      const popup = window.open(data.auth_url, 'afcc_google_youtube_oauth', 'width=540,height=680');
+      if (statusMsg) {
+        statusMsg.style.color = '#fbbf24';
+        statusMsg.innerHTML = `🔑 <strong>One-time Google Sign-In required:</strong> Please click <strong>Allow</strong> in the Google Sign-In window that just opened (<a href="${escapeHtml(data.auth_url)}" target="_blank" rel="noopener" style="color: #38bdf8; text-decoration: underline;">click here if popup was blocked</a>). Your playlists will sync automatically once authorized!`;
+      }
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+      }
+      if (_ytOauthPollTimer) clearInterval(_ytOauthPollTimer);
+      let attempts = 0;
+      _ytOauthPollTimer = setInterval(async () => {
+        attempts += 1;
+        if (attempts > 60) {
+          clearInterval(_ytOauthPollTimer);
+          _ytOauthPollTimer = null;
+          return;
+        }
+        try {
+          const stRes = await fetch('/api/health/youtube/oauth/status');
+          const stData = await stRes.json();
+          if (stData && stData.youtube_token_present) {
+            clearInterval(_ytOauthPollTimer);
+            _ytOauthPollTimer = null;
+            if (popup && !popup.closed) {
+              try { popup.close(); } catch (_) {}
+            }
+            syncPersonalYoutubePlaylistsOAuth();
+          }
+        } catch (_) {}
+      }, 2000);
+      return;
+    }
+
     if (!res.ok || data.error) {
       const errText = data.error || 'Could not sync YouTube playlists via Google login';
       if (statusMsg) {
@@ -1728,7 +1788,7 @@ async function syncPersonalYoutubePlaylistsOAuth() {
     await fetchExerciseVideos();
     await fetchVideoPlaylists();
 
-    const msg = `✅ Synced ${data.imported_playlists_count || 0} personal YouTube playlist(s) (${data.imported_videos_count || 0} videos) from your Google account!`;
+    const msg = `✅ Synced ${data.imported_playlists_count || 0} personal YouTube playlist(s) (${data.imported_videos_count || 0} videos) from ${data.channel_title || 'your Google account'}!`;
     if (statusMsg) {
       statusMsg.style.color = '#34d399';
       statusMsg.innerText = msg;
@@ -1744,7 +1804,7 @@ async function syncPersonalYoutubePlaylistsOAuth() {
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = origHtml || '🔑 Sync My YouTube Playlists (Google Login)';
+      btn.innerHTML = origHtml;
     }
   }
 }

@@ -120,6 +120,8 @@ def _find_safe_file_in_dir(base_dir: Path, target_rel: str, recursive: bool = Fa
 ALLOWED_ORIGINS = {
     f"http://127.0.0.1:{PORT}",
     f"http://localhost:{PORT}",
+    f"https://127.0.0.1:{PORT}",
+    f"https://localhost:{PORT}",
 }
 
 
@@ -128,15 +130,17 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
     _sse_test_mode: bool = False
 
     def handle_one_request(self):
+        import ssl as _ssl
         try:
             super().handle_one_request()
-        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, _ssl.SSLError):
             self.close_connection = True
 
     def finish(self):
+        import ssl as _ssl
         try:
             super().finish()
-        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, _ssl.SSLError):
             pass
 
     def _send_security_headers(self, set_session_cookie: bool = False):
@@ -147,7 +151,7 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header(
             "Content-Security-Policy",
-            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' http://127.0.0.1:7890 http://localhost:7890; object-src 'none'; frame-ancestors 'none'; base-uri 'self'",
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: data:; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' http://127.0.0.1:7890 http://localhost:7890 https://127.0.0.1:7890 https://localhost:7890; object-src 'none'; frame-ancestors 'none'; base-uri 'self'",
         )
         self.send_header("Permissions-Policy", "camera=(), microphone=(self), geolocation=(), payment=(), usb=()")
         self.send_header("Cross-Origin-Opener-Policy", "same-origin")
@@ -904,13 +908,32 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
 
 
 class RobustThreadingHTTPServer(ThreadingHTTPServer):
-    """Threading HTTP server that suppresses client disconnection socket noise and logs unhandled errors."""
+    """Threading HTTP/HTTPS dual-stack server that auto-detects TLS ClientHello (0x16) vs plain HTTP on the same port."""
     allow_reuse_address = True
     daemon_threads = True
+    ssl_context: Optional[Any] = None
+
+    def get_request(self):
+        import socket as _socket
+        newsock, fromaddr = super().get_request()
+        if self.ssl_context is not None:
+            try:
+                newsock.settimeout(2.0)
+                first_byte = newsock.recv(1, _socket.MSG_PEEK)
+                newsock.settimeout(None)
+                if first_byte == b"\x16":  # TLS Handshake ClientHello
+                    newsock = self.ssl_context.wrap_socket(newsock, server_side=True)
+            except Exception:
+                try:
+                    newsock.settimeout(None)
+                except Exception:
+                    pass
+        return newsock, fromaddr
 
     def handle_error(self, request: Any, client_address: Any) -> None:
+        import ssl as _ssl
         exc_type, exc_val, exc_tb = sys.exc_info()
-        if exc_type in (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+        if exc_type in (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, _ssl.SSLError):
             return
         server_logger.error(
             "Unhandled HTTP socket error from %s: %s: %s",
@@ -924,8 +947,9 @@ class RobustThreadingHTTPServer(ThreadingHTTPServer):
 
 
 def start_server(port: int = PORT):
-    """Starts the Personal Agentic Fleet Dashboard server."""
+    """Starts the Personal Agentic Fleet Dashboard server with Dual-Stack HTTPS + HTTP on port 7890."""
     from fleet.core.database import get_effective_db_path, is_test_environment
+    from fleet.core.local_tls import build_local_ssl_context
     in_test = is_test_environment()
     if not in_test:
         os.environ["FLEET_PRODUCTION_SERVER"] = "1"
@@ -939,10 +963,13 @@ def start_server(port: int = PORT):
     db = FleetDatabase(db_path=get_effective_db_path(DB_PATH))
     briefing_engine = BriefingEngine(db)
     agent_registry.startup_all()
-    server_logger.info("Personal Agentic Fleet Dashboard listening at: http://127.0.0.1:%s", port)
     server = RobustThreadingHTTPServer(("127.0.0.1", port), FleetDashboardHandler)
-    print(f"Personal Agentic Fleet Dashboard running at: http://127.0.0.1:{port}")
-    print(f"🚀 Fleet Dashboard running at: http://127.0.0.1:{port}/")
+    ssl_ctx = build_local_ssl_context()
+    if ssl_ctx is not None:
+        server.ssl_context = ssl_ctx
+    server_logger.info("Personal Agentic Fleet Dashboard listening at: https://127.0.0.1:%s (and http://127.0.0.1:%s)", port, port)
+    print(f"🔒 Personal Agentic Fleet Dashboard (HTTPS Secure): https://127.0.0.1:{port}/")
+    print(f"🚀 Personal Agentic Fleet Dashboard (HTTP):         http://127.0.0.1:{port}/")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

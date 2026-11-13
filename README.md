@@ -1,6 +1,6 @@
 # ⚡ Personal Agentic Fleet
 
-[![Release: v2.16.3](https://img.shields.io/badge/Release-v2.16.3-00b4d8.svg?logo=github&logoColor=white)](CHANGELOG.md)
+[![Release: v2.17.0](https://img.shields.io/badge/Release-v2.17.0-00b4d8.svg?logo=github&logoColor=white)](CHANGELOG.md)
 [![GitHub Wiki: 17 Deep-Dive Guides](https://img.shields.io/badge/GitHub%20Wiki-17%20Deep--Dive%20Guides-0284c7.svg?logo=github&logoColor=white)](https://github.com/macazaka/personal-agentic-fleet/wiki)
 [![Python: 3.10 | 3.11 | 3.12 | 3.13 | 3.14](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-10b981.svg?logo=apache&logoColor=white)](https://opensource.org/licenses/Apache-2.0)
@@ -119,18 +119,24 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
 ## 🌟 Key Highlights
 
 <!-- AUTO-LATEST-RELEASE:START -->
-### 🆕 What's New in Release `v2.16.3` (Auto-Synchronized)
+### 🆕 What's New in Release `v2.17.0` (Auto-Synchronized)
 
-> **Live Telemetry**: `10` Core Agents • `168` REST API Endpoints • `35` Microkernel Engines • `21` Automation Tools • `511` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
+> **Live Telemetry**: `10` Core Agents • `171` REST API Endpoints • `36` Microkernel Engines • `21` Automation Tools • `513` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
 
 ### Added
-- **Multilingual Voice Copilot (`English`, `Hindi`, `Telugu`, `Marathi`) & Indian Lady's Accent Default**: Added interactive Language (`en-IN`, `hi-IN`, `te-IN`, `mr-IN`), Gender (`Female` / `Male`), and Accent (`🇮🇳 Indian`, `🇬🇧 UK`, `🇺🇸 US`) selectors to the Bi-Directional Audio Conversation & Live Activity Copilot (`dashboard.html`, `antigravity.js`, `briefing.js`, `settings_api.py`, `omnibar_dispatcher.py`), defaulting to an Indian lady's voice (`Heera` / `Neerja` / `female_indian`).
-- **Video Vault Folder Opener & Browser H.264 (`avc1`) Auto-Transcoding**: Added `POST /api/health/exercise/open_vault` (`📂 Video Vault`) to open the local exercise video folder in Windows Explorer and automatic FFmpeg H.264/AAC transcoding in `/api/health/exercise/video_stream` so MPEG-4 Part 2 (`mp4v`) and HEVC (`hvc1`) videos play smoothly inside the browser modal.
-- **Autonomous Delegated Payments (`#BL-231`) & QA Unit-Test Coverage Backlog (`#BL-232` – `#BL-241`)**: Added `#BL-231` (*Autonomous Delegated Bill & Subscription Payment Execution Engine — Pay on My Behalf*) and 10 comprehensive unit-test coverage backlog items (`[QA-01]` to `[QA-10]`) from a full codebase audit across all 162 REST routes, core modules, and frontend JS views.
-
-### Fixed
-- **Unified Task Inline Editing Across All Action Types (`medication`, `routine`, `custom_agent_entry`, `core_task`)**: Fixed `POST /api/tasks/unified_action` (`sub_action="edit"`) and `saveEditedTask()` (`tasks_api.py`, `tasks.js`) so editing dosage, schedule time, frequency, instructions, category, or custom description in **Daily, Monthly & Yearly Tasks** persists all fields to SQLite without prefix duplication and refreshes linked views immediately.
-- **Browser Microphone `Permissions-Policy` Header**: Updated `fleet/server.py` security headers from `microphone=()` to `microphone=(self)` so Chrome permits microphone access on `http://127.0.0.1:7890` when browser site permissions are granted.
+- **J.A.R.V.I.S. 5-Layer Voice Command & Biometric Speaker Cockpit**:
+  - **Layer 1 — Persistent WebAudio DSP Bandpass (`85 Hz` High-Pass → `3800 Hz` Low-Pass)**: Strips fan rumble, AC hum, and high-frequency clatter while keeping the microphone stream open so Windows WASAPI never clips the first syllable of speech.
+  - **Layer 2 — Biometric Speaker Voiceprint Lock (`🧬 Calibrate My Voice (3s)`, `GET/POST /api/voice/voiceprint`)**: Extracts real-time 2048-FFT autocorrelation fundamental vocal pitch ($F_0$ in Hz, `75–360 Hz`), spectral formant centroid, and RMS SNR (`dB`) to verify speaker identity (`🛡️ My Voice Only: ON`) and reject background voices or low-SNR room chatter at `$0.00`.
+  - **Layer 3 — 5-Alternative N-Best `SpeechRecognition` Candidate Scoring**: Scores all 5 recognition alternatives (`rec.maxAlternatives = 5`) against Jarvis grammar and phonetic mic-check patterns (`_select_best_voice_candidate`).
+  - **Layer 4 — Dual-Mode Brain Router (`⚡ $0.00 Zero-Token Jarvis` ⇄ `🤖 Direct Antigravity Live Bridge`)**: Supports `$0.00` local execution across all 10 Fleet agents, full agent roster & per-agent capability/telemetry queries (*"What agents do I have?"*, *"Tell me about the Health agent"*), recent agent activity queries (*"What did my agents do recently?"*), voice video/playlist playback (*"Play my workout playlist"*), 4-stage PC auto-tuning (*"Auto tune my PC"*), and direct bridging to Antigravity Live (*"Ask Antigravity to ..."*).
+  - **Layer 5 — Neural Speech Sanitizer**: Hardened `_clean_for_speech()` and `HyperscalerGateway._call_antigravity_cli()` so raw JSON telemetry envelopes (`{"conversation_id":...}`) are never returned or spoken aloud.
+- **Dual-Stack Local HTTPS (`https://127.0.0.1:7890`) & Root CA Generator (`fleet/core/local_tls.py`)**:
+  - Generates a 10-year local Root CA (`afcc_root_ca.crt`) and 365-day SAN leaf server certificate (`localhost_fullchain.crt` covering `IP:127.0.0.1`, `DNS:localhost`, `IP:::1`) in gitignored `fleet/data/certs/`.
+  - Upgraded `RobustThreadingHTTPServer` in `fleet/server.py` with first-byte TLS `ClientHello` (`0x16`) auto-detection so `https://127.0.0.1:7890` and `http://127.0.0.1:7890` work simultaneously on port `7890`.
+- **Video Frame Thumbnails, YouTube Video/Playlist Import & Browser-Driven Google OAuth Sync**:
+  - Added FFmpeg automatic JPEG thumbnail extraction (`GET /api/health/video/thumbnail`) for local `.mp4` workout videos.
+  - Added YouTube video & playlist import (`POST /api/health/videos/youtube/add`, `POST /api/health/videos/youtube/delete`) with embedded YouTube player modal support.
+  - Added non-blocking browser popup Google OAuth2 flow (`POST /api/health/youtube/oauth/sync`, `GET /api/health/youtube/oauth/callback`, `GET /api/health/youtube/oauth/status`) to sync personal/private YouTube playlists via `youtube.readonly`.
 <!-- AUTO-LATEST-RELEASE:END -->
 
 - **🔌 Modular Plug-and-Play Agents**: Every dashboard view is a standalone, self-contained agent package inside `fleet/agents/` with least-privilege capability manifests (`manifest.json`) enforced by `ScopedDatabaseProxy`. See **[Wiki: 7 Built-in Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents)** and **[Wiki: Customizing Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Customizing-Agents)**.

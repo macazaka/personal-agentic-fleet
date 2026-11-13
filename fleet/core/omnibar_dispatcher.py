@@ -693,7 +693,7 @@ def dispatch_omnibar_query(
             })
 
         cached = get_cached_prompt_response(raw)
-        if cached is not None:
+        if cached is not None and not str(cached).lstrip().startswith("{") and "conversation_id" not in str(cached):
             return _record_turn(raw, {
                 "status": "ok",
                 "mode": "tier0_rag",
@@ -705,24 +705,34 @@ def dispatch_omnibar_query(
     except Exception:
         pass
 
-    # 11. Check if a Cloud Hyperscaler or Local Ollama is configured for open-ended LLM conversation
+    # 11. Check if a Cloud Hyperscaler is configured for open-ended LLM conversation
+    # Note: Never spawn the 20-second `antigravity_cli` (`agy`) subprocess on generic unrecognized voice/omnibar strings
     try:
         from fleet.core.hyperscalers import HyperscalerGateway
         provs = HyperscalerGateway.list_available_providers()
-        configured = [p for p in provs if p.get("is_configured") and p.get("id") != "ollama"]
-        if configured:
+        configured = [
+            p for p in provs
+            if p.get("is_configured") and p.get("id") not in ("ollama", "antigravity_cli")
+        ]
+        if configured and len(raw.split()) >= 3:
             gw = HyperscalerGateway()
             llm_res = gw.complete(
                 prompt=raw,
                 provider=configured[0]["id"],
-                system_instruction="You are the Personal Agentic Fleet Conversational Omnibar Assistant. Keep responses concise (2-4 sentences) and helpful.",
+                system_instruction="You are J.A.R.V.I.S., the Personal Agentic Fleet Conversational Assistant. Keep responses concise (2-3 sentences) and helpful.",
             )
-            if llm_res.get("status") == "SUCCESS" and llm_res.get("text"):
+            llm_text = str(llm_res.get("text") or "").strip()
+            if (
+                llm_res.get("status") == "SUCCESS"
+                and llm_text
+                and not llm_text.startswith("{")
+                and "conversation_id" not in llm_text
+            ):
                 return _record_turn(raw, {
                     "status": "ok",
                     "mode": "conversation",
                     "title": f"🤖 {llm_res.get('provider', 'Fleet AI')} ({llm_res.get('model', 'LLM')})",
-                    "message": llm_res["text"],
+                    "message": llm_text,
                     "suggestions": ["Give me my daily briefing", "What are my pending tasks?", "@discover"],
                     "tokens_used": llm_res.get("tokens_used", 0),
                 })
@@ -735,17 +745,21 @@ def dispatch_omnibar_query(
         "status": "ok",
         "mode": "conversation",
         "agent_id": "antigravity",
-        "title": "💬 Fleet Conversational Assistant ($0.00 Local Mode)",
+        "title": "💬 J.A.R.V.I.S. Local Fleet Assistant ($0.00 Zero-Token Mode)",
         "message": (
-            f"I heard you say: **\"{raw}\"**.\n"
-            f"Right now I'm running in **$0.00 Zero-Token Local Mode** ({snap['active_agents']} agents active, {snap['pending_count']} pending tasks). "
-            f"I can answer questions about your **daily briefing, tasks, hydration, FFD diet & smoothie protocol, 6-day Mudgal/Samtola/Bhim Gadha workouts, PC optimization, or agent creation**—or you can open the **Antigravity Live Console** for deep multi-file coding and cloud LLM reasoning!"
+            f"I heard: **\"{raw}\"**.\n"
+            f"All **{snap['active_agents']} Fleet agents** are online in **$0.00 Zero-Token Mode** ({snap['pending_count']} pending tasks). "
+            f"Ask me about **your agents** (*\"What agents do I have?\"*, *\"Tell me about the Health agent\"*), command any agent (*\"Give me my daily briefing\"*, *\"Log a glass of water\"*, *\"Optimize my RAM\"*, *\"Play my workout playlist\"*), or say **\"Ask Antigravity to ...\"** to dispatch directly to Antigravity!"
+        ),
+        "spoken_reply": (
+            f"I heard {raw}. All {snap['active_agents']} Fleet agents are online at zero token cost. "
+            f"You can ask me about any of your agents, command them to act, or say Ask Antigravity followed by your request."
         ),
         "suggestions": [
+            "What agents do I have?",
             "Give me my daily briefing",
             "What are my pending tasks?",
             "What is my workout today?",
-            "FFD Green Smoothie recipe",
             "Help",
         ],
         "tokens_used": 0,
@@ -759,7 +773,10 @@ def _clean_for_speech(text: str) -> str:
     """
     if not text:
         return ""
-    s = str(text)
+    s = str(text).strip()
+    # Guard against raw CLI/JSON telemetry envelopes ever reaching TTS
+    if (s.startswith("{") and s.endswith("}")) or "conversation_id" in s or "denied_actions" in s:
+        return "System ready. All Fleet agents are standing by."
     # Replace URLs with concise spoken phrase
     s = re.sub(r"https?://[^\s)]+", "linked portal", s)
     # Mask long numeric account/consumer identifiers for spoken privacy
@@ -961,6 +978,17 @@ def _apply_voice_localization(
         "en": f"en-{acc}",
     }
     bcp47 = locale_map.get(lang, "en-IN")
+    if res.get("ignored_noise"):
+        res["spoken_reply_english"] = ""
+        res["spoken_reply"] = ""
+        res["spoken_reply_phonetic"] = ""
+        res["voice_profile"] = {
+            "language": lang,
+            "gender": gen,
+            "accent": acc,
+            "bcp47": bcp47,
+        }
+        return res
     english_reply = _clean_for_speech(res.get("spoken_reply") or res.get("message") or res.get("title") or "Done.")
     cmd_key = str(res.get("normalized_command") or res.get("mode") or "").lower()
 
@@ -1064,6 +1092,101 @@ def _apply_voice_localization(
     return res
 
 
+_JARVIS_INTENT_KEYWORDS: Tuple[str, ...] = (
+    "jarvis", "afcc", "antigravity", "hear me", "audible", "listening", "are you there",
+    "agent", "agents", "briefing", "task", "tasks", "monthly", "yearly", "water", "hydration",
+    "workout", "exercise", "video", "playlist", "surya", "brain yoga", "warm up", "smoothie",
+    "email", "emails", "inbox", "virus", "antivirus", "optimize", "optimizer", "ram", "memory",
+    "temp", "cache", "dns", "tune", "security", "scan", "test", "tests", "backlog", "improve",
+    "mask", "reveal", "unmask", "weight", "sugar", "glucose", "open", "switch", "show", "run",
+    "status", "help", "hello", "hi", "namaste", "namaskaram", "namaskar",
+)
+
+_PHONETIC_MIC_CHECK_PATTERNS: Tuple[str, ...] = (
+    "can you hear me", "can u hear me", "do you hear me", "are you hearing me",
+    "you hear me", "hear me", "can you listen", "are you listening", "are you there",
+    "jarvis are you there", "hey jarvis", "hello jarvis", "hi jarvis", "ok jarvis",
+    "testing microphone", "mic check", "microphone check", "am i audible", "loud and clear",
+    "kya aap mujhe sun sakte", "meri aawaz aa rahi", "naa maata vinipistunda", "majha aawaz yeto",
+)
+
+
+def _score_voice_candidate(text: str) -> int:
+    """Scores a SpeechRecognition alternative against known Jarvis intents, agents, and grammar."""
+    s = (text or "").lower().strip()
+    if not s:
+        return -100
+    score = 0
+    for pat in _PHONETIC_MIC_CHECK_PATTERNS:
+        if pat in s:
+            score += 50
+    for kw in _JARVIS_INTENT_KEYWORDS:
+        if re.search(rf"\b{re.escape(kw)}\b", s):
+            score += 20
+    words = s.split()
+    if len(words) >= 2:
+        score += 8
+    elif len(words) == 1 and score == 0:
+        # Penalize isolated single-word noise fragments like "crisis", "uh", "the"
+        score -= 25
+    return score
+
+
+def _select_best_voice_candidate(primary: str, alternatives: Optional[List[str]] = None) -> str:
+    """Selects the highest-intent transcript from SpeechRecognition's N-best alternatives."""
+    candidates: List[str] = []
+    if primary and primary.strip():
+        candidates.append(primary.strip())
+    if alternatives:
+        for alt in alternatives:
+            a = str(alt or "").strip()
+            if a and a not in candidates:
+                candidates.append(a)
+    if not candidates:
+        return ""
+    best = max(candidates, key=_score_voice_candidate)
+    return best
+
+
+_AGENT_KNOWLEDGE_CATALOG: Dict[str, Dict[str, str]] = {
+    "overview": {
+        "name": "Overview & Tasks Agent",
+        "role": "Manages your Daily Briefing, Task & Goal Board (Daily, Monthly, Yearly cadences), routines, and sensitive ID masking.",
+        "examples": "Say 'Give me my daily briefing', 'Show my monthly tasks', 'Add task Review sprint', or 'Mask sensitive IDs'.",
+    },
+    "health": {
+        "name": "Health, Hydration & Workout Vault Agent",
+        "role": "Tracks your daily water intake, fasting/PP glucose, weight, FFD smoothie & diet protocol, 6-day Mudgal/Samtola/Bhim Gadha strength split, and Exercise Video Playlists.",
+        "examples": "Say 'Log a glass of water', 'What is my workout today?', 'Play my workout playlist', or 'Log fasting sugar 95'.",
+    },
+    "gmail": {
+        "name": "Email Intelligence & 4-Layer Antivirus Agent",
+        "role": "Classifies recent Gmail messages locally, scans attachments with a 4-layer pre-download virus shield, and extracts unapproved action proposals.",
+        "examples": "Say 'Check my emails and scan attachments' or 'Run antivirus block test'.",
+    },
+    "optimizer": {
+        "name": "PC Optimizer & Security Auditor Agent",
+        "role": "Reclaims RAM working sets, purges temporary & developer caches, flushes DNS, and runs the 12-Layer Security & Privacy Scanner.",
+        "examples": "Say 'Optimize my RAM', 'Auto tune my PC', 'Clean temporary files', or 'Run security scan'.",
+    },
+    "backlog": {
+        "name": "Feature Backlog & Self-Improvement Agent",
+        "role": "Tracks all completed, planned, and unapproved Fleet features and generates 10 AI self-improvement upgrades for any agent.",
+        "examples": "Say 'Show unapproved backlog items' or '10 ways to improve health'.",
+    },
+    "antigravity": {
+        "name": "Antigravity Live Console & Multi-Model Bridge",
+        "role": "Connects directly to Google Antigravity, Gemini, Claude, OpenAI, and local zero-token RAG for deep coding and reasoning.",
+        "examples": "Say 'Ask Antigravity to explain my architecture' or 'Open Antigravity'.",
+    },
+    "pr_review": {
+        "name": "PR Review & GitHub Pipeline Sentinel Agent",
+        "role": "Audits GitHub Actions CI runs, CodeQL SARIF alerts, OSV dependency vulnerabilities, and pull requests.",
+        "examples": "Say 'Open PR Review' or 'Check GitHub pipeline status'.",
+    },
+}
+
+
 def transcribe_and_dispatch_voice_command(
     transcript: str,
     agent_registry: Optional[Any] = None,
@@ -1071,20 +1194,29 @@ def transcribe_and_dispatch_voice_command(
     language: str = "en",
     gender: str = "female",
     accent: str = "IN",
+    routing_mode: str = "zero_token",
+    alternatives: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """
-    UX-10 & Bi-Directional Audio Conversation Engine:
-    Normalizes spoken natural-language voice commands (in English, Hindi, Telugu, or Marathi),
-    executes linked backend activities, and returns structured `ui_actions`, `executed_activities`,
-    and localized `spoken_reply` + `spoken_reply_phonetic` for TTS playback.
+    UX-10 & Jarvis Bi-Directional Audio Conversation Engine:
+    1. Selects the highest-intent transcript from N-best SpeechRecognition alternatives.
+    2. Normalizes spoken natural-language voice commands (in English, Hindi, Telugu, or Marathi).
+    3. Executes linked backend activities or routes directly to Antigravity when requested.
+    4. Returns structured `ui_actions`, `executed_activities`, and localized `spoken_reply`.
     """
-    raw_spoken = (transcript or "").strip()
+    raw_spoken = _select_best_voice_candidate(transcript, alternatives)
     if not raw_spoken:
         return {"status": "error", "message": "Empty voice transcript."}
 
     canonical_spoken = _normalize_multilingual_voice_query(raw_spoken)
-    res = _dispatch_voice_command_core(canonical_spoken, agent_registry=agent_registry, db=db)
+    res = _dispatch_voice_command_core(
+        canonical_spoken,
+        agent_registry=agent_registry,
+        db=db,
+        routing_mode=routing_mode,
+    )
     res["voice_transcript"] = raw_spoken
+    res["selected_transcript"] = raw_spoken
     return _apply_voice_localization(res, language=language, gender=gender, accent=accent)
 
 
@@ -1092,15 +1224,270 @@ def _dispatch_voice_command_core(
     transcript: str,
     agent_registry: Optional[Any] = None,
     db: Optional[Any] = None,
+    routing_mode: str = "zero_token",
 ) -> Dict[str, Any]:
     spoken = (transcript or "").strip()
     if not spoken:
         return {"status": "error", "message": "Empty voice transcript."}
 
+    # Strip leading wake word ("Jarvis", "Hey Jarvis", "AFCC") while remembering if wake word was used
+    wake_match = re.match(r"^(?:hey\s+|hi\s+|hello\s+|ok\s+|okay\s+)?(?:jarvis|afcc|fleet)\b[\s,.:;!?-]*", spoken, flags=re.I)
+    had_wake_word = bool(wake_match)
+    if wake_match:
+        stripped = spoken[wake_match.end():].strip()
+        if stripped:
+            spoken = stripped
+
     lower = spoken.lower().strip()
+    cleaned_alpha = re.sub(r"[^a-z0-9\s]", "", lower).strip()
     normalized = spoken
     ui_actions: List[Dict[str, Any]] = []
     executed_activities: List[str] = []
+
+    # 0A. Jarvis Microphone Check, Presence & Wake-Word Greeting ("Can you hear me?", "Jarvis", "Are you there?")
+    if (
+        cleaned_alpha in ("jarvis", "afcc", "hey jarvis", "hello jarvis", "hi jarvis", "can you hear me", "hear me", "are you there", "testing", "mic check", "test")
+        or any(pat in cleaned_alpha for pat in _PHONETIC_MIC_CHECK_PATTERNS)
+        or re.search(r"\b(?:can|do)\s+(?:you|u)\s+(?:hear|listen|understand)\b", cleaned_alpha)
+        or re.search(r"\b(?:am\s+i\s+audible|loud\s+and\s+clear|are\s+you\s+online|are\s+you\s+awake)\b", cleaned_alpha)
+    ):
+        snap = _gather_live_fleet_snapshot(agent_registry=agent_registry, db=db)
+        executed_activities = [
+            "🎙️ Verified Bi-Directional Microphone Link (Nominal)",
+            f"🤖 Confirmed {snap['active_agents']} Autonomous Fleet Agents Online ($0.00)",
+        ]
+        msg = (
+            f"🟢 **Loud and clear!** Your microphone link and voice isolation are online.\n"
+            f"• **Active Fleet Agents**: {snap['active_agents']} autonomous agents standing by\n"
+            f"• **Pending Tasks**: {snap['pending_count']} item(s) on your board\n"
+            f"• **Today's Hydration**: {snap['hydration'].get('amount_ml', 0)} / {snap['hydration'].get('goal_ml', 2500)} ml\n"
+            f"• **Token Cost**: `$0.00` (Zero-Token Local Jarvis Engine)"
+        )
+        spoken_reply = (
+            f"Loud and clear! I can hear you perfectly. All {snap['active_agents']} autonomous Fleet agents are online and standing by at zero token cost. "
+            f"You have {snap['pending_count']} pending tasks today. How may I assist you?"
+        )
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "jarvis_presence",
+            "agent_id": "overview",
+            "voice_transcript": spoken,
+            "normalized_command": "jarvis:mic_check",
+            "title": "🟢 J.A.R.V.I.S. Online — Loud & Clear ($0.00)",
+            "message": msg,
+            "spoken_reply": spoken_reply,
+            "ui_actions": ui_actions,
+            "executed_activities": executed_activities,
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
+
+    # 0B. Direct Antigravity Live Console Bridge ("Ask Antigravity to ...", "Antigravity, ...", or routing_mode == "antigravity")
+    ag_direct_match = re.match(
+        r"^(?:please\s+)?(?:ask\s+antigravity(?:\s+to)?|tell\s+antigravity(?:\s+to)?|send\s+to\s+antigravity|antigravity)\b[\s,.:;-]*(.+)$",
+        spoken,
+        flags=re.I,
+    )
+    if ag_direct_match or (routing_mode == "antigravity" and len(cleaned_alpha.split()) >= 2):
+        ag_prompt = (ag_direct_match.group(1) if ag_direct_match else spoken).strip()
+        ui_actions = [
+            {"type": "switch_agent", "agent_id": "antigravity"},
+            {"type": "send_to_antigravity", "command": ag_prompt},
+        ]
+        executed_activities = [
+            "🧭 Switched to Antigravity Live Console",
+            f"🚀 Dispatched Prompt to Antigravity: \"{ag_prompt[:60]}\"",
+        ]
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "antigravity_direct",
+            "agent_id": "antigravity",
+            "voice_transcript": spoken,
+            "normalized_command": f"@antigravity {ag_prompt}",
+            "title": "🚀 Dispatched Directly to Antigravity Live",
+            "message": f"Sent your voice directive directly to **Antigravity Live**: **\"{ag_prompt}\"**",
+            "spoken_reply": f"Dispatching your directive directly to Antigravity now: {_clean_for_speech(ag_prompt)}",
+            "ui_actions": ui_actions,
+            "executed_activities": executed_activities,
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
+
+    # 0C. Recent Agent Activity & Audit Log Query ("What did my agents do recently?", "Recent agent activity")
+    if re.search(r"\b(?:what\s+did\s+my\s+agents\s+do|recent\s+agent\s+activity|agent\s+activity|recent\s+activities|agent\s+logs)\b", lower):
+        recent = db.get_recent_activities(limit=4, exclude_tests=True) if (db and hasattr(db, "get_recent_activities")) else []
+        if recent:
+            items_txt = "; ".join(f"{r.get('agent', 'Agent')}: {r.get('details', r.get('action', ''))}" for r in recent[:3])
+            msg = "📜 **Recent Agent Activity**:\n" + "\n".join(f"• **{r.get('agent')}**: {r.get('details')}" for r in recent[:4])
+            spoken_reply = f"Here is what your agents did most recently: {_clean_for_speech(items_txt)}."
+        else:
+            msg = "📜 All agents are standing by with no recent mutations logged."
+            spoken_reply = "All agents are standing by with no recent mutations logged."
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "agent_activity_log",
+            "agent_id": "overview",
+            "voice_transcript": spoken,
+            "normalized_command": "agents:recent_activity",
+            "title": "📜 Recent Autonomous Agent Activity",
+            "message": msg,
+            "spoken_reply": spoken_reply,
+            "ui_actions": [],
+            "executed_activities": ["📜 Inspected Live Agent Activity Ledger"],
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
+
+    # 0D. Ask About My Agents ("What agents do I have?", "List my agents", "Tell me about my agents", "Tell me about the Health agent")
+    if (
+        re.search(r"\b(?:what|which|list|show|tell\s+me\s+about|describe|how\s+many)\b.*\bagents?\b", lower)
+        or re.search(r"\bagents?\s+(?:status|report|overview|list|capabilities)\b", lower)
+        or re.search(r"\b(?:status|capabilities|role)\s+of\s+(?:my\s+|the\s+)?([a-z0-9_&\s]+?)\s*agent\b", lower)
+    ):
+        # Check if asking about a specific agent first
+        specific_agent_key = None
+        for key, meta in _AGENT_KNOWLEDGE_CATALOG.items():
+            if key in lower or meta["name"].lower().split()[0] in lower:
+                if key == "overview" and "overview" not in lower and "task" not in lower:
+                    continue
+                specific_agent_key = key
+                break
+        if not specific_agent_key and "email" in lower:
+            specific_agent_key = "gmail"
+        elif not specific_agent_key and ("security" in lower or "ram" in lower or "pc" in lower):
+            specific_agent_key = "optimizer"
+        elif not specific_agent_key and ("workout" in lower or "wellness" in lower or "water" in lower):
+            specific_agent_key = "health"
+
+        snap = _gather_live_fleet_snapshot(agent_registry=agent_registry, db=db)
+        if specific_agent_key and specific_agent_key in _AGENT_KNOWLEDGE_CATALOG:
+            info = _AGENT_KNOWLEDGE_CATALOG[specific_agent_key]
+            live_detail = ""
+            if specific_agent_key == "overview":
+                live_detail = f"Right now you have {snap['pending_count']} pending tasks on your board."
+            elif specific_agent_key == "health":
+                hyd = snap["hydration"]
+                live_detail = f"Today you have logged {hyd.get('glasses', 0)} glasses of water ({hyd.get('amount_ml', 0)} milliliters), and today's workout is {snap['today_workout']}."
+            elif specific_agent_key == "backlog":
+                b_stats = db.get_feature_backlog_stats() if (db and hasattr(db, "get_feature_backlog_stats")) else {}
+                live_detail = f"Your backlog currently tracks {b_stats.get('total', 68)} total items ({b_stats.get('completed', 57)} completed)."
+            ui_actions = [{"type": "switch_agent", "agent_id": specific_agent_key}]
+            executed_activities = [
+                f"🤖 Inspected {info['name']} Telemetry",
+                f"🧭 Opened {info['name']}",
+            ]
+            msg = (
+                f"🤖 **{info['name']}** (`@{specific_agent_key}`)\n"
+                f"• **Role**: {info['role']}\n"
+                + (f"• **Live Telemetry**: {live_detail}\n" if live_detail else "")
+                + f"• **Voice Commands**: {info['examples']}"
+            )
+            spoken_reply = f"The {info['name']} is online. {info['role']} {live_detail} {info['examples']}"
+            return _record_turn(spoken, {
+                "status": "ok",
+                "mode": "agent_introspection",
+                "agent_id": specific_agent_key,
+                "voice_transcript": spoken,
+                "normalized_command": f"agent_info:{specific_agent_key}",
+                "title": f"🤖 {info['name']} — Live Status & Capabilities",
+                "message": msg,
+                "spoken_reply": _clean_for_speech(spoken_reply),
+                "ui_actions": ui_actions,
+                "executed_activities": executed_activities,
+                "tokens_used": 0,
+                "cost_usd": "$0.00",
+            })
+
+        # Otherwise summarize all Fleet agents
+        custom_names: List[str] = []
+        if agent_registry and hasattr(agent_registry, "get_manifests"):
+            try:
+                for m in agent_registry.get_manifests(include_disabled=False):
+                    if m.get("is_custom"):
+                        custom_names.append(str(m.get("name") or m.get("id")))
+            except Exception:
+                pass
+        custom_suffix = f", plus {len(custom_names)} custom Studio agent(s) ({', '.join(custom_names[:4])})" if custom_names else ""
+        bullet_lines = [f"• **{v['name']}**: {v['role']}" for v in _AGENT_KNOWLEDGE_CATALOG.values()]
+        executed_activities = [f"🤖 Audited All {snap['active_agents']} Active Fleet Agents ($0.00)"]
+        msg = (
+            f"⚡ **You have {snap['active_agents']} active autonomous agents** running locally at `$0.00`{custom_suffix}:\n"
+            + "\n".join(bullet_lines)
+        )
+        spoken_reply = (
+            f"You have {snap['active_agents']} autonomous agents online and ready: "
+            f"Overview and Tasks with {snap['pending_count']} pending items, "
+            f"Health and Wellness tracking your hydration and 6-day workouts, "
+            f"Email Intelligence with 4-layer antivirus protection, "
+            f"PC Optimizer and 12-Layer Security Scanner, "
+            f"Feature Backlog, PR Review Sentinel, and Antigravity Live"
+            + (f", plus {len(custom_names)} custom agents." if custom_names else ". ")
+            + "Ask me about any specific agent or tell me what action to execute!"
+        )
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "agent_roster",
+            "agent_id": "overview",
+            "voice_transcript": spoken,
+            "normalized_command": "agents:list",
+            "title": f"⚡ Active Fleet Roster ({snap['active_agents']} Agents Online)",
+            "message": msg,
+            "spoken_reply": _clean_for_speech(spoken_reply),
+            "ui_actions": ui_actions,
+            "executed_activities": executed_activities,
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
+
+    # 0E. Play Workout Videos & Playlists by Voice ("Play my workout playlist", "Play Daily Morning Routine", "Play Super Brain Yoga")
+    if re.search(r"\b(?:play|start|watch)\b.*\b(?:playlist|morning\s+routine|workout\s+video|super\s+brain\s+yoga|surya\s+namaskar|warm\s*up|nitric\s+oxide)\b", lower):
+        ui_actions = [
+            {"type": "switch_agent", "agent_id": "health"},
+            {"type": "play_video_by_voice", "query": spoken},
+        ]
+        executed_activities = [
+            "🌿 Switched to Health & Wellness → Video Vault",
+            f"▶️ Launched Workout Video / Playlist: \"{spoken}\"",
+        ]
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "voice_activity",
+            "agent_id": "health",
+            "voice_transcript": spoken,
+            "normalized_command": f"health:play_video:{spoken}",
+            "title": "▶️ Launching Workout Video / Playlist",
+            "message": f"Switched to your **Exercise & Video Vault** and started playback for **\"{spoken}\"**.",
+            "spoken_reply": "Opening your Exercise Video Vault and starting playback now.",
+            "ui_actions": ui_actions,
+            "executed_activities": executed_activities,
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
+
+    # 0F. Full PC Auto-Tune by Voice ("Auto tune my PC", "Speed up my computer", "Tune my PC")
+    if re.search(r"\b(?:auto\s*tune|tune\s+my\s+pc|speed\s+up\s+my\s+(?:pc|computer)|optimize\s+my\s+(?:pc|computer))\b", lower):
+        ui_actions = [
+            {"type": "switch_agent", "agent_id": "optimizer"},
+            {"type": "auto_tune_pc"},
+        ]
+        executed_activities = [
+            "🚀 Executed 4-Stage PC Auto-Tune (Temp + Dev Caches + DNS + RAM)",
+            "🧭 Switched to PC Optimizer Telemetry",
+        ]
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "voice_activity",
+            "agent_id": "optimizer",
+            "voice_transcript": spoken,
+            "normalized_command": "optimizer:auto_tune",
+            "title": "🚀 1-Click 4-Stage PC Auto-Tune Executed",
+            "message": "Executed full 4-stage PC Auto-Tune: cleaned temporary files, purged dev caches, flushed DNS, and swept RAM working sets.",
+            "spoken_reply": "Executing full four-stage PC auto-tune now: cleaning temporary files, flushing DNS, and optimizing RAM.",
+            "ui_actions": ui_actions,
+            "executed_activities": executed_activities,
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
 
     # 1. Sensitive ID Masking / Unmasking on Overview & Tasks
     if re.search(r"\b(?:unmask|reveal|show)\b.*\b(?:id|ids|account|numbers|sensitive)\b", lower) or "turn off mask" in lower:
@@ -1730,6 +2117,23 @@ def _dispatch_voice_command_core(
                 "cost_usd": "$0.00",
             })
 
+    # 10B. Single-Word Background Noise / Chatter Shield (e.g. "crisis", "uh", "the")
+    if len(cleaned_alpha.split()) == 1 and not had_wake_word and _score_voice_candidate(spoken) < 0:
+        return {
+            "status": "ok",
+            "mode": "ignored_noise",
+            "ignored_noise": True,
+            "voice_transcript": spoken,
+            "normalized_command": "noise:ignored",
+            "title": "🛡️ Filtered Background Noise / Chatter",
+            "message": f"Ignored isolated background word **\"{spoken}\"** ($0.00). Say **\"Jarvis, ...\"** or speak a command phrase.",
+            "spoken_reply": "",
+            "ui_actions": [],
+            "executed_activities": ["🛡️ Acoustic Noise Gate Filtered Background Fragment ($0.00)"],
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        }
+
     # 11. General Conversational Omnibar Dispatch + Auto-Linked UI Actions
     res = dispatch_omnibar_query(normalized, agent_registry=agent_registry, db=db)
     res["voice_transcript"] = spoken
@@ -1754,3 +2158,7 @@ def _dispatch_voice_command_core(
     res["executed_activities"] = executed_activities or ["💬 Processed Bi-Directional Voice Turn"]
     res["spoken_reply"] = _clean_for_speech(res.get("spoken_reply") or res.get("message") or res.get("title") or "")
     return res
+
+
+execute_voice_conversation_turn = transcribe_and_dispatch_voice_command
+

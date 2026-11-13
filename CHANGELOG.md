@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.17.0] - 2026-11-14
+
+### Added
+- **J.A.R.V.I.S. 5-Layer Voice Command & Biometric Speaker Cockpit**:
+  - **Layer 1 — Persistent WebAudio DSP Bandpass (`85 Hz` High-Pass → `3800 Hz` Low-Pass)**: Strips fan rumble, AC hum, and high-frequency clatter while keeping the microphone stream open so Windows WASAPI never clips the first syllable of speech.
+  - **Layer 2 — Biometric Speaker Voiceprint Lock (`🧬 Calibrate My Voice (3s)`, `GET/POST /api/voice/voiceprint`)**: Extracts real-time 2048-FFT autocorrelation fundamental vocal pitch ($F_0$ in Hz, `75–360 Hz`), spectral formant centroid, and RMS SNR (`dB`) to verify speaker identity (`🛡️ My Voice Only: ON`) and reject background voices or low-SNR room chatter at `$0.00`.
+  - **Layer 3 — 5-Alternative N-Best `SpeechRecognition` Candidate Scoring**: Scores all 5 recognition alternatives (`rec.maxAlternatives = 5`) against Jarvis grammar and phonetic mic-check patterns (`_select_best_voice_candidate`).
+  - **Layer 4 — Dual-Mode Brain Router (`⚡ $0.00 Zero-Token Jarvis` ⇄ `🤖 Direct Antigravity Live Bridge`)**: Supports `$0.00` local execution across all 10 Fleet agents, full agent roster & per-agent capability/telemetry queries (*"What agents do I have?"*, *"Tell me about the Health agent"*), recent agent activity queries (*"What did my agents do recently?"*), voice video/playlist playback (*"Play my workout playlist"*), 4-stage PC auto-tuning (*"Auto tune my PC"*), and direct bridging to Antigravity Live (*"Ask Antigravity to ..."*).
+  - **Layer 5 — Neural Speech Sanitizer**: Hardened `_clean_for_speech()` and `HyperscalerGateway._call_antigravity_cli()` so raw JSON telemetry envelopes (`{"conversation_id":...}`) are never returned or spoken aloud.
+- **Dual-Stack Local HTTPS (`https://127.0.0.1:7890`) & Root CA Generator (`fleet/core/local_tls.py`)**:
+  - Generates a 10-year local Root CA (`afcc_root_ca.crt`) and 365-day SAN leaf server certificate (`localhost_fullchain.crt` covering `IP:127.0.0.1`, `DNS:localhost`, `IP:::1`) in gitignored `fleet/data/certs/`.
+  - Upgraded `RobustThreadingHTTPServer` in `fleet/server.py` with first-byte TLS `ClientHello` (`0x16`) auto-detection so `https://127.0.0.1:7890` and `http://127.0.0.1:7890` work simultaneously on port `7890`.
+- **Video Frame Thumbnails, YouTube Video/Playlist Import & Browser-Driven Google OAuth Sync**:
+  - Added FFmpeg automatic JPEG thumbnail extraction (`GET /api/health/video/thumbnail`) for local `.mp4` workout videos.
+  - Added YouTube video & playlist import (`POST /api/health/videos/youtube/add`, `POST /api/health/videos/youtube/delete`) with embedded YouTube player modal support.
+  - Added non-blocking browser popup Google OAuth2 flow (`POST /api/health/youtube/oauth/sync`, `GET /api/health/youtube/oauth/callback`, `GET /api/health/youtube/oauth/status`) to sync personal/private YouTube playlists via `youtube.readonly`.
+
+---
+
 ## [2.16.3] - 2026-11-12
 
 ### Added

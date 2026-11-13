@@ -13,6 +13,9 @@ fleet.json
 fleet/data/credentials.json
 fleet/data/client_secret*.json
 fleet/data/gmail_token.json
+fleet/data/youtube_token.json
+fleet/data/certs/
+fleet/data/certs/*
 *client_secret*.json
 *.token.json
 credentials.json

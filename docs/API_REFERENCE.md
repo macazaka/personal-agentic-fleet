@@ -235,7 +235,7 @@ The Personal Agentic Fleet provides a comprehensive terminal interface accessibl
 | `fleet version` | None | Displays version, Python interpreter details, and operating system platform. |
 
 <!-- AUTO-API-ROUTES:START -->
-## 🔄 Complete Live REST API Route Inventory (`168` Endpoints — `v2.16.3`)
+## 🔄 Complete Live REST API Route Inventory (`171` Endpoints — `v2.17.0`)
 
 This table is **automatically introspected from `fleet/api/*.py` AST decorators** on every release by `fleet.tools.doc_wiki_enhancer`:
 
@@ -294,6 +294,7 @@ This table is **automatically introspected from `fleet/api/*.py` AST decorators*
 | `POST` | `/api/health/videos/youtube/add` | `add_youtube_video_endpoint` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `add_youtube_video_endpoint` in `fleet/api/health_api.py`. |
 | `POST` | `/api/health/videos/youtube/delete` | `delete_youtube_video_endpoint` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `delete_youtube_video_endpoint` in `fleet/api/health_api.py`. |
 | `GET` | `/api/health/youtube/oauth/status` | `get_youtube_oauth_status` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handler `get_youtube_oauth_status` in `fleet/api/health_api.py`. |
+| `GET` | `/api/health/youtube/oauth/callback` | `youtube_oauth_callback_endpoint` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Handles the browser redirect from Google OAuth2 consent and writes youtube_token.json. |
 | `POST` | `/api/health/youtube/oauth/sync` | `sync_personal_youtube_playlists_oauth` ([`fleet/api/health_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/health_api.py)) | Authenticates with the user's personal Google login via OAuth2 (using fleet/data/credentials.json |
 | `GET` | `/api/hyperscalers/providers` | `get_hyperscaler_providers` ([`fleet/api/hyperscalers_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/hyperscalers_api.py)) | Returns list of supported hyperscalers and their configured models. |
 | `GET` | `/api/hyperscalers/dev_tools` | `get_developer_tools_status` ([`fleet/api/hyperscalers_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/hyperscalers_api.py)) | Returns detection status for GitHub Copilot, Claude Code, Antigravity, Gemini CLI, Amazon Q, Cursor, VS Code, and Ollama. |
@@ -367,6 +368,8 @@ This table is **automatically introspected from `fleet/api/*.py` AST decorators*
 | `POST` | `/api/overview/widgets/pin` | `post_pin_overview_widget_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-09: Pins, unpins, or reorders agent micro-widgets on the Overview Executive Cockpit. |
 | `GET` | `/api/voice/activities` | `get_voice_activities_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Returns the catalog of bi-directional voice-linked AFCC activities across all agents. |
 | `POST` | `/api/voice/converse` | `post_voice_converse_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Bi-Directional Audio Conversation endpoint: executes linked activities and returns spoken reply + UI actions. |
+| `GET` | `/api/voice/voiceprint` | `get_voiceprint_profile_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Returns the user's enrolled biometric speaker voiceprint profile from local SQLite settings. |
+| `POST` | `/api/voice/voiceprint` | `save_voiceprint_profile_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Persists or clears the user's biometric speaker voiceprint profile (F0 pitch, spectral centroid, harmonic ratio). |
 | `POST` | `/api/omnibar/voice` | `post_omnibar_voice_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-10: Transcribes/normalizes spoken voice commands into the Tier-0 Omnibar router at $0.00. |
 | `GET` | `/api/tray/status` | `get_tray_status_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-10: Returns System Tray Companion status, Harmony score, and hotkey bindings. |
 | `POST` | `/api/tray/action` | `post_tray_action_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-10: Executes a System Tray Companion quick-menu action. |

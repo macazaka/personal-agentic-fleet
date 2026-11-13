@@ -275,3 +275,97 @@ def test_ux06_to_ux10_settings_api_endpoints():
     h5 = MagicMock()
     get_tray_status_endpoint(h5, urllib.parse.urlparse("/api/tray/status"))
     assert h5._send_json.call_args[0][0]["global_hotkey"] == "Alt+Space"
+
+
+def test_jarvis_voice_brain_and_speaker_biometrics(isolated_db):
+    from fleet.api.settings_api import (
+        get_voiceprint_profile_endpoint,
+        post_voiceprint_profile_endpoint,
+    )
+    from fleet.core.omnibar_dispatcher import _clean_for_speech, execute_voice_conversation_turn
+
+    # 1. "Can you hear me?" -> Instant $0.00 Jarvis Presence Check
+    res_hear = execute_voice_conversation_turn("Can you hear me?", language="en", gender="female", accent="IN")
+    assert res_hear["mode"] == "jarvis_presence"
+    assert res_hear["tokens_used"] == 0
+    assert "Loud and clear" in res_hear["spoken_reply"]
+    assert not res_hear["spoken_reply"].startswith("{")
+
+    # 2. Phonetic distortion "crisis" with N-best alternatives=["crisis", "can you hear me"]
+    res_alt = execute_voice_conversation_turn(
+        "crisis",
+        language="en",
+        gender="female",
+        accent="IN",
+        alternatives=["crisis", "can you hear me"],
+    )
+    assert res_alt["selected_transcript"] == "can you hear me"
+    assert res_alt["mode"] == "jarvis_presence"
+    assert res_alt["tokens_used"] == 0
+
+    # 3. Isolated background noise word "crisis" -> Ignored at $0.00 (0 tokens, empty spoken reply)
+    res_noise = execute_voice_conversation_turn("crisis", language="en", gender="female", accent="IN")
+    assert res_noise.get("ignored_noise") is True
+    assert res_noise["tokens_used"] == 0
+    assert res_noise["spoken_reply"] == ""
+
+    # 4. Ask About All Agents ("What agents do I have?")
+    res_roster = execute_voice_conversation_turn("What agents do I have?", language="en")
+    assert res_roster["mode"] == "agent_roster"
+    assert res_roster["tokens_used"] == 0
+    assert "Health" in res_roster["message"]
+
+    # 5. Ask About Specific Agent ("Tell me about the Health agent")
+    res_health_info = execute_voice_conversation_turn("Tell me about the Health agent", language="en")
+    assert res_health_info["mode"] == "agent_introspection"
+    assert res_health_info["agent_id"] == "health"
+    assert res_health_info["tokens_used"] == 0
+
+    # 6. Recent Agent Activity ("What did my agents do recently?")
+    res_activity = execute_voice_conversation_turn("What did my agents do recently?", language="en")
+    assert res_activity["mode"] == "agent_activity_log"
+    assert res_activity["tokens_used"] == 0
+
+    # 7. Play Workout Video / Playlist by Voice
+    res_video = execute_voice_conversation_turn("Play my workout playlist", language="en")
+    assert res_video["mode"] == "voice_activity"
+    assert any(a.get("type") == "play_video_by_voice" for a in res_video.get("ui_actions", []))
+
+    # 8. Direct Antigravity Live Bridge ("Ask Antigravity to check database indexes")
+    res_ag = execute_voice_conversation_turn("Ask Antigravity to check database indexes", language="en")
+    assert res_ag["mode"] == "antigravity_direct"
+    assert any(a.get("type") == "send_to_antigravity" for a in res_ag.get("ui_actions", []))
+
+    # 9. Raw JSON Telemetry Shield in _clean_for_speech
+    raw_json = '{"conversation_id":"eb079753-31f7-47f6-a188-72967eb956e5","status":"SUCCESS","response":"","usage":{"total_tokens":15320}}'
+    cleaned_speech = _clean_for_speech(raw_json)
+    assert not cleaned_speech.startswith("{")
+    assert "conversation_id" not in cleaned_speech
+
+    # 10. Biometric Speaker Voiceprint persistence endpoints
+    h_post = MagicMock()
+    post_voiceprint_profile_endpoint(
+        h_post,
+        {"profile": {"pitchMeanHz": 148, "pitchStdHz": 22, "centroidMeanHz": 1180}},
+    )
+    assert h_post._send_json.call_args[0][0]["status"] == "ok"
+    assert h_post._send_json.call_args[0][0]["enrolled"] is True
+
+    h_get = MagicMock()
+    get_voiceprint_profile_endpoint(h_get, urllib.parse.urlparse("/api/voice/voiceprint"))
+    assert h_get._send_json.call_args[0][0]["enrolled"] is True
+    assert h_get._send_json.call_args[0][0]["profile"]["pitchMeanHz"] == 148
+
+
+def test_local_tls_certificate_and_https_dual_stack():
+    from fleet.core.local_tls import build_local_ssl_context, ensure_local_tls_certificates
+    from fleet.server import ALLOWED_ORIGINS
+
+    res = ensure_local_tls_certificates()
+    assert res["status"] in ("existing", "generated")
+    ctx = build_local_ssl_context()
+    assert ctx is not None
+    assert "https://127.0.0.1:7890" in ALLOWED_ORIGINS
+    assert "https://localhost:7890" in ALLOWED_ORIGINS
+
+

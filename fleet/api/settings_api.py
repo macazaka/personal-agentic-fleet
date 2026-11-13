@@ -2157,6 +2157,9 @@ def post_voice_converse_endpoint(handler: Any, body: Dict[str, Any]):
     language = str(payload.get("language") or "en").strip().lower()
     gender = str(payload.get("gender") or "female").strip().lower()
     accent = str(payload.get("accent") or "IN").strip().upper()
+    routing_mode = str(payload.get("routing_mode") or "zero_token").strip().lower()
+    raw_alts = payload.get("alternatives")
+    alternatives = [str(a).strip() for a in raw_alts if str(a).strip()] if isinstance(raw_alts, list) else []
     res = transcribe_and_dispatch_voice_command(
         transcript=transcript,
         agent_registry=getattr(srv, "agent_registry", None),
@@ -2164,13 +2167,53 @@ def post_voice_converse_endpoint(handler: Any, body: Dict[str, Any]):
         language=language,
         gender=gender,
         accent=accent,
+        routing_mode=routing_mode,
+        alternatives=alternatives,
     )
-    if hasattr(srv, "db") and srv.db:
+    if hasattr(srv, "db") and srv.db and not res.get("ignored_noise"):
         try:
             srv.db.log_activity("VoiceCopilot", "voice_turn", f"Voice ({language}/{gender}/{accent}): '{transcript[:80]}' -> {res.get('title', 'OK')}")
         except Exception:
             pass
     handler._send_json(res)
+
+
+@router.get("/api/voice/voiceprint")
+def get_voiceprint_profile_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """Returns the user's enrolled biometric speaker voiceprint profile from local SQLite settings."""
+    db_inst = getattr(srv, "db", None)
+    profile = None
+    if db_inst and hasattr(db_inst, "get_setting"):
+        raw = db_inst.get_setting("jarvis_voiceprint_profile", "")
+        if raw:
+            try:
+                profile = json.loads(raw)
+            except Exception:
+                profile = None
+    handler._send_json({"status": "ok", "enrolled": bool(profile), "voiceprint": profile, "profile": profile})
+
+
+@router.post("/api/voice/voiceprint")
+def save_voiceprint_profile_endpoint(handler: Any, body: Dict[str, Any]):
+    """Persists or clears the user's biometric speaker voiceprint profile (F0 pitch, spectral centroid, harmonic ratio)."""
+    payload = body if isinstance(body, dict) else {}
+    db_inst = getattr(srv, "db", None)
+    if payload.get("clear"):
+        if db_inst and hasattr(db_inst, "set_setting"):
+            db_inst.set_setting("jarvis_voiceprint_profile", "")
+        handler._send_json({"status": "cleared", "enrolled": False, "voiceprint": None, "profile": None})
+        return
+    vp = (
+        payload.get("profile")
+        if isinstance(payload.get("profile"), dict)
+        else (payload.get("voiceprint") if isinstance(payload.get("voiceprint"), dict) else payload)
+    )
+    if db_inst and hasattr(db_inst, "set_setting"):
+        db_inst.set_setting("jarvis_voiceprint_profile", json.dumps(vp))
+    handler._send_json({"status": "ok", "enrolled": True, "voiceprint": vp, "profile": vp})
+
+
+post_voiceprint_profile_endpoint = save_voiceprint_profile_endpoint
 
 
 @router.post("/api/omnibar/voice")
@@ -2186,6 +2229,9 @@ def post_omnibar_voice_endpoint(handler: Any, body: Dict[str, Any]):
     language = str(payload.get("language") or "en").strip().lower()
     gender = str(payload.get("gender") or "female").strip().lower()
     accent = str(payload.get("accent") or "IN").strip().upper()
+    routing_mode = str(payload.get("routing_mode") or "zero_token").strip().lower()
+    raw_alts = payload.get("alternatives")
+    alternatives = [str(a).strip() for a in raw_alts if str(a).strip()] if isinstance(raw_alts, list) else []
     res = transcribe_and_dispatch_voice_command(
         transcript=transcript,
         agent_registry=getattr(srv, "agent_registry", None),
@@ -2193,6 +2239,8 @@ def post_omnibar_voice_endpoint(handler: Any, body: Dict[str, Any]):
         language=language,
         gender=gender,
         accent=accent,
+        routing_mode=routing_mode,
+        alternatives=alternatives,
     )
     handler._send_json(res)
 

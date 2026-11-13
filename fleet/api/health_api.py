@@ -1045,6 +1045,8 @@ def delete_youtube_video_endpoint(handler: Any, body: Dict[str, Any]):
 
 
 YOUTUBE_OAUTH_SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
+YOUTUBE_OAUTH_CALLBACK_URI = "http://localhost:7890/api/health/youtube/oauth/callback"
+_PENDING_YOUTUBE_OAUTH: Dict[str, Any] = {}
 
 
 def _get_youtube_token_file() -> Path:
@@ -1063,6 +1065,76 @@ def get_youtube_oauth_status(handler: Any, parsed_url: urllib.parse.ParseResult)
         "youtube_token_present": token_file.exists(),
         "scopes": YOUTUBE_OAUTH_SCOPES,
     })
+
+
+@router.get("/api/health/youtube/oauth/callback")
+def youtube_oauth_callback_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """Handles the browser redirect from Google OAuth2 consent and writes youtube_token.json."""
+    from fleet.integrations.gmail_client import get_credentials_file
+    qs = urllib.parse.parse_qs(parsed_url.query)
+    code = (qs.get("code") or [""])[0].strip()
+    err = (qs.get("error") or [""])[0].strip()
+
+    if err or not code:
+        html = f"""<!DOCTYPE html><html><body style="background:#0f172a;color:#f87171;font-family:sans-serif;padding:32px;text-align:center;">
+        <h2>⚠️ Google Sign-In Cancelled or Failed</h2>
+        <p>{err or 'Missing authorization code.'}</p>
+        <button onclick="window.close()" style="padding:8px 16px;border-radius:6px;border:none;background:#334155;color:#fff;cursor:pointer;">Close Window</button>
+        </body></html>"""
+        body_bytes = html.encode("utf-8")
+        handler.send_response(400)
+        handler.send_header("Content-Type", "text/html; charset=utf-8")
+        handler.send_header("Content-Length", str(len(body_bytes)))
+        handler.end_headers()
+        handler.wfile.write(body_bytes)
+        return
+
+    try:
+        from google_auth_oauthlib.flow import InstalledAppFlow
+        creds_file = get_credentials_file()
+        token_file = _get_youtube_token_file()
+        flow = InstalledAppFlow.from_client_secrets_file(
+            str(creds_file),
+            YOUTUBE_OAUTH_SCOPES,
+            redirect_uri=YOUTUBE_OAUTH_CALLBACK_URI,
+        )
+        code_verifier = _PENDING_YOUTUBE_OAUTH.get("code_verifier")
+        if code_verifier:
+            flow.code_verifier = code_verifier
+        flow.fetch_token(code=code)
+        creds = flow.credentials
+        token_file.write_text(creds.to_json(), encoding="utf-8")
+
+        html = """<!DOCTYPE html><html><body style="background:#0f172a;color:#34d399;font-family:sans-serif;padding:36px;text-align:center;">
+        <h2>✅ Google YouTube Account Connected!</h2>
+        <p style="color:#cbd5e1;">Your personal YouTube playlists are now syncing into AFCC. This window will close automatically...</p>
+        <script>
+          try {
+            if (window.opener) {
+              window.opener.postMessage({ type: 'AFCC_YOUTUBE_OAUTH_SUCCESS' }, '*');
+            }
+          } catch (e) {}
+          setTimeout(function() { window.close(); }, 1000);
+        </script>
+        </body></html>"""
+        body_bytes = html.encode("utf-8")
+        handler.send_response(200)
+        handler.send_header("Content-Type", "text/html; charset=utf-8")
+        handler.send_header("Content-Length", str(len(body_bytes)))
+        handler.end_headers()
+        handler.wfile.write(body_bytes)
+    except Exception as exc:
+        html = f"""<!DOCTYPE html><html><body style="background:#0f172a;color:#f87171;font-family:sans-serif;padding:32px;text-align:center;">
+        <h2>❌ OAuth Token Exchange Error</h2>
+        <p style="color:#cbd5e1;">{str(exc)}</p>
+        <button onclick="window.close()" style="padding:8px 16px;border-radius:6px;border:none;background:#334155;color:#fff;cursor:pointer;">Close Window</button>
+        </body></html>"""
+        body_bytes = html.encode("utf-8")
+        handler.send_response(500)
+        handler.send_header("Content-Type", "text/html; charset=utf-8")
+        handler.send_header("Content-Length", str(len(body_bytes)))
+        handler.end_headers()
+        handler.wfile.write(body_bytes)
 
 
 @router.post("/api/health/youtube/oauth/sync")
@@ -1120,18 +1192,56 @@ def sync_personal_youtube_playlists_oauth(handler: Any, body: Dict[str, Any]):
                     "needs_oauth_consent": True,
                 }, 401)
                 return
-            flow = InstalledAppFlow.from_client_secrets_file(str(creds_file), YOUTUBE_OAUTH_SCOPES)
-            creds = flow.run_local_server(port=0)
-            token_file.write_text(creds.to_json(), encoding="utf-8")
+
+            flow = InstalledAppFlow.from_client_secrets_file(
+                str(creds_file),
+                YOUTUBE_OAUTH_SCOPES,
+                redirect_uri=YOUTUBE_OAUTH_CALLBACK_URI,
+            )
+            auth_url, state = flow.authorization_url(
+                access_type="offline",
+                prompt="consent",
+            )
+            _PENDING_YOUTUBE_OAUTH["state"] = state
+            _PENDING_YOUTUBE_OAUTH["code_verifier"] = getattr(flow, "code_verifier", None)
+            handler._send_json({
+                "status": "needs_oauth_consent",
+                "needs_oauth_consent": True,
+                "auth_url": auth_url,
+                "message": "Please complete the one-time Google Sign-In in the popup window to grant read-only access to your YouTube playlists.",
+            })
+            return
 
         yt_service = build("youtube", "v3", credentials=creds)
+        channel_title = "your Google YouTube account"
+        liked_playlist_id = ""
+        try:
+            ch_resp = yt_service.channels().list(
+                part="snippet,contentDetails",
+                mine=True,
+            ).execute()
+            ch_items = ch_resp.get("items", []) or []
+            if ch_items:
+                ch_snip = ch_items[0].get("snippet", {}) or {}
+                channel_title = str(ch_snip.get("title") or channel_title).strip()
+                rel_pls = (ch_items[0].get("contentDetails", {}) or {}).get("relatedPlaylists", {}) or {}
+                liked_playlist_id = str(rel_pls.get("likes") or "").strip()
+        except Exception:
+            pass
+
         pl_resp = yt_service.playlists().list(
             part="snippet,contentDetails",
             mine=True,
             maxResults=25,
         ).execute()
 
-        personal_playlists = pl_resp.get("items", []) or []
+        personal_playlists = list(pl_resp.get("items", []) or [])
+        if liked_playlist_id and not any(str(p.get("id") or "") == liked_playlist_id for p in personal_playlists):
+            personal_playlists.append({
+                "id": liked_playlist_id,
+                "snippet": {"title": "Liked YouTube Videos"},
+            })
+
         yt_videos = load_youtube_videos()
         existing_by_id = {str(v.get("youtube_id")): v for v in yt_videos if isinstance(v, dict)}
         local_playlists = load_video_playlists()
@@ -1148,11 +1258,14 @@ def sync_personal_youtube_playlists_oauth(handler: Any, body: Dict[str, Any]):
             snippet = pl_item.get("snippet", {}) or {}
             pl_title = str(snippet.get("title") or f"YouTube Playlist {yt_pl_id[:6]}").strip()
 
-            items_resp = yt_service.playlistItems().list(
-                part="snippet,contentDetails",
-                playlistId=yt_pl_id,
-                maxResults=50,
-            ).execute()
+            try:
+                items_resp = yt_service.playlistItems().list(
+                    part="snippet,contentDetails",
+                    playlistId=yt_pl_id,
+                    maxResults=35,
+                ).execute()
+            except Exception:
+                continue
 
             pl_video_entries = []
             for v_item in items_resp.get("items", []) or []:
@@ -1213,6 +1326,7 @@ def sync_personal_youtube_playlists_oauth(handler: Any, body: Dict[str, Any]):
 
         handler._send_json({
             "status": "synced",
+            "channel_title": channel_title,
             "imported_playlists_count": len(imported_playlists),
             "imported_videos_count": total_videos_imported,
             "imported_playlists": imported_playlists,

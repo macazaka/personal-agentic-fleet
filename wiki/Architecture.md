@@ -1,6 +1,6 @@
 # 🏛️ System Architecture & Microkernel Internals
 
-> **Release Version**: `v2.16.3` | **Core Modules**: `fleet/server.py`, `fleet/api/router.py`, `fleet/core/database.py`, `fleet/core/registry.py`, `fleet/core/plugin_sandbox.py`, `fleet/core/event_bus.py`
+> **Release Version**: `v2.17.0` | **Core Modules**: `fleet/server.py`, `fleet/api/router.py`, `fleet/core/database.py`, `fleet/core/registry.py`, `fleet/core/plugin_sandbox.py`, `fleet/core/event_bus.py`
 
 The **Personal Agentic Fleet** is engineered as a local-first, zero-dependency Python microkernel operating system. It combines a multi-threaded HTTP/1.1 + RFC 7233 byte-range server (`fleet/server.py`), a modular REST & SSE router (`fleet/api/router.py`), a capability-enforced plugin sandbox (`fleet/core/plugin_sandbox.py`), a thread-pooled SQLite 3 WAL storage engine (`fleet/core/database.py`), and the **4-Layer Cognitive Fleet Mind** (`fleet/core/mind/`).
 
@@ -116,7 +116,7 @@ Every agent in `fleet/agents/<agent_id>/` declares its required permissions in `
 | **`auto_improvements`** | `id INTEGER PRIMARY KEY AUTOINCREMENT` | `timestamp TEXT`, `category TEXT`, `issue_detected TEXT`, `action_taken TEXT`, `status TEXT`, `impact_score INTEGER DEFAULT 5` | Autonomous self-healing actions recorded by `AutoHealer` and `FleetSoul`. |
 
 <!-- AUTO-CORE-MODULES:START -->
-## 🧩 Live Microkernel Core Modules Inventory (`35` Modules — `v2.16.3`)
+## 🧩 Live Microkernel Core Modules Inventory (`36` Modules — `v2.17.0`)
 
 Automatically introspected from `fleet/core/*.py` on every release:
 
@@ -138,6 +138,7 @@ Automatically introspected from `fleet/core/*.py` on every release:
 | `fleet.core.http_client` | [`fleet/core/http_client.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/http_client.py) | Resilient HTTP Client with 3-State Circuit Breaker & Exponential Backoff for Personal Agentic Fleet. |
 | `fleet.core.hyperscalers` | [`fleet/core/hyperscalers.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/hyperscalers.py) | Hyperscaler & Multi-Provider LLM Gateway for Personal Agentic Fleet. |
 | `fleet.core.lifecycle` | [`fleet/core/lifecycle.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/lifecycle.py) | Unified Lifecycle, Signal Trap & Clean Shutdown Coordinator for Personal Agentic Fleet. |
+| `fleet.core.local_tls` | [`fleet/core/local_tls.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/local_tls.py) | Local Loopback TLS Certificate Authority & Dual-Stack HTTPS Engine for AFCC. |
 | `fleet.core.logger` | [`fleet/core/logger.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/logger.py) | Structured JSON Logging Engine, Error Forensics & Ring Buffer for Personal Agentic Fleet. |
 | `fleet.core.network_spool` | [`fleet/core/network_spool.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/network_spool.py) | Offline Network Detection & Event Spooling Engine for Personal Agentic Fleet. |
 | `fleet.core.omnibar_dispatcher` | [`fleet/core/omnibar_dispatcher.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/omnibar_dispatcher.py) | UX-05: Unified "Ask Fleet Anything" Conversational Omnibar & Cross-Agent Dispatcher. |

@@ -26,12 +26,12 @@
 - [[Release-Notes|Release Notes]]
 
 ### Quick Reference
-- **Release:** `v2.16.3`
+- **Release:** `v2.17.0`
 - **Port:** `7890`
 - **Palette:** `Ctrl+K` or `/`
 - **Cost:** `$0.00 / Zero-Token`
 - **Security:** `100/100 Grade A+`
-- **Tests:** `511/511 Passing`
+- **Tests:** `513/513 Passing`
 
 ---
 [Personal Agentic Fleet GitHub](https://github.com/macazaka/personal-agentic-fleet)

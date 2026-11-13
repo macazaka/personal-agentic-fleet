@@ -506,7 +506,7 @@ class HyperscalerGateway:
         stdin_cmd = [
             agy_path,
             "-p",
-            "Follow all instructions and respond to the complete prompt piped via stdin.",
+            "Respond directly in concise text to the prompt piped via stdin without invoking shell commands or external tools.",
             "--input-format",
             "text",
             "--model",
@@ -538,10 +538,16 @@ class HyperscalerGateway:
         try:
             parsed = json.loads(raw_out)
             if isinstance(parsed, dict):
-                text = str(parsed.get("response") or parsed.get("content") or parsed.get("output") or raw_out).strip()
+                extracted = str(parsed.get("response") or parsed.get("content") or parsed.get("output") or "").strip()
                 usage = parsed.get("usage", {})
                 if isinstance(usage, dict):
                     tokens = int(usage.get("total_tokens", 0) or 0)
+                if extracted:
+                    text = extracted
+                elif "conversation_id" in parsed or "status" in parsed or "denied_actions" in parsed:
+                    raise RuntimeError("Antigravity CLI returned an empty text response in JSON envelope")
+        except RuntimeError:
+            raise
         except Exception:
             pass
         cache_prompt_response(prompt, text)
