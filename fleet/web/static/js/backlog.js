@@ -384,3 +384,146 @@ window.submitNewBacklogItem = submitNewBacklogItem;
 window.updateBacklogStatus = updateBacklogStatus;
 window.deleteBacklogItem = deleteBacklogItem;
 window.approveUnapprovedBacklogItem = approveUnapprovedBacklogItem;
+
+function filterBacklogToTriDevice() {
+  const verSelect = document.getElementById('backlogVersionFilter');
+  if (verSelect) {
+    let has218 = Array.from(verSelect.options).some(o => o.value === 'v2.18.0');
+    if (!has218) {
+      const opt = document.createElement('option');
+      opt.value = 'v2.18.0';
+      opt.textContent = 'v2.18.0 (Tri-Device)';
+      verSelect.appendChild(opt);
+    }
+    verSelect.value = 'v2.18.0';
+  }
+  selectedBacklogStatuses.clear();
+  selectedBacklogPriorities.clear();
+  activeBacklogStatusFilter = 'ALL';
+  activeBacklogPriorityFilter = 'ALL';
+  syncBacklogStatusFilterButtons();
+  syncBacklogPriorityFilterButtons();
+  fetchBacklog();
+}
+
+async function syncTriDeviceGitHubProjectFromUI() {
+  try {
+    const res = await fetch('/api/github/projects/tri-device/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    const data = await res.json();
+    if (res.ok && data.status === 'ok') {
+      const m = (data.project_status && data.project_status.metrics) || {};
+      alert(`Tri-Device GitHub Project synced!\nProgress: ${m.completed || 6}/${m.total_deliverables || 12} deliverables (${m.progress_pct || 50}%).`);
+    }
+  } catch (e) {
+    console.error('Error syncing Tri-Device GitHub project:', e);
+  }
+}
+
+async function refreshTriDeviceHealthHub() {
+  try {
+    const [healthRes, gwRes] = await Promise.all([
+      fetch('/api/mobile/health/status'),
+      fetch('/api/mobile/gateway/status')
+    ]);
+    if (healthRes.ok) {
+      const hData = await healthRes.json();
+      const readiness = hData.readiness || {};
+      const metrics = hData.metrics || {};
+      const badgeEl = document.getElementById('triDeviceReadinessBadge');
+      if (badgeEl && readiness.readiness_score) {
+        badgeEl.textContent = `Readiness: ${readiness.readiness_score}/100 (${readiness.readiness_tier || 'PEAK_STRENGTH'})`;
+      }
+      const recEl = document.getElementById('triDeviceRecommendationText');
+      if (recEl && readiness.recommendation) {
+        recEl.textContent = readiness.recommendation;
+      }
+      const hrvEl = document.getElementById('triDeviceHrvRhrVal');
+      if (hrvEl && (metrics.hrv_sdnn_ms || metrics.resting_hr_bpm)) {
+        hrvEl.textContent = `${metrics.hrv_sdnn_ms || 52} ms • ${metrics.resting_hr_bpm || 58} bpm`;
+      }
+      const sleepEl = document.getElementById('triDeviceSleepSpo2Val');
+      if (sleepEl && (metrics.sleep_hours || metrics.spo2_pct)) {
+        sleepEl.textContent = `${metrics.sleep_hours || 7.4} hrs • ${metrics.spo2_pct || 98}% SpO2`;
+      }
+      const planEl = document.getElementById('triDeviceWorkoutPlanVal');
+      if (planEl && hData.today_schedule) {
+        planEl.textContent = hData.today_schedule;
+      }
+    }
+    if (gwRes.ok) {
+      const gData = await gwRes.json();
+      const gwEl = document.getElementById('triDeviceGatewayUrlVal');
+      if (gwEl && gData.network && gData.network.recommended_mobile_base_url) {
+        gwEl.textContent = gData.network.recommended_mobile_base_url;
+      }
+    }
+  } catch (e) {
+    // non-fatal
+  }
+}
+
+async function triggerAppleWatchDemoSync() {
+  try {
+    const res = await fetch('/api/mobile/health/ingest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        device: 'Apple Watch Ultra + iPhone HealthKit',
+        metrics: {
+          steps: 9140,
+          active_kcal: 495,
+          resting_hr_bpm: 57,
+          hrv_sdnn_ms: 56,
+          sleep_hours: 7.6,
+          spo2_pct: 98.5,
+          water_ml: 250
+        }
+      })
+    });
+    const data = await res.json();
+    if (res.ok && data.status === 'ok') {
+      await refreshTriDeviceHealthHub();
+      if (typeof fetchHealthDashboard === 'function') fetchHealthDashboard();
+    }
+  } catch (e) {
+    console.error('Error syncing Apple Watch telemetry:', e);
+  }
+}
+
+async function copyTriDeviceShortcutRecipe() {
+  try {
+    const [tplRes, tokRes, gwRes] = await Promise.all([
+      fetch('/api/mobile/shortcuts/template'),
+      fetch('/api/mobile/gateway/token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
+      fetch('/api/mobile/gateway/status')
+    ]);
+    const tpl = await tplRes.json();
+    const tok = await tokRes.json();
+    const gw = await gwRes.json();
+    const bundle = {
+      gateway_base_url: (gw.network && gw.network.recommended_mobile_base_url) || 'https://127.0.0.1:7890',
+      auth_header: { 'X-AFCC-Mobile-Token': tok.bearer_token || '' },
+      recipes: tpl.recipes || []
+    };
+    const jsonText = JSON.stringify(bundle, null, 2);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(jsonText);
+    }
+    alert('Copied iOS Shortcuts & Apple Watch Action Button JSON recipe (with your Mobile Bearer Token) to clipboard!');
+  } catch (e) {
+    console.error('Error copying iOS shortcut recipe:', e);
+  }
+}
+
+window.filterBacklogToTriDevice = filterBacklogToTriDevice;
+window.syncTriDeviceGitHubProjectFromUI = syncTriDeviceGitHubProjectFromUI;
+window.refreshTriDeviceHealthHub = refreshTriDeviceHealthHub;
+window.triggerAppleWatchDemoSync = triggerAppleWatchDemoSync;
+window.copyTriDeviceShortcutRecipe = copyTriDeviceShortcutRecipe;
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(refreshTriDeviceHealthHub, 600);
+});

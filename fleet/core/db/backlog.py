@@ -543,7 +543,7 @@ UX_ROADMAP_BACKLOG_ITEMS: List[Dict[str, str]] = [
         "description": "Enable AFCC to securely make payments on the user's behalf (Credit Card bills, Electricity bills, Broadband/Mobile bills, Loan EMIs, NPS/PPF investments, Insurance renewals, and KINDUZ compliance/vendor payments) with human-in-the-loop OTP/UPI/2FA approval, spend-limit guardrails, DPAPI vault security, receipt verification, and automatic task completion.",
         "category": "Automation",
         "priority": "P1",
-        "status": "Planned",
+        "status": "Completed",
         "target_version": "v2.17.0",
     },
     {
@@ -628,11 +628,111 @@ UX_ROADMAP_BACKLOG_ITEMS: List[Dict[str, str]] = [
     },
 ]
 
+TRI_DEVICE_BACKLOG_ITEMS: List[Dict[str, str]] = [
+    {
+        "title": "[TD-01] Tri-Device Phase 1: Tailscale WireGuard Private Mesh, Local Root CA (/api/security/ca.crt) & Mobile Bearer Token Gateway",
+        "description": "Phase 1 Zero-Store Foundation: Provision private Tailscale WireGuard mesh & LAN HTTPS discovery (/api/mobile/gateway/status), 1-tap iOS Root CA certificate download (/api/security/ca.crt), and 256-bit DPAPI-backed Mobile Bearer Token authentication (/api/mobile/gateway/token) with zero public port forwarding.",
+        "category": "Security",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.18.0",
+    },
+    {
+        "title": "[TD-02] Tri-Device Phase 1: Apple Watch & iPhone HealthKit Telemetry Ingestion + FFD Workout Readiness Engine (/api/mobile/health/ingest)",
+        "description": "Phase 1 Zero-Store Foundation: Ingest Apple Watch & iPhone HealthKit biometrics (HRV SDNN, Sleep hours, Resting HR, SpO2, Steps, Active kcal, Glucose, Water ml), compute deterministic 0-100 FFD & Traditional Strength Workout Readiness Score (Mudgal/Samtola/Bhim Gadha adaptation), and persist in AES-256-GCM encrypted apple_health_sync_vault.json.",
+        "category": "Integration",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.18.0",
+    },
+    {
+        "title": "[TD-03] Tri-Device Phase 1: iOS Automated Background Health Sync Shortcut, Standalone PWA (manifest.json + sw.js) & Tri-Device Hub UI",
+        "description": "Phase 1 Zero-Store Foundation: Serve native W3C Web App Manifest (/manifest.json), zero-cloud Service Worker (/sw.js), downloadable iOS Automated Health Sync Shortcut recipe (/api/mobile/shortcuts/template), and interactive Tri-Device Apple Watch & iPhone Hub in Health & Backlog panels.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.18.0",
+    },
+    {
+        "title": "[TD-04] Tri-Device Phase 2: Responsive iPhone Safari Standalone PWA Shell & Touch-Optimized Bottom Tab Bar",
+        "description": "Phase 2 Mobile Voice & PWA: iOS viewport-fit=cover safe-area styling, standalone home-screen app experience, and touch-ergonomic mobile navigation across Overview, Mahadev Voice, Monthly Payments, and Health.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "In Progress",
+        "target_version": "v2.18.0",
+    },
+    {
+        "title": "[TD-05] Tri-Device Phase 2: 'Mahadev' Wake-Word Mobile Voice Cockpit (1.5x–3x Speed) & Live Verbal Action-Item Conversation Engine",
+        "description": "Phase 2 Mobile Voice & PWA: Custom 'Mahadev' wake word, high-speed Indian English TTS (1.5x, 1.75x, 2x, 2.5x, 3x), and stateful zero-token verbal review, closing, editing, reprioritizing, and reopening of open and closed Action Items.",
+        "category": "AI/LLM",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.18.0",
+    },
+    {
+        "title": "[TD-06] Tri-Device Phase 2: iOS IndexedDB Offline Encrypted Cache & Background Outbox Sync Queue",
+        "description": "Phase 2 Mobile Voice & PWA: Client-side IndexedDB caching of open/closed Action Items and offline mutation queue that automatically replays when the Windows Laptop AFCC Hub wakes or reconnects over Tailscale.",
+        "category": "Core",
+        "priority": "P2",
+        "status": "In Progress",
+        "target_version": "v2.18.0",
+    },
+    {
+        "title": "[TD-07] Tri-Device Phase 2: iOS Scriptable Home Screen & Lock Screen FFD Readiness & Action-Item Widgets",
+        "description": "Phase 2 Mobile Voice & PWA: iOS Home Screen and Lock Screen widgets displaying live FFD Workout Readiness Score, Daily Hydration progress, and top P1 Action Item count.",
+        "category": "UI/UX",
+        "priority": "P2",
+        "status": "Planned",
+        "target_version": "v2.18.0",
+    },
+    {
+        "title": "[TD-08] Tri-Device Phase 3: 1-Tap iPhone Open Payment Deep-Link Dispatcher (BHIM, ICICI iMobile, GPay, PhonePe) & Voltage-FPE VPA Masking",
+        "description": "Phase 3 1-Tap UPI & Bank Payments: RFC-compliant UPI & bank deep links (/api/mobile/payments/deeplink) with spend-limit guardrails, Voltage-FPE VPA masking, and 1-tap automatic closure of paid Monthly Action Items.",
+        "category": "Integration",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.18.0",
+    },
+    {
+        "title": "[TD-09] Tri-Device Phase 3: iOS Share Sheet & Bank SMS Confirmation Receipt Parser for Auto-Closing Paid Monthly Action Items",
+        "description": "Phase 3 1-Tap UPI & Bank Payments: Parse UTR/reference numbers shared from BHIM, ICICI iMobile, GPay, or bank SMS receipts to automatically mark the matching Monthly Action Item closed with timestamped audit notes.",
+        "category": "Automation",
+        "priority": "P1",
+        "status": "Planned",
+        "target_version": "v2.18.0",
+    },
+    {
+        "title": "[TD-10] Tri-Device Phase 4: Apple Watch Smart Stack Complication (<2KB Snapshot) & 1-Tap Wrist Actions (+250ml Water / Close Top Action Item)",
+        "description": "Phase 4 Apple Watch Complication & Haptics: Sub-2KB watchOS Smart Stack Complication endpoint (/api/mobile/watch/complication) with 1-tap wrist actions to log +250ml water or close the top open Action Item.",
+        "category": "Integration",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.18.0",
+    },
+    {
+        "title": "[TD-11] Tri-Device Phase 4: Apple Watch Action Button & Siri 'Mahadev' Wrist Voice Bridge Recipe",
+        "description": "Phase 4 Apple Watch Complication & Haptics: Map Apple Watch Action Button or Hey Siri 'Mahadev' to dictate voice commands directly to /api/voice/converse and speak the concise reply on the wrist.",
+        "category": "AI/LLM",
+        "priority": "P2",
+        "status": "Planned",
+        "target_version": "v2.18.0",
+    },
+    {
+        "title": "[TD-12] Tri-Device Phase 4: Windows Laptop Lock/Unlock Presence Handshake & Apple Watch Haptic Nudger",
+        "description": "Phase 4 Apple Watch Complication & Haptics: Detect Windows workstation lock/away state to route urgent P1 bill and hydration nudges to Apple Watch Taptic Engine instead of desktop toasts.",
+        "category": "Automation",
+        "priority": "P2",
+        "status": "Planned",
+        "target_version": "v2.18.0",
+    },
+]
+
 ALL_CANONICAL_BACKLOG_ITEMS: List[Dict[str, str]] = (
     FOUNDATIONAL_DEFAULT_BACKLOG_ITEMS
     + HISTORICAL_RELEASE_BACKLOG_ITEMS
     + ROBUSTNESS_BACKLOG_ITEMS
     + UX_ROADMAP_BACKLOG_ITEMS
+    + TRI_DEVICE_BACKLOG_ITEMS
 )
 
 

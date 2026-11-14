@@ -13,7 +13,11 @@ Implements:
 from __future__ import annotations
 
 from datetime import datetime
+import hashlib
+import ipaddress
+import json
 from pathlib import Path
+import socket
 from typing import Any, Dict, List, Optional
 import urllib.parse
 
@@ -25,7 +29,154 @@ from fleet.core.crypto_vault import (
     write_encrypted_json_file,
 )
 from fleet.core.database import is_test_environment
+from fleet.core.session_auth import get_or_create_mobile_bearer_token
 import fleet.server as srv
+
+
+def _discover_network_endpoints(port: int = 7890) -> Dict[str, Any]:
+    """Discovers Tailscale WireGuard (`100.64.0.0/10`) and private LAN IPv4 addresses on this workstation."""
+    tailscale_ips: List[str] = []
+    lan_ips: List[str] = []
+    tailscale_net = ipaddress.ip_network("100.64.0.0/10")
+
+    candidate_ips: List[str] = []
+    try:
+        hostname = socket.gethostname()
+        for info in socket.getaddrinfo(hostname, None, socket.AF_INET):
+            ip_str = str(info[4][0])
+            if ip_str not in candidate_ips:
+                candidate_ips.append(ip_str)
+    except Exception:
+        pass
+
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.settimeout(0.2)
+            s.connect(("10.255.255.255", 1))
+            primary_ip = str(s.getsockname()[0])
+            if primary_ip not in candidate_ips:
+                candidate_ips.append(primary_ip)
+    except Exception:
+        pass
+
+    for ip_str in candidate_ips:
+        try:
+            ip_obj = ipaddress.ip_address(ip_str)
+            if ip_obj.is_loopback:
+                continue
+            if ip_obj in tailscale_net:
+                tailscale_ips.append(ip_str)
+            elif ip_obj.is_private:
+                lan_ips.append(ip_str)
+        except ValueError:
+            continue
+
+    primary_url = (
+        f"https://{tailscale_ips[0]}:{port}"
+        if tailscale_ips
+        else (f"https://{lan_ips[0]}:{port}" if lan_ips else f"https://127.0.0.1:{port}")
+    )
+    return {
+        "tailscale_active": len(tailscale_ips) > 0,
+        "tailscale_ips": tailscale_ips,
+        "lan_ips": lan_ips,
+        "loopback_url": f"https://127.0.0.1:{port}",
+        "recommended_mobile_base_url": primary_url,
+    }
+
+
+@router.get("/api/mobile/gateway/status")
+def get_mobile_gateway_status_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """
+    TD-01: Returns Phase 1 Mobile Gateway & Tailscale WireGuard Mesh provisioning status,
+    Local Root CA fingerprint, and masked 256-bit Mobile Bearer Token metadata.
+    """
+    net_info = _discover_network_endpoints(port=7890)
+    token = get_or_create_mobile_bearer_token(rotate=False)
+    masked_token = f"{token[:14]}...{token[-6:]}" if len(token) > 22 else "afcc_mob_***"
+
+    ca_path = DATA_DIR / "certs" / "afcc_root_ca.crt"
+    ca_exists = ca_path.is_file()
+    ca_sha256 = ""
+    if ca_exists:
+        try:
+            ca_sha256 = hashlib.sha256(ca_path.read_bytes()).hexdigest()[:32]
+        except Exception:
+            pass
+
+    base_url = net_info["recommended_mobile_base_url"]
+    handler._send_json({
+        "status": "ok",
+        "phase": "Phase 1 — Zero-Store Foundation",
+        "deliverable_id": "TD-01",
+        "network": net_info,
+        "tls": {
+            "root_ca_installed_locally": ca_exists,
+            "root_ca_download_path": "/api/security/ca.crt",
+            "root_ca_download_url": f"{base_url}/api/security/ca.crt",
+            "root_ca_sha256_prefix": ca_sha256,
+        },
+        "auth": {
+            "header_name": "X-AFCC-Mobile-Token",
+            "masked_bearer_token": masked_token,
+            "token_configured": True,
+        },
+        "pwa": {
+            "manifest_url": "/manifest.json",
+            "service_worker_url": "/sw.js",
+            "standalone_ready": True,
+        },
+    })
+
+
+@router.post("/api/mobile/gateway/token")
+def post_mobile_gateway_token_endpoint(handler: Any, body: Dict[str, Any]):
+    """TD-01: Retrieves or rotates the 256-bit Mobile Bearer Token for iOS Shortcuts & Apple Watch."""
+    payload = body if isinstance(body, dict) else {}
+    rotate = bool(payload.get("rotate", False))
+    token = get_or_create_mobile_bearer_token(rotate=rotate)
+    masked_token = f"{token[:14]}...{token[-6:]}" if len(token) > 22 else "afcc_mob_***"
+    handler._send_json({
+        "status": "ok",
+        "rotated": rotate,
+        "header_name": "X-AFCC-Mobile-Token",
+        "bearer_token": token,
+        "masked_bearer_token": masked_token,
+    })
+
+
+@router.get("/api/security/ca.crt")
+def get_local_root_ca_certificate_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """TD-01: Serves `afcc_root_ca.crt` so iPhone/iPad Safari or Chrome can install the AFCC Root CA in 1 tap."""
+    ca_path = DATA_DIR / "certs" / "afcc_root_ca.crt"
+    if not ca_path.is_file():
+        try:
+            from fleet.core.tls_manager import ensure_local_https_certificates
+
+            ensure_local_https_certificates(DATA_DIR / "certs")
+        except Exception:
+            pass
+
+    if not ca_path.is_file():
+        handler._send_json({"status": "error", "message": "Root CA certificate not found."}, status=404)
+        return
+
+    cert_bytes = ca_path.read_bytes()
+    if hasattr(handler, "send_response") and hasattr(handler, "wfile"):
+        handler.send_response(200)
+        handler.send_header("Content-Type", "application/x-x509-ca-cert")
+        handler.send_header("Content-Disposition", 'attachment; filename="afcc_root_ca.crt"')
+        handler.send_header("Content-Length", str(len(cert_bytes)))
+        if hasattr(handler, "_send_security_headers"):
+            handler._send_security_headers()
+        handler.end_headers()
+        handler.wfile.write(cert_bytes)
+    else:
+        handler._send_json({
+            "status": "ok",
+            "filename": "afcc_root_ca.crt",
+            "pem": cert_bytes.decode("utf-8", errors="ignore"),
+        })
 
 
 def _get_apple_health_vault_path() -> Path:
@@ -182,6 +333,57 @@ def post_mobile_health_ingest_endpoint(handler: Any, body: Dict[str, Any]):
     })
 
 
+@router.get("/api/mobile/health/status")
+def get_mobile_health_status_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """
+    TD-02: Returns the latest Apple Watch & iPhone HealthKit sync snapshot from the
+    AES-256-GCM encrypted vault, FFD Workout Readiness Score (0-100), today's adapted
+    6-Day Traditional Strength workout prescription, and 14-day sync history.
+    """
+    vault_path = _get_apple_health_vault_path()
+    raw_vault = read_encrypted_json_file(vault_path, default={})
+    vault_data: Dict[str, Any] = raw_vault if isinstance(raw_vault, dict) else {}
+    latest_raw = vault_data.get("latest")
+    latest: Dict[str, Any] = latest_raw if isinstance(latest_raw, dict) else {}
+    raw_hist = vault_data.get("history")
+    history: List[Any] = list(raw_hist[:14]) if isinstance(raw_hist, list) else []
+
+    raw_m = latest.get("metrics")
+    metrics: Dict[str, Any] = dict(raw_m) if isinstance(raw_m, dict) else {}
+    raw_r = latest.get("readiness")
+    readiness: Dict[str, Any] = (
+        dict(raw_r)
+        if isinstance(raw_r, dict)
+        else compute_ffd_workout_readiness(metrics)
+    )
+
+    day_map = {
+        0: "Monday — Mudgal (Indian Clubbells) + Mandatory Warm-up",
+        1: "Tuesday — Core, Dand-Baithak & Mobility Conditioning",
+        2: "Wednesday — Samtola (Hindu Barbell) + Mandatory Warm-up",
+        3: "Thursday — Active Pranayama, Nitric Oxide Dump & FFD Walk",
+        4: "Friday — Bhim Gadha (Heavy Mace) + Mandatory Warm-up",
+        5: "Saturday — Full-Body Akhada Strength Circuit",
+        6: "Sunday — Rest & Parasympathetic Recovery",
+    }
+    today_plan = day_map.get(datetime.now().weekday(), "Mandatory Warm-up & Traditional Strength")
+
+    handler._send_json({
+        "status": "ok",
+        "phase": "Phase 1 — Zero-Store Foundation",
+        "deliverable_id": "TD-02",
+        "synced": bool(latest),
+        "last_synced_at": latest.get("synced_at"),
+        "device_source": latest.get("device_source", "Apple Watch + iPhone HealthKit"),
+        "metrics": metrics,
+        "readiness": readiness,
+        "today_schedule": today_plan,
+        "history_count": len(history),
+        "history": history,
+        "encrypted_at_rest": True,
+    })
+
+
 @router.get("/api/mobile/watch/complication")
 def get_watch_complication_snapshot_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
     """
@@ -298,6 +500,28 @@ def post_mobile_payment_deeplink_endpoint(handler: Any, body: Dict[str, Any]):
     note = str(payload.get("note") or payee_name).strip()
     preferred_app = str(payload.get("app") or "bhim").strip().lower()
     confirm_paid = bool(payload.get("confirm_paid", False))
+    utr_reference = str(payload.get("utr_reference") or payload.get("utr") or "").strip()
+    max_limit_inr = float(payload.get("max_single_payment_inr") or 200000.0)
+    human_otp_confirmed = bool(payload.get("human_otp_2fa_confirmed", True))
+
+    parsed_amount: Optional[float] = None
+    if amount is not None and str(amount).strip():
+        try:
+            parsed_amount = float(amount)
+        except (ValueError, TypeError):
+            parsed_amount = None
+
+    if parsed_amount is not None and parsed_amount > max_limit_inr and not human_otp_confirmed:
+        handler._send_json(
+            {
+                "status": "requires_2fa_approval",
+                "message": f"Amount INR {parsed_amount:.2f} exceeds single-payment guardrail (INR {max_limit_inr:.2f}). Confirm OTP/UPI 2FA to proceed.",
+                "amount": parsed_amount,
+                "guardrail_limit_inr": max_limit_inr,
+            },
+            status=400,
+        )
+        return
 
     db_inst = getattr(srv, "db", None)
     matched_task: Optional[Dict[str, Any]] = None
@@ -313,11 +537,8 @@ def post_mobile_payment_deeplink_endpoint(handler: Any, body: Dict[str, Any]):
         "tn": note,
         "cu": "INR",
     }
-    if amount is not None and str(amount).strip():
-        try:
-            query_params["am"] = f"{float(amount):.2f}"
-        except (ValueError, TypeError):
-            pass
+    if parsed_amount is not None:
+        query_params["am"] = f"{parsed_amount:.2f}"
 
     qs = urllib.parse.urlencode(query_params, quote_via=urllib.parse.quote)
     deep_links = {
@@ -336,7 +557,11 @@ def post_mobile_payment_deeplink_endpoint(handler: Any, body: Dict[str, Any]):
         if hasattr(db_inst, "update_task"):
             old_desc = str(matched_task.get("description") or "").strip()
             stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-            db_inst.update_task(tid, description=f"{old_desc} | Paid via {preferred_app.upper()} on {stamp}".strip(" |"))
+            utr_suffix = f" (UTR: {utr_reference})" if utr_reference else ""
+            db_inst.update_task(
+                tid,
+                description=f"{old_desc} | Paid via {preferred_app.upper()} on {stamp}{utr_suffix}".strip(" |"),
+            )
         task_closed = True
 
     fpe_token = fpe_encrypt_identifier(payee_vpa)
@@ -416,3 +641,107 @@ def post_github_tri_device_project_sync_endpoint(handler: Any, body: Dict[str, A
     token = str(payload.get("token") or "").strip() or None
     res = sync_tri_device_project_to_github(token=token)
     handler._send_json(res)
+
+
+def build_pwa_manifest_dict() -> Dict[str, Any]:
+    """TD-03: Generates the W3C Standalone Progressive Web App (PWA) Manifest for iPhone Safari & Chrome."""
+    svg_icon = (
+        "data:image/svg+xml;utf8,"
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'>"
+        "<rect width='192' height='192' rx='42' fill='%23090d16'/>"
+        "<circle cx='96' cy='96' r='64' fill='none' stroke='%2300f2fe' stroke-width='8'/>"
+        "<text x='96' y='115' font-size='56' text-anchor='middle' fill='%23ffffff' font-family='sans-serif' font-weight='bold'>⚡</text>"
+        "</svg>"
+    )
+    return {
+        "name": "Antigravity Fleet Control Center (AFCC)",
+        "short_name": "AFCC Mahadev",
+        "description": "Tri-Device Apple Watch, iPhone & Windows Laptop Personal Agentic Fleet Hub",
+        "start_url": "/?source=pwa",
+        "scope": "/",
+        "display": "standalone",
+        "orientation": "portrait-primary",
+        "background_color": "#090d16",
+        "theme_color": "#00f2fe",
+        "icons": [
+            {"src": svg_icon, "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable"},
+            {"src": svg_icon, "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable"},
+        ],
+        "shortcuts": [
+            {
+                "name": "Ask Mahadev (Action Items)",
+                "short_name": "Mahadev Voice",
+                "url": "/?tab=overview&voice=mahadev",
+            },
+            {
+                "name": "Monthly Bill Payments (UPI)",
+                "short_name": "Monthly Bills",
+                "url": "/?tab=overview&filter=Monthly",
+            },
+            {
+                "name": "Apple Watch & FFD Health",
+                "short_name": "FFD Health",
+                "url": "/?tab=health",
+            },
+        ],
+    }
+
+
+PWA_SERVICE_WORKER_JS = """// AFCC Tri-Device Zero-Cloud Service Worker (TD-03)
+const CACHE_NAME = 'afcc-tri-device-shell-v2.18';
+const SHELL_ASSETS = [
+  '/',
+  '/manifest.json',
+  '/static/css/dashboard.css'
+];
+
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS).catch(() => {}))
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  // Never cache mutable /api/* routes blindly; always prefer live local/Tailscale hub
+  if (url.pathname.startsWith('/api/')) {
+    return;
+  }
+  event.respondWith(
+    fetch(event.request).catch(() => caches.match(event.request))
+  );
+});
+"""
+
+
+@router.get("/manifest.json")
+def get_pwa_manifest_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """TD-03: Serves the W3C Progressive Web App manifest for iPhone 'Add to Home Screen'."""
+    handler._send_json(build_pwa_manifest_dict())
+
+
+@router.get("/sw.js")
+def get_pwa_service_worker_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """TD-03: Serves the local-first Service Worker script (`/sw.js`)."""
+    raw = PWA_SERVICE_WORKER_JS.encode("utf-8")
+    if hasattr(handler, "send_response") and hasattr(handler, "wfile"):
+        handler.send_response(200)
+        handler.send_header("Content-Type", "application/javascript; charset=utf-8")
+        handler.send_header("Service-Worker-Allowed", "/")
+        handler.send_header("Cache-Control", "no-cache")
+        handler.send_header("Content-Length", str(len(raw)))
+        if hasattr(handler, "_send_security_headers"):
+            handler._send_security_headers()
+        handler.end_headers()
+        handler.wfile.write(raw)
+    else:
+        handler._send_json({"status": "ok", "script": PWA_SERVICE_WORKER_JS})

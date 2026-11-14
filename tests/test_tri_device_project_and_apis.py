@@ -170,3 +170,96 @@ def test_mobile_health_ingest_and_watch_complication_endpoints(isolated_db, monk
     h_proj = MagicMock()
     get_github_tri_device_project_endpoint(h_proj, urllib.parse.urlparse("/api/github/projects/tri-device"))
     assert h_proj._send_json.call_args[0][0]["project_id"] == "tri-device-architecture"
+
+
+def test_tri_device_backlog_sync_and_phase1_gateway_pwa_endpoints(isolated_db, monkeypatch):
+    import fleet.server as srv
+    from fleet.api.mobile_tri_device_api import (
+        get_local_root_ca_certificate_endpoint,
+        get_mobile_gateway_status_endpoint,
+        get_mobile_health_status_endpoint,
+        get_pwa_manifest_endpoint,
+        get_pwa_service_worker_endpoint,
+        post_mobile_gateway_token_endpoint,
+        post_mobile_payment_deeplink_endpoint,
+    )
+    from fleet.core.db.backlog import TRI_DEVICE_BACKLOG_ITEMS
+    from fleet.core.session_auth import validate_request_security
+
+    monkeypatch.setattr(srv, "db", isolated_db)
+
+    # 1. Verify all 12 Tri-Device Architecture items (TD-01..TD-12) are in feature_backlog
+    #    and Phase 1 (TD-01, TD-02, TD-03) are marked Completed
+    assert len(TRI_DEVICE_BACKLOG_ITEMS) == 12
+    isolated_db.sync_ux_roadmap_backlog()
+    v218_items = isolated_db.list_feature_backlog_items(target_version="v2.18.0")
+    assert len(v218_items) == 12
+    phase1_items = [i for i in v218_items if any(code in i["title"] for code in ("[TD-01]", "[TD-02]", "[TD-03]"))]
+    assert len(phase1_items) == 3
+    assert all(i["status"] == "Completed" for i in phase1_items)
+
+    # 2. Test TD-01: Mobile Gateway Status, Bearer Token & Tailscale / Token Auth
+    h_gw = MagicMock()
+    get_mobile_gateway_status_endpoint(h_gw, urllib.parse.urlparse("/api/mobile/gateway/status"))
+    gw_res = h_gw._send_json.call_args[0][0]
+    assert gw_res["status"] == "ok"
+    assert gw_res["deliverable_id"] == "TD-01"
+    assert gw_res["pwa"]["standalone_ready"] is True
+
+    h_tok = MagicMock()
+    post_mobile_gateway_token_endpoint(h_tok, {"rotate": False})
+    tok_res = h_tok._send_json.call_args[0][0]
+    assert tok_res["status"] == "ok"
+    bearer = tok_res["bearer_token"]
+    assert bearer.startswith("afcc_mob_")
+
+    # Verify validate_request_security accepts Tailscale CGNAT host and Bearer Token while blocking evil.com
+    ok_ts, _ = validate_request_security({"Host": "100.101.102.103:7890", "Origin": "https://100.101.102.103:7890"}, "POST", {"http://127.0.0.1:7890"})
+    assert ok_ts is True
+    ok_tok, _ = validate_request_security({"Host": "192.168.1.50:7890", "X-AFCC-Mobile-Token": bearer}, "POST", {"http://127.0.0.1:7890"})
+    assert ok_tok is True
+    ok_evil, _ = validate_request_security({"Host": "evil.com"}, "GET", {"http://127.0.0.1:7890"})
+    assert ok_evil is False
+
+    # 3. Test TD-01: Local Root CA download (/api/security/ca.crt)
+    h_ca = MagicMock(spec=["_send_json"])
+    get_local_root_ca_certificate_endpoint(h_ca, urllib.parse.urlparse("/api/security/ca.crt"))
+    ca_res = h_ca._send_json.call_args[0][0]
+    assert ca_res["status"] == "ok"
+    assert "BEGIN CERTIFICATE" in ca_res["pem"]
+
+    # 4. Test TD-02: GET /api/mobile/health/status
+    h_hstat = MagicMock()
+    get_mobile_health_status_endpoint(h_hstat, urllib.parse.urlparse("/api/mobile/health/status"))
+    hstat_res = h_hstat._send_json.call_args[0][0]
+    assert hstat_res["status"] == "ok"
+    assert hstat_res["deliverable_id"] == "TD-02"
+    assert "readiness_score" in hstat_res["readiness"]
+
+    # 5. Test TD-03: GET /manifest.json & GET /sw.js
+    h_man = MagicMock()
+    get_pwa_manifest_endpoint(h_man, urllib.parse.urlparse("/manifest.json"))
+    man_res = h_man._send_json.call_args[0][0]
+    assert man_res["display"] == "standalone"
+    assert len(man_res["shortcuts"]) >= 3
+
+    h_sw = MagicMock(spec=["_send_json"])
+    get_pwa_service_worker_endpoint(h_sw, urllib.parse.urlparse("/sw.js"))
+    sw_res = h_sw._send_json.call_args[0][0]
+    assert sw_res["status"] == "ok"
+    assert "afcc-tri-device-shell" in sw_res["script"]
+
+    # 6. Test Payment Guardrail (> max_single_payment_inr without 2FA confirmation)
+    h_guard = MagicMock()
+    post_mobile_payment_deeplink_endpoint(
+        h_guard,
+        {
+            "vpa": "vendor@upi",
+            "amount": 350000.0,
+            "max_single_payment_inr": 200000.0,
+            "human_otp_2fa_confirmed": False,
+        },
+    )
+    guard_res = h_guard._send_json.call_args[0][0]
+    assert guard_res["status"] == "requires_2fa_approval"
+
