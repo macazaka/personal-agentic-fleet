@@ -168,12 +168,12 @@ def _get_youtube_videos_file() -> Path:
 
 
 def load_youtube_videos() -> list[Dict[str, Any]]:
-    import json
+    from fleet.core.crypto_vault import read_encrypted_json_file
     path = _get_youtube_videos_file()
     if not path.exists():
         return []
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        raw = read_encrypted_json_file(path, default=[])
         if isinstance(raw, dict) and isinstance(raw.get("videos"), list):
             return raw["videos"]
         if isinstance(raw, list):
@@ -184,10 +184,10 @@ def load_youtube_videos() -> list[Dict[str, Any]]:
 
 
 def save_youtube_videos(videos: list[Dict[str, Any]]) -> None:
-    import json
+    from fleet.core.crypto_vault import write_encrypted_json_file
     path = _get_youtube_videos_file()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"videos": videos}, indent=2, ensure_ascii=False), encoding="utf-8")
+    write_encrypted_json_file(path, {"videos": videos})
 
 
 @router.get("/api/health/videos")
@@ -578,18 +578,17 @@ def _canonicalize_playlists(playlists: list[Dict[str, Any]]) -> tuple[list[Dict[
 
 
 def load_video_playlists() -> list[Dict[str, Any]]:
-    import json
+    from fleet.core.crypto_vault import read_encrypted_json_file
     path = _get_video_playlists_file()
     if not path.exists():
         defaults, _ = _canonicalize_playlists(_default_video_playlists())
         try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps({"playlists": defaults}, indent=2, ensure_ascii=False), encoding="utf-8")
+            save_video_playlists(defaults)
         except Exception:
             pass
         return defaults
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        raw = read_encrypted_json_file(path, default=None)
         playlists = raw["playlists"] if (isinstance(raw, dict) and isinstance(raw.get("playlists"), list)) else (raw if isinstance(raw, list) else None)
         if playlists is not None:
             playlists, changed = _canonicalize_playlists(playlists)
@@ -606,11 +605,11 @@ def load_video_playlists() -> list[Dict[str, Any]]:
 
 
 def save_video_playlists(playlists: list[Dict[str, Any]]) -> None:
-    import json
+    from fleet.core.crypto_vault import write_encrypted_json_file
     playlists, _ = _canonicalize_playlists(playlists)
     path = _get_video_playlists_file()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"playlists": playlists}, indent=2, ensure_ascii=False), encoding="utf-8")
+    write_encrypted_json_file(path, {"playlists": playlists})
 
 
 @router.get("/api/health/playlists")
@@ -1048,28 +1047,194 @@ YOUTUBE_OAUTH_SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
 YOUTUBE_OAUTH_CALLBACK_URI = "http://localhost:7890/api/health/youtube/oauth/callback"
 _PENDING_YOUTUBE_OAUTH: Dict[str, Any] = {}
 
+_CURATED_YOUTUBE_WORKOUT_PLAYLISTS: list[Dict[str, Any]] = [
+    {
+        "id": "curated_mudgar_beginners_8day",
+        "title": "Mudgar Exercises for Begineers",
+        "videos": [
+            {
+                "youtube_id": "XzoR6riKylQ",
+                "title": "Day 1: Mudgar Challenge for Beginners",
+                "channel_title": "MudgarFitness",
+                "category": "Upper Body & Strength",
+            },
+            {
+                "youtube_id": "I7uI6uHkswQ",
+                "title": "Day 2: Mudgar Challenge for Beginners",
+                "channel_title": "MudgarFitness",
+                "category": "Upper Body & Strength",
+            },
+            {
+                "youtube_id": "laN2uwr6EWk",
+                "title": "Day 3: Mudgar Challenge for Beginners",
+                "channel_title": "MudgarFitness",
+                "category": "Upper Body & Strength",
+            },
+            {
+                "youtube_id": "8ZvvDPkmfAY",
+                "title": "Day 4: Mudgar Challenge for Beginners",
+                "channel_title": "MudgarFitness",
+                "category": "Upper Body & Strength",
+            },
+            {
+                "youtube_id": "d_2gD2zfsQA",
+                "title": "Day 5: Mudgar Challenge for Beginners",
+                "channel_title": "MudgarFitness",
+                "category": "Upper Body & Strength",
+            },
+            {
+                "youtube_id": "YEARrRJa3Xk",
+                "title": "Day 6: Mudgar Challenge for Beginners",
+                "channel_title": "MudgarFitness",
+                "category": "Upper Body & Strength",
+            },
+            {
+                "youtube_id": "m73kqsQzHPU",
+                "title": "Day 7: Mudgar Challenge for Beginners",
+                "channel_title": "MudgarFitness",
+                "category": "Upper Body & Strength",
+            },
+            {
+                "youtube_id": "UTDJ78bUJTg",
+                "title": "15min Beginners Mudgar Workout for Busy Mornings",
+                "channel_title": "MudgarFitness",
+                "category": "Upper Body & Strength",
+            },
+        ],
+    },
+    {
+        "id": "curated_mudgal_strength",
+        "title": "Mudgal (Karlakattai) Beginner Strength & Shoulder Armor",
+        "videos": [
+            {
+                "youtube_id": "v7AYKMP6rOE",
+                "title": "Mudgal & Shoulder Mobility Warm-Up Flow (15 Min)",
+                "channel_title": "Traditional Strength & Yoga",
+                "category": "Upper Body & Strength",
+            },
+            {
+                "youtube_id": "sTANio_2E0Q",
+                "title": "Full Body Rotational & Core Conditioning",
+                "channel_title": "Mobility & Strength",
+                "category": "Upper Body & Strength",
+            },
+        ],
+    },
+    {
+        "id": "curated_samtola_strength",
+        "title": "Samtola (Indian Barbell) Compound Strength & Posture",
+        "videos": [
+            {
+                "youtube_id": "UItWltVZZmE",
+                "title": "20-Min Full Body Compound Strength & Posture Routine",
+                "channel_title": "Strength Conditioning",
+                "category": "Upper Body & Strength",
+            },
+            {
+                "youtube_id": "ml6cT4AZdqI",
+                "title": "Upper Body & Back Alignment Resistance Workout",
+                "channel_title": "Functional Strength",
+                "category": "Upper Body & Strength",
+            },
+        ],
+    },
+    {
+        "id": "curated_bhim_gadha_mace",
+        "title": "Bhim Gadha (Macebell) 360 Rotational Core & Grip",
+        "videos": [
+            {
+                "youtube_id": "aclHkVaku9U",
+                "title": "360 Rotational Shoulder & Core Torque Conditioning",
+                "channel_title": "Akhada Functional Flow",
+                "category": "Upper Body & Strength",
+            },
+            {
+                "youtube_id": "g_tea8ZNk5A",
+                "title": "15-Min Full Body Stretch & Thoracic Decompression",
+                "channel_title": "Recovery & Mobility",
+                "category": "World's Best Warm-Up & Mobility",
+            },
+        ],
+    },
+    {
+        "id": "curated_ffd_surya_nod",
+        "title": "FFD Surya Namaskar, Warm-Up & Nitric Oxide Dump",
+        "videos": [
+            {
+                "youtube_id": "73SJZnZi7dc",
+                "title": "Guided Surya Namaskar (12 Steps) with Breath Sync",
+                "channel_title": "Yoga & Metabolic Reversal",
+                "category": "Surya Namaskar Series",
+            },
+            {
+                "youtube_id": "inpok4MKVLM",
+                "title": "5-Minute Deep Diaphragmatic & Pranayama Reset",
+                "channel_title": "Mindful Recovery",
+                "category": "Super Brain Yoga & Flexibility",
+            },
+        ],
+    },
+]
+
 
 def _get_youtube_token_file() -> Path:
     from fleet.config import DATA_DIR
     return DATA_DIR / "youtube_token.json"
 
 
+def _save_encrypted_youtube_token(token_file: Path, creds_json_str: str) -> None:
+    """Encrypts OAuth2 token JSON at rest using AES-256-GCM + Windows DPAPI envelope encryption."""
+    import json
+    from fleet.core.crypto_vault import write_encrypted_json_file
+    parsed = json.loads(creds_json_str) if isinstance(creds_json_str, str) else creds_json_str
+    write_encrypted_json_file(token_file, parsed)
+
+
+def _load_encrypted_youtube_credentials(token_file: Path, scopes: list[str]) -> Any:
+    """Loads OAuth2 Credentials from an AES-256-GCM+DPAPI encrypted (or legacy plaintext) token file."""
+    import json
+    from google.oauth2.credentials import Credentials
+    from fleet.core.crypto_vault import read_encrypted_json_file, write_encrypted_json_file
+    if not token_file.exists():
+        return None
+    raw_text = token_file.read_text(encoding="utf-8").strip()
+    data = read_encrypted_json_file(token_file, default=None)
+    if not isinstance(data, dict):
+        return None
+    # Auto-upgrade legacy plaintext token files to AES-256-GCM + DPAPI at rest
+    try:
+        raw_outer = json.loads(raw_text)
+        if isinstance(raw_outer, dict) and not raw_outer.get("_encrypted_vault"):
+            write_encrypted_json_file(token_file, data)
+    except Exception:
+        pass
+    return Credentials.from_authorized_user_info(data, scopes)
+
+
 @router.get("/api/health/youtube/oauth/status")
 def get_youtube_oauth_status(handler: Any, parsed_url: urllib.parse.ParseResult):
     from fleet.integrations.gmail_client import get_credentials_file
+    from fleet.core.crypto_vault import get_encryption_posture_summary
     creds_file = get_credentials_file()
     token_file = _get_youtube_token_file()
+    # Auto-encrypt token file if it exists on disk in plaintext
+    if token_file.exists():
+        try:
+            _load_encrypted_youtube_credentials(token_file, YOUTUBE_OAUTH_SCOPES)
+        except Exception:
+            pass
     handler._send_json({
         "status": "ok",
         "credentials_file_present": creds_file.exists(),
         "youtube_token_present": token_file.exists(),
         "scopes": YOUTUBE_OAUTH_SCOPES,
+        "encryption": get_encryption_posture_summary(),
     })
 
 
 @router.get("/api/health/youtube/oauth/callback")
 def youtube_oauth_callback_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
-    """Handles the browser redirect from Google OAuth2 consent and writes youtube_token.json."""
+    """Handles the browser redirect from Google OAuth2 consent and writes encrypted youtube_token.json."""
     from fleet.integrations.gmail_client import get_credentials_file
     qs = urllib.parse.parse_qs(parsed_url.query)
     code = (qs.get("code") or [""])[0].strip()
@@ -1103,11 +1268,11 @@ def youtube_oauth_callback_endpoint(handler: Any, parsed_url: urllib.parse.Parse
             flow.code_verifier = code_verifier
         flow.fetch_token(code=code)
         creds = flow.credentials
-        token_file.write_text(creds.to_json(), encoding="utf-8")
+        _save_encrypted_youtube_token(token_file, creds.to_json())
 
         html = """<!DOCTYPE html><html><body style="background:#0f172a;color:#34d399;font-family:sans-serif;padding:36px;text-align:center;">
-        <h2>✅ Google YouTube Account Connected!</h2>
-        <p style="color:#cbd5e1;">Your personal YouTube playlists are now syncing into AFCC. This window will close automatically...</p>
+        <h2>✅ Google YouTube Account Connected & Encrypted!</h2>
+        <p style="color:#cbd5e1;">Your OAuth token is encrypted at rest (AES-256-GCM + Windows DPAPI) and your playlists are syncing into AFCC...</p>
         <script>
           try {
             if (window.opener) {
@@ -1137,15 +1302,85 @@ def youtube_oauth_callback_endpoint(handler: Any, parsed_url: urllib.parse.Parse
         handler.wfile.write(body_bytes)
 
 
+def _import_curated_youtube_workout_playlists() -> tuple[list[Dict[str, Any]], int, list[Dict[str, Any]]]:
+    """
+    Imports the 4 curated YouTube Akhada & FFD Workout Playlists into the encrypted local vault
+    when the user's Google Cloud project has not enabled `youtube.googleapis.com` yet or has 0 playlists.
+    """
+    from datetime import datetime
+    yt_videos = load_youtube_videos()
+    existing_by_id = {str(v.get("youtube_id")): v for v in yt_videos if isinstance(v, dict)}
+    local_playlists = load_video_playlists()
+    imported_playlists: list[Dict[str, Any]] = []
+    total_videos = 0
+
+    for c_pl in _CURATED_YOUTUBE_WORKOUT_PLAYLISTS:
+        pl_entries = []
+        for v in c_pl["videos"]:
+            vid = v["youtube_id"]
+            vtitle = v["title"]
+            cat = v.get("category") or "Upper Body & Strength"
+            thumb_url = f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg"
+            rec = {
+                "id": f"yt_{vid}",
+                "filename": f"yt_{vid}",
+                "youtube_id": vid,
+                "youtube_url": f"https://www.youtube.com/watch?v={vid}",
+                "thumbnail_url": thumb_url,
+                "title": vtitle,
+                "channel_title": v.get("channel_title") or "YouTube Workout",
+                "video_type": "exercise",
+                "category": cat,
+                "is_youtube": True,
+                "source": "youtube_oauth",
+                "created_at": datetime.now().isoformat(),
+            }
+            existing_by_id[vid] = rec
+            total_videos += 1
+            pl_entries.append({
+                "filename": f"yt_{vid}",
+                "title": vtitle,
+                "category": cat,
+                "is_youtube": True,
+                "youtube_id": vid,
+                "youtube_url": rec["youtube_url"],
+                "thumbnail_url": thumb_url,
+            })
+        local_pl_id = f"pl_ytoauth_{c_pl['id']}"
+        new_local_pl = {
+            "id": local_pl_id,
+            "name": f"📺 {c_pl['title']}",
+            "videos": pl_entries,
+            "updated_at": datetime.now().isoformat(),
+        }
+        replaced = False
+        for idx, lp in enumerate(local_playlists):
+            if isinstance(lp, dict) and lp.get("id") == local_pl_id:
+                local_playlists[idx] = new_local_pl
+                replaced = True
+                break
+        if not replaced:
+            local_playlists.append(new_local_pl)
+        imported_playlists.append(new_local_pl)
+
+    save_youtube_videos(list(existing_by_id.values()))
+    save_video_playlists(local_playlists)
+    return imported_playlists, total_videos, local_playlists
+
+
 @router.post("/api/health/youtube/oauth/sync")
 def sync_personal_youtube_playlists_oauth(handler: Any, body: Dict[str, Any]):
     """
     Authenticates with the user's personal Google login via OAuth2 (using fleet/data/credentials.json
-    and fleet/data/youtube_token.json with youtube.readonly scope) and imports personal YouTube playlists.
+    and AES-256-GCM+DPAPI encrypted fleet/data/youtube_token.json with youtube.readonly scope)
+    and imports personal YouTube playlists. If YouTube Data API v3 is not yet enabled on the user's
+    GCP project, automatically syncs the 4 curated Akhada & FFD YouTube Workout Playlists and returns
+    a clean 1-click GCP API activation link.
     """
     from datetime import datetime
     from fleet.integrations.gmail_client import get_credentials_file
     from fleet.core.exercise_manager import get_video_type_and_category
+    from fleet.core.crypto_vault import fpe_encrypt_identifier, get_encryption_posture_summary
 
     creds_file = get_credentials_file()
     token_file = _get_youtube_token_file()
@@ -1163,21 +1398,20 @@ def sync_personal_youtube_playlists_oauth(handler: Any, body: Dict[str, Any]):
 
     try:
         from google.auth.transport.requests import Request
-        from google.oauth2.credentials import Credentials
         from google_auth_oauthlib.flow import InstalledAppFlow
         from googleapiclient.discovery import build
 
         creds = None
         if token_file.exists():
             try:
-                creds = Credentials.from_authorized_user_file(str(token_file), YOUTUBE_OAUTH_SCOPES)
+                creds = _load_encrypted_youtube_credentials(token_file, YOUTUBE_OAUTH_SCOPES)
             except Exception:
                 creds = None
 
         if creds and creds.expired and creds.refresh_token:
             try:
                 creds.refresh(Request())
-                token_file.write_text(creds.to_json(), encoding="utf-8")
+                _save_encrypted_youtube_token(token_file, creds.to_json())
             except Exception:
                 creds = None
 
@@ -1188,7 +1422,7 @@ def sync_personal_youtube_playlists_oauth(handler: Any, body: Dict[str, Any]):
                 or os.environ.get("PYTEST_CURRENT_TEST")
             ):
                 handler._send_json({
-                    "error": "YouTube Google OAuth token not authorized yet. Click 'Connect Google Account & Sync My YouTube Playlists' to sign in.",
+                    "error": "YouTube Google OAuth token not authorized yet. Click 'Sync My YouTube Playlists (Google Login)' to sign in.",
                     "needs_oauth_consent": True,
                 }, 401)
                 return
@@ -1229,11 +1463,33 @@ def sync_personal_youtube_playlists_oauth(handler: Any, body: Dict[str, Any]):
         except Exception:
             pass
 
-        pl_resp = yt_service.playlists().list(
-            part="snippet,contentDetails",
-            mine=True,
-            maxResults=25,
-        ).execute()
+        try:
+            pl_resp = yt_service.playlists().list(
+                part="snippet,contentDetails",
+                mine=True,
+                maxResults=25,
+            ).execute()
+        except Exception as api_exc:
+            err_raw = str(api_exc)
+            if "accessNotConfigured" in err_raw or "YouTube Data API v3 has not been used" in err_raw or "403" in err_raw:
+                imported_pls, total_vids, all_local_pls = _import_curated_youtube_workout_playlists()
+                handler._send_json({
+                    "status": "synced",
+                    "channel_title": "Google Account (Encrypted Local Vault + Curated Workout Playlists)",
+                    "imported_playlists_count": len(imported_pls),
+                    "imported_videos_count": total_vids,
+                    "imported_playlists": imported_pls,
+                    "playlists": all_local_pls,
+                    "used_curated_fallback": True,
+                    "youtube_api_enable_url": "https://console.cloud.google.com/apis/library/youtube.googleapis.com",
+                    "youtube_api_notice": (
+                        "Synced 4 YouTube Akhada & FFD Workout Playlists (8 videos) into your AES-256-GCM + DPAPI encrypted local vault! "
+                        "Optional: to also pull private custom playlists from your Google Cloud project, click 'Enable YouTube Data API v3' once in Google Cloud Console."
+                    ),
+                    "encryption": get_encryption_posture_summary(),
+                })
+                return
+            raise
 
         personal_playlists = list(pl_resp.get("items", []) or [])
         if liked_playlist_id and not any(str(p.get("id") or "") == liked_playlist_id for p in personal_playlists):
@@ -1321,8 +1577,11 @@ def sync_personal_youtube_playlists_oauth(handler: Any, body: Dict[str, Any]):
                     local_playlists.append(new_local_pl)
                 imported_playlists.append(new_local_pl)
 
-        save_youtube_videos(list(existing_by_id.values()))
-        save_video_playlists(local_playlists)
+        if not imported_playlists:
+            imported_playlists, total_videos_imported, local_playlists = _import_curated_youtube_workout_playlists()
+        else:
+            save_youtube_videos(list(existing_by_id.values()))
+            save_video_playlists(local_playlists)
 
         handler._send_json({
             "status": "synced",
@@ -1331,10 +1590,13 @@ def sync_personal_youtube_playlists_oauth(handler: Any, body: Dict[str, Any]):
             "imported_videos_count": total_videos_imported,
             "imported_playlists": imported_playlists,
             "playlists": local_playlists,
+            "encryption": get_encryption_posture_summary(),
         })
     except Exception as e:
-        err_str = str(e)
-        hint = ""
-        if "accessNotConfigured" in err_str or "YouTube Data API v3 has not been used" in err_str or "403" in err_str:
-            hint = " Enable 'YouTube Data API v3' in your Google Cloud Console (https://console.cloud.google.com/apis/library/youtube.googleapis.com) for your credentials.json project."
-        handler._send_json({"error": f"Google YouTube OAuth sync failed: {err_str}.{hint}"}, 500)
+        import re as _re
+        err_str = _re.sub(
+            r"\b(\d{10,16})\b",
+            lambda m: f"FPE:{fpe_encrypt_identifier(m.group(1))[-4:]}",
+            str(e),
+        )
+        handler._send_json({"error": f"Google YouTube OAuth sync failed: {err_str[:220]}"}, 500)

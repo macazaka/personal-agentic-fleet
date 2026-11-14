@@ -552,6 +552,33 @@ function populateGeneralSettingsForm() {
   if (theme) theme.value = s.theme || 'dark';
   if (layout) layout.value = s.layout || 'sidebar_dock';
 
+  // Populate Voice Profile, Playback Speed (up to 3x) & Wake Word ("Mahadev") fields in General Settings
+  const wakePhraseEl = document.getElementById('genSettingWakeWordPhrase');
+  const wakeBadgeEl = document.getElementById('settingsWakeWordBadgeText');
+  const wakeReqEl = document.getElementById('genSettingWakeWordRequired');
+  const vRateEl = document.getElementById('genSettingVoiceRate');
+  const vLangEl = document.getElementById('genSettingVoiceLanguage');
+  const vGenEl = document.getElementById('genSettingVoiceGender');
+  const vAccEl = document.getElementById('genSettingVoiceAccent');
+  const vSpkLockEl = document.getElementById('genSettingVoiceSpeakerLock');
+
+  const effWake = (window.AFCCVoice && window.AFCCVoice.wakeWordPhrase) || s.voice_wake_word || 'Mahadev';
+  const effWakeReq = window.AFCCVoice ? Boolean(window.AFCCVoice.wakeWordRequired) : (s.voice_wake_word_required !== 'false');
+  const effRate = String((window.AFCCVoice && window.AFCCVoice.speechRate) || s.voice_speech_rate || '1.25');
+  const effLang = (window.AFCCVoice && window.AFCCVoice.voiceLanguage) || s.voice_language || 'en';
+  const effGen = (window.AFCCVoice && window.AFCCVoice.voiceGender) || s.voice_gender || 'female';
+  const effAcc = (window.AFCCVoice && window.AFCCVoice.voiceAccent) || s.voice_accent || 'IN';
+  const effSpkLock = window.AFCCVoice ? Boolean(window.AFCCVoice.speakerLockEnabled) : (s.voice_speaker_lock !== 'false');
+
+  if (wakePhraseEl) wakePhraseEl.value = effWake;
+  if (wakeBadgeEl) wakeBadgeEl.textContent = effWake;
+  if (wakeReqEl) wakeReqEl.checked = effWakeReq;
+  if (vRateEl) vRateEl.value = effRate;
+  if (vLangEl) vLangEl.value = effLang;
+  if (vGenEl) vGenEl.value = effGen;
+  if (vAccEl) vAccEl.value = effAcc;
+  if (vSpkLockEl) vSpkLockEl.checked = effSpkLock;
+
   if (defAgentSelect) {
     const enabledAgents = (fleetSettingsState.agents || []).filter(a => a && a.enabled);
     if (enabledAgents.length > 0) {
@@ -595,6 +622,25 @@ async function saveGeneralSettings() {
   const selectedLayout = document.getElementById('genSettingLayout')?.value || 'sidebar_dock';
   const selectedTheme = document.getElementById('genSettingTheme')?.value || 'dark';
   const selectedDefaultAgent = document.getElementById('genSettingDefaultAgent')?.value || 'overview';
+  const selectedWakeWord = (document.getElementById('genSettingWakeWordPhrase')?.value || 'Mahadev').trim() || 'Mahadev';
+  const selectedWakeReq = Boolean(document.getElementById('genSettingWakeWordRequired')?.checked);
+  const selectedVoiceRate = document.getElementById('genSettingVoiceRate')?.value || '1.25';
+  const selectedVoiceLang = document.getElementById('genSettingVoiceLanguage')?.value || 'en';
+  const selectedVoiceGen = document.getElementById('genSettingVoiceGender')?.value || 'female';
+  const selectedVoiceAcc = document.getElementById('genSettingVoiceAccent')?.value || 'IN';
+  const selectedVoiceSpkLock = Boolean(document.getElementById('genSettingVoiceSpeakerLock')?.checked);
+
+  if (typeof setAfccVoiceWakeWord === 'function') setAfccVoiceWakeWord(selectedWakeWord);
+  if (typeof setAfccVoiceWakeWordRequired === 'function') setAfccVoiceWakeWordRequired(selectedWakeReq);
+  if (typeof setAfccVoiceRate === 'function') setAfccVoiceRate(selectedVoiceRate);
+  if (typeof setAfccVoiceLanguage === 'function') setAfccVoiceLanguage(selectedVoiceLang);
+  if (typeof setAfccVoiceGender === 'function') setAfccVoiceGender(selectedVoiceGen);
+  if (typeof setAfccVoiceAccent === 'function') setAfccVoiceAccent(selectedVoiceAcc);
+  if (window.AFCCVoice) {
+    window.AFCCVoice.speakerLockEnabled = selectedVoiceSpkLock;
+    try { localStorage.setItem('afcc_voice_speaker_lock', selectedVoiceSpkLock ? 'true' : 'false'); } catch (e) {}
+  }
+
   const payload = {
     timezone: document.getElementById('genSettingTimezone')?.value,
     notifications_enabled: Boolean(document.getElementById('genSettingNotifications')?.checked),
@@ -605,6 +651,13 @@ async function saveGeneralSettings() {
     theme: selectedTheme,
     layout: selectedLayout,
     default_agent: selectedDefaultAgent,
+    voice_wake_word: selectedWakeWord,
+    voice_wake_word_required: selectedWakeReq,
+    voice_speech_rate: selectedVoiceRate,
+    voice_language: selectedVoiceLang,
+    voice_gender: selectedVoiceGen,
+    voice_accent: selectedVoiceAcc,
+    voice_speaker_lock: selectedVoiceSpkLock,
   };
 
   try {

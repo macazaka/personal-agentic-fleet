@@ -735,6 +735,8 @@ def get_upgrade_policy() -> Dict[str, Any]:
     if pf.is_file():
         try:
             saved = json.loads(pf.read_text(encoding="utf-8"))
+            from fleet.core.crypto_vault import read_encrypted_json_file
+            saved = read_encrypted_json_file(pf, default={})
             if isinstance(saved, dict):
                 for k in (
                     "auto_check_enabled",
@@ -790,6 +792,8 @@ def set_upgrade_policy(updates: Dict[str, Any]) -> Dict[str, Any]:
             current["excluded_packages"] = [x for x in items if _SAFE_PACKAGE_ID_RE.match(x)]
     try:
         _get_upgrade_policy_file().write_text(json.dumps(current, indent=2), encoding="utf-8")
+        from fleet.core.crypto_vault import write_encrypted_json_file
+        write_encrypted_json_file(_get_upgrade_policy_file(), current)
     except Exception:
         pass
     return current
@@ -1182,6 +1186,9 @@ def check_os_and_software_upgrades(force_refresh: bool = False) -> Dict[str, Any
     if state_file.is_file():
         try:
             persisted_state = json.loads(state_file.read_text(encoding="utf-8"))
+            from fleet.core.crypto_vault import read_encrypted_json_file
+            loaded_state = read_encrypted_json_file(state_file, default={})
+            persisted_state = loaded_state if isinstance(loaded_state, dict) else {}
         except Exception:
             persisted_state = {}
 
@@ -1242,6 +1249,7 @@ def check_os_and_software_upgrades(force_refresh: bool = False) -> Dict[str, Any
 
     if should_scan_live or not state_file.is_file():
         try:
+            from fleet.core.crypto_vault import write_encrypted_json_file
             to_save = dict(persisted_state)
             to_save.update({
                 "last_checked_at": result["checked_at"],
@@ -1251,6 +1259,7 @@ def check_os_and_software_upgrades(force_refresh: bool = False) -> Dict[str, Any
                 "total_pending_count": result["total_pending_count"],
             })
             state_file.write_text(json.dumps(to_save, indent=2), encoding="utf-8")
+            write_encrypted_json_file(state_file, to_save)
         except Exception:
             pass
 
@@ -1523,10 +1532,14 @@ def run_automatic_upgrade_manager(force_scan: bool = True, dry_run: bool = False
     }
 
     try:
+        from fleet.core.crypto_vault import read_encrypted_json_file, write_encrypted_json_file
         state_file = _get_upgrade_state_file()
         persisted = json.loads(state_file.read_text(encoding="utf-8")) if state_file.is_file() else {}
+        loaded_st = read_encrypted_json_file(state_file, default={}) if state_file.is_file() else {}
+        persisted = loaded_st if isinstance(loaded_st, dict) else {}
         persisted["last_auto_manage"] = auto_summary
         state_file.write_text(json.dumps(persisted, indent=2), encoding="utf-8")
+        write_encrypted_json_file(state_file, persisted)
         if _UPGRADE_SCAN_CACHE.get("data"):
             _UPGRADE_SCAN_CACHE["data"]["last_auto_manage"] = auto_summary
     except Exception:

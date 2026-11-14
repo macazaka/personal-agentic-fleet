@@ -799,6 +799,30 @@ VOICE_LINKED_ACTIVITIES_CATALOG: List[Dict[str, Any]] = [
         "description": "Synthesizes and reads your morning briefing, tasks, and hydration aloud",
     },
     {
+        "id": "voice_action_items_review",
+        "category": "Overview & Tasks",
+        "icon": "🗣️",
+        "label": "Action Items Chat",
+        "phrase": "Let's talk about my action items",
+        "description": "Starts an interactive verbal review of your open action items (close, edit, or step through)",
+    },
+    {
+        "id": "voice_closed_action_items",
+        "category": "Overview & Tasks",
+        "icon": "✅",
+        "label": "Closed Action Items",
+        "phrase": "What action items have I already closed?",
+        "description": "Lists and speaks all action items you have already closed and lets you reopen or edit them",
+    },
+    {
+        "id": "voice_next_action_item",
+        "category": "Overview & Tasks",
+        "icon": "⏭️",
+        "label": "Next Action Item",
+        "phrase": "Next action item",
+        "description": "Advances to the next action item in your verbal review queue",
+    },
+    {
         "id": "voice_monthly_tasks",
         "category": "Overview & Tasks",
         "icon": "📅",
@@ -1093,8 +1117,10 @@ def _apply_voice_localization(
 
 
 _JARVIS_INTENT_KEYWORDS: Tuple[str, ...] = (
-    "jarvis", "afcc", "antigravity", "hear me", "audible", "listening", "are you there",
-    "agent", "agents", "briefing", "task", "tasks", "monthly", "yearly", "water", "hydration",
+    "mahadev", "shiva", "jarvis", "afcc", "antigravity", "hear me", "audible", "listening", "are you there",
+    "agent", "agents", "briefing", "task", "tasks", "action", "item", "items", "close", "closed",
+    "reopen", "edit", "rename", "priority", "next", "previous", "delete", "done", "completed",
+    "monthly", "yearly", "water", "hydration",
     "workout", "exercise", "video", "playlist", "surya", "brain yoga", "warm up", "smoothie",
     "email", "emails", "inbox", "virus", "antivirus", "optimize", "optimizer", "ram", "memory",
     "temp", "cache", "dns", "tune", "security", "scan", "test", "tests", "backlog", "improve",
@@ -1187,6 +1213,156 @@ _AGENT_KNOWLEDGE_CATALOG: Dict[str, Dict[str, str]] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Stateful Zero-Latency Action-Item Conversational Engine (<5ms, $0.00 / 0 Tokens)
+# ---------------------------------------------------------------------------
+_VOICE_ACTION_ITEM_STATE: Dict[str, Any] = {
+    "focused_task_id": None,
+    "queue_ids": [],
+    "cursor_idx": 0,
+    "review_mode": "pending",  # "pending" or "completed"
+}
+
+_ACTION_ITEM_STOPWORDS = frozenset({
+    "the", "my", "a", "an", "action", "item", "items", "task", "tasks",
+    "already", "closed", "close", "completed", "complete", "done", "finish",
+    "finished", "mark", "marked", "as", "to", "for", "in", "on", "of", "with",
+    "please", "i", "have", "had", "ve", "just", "now", "one", "this", "that",
+    "it", "number", "id", "status", "open", "pending", "reopen", "edit",
+    "rename", "update", "change", "title", "priority", "delete", "remove",
+})
+
+_PRONOUN_FOCUS_TOKENS = frozenset({
+    "", "it", "this", "that", "this one", "that one", "the current one",
+    "current", "current one", "current item", "current action item", "current task",
+    "this item", "that item", "this action item", "that action item",
+    "this task", "that task", "the item", "the action item", "the task",
+})
+
+
+def _set_voice_focused_task(
+    task: Optional[Dict[str, Any]],
+    queue: Optional[List[Dict[str, Any]]] = None,
+    mode: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Updates the conversational action-item focus state and returns a UI-ready dict."""
+    if mode:
+        _VOICE_ACTION_ITEM_STATE["review_mode"] = mode
+    if queue is not None:
+        _VOICE_ACTION_ITEM_STATE["queue_ids"] = [int(t["id"]) for t in queue if t.get("id") is not None]
+    if not task or task.get("id") is None:
+        _VOICE_ACTION_ITEM_STATE["focused_task_id"] = None
+        return None
+    tid = int(task["id"])
+    _VOICE_ACTION_ITEM_STATE["focused_task_id"] = tid
+    q_ids = _VOICE_ACTION_ITEM_STATE.get("queue_ids") or []
+    if tid in q_ids:
+        _VOICE_ACTION_ITEM_STATE["cursor_idx"] = q_ids.index(tid)
+    else:
+        q_ids.insert(0, tid)
+        _VOICE_ACTION_ITEM_STATE["queue_ids"] = q_ids
+        _VOICE_ACTION_ITEM_STATE["cursor_idx"] = 0
+    pos = _VOICE_ACTION_ITEM_STATE["cursor_idx"] + 1
+    total = max(1, len(q_ids))
+    return {
+        "id": tid,
+        "title": str(task.get("title") or ""),
+        "status": str(task.get("status") or "pending"),
+        "priority": str(task.get("priority") or "P2"),
+        "source": str(task.get("source") or "Manual"),
+        "description": str(task.get("description") or ""),
+        "cursor_position": pos,
+        "queue_total": total,
+        "review_mode": _VOICE_ACTION_ITEM_STATE.get("review_mode", "pending"),
+    }
+
+
+def _match_action_item_from_voice(
+    tasks_list: List[Dict[str, Any]],
+    query: str,
+    prefer_status: Optional[str] = None,
+    allow_focused_fallback: bool = True,
+) -> Optional[Dict[str, Any]]:
+    """
+    Ultra-fast (<1ms) deterministic + fuzzy token-overlap matcher for spoken action items.
+    Supports #ID, conversational pronouns ('it', 'that one', 'this action item'),
+    substring matching, and keyword overlap.
+    """
+    if not tasks_list:
+        return None
+    q_clean = re.sub(r"[^a-z0-9\s#]", " ", (query or "").lower()).strip()
+    q_clean_no_hash = re.sub(r"\s+", " ", q_clean.replace("#", " ")).strip()
+
+    # 1. Explicit #ID or numeric reference ("#12", "id 12", "task 12", "item 12", "12")
+    m_id = re.search(r"(?:#|(?:task|item|number|id)\s+#?|^)(\d+)\b", q_clean)
+    if m_id:
+        tid_num = int(m_id.group(1))
+        by_id = next((t for t in tasks_list if int(t.get("id") or 0) == tid_num), None)
+        if by_id:
+            return by_id
+
+    # 2. Conversational pronoun ("it", "that one", "this action item", etc.)
+    if q_clean_no_hash in _PRONOUN_FOCUS_TOKENS:
+        if allow_focused_fallback:
+            focused_id = _VOICE_ACTION_ITEM_STATE.get("focused_task_id")
+            if focused_id is not None:
+                found = next((t for t in tasks_list if int(t.get("id") or 0) == int(focused_id)), None)
+                if found:
+                    return found
+            if prefer_status:
+                found_pref = next((t for t in tasks_list if str(t.get("status") or "") == prefer_status), None)
+                if found_pref:
+                    return found_pref
+            return tasks_list[0]
+        return None
+
+    # 3. Direct substring match on stripped query
+    q_tokens = [tok for tok in q_clean_no_hash.split() if tok not in _ACTION_ITEM_STOPWORDS and len(tok) >= 2]
+    q_phrase = " ".join(q_tokens).strip()
+    if q_phrase:
+        pool = (
+            [t for t in tasks_list if str(t.get("status") or "") == prefer_status] +
+            [t for t in tasks_list if str(t.get("status") or "") != prefer_status]
+            if prefer_status else tasks_list
+        )
+        for t in pool:
+            t_low = str(t.get("title") or "").lower()
+            if q_phrase in t_low:
+                return t
+
+    # 4. Token-overlap fuzzy score against title + description
+    if q_tokens:
+        best_task = None
+        best_score = 0.0
+        for t in tasks_list:
+            t_title_low = re.sub(r"[^a-z0-9\s]", " ", str(t.get("title") or "").lower())
+            t_desc_low = re.sub(r"[^a-z0-9\s]", " ", str(t.get("description") or "").lower())
+            title_words = set(t_title_low.split())
+            desc_words = set(t_desc_low.split())
+            score = 0.0
+            for tok in q_tokens:
+                if tok in title_words:
+                    score += 3.0
+                elif any(tok in w or w in tok for w in title_words if len(w) >= 3):
+                    score += 2.0
+                elif tok in desc_words:
+                    score += 1.0
+            if score > 0 and prefer_status and str(t.get("status") or "") == prefer_status:
+                score += 0.5
+            if score > best_score:
+                best_score = score
+                best_task = t
+        if best_task and best_score >= 2.0:
+            return best_task
+
+    # 5. Fallback to focused task if query was purely conversational filler
+    if not q_tokens and allow_focused_fallback:
+        focused_id = _VOICE_ACTION_ITEM_STATE.get("focused_task_id")
+        if focused_id is not None:
+            return next((t for t in tasks_list if int(t.get("id") or 0) == int(focused_id)), None)
+    return None
+
+
 def transcribe_and_dispatch_voice_command(
     transcript: str,
     agent_registry: Optional[Any] = None,
@@ -1230,8 +1406,17 @@ def _dispatch_voice_command_core(
     if not spoken:
         return {"status": "error", "message": "Empty voice transcript."}
 
-    # Strip leading wake word ("Jarvis", "Hey Jarvis", "AFCC") while remembering if wake word was used
-    wake_match = re.match(r"^(?:hey\s+|hi\s+|hello\s+|ok\s+|okay\s+)?(?:jarvis|afcc|fleet)\b[\s,.:;!?-]*", spoken, flags=re.I)
+    # Strip leading wake word ("Mahadev", "Har Har Mahadev", "Jarvis", "Hey Jarvis", "AFCC", or custom DB wake word)
+    custom_wake = "mahadev"
+    if db and hasattr(db, "get_setting"):
+        try:
+            cw = str(db.get_setting("voice_wake_word", "Mahadev") or "Mahadev").strip().lower()
+            if cw and re.match(r"^[a-z0-9\s_-]{2,30}$", cw):
+                custom_wake = re.escape(cw)
+        except Exception:
+            pass
+    wake_pattern = rf"^(?:hey\s+|hi\s+|hello\s+|ok\s+|okay\s+|har\s+har\s+|jai\s+|om\s+)?(?:mahadev|shiva|jarvis|afcc|fleet|{custom_wake}|महादेव|మహాదేవ్)\b[\s,.:;!?-]*"
+    wake_match = re.match(wake_pattern, spoken, flags=re.I)
     had_wake_word = bool(wake_match)
     if wake_match:
         stripped = spoken[wake_match.end():].strip()
@@ -1244,9 +1429,10 @@ def _dispatch_voice_command_core(
     ui_actions: List[Dict[str, Any]] = []
     executed_activities: List[str] = []
 
-    # 0A. Jarvis Microphone Check, Presence & Wake-Word Greeting ("Can you hear me?", "Jarvis", "Are you there?")
+    # 0A. Microphone Check, Presence & Wake-Word Greeting ("Mahadev", "Can you hear me?", "Jarvis", "Are you there?")
     if (
-        cleaned_alpha in ("jarvis", "afcc", "hey jarvis", "hello jarvis", "hi jarvis", "can you hear me", "hear me", "are you there", "testing", "mic check", "test")
+        cleaned_alpha in ("mahadev", "har har mahadev", "jai mahadev", "shiva", "jarvis", "afcc", "hey jarvis", "hello jarvis", "hi jarvis", "can you hear me", "hear me", "are you there", "testing", "mic check", "test")
+        or spoken.strip() in ("महादेव", "हर हर महादेव", "మహాదేవ్")
         or any(pat in cleaned_alpha for pat in _PHONETIC_MIC_CHECK_PATTERNS)
         or re.search(r"\b(?:can|do)\s+(?:you|u)\s+(?:hear|listen|understand)\b", cleaned_alpha)
         or re.search(r"\b(?:am\s+i\s+audible|loud\s+and\s+clear|are\s+you\s+online|are\s+you\s+awake)\b", cleaned_alpha)
@@ -1534,37 +1720,42 @@ def _dispatch_voice_command_core(
             "cost_usd": "$0.00",
         })
 
-    # 2. Task Cadence & Status Filtering (Monthly / Yearly / Completed / Pending)
-    if re.search(r"\b(?:show|filter|list|what\s+are|open|view)\b.*\b(?:monthly)\s+(?:tasks?|bills?|payments?|items?)\b", lower) or lower in ("monthly tasks", "show monthly"):
+    # 2. Task Cadence & Conversational Action-Item Engine (Monthly / Yearly / Completed / Open Review / Next / Prev / Details)
+    if re.search(r"\b(?:show|filter|list|what\s+are|open|view|talk\s+about|review)\b.*\b(?:monthly)\s+(?:tasks?|action\s+items?|bills?|payments?|items?)\b", lower) or lower in ("monthly tasks", "monthly action items", "show monthly"):
         all_tasks = db.list_tasks(limit=200, exclude_tests=True) if (db and hasattr(db, "list_tasks")) else []
         monthly = [t for t in all_tasks if str(t.get("source") or "").lower() == "monthly"]
         pending_m = [t for t in monthly if t.get("status") != "completed"]
         done_m = [t for t in monthly if t.get("status") == "completed"]
+        focus_queue = pending_m if pending_m else monthly
+        active_item = _set_voice_focused_task(focus_queue[0] if focus_queue else None, queue=focus_queue, mode="pending")
         ui_actions = [
             {"type": "switch_agent", "agent_id": "overview"},
             {"type": "filter_tasks", "filter": "Monthly"},
         ]
+        if active_item:
+            ui_actions.append({"type": "focus_action_item", "task": active_item})
         executed_activities = [
             "🧭 Switched to Overview & Tasks",
             f"📅 Filtered Task Board → Monthly ({len(monthly)} items)",
         ]
         preview = ", ".join(str(t.get("title") or "").replace("Monthly — ", "") for t in pending_m[:4])
         msg = (
-            f"📅 Showing **{len(monthly)} Monthly task(s)** ({len(pending_m)} pending, {len(done_m)} completed)."
+            f"📅 Showing **{len(monthly)} Monthly action item(s)** ({len(pending_m)} pending, {len(done_m)} completed)."
             + (f"\nTop pending: {preview}." if preview else "")
         )
         spoken_reply = (
             f"I switched to Overview and Tasks and filtered to your Monthly list. "
-            f"You have {len(pending_m)} pending and {len(done_m)} completed monthly items"
-            + (f", including { _clean_for_speech(preview) }." if preview else ".")
+            f"You have {len(pending_m)} pending and {len(done_m)} completed monthly action items"
+            + (f", starting with {_clean_for_speech(pending_m[0]['title'])}. Say 'close it', 'edit it', or 'next action item'." if pending_m else ".")
         )
         return _record_turn(spoken, {
             "status": "ok",
             "mode": "voice_activity",
             "agent_id": "overview",
+            "active_action_item": active_item,
             "voice_transcript": spoken,
             "normalized_command": "filter_tasks:Monthly",
-            "title": f"📅 Monthly Tasks ({len(pending_m)} Pending, {len(done_m)} Completed)",
+            "title": f"📅 Monthly Action Items ({len(pending_m)} Pending, {len(done_m)} Closed)",
             "message": msg,
             "spoken_reply": spoken_reply,
             "ui_actions": ui_actions,
@@ -1573,27 +1764,33 @@ def _dispatch_voice_command_core(
             "cost_usd": "$0.00",
         })
 
-    if re.search(r"\b(?:show|filter|list|what\s+are|open|view)\b.*\b(?:yearly|annual)\s+(?:tasks?|renewals?|items?)\b", lower) or lower in ("yearly tasks", "show yearly"):
+    if re.search(r"\b(?:show|filter|list|what\s+are|open|view|talk\s+about|review)\b.*\b(?:yearly|annual)\s+(?:tasks?|action\s+items?|renewals?|items?)\b", lower) or lower in ("yearly tasks", "yearly action items", "show yearly"):
         all_tasks = db.list_tasks(limit=200, exclude_tests=True) if (db and hasattr(db, "list_tasks")) else []
         yearly = [t for t in all_tasks if str(t.get("source") or "").lower() == "yearly"]
+        pending_y = [t for t in yearly if t.get("status") != "completed"]
+        focus_queue = pending_y if pending_y else yearly
+        active_item = _set_voice_focused_task(focus_queue[0] if focus_queue else None, queue=focus_queue, mode="pending")
         ui_actions = [
             {"type": "switch_agent", "agent_id": "overview"},
             {"type": "filter_tasks", "filter": "Yearly"},
         ]
+        if active_item:
+            ui_actions.append({"type": "focus_action_item", "task": active_item})
         executed_activities = [
             "🧭 Switched to Overview & Tasks",
             f"🗓️ Filtered Task Board → Yearly ({len(yearly)} items)",
         ]
         preview = ", ".join(str(t.get("title") or "").replace("Yearly — ", "") for t in yearly[:4])
-        msg = f"🗓️ Showing **{len(yearly)} Yearly task(s)**: {preview or 'None'}."
-        spoken_reply = f"I filtered your task board to Yearly items. You have {len(yearly)} yearly tasks" + (f": {_clean_for_speech(preview)}." if preview else ".")
+        msg = f"🗓️ Showing **{len(yearly)} Yearly action item(s)**: {preview or 'None'}."
+        spoken_reply = f"I filtered your task board to Yearly items. You have {len(yearly)} yearly action items" + (f": {_clean_for_speech(preview)}." if preview else ".")
         return _record_turn(spoken, {
             "status": "ok",
             "mode": "voice_activity",
             "agent_id": "overview",
+            "active_action_item": active_item,
             "voice_transcript": spoken,
             "normalized_command": "filter_tasks:Yearly",
-            "title": f"🗓️ Yearly Tasks ({len(yearly)} Total)",
+            "title": f"🗓️ Yearly Action Items ({len(yearly)} Total)",
             "message": msg,
             "spoken_reply": spoken_reply,
             "ui_actions": ui_actions,
@@ -1602,67 +1799,569 @@ def _dispatch_voice_command_core(
             "cost_usd": "$0.00",
         })
 
-    if re.search(r"\b(?:show|filter|list)\b.*\b(?:completed|done|finished)\s+tasks?\b", lower):
+    # 2B. Conversation on Closed / Completed Action Items ("What action items have I already closed?", "Talk about action items I closed", "Show completed tasks")
+    is_asking_closed_list = (
+        re.search(r"\b(?:show|filter|list|view|review|what|which|talk\s+about|chat\s+about|tell\s+me\s+about|discuss)\b.*\b(?:already\s+)?(?:closed|completed|done|finished)\s+(?:action\s+items?|tasks?|items?)\b", lower)
+        or re.search(r"\b(?:action\s+items?|tasks?)\b.*\b(?:i\s+have\s+already\s+closed|i\s+already\s+closed|i\s+closed|have\s+been\s+closed|are\s+closed|are\s+completed|i\s+completed|i\s+finished)\b", lower)
+        or lower in ("closed action items", "completed action items", "closed tasks", "completed tasks", "show closed", "show completed")
+    )
+    if is_asking_closed_list:
+        all_tasks = db.list_tasks(limit=200, exclude_tests=True) if (db and hasattr(db, "list_tasks")) else []
+        closed_tasks = [t for t in all_tasks if str(t.get("status") or "").lower() == "completed"]
+        pending_tasks = [t for t in all_tasks if str(t.get("status") or "").lower() != "completed"]
+        active_item = _set_voice_focused_task(closed_tasks[0] if closed_tasks else None, queue=closed_tasks, mode="completed")
         ui_actions = [
             {"type": "switch_agent", "agent_id": "overview"},
             {"type": "filter_tasks", "filter": "COMPLETED"},
         ]
-        executed_activities = ["🧭 Switched to Overview & Tasks", "✓ Filtered Task Board → Completed"]
+        if active_item:
+            ui_actions.append({"type": "focus_action_item", "task": active_item})
+        executed_activities = [
+            "🧭 Switched to Overview & Tasks",
+            f"✅ Reviewed Closed Action Items ({len(closed_tasks)} closed, {len(pending_tasks)} open)",
+        ]
+        if closed_tasks:
+            closed_preview = ", ".join(
+                f"#{t['id']} {str(t.get('title') or '').replace('Monthly — ', '').replace('Yearly — ', '')}"
+                for t in closed_tasks[:5]
+            )
+            first_t = closed_tasks[0]
+            msg = (
+                f"✅ **You have closed {len(closed_tasks)} action item(s)** (with {len(pending_tasks)} still open):\n"
+                + "\n".join(f"• **#{t['id']}**: {t.get('title')} (`{t.get('priority', 'P2')}` • {t.get('source', 'Manual')})" for t in closed_tasks[:6])
+                + f"\n\n🎯 **Focused Closed Item (#1 of {len(closed_tasks)})**: **#{first_t['id']} — {first_t['title']}**\n"
+                + "💡 *Say **\"reopen it\"**, **\"edit it to ...\"**, or **\"next action item\"**.*"
+            )
+            spoken_reply = (
+                f"You have closed {len(closed_tasks)} action item{'s' if len(closed_tasks) != 1 else ''}: "
+                f"{_clean_for_speech(closed_preview)}. "
+                f"Currently focusing on closed item number {first_t['id']}: {_clean_for_speech(first_t['title'])}. "
+                f"Say 'reopen it', 'edit it', or 'next action item'."
+            )
+        else:
+            msg = (
+                f"ℹ️ **You currently have 0 closed action items** and **{len(pending_tasks)} open action item(s)** on your board.\n"
+                "💡 *Tell me which action item you have already closed — for example, say **\"I already closed the electricity bill\"** or **\"Close action item 1\"** — and I will mark it closed immediately!*"
+            )
+            spoken_reply = (
+                f"You currently have zero closed action items and {len(pending_tasks)} open action items. "
+                "Tell me which item you have already closed, for example say 'I already closed electricity bill', and I will mark it closed right away."
+            )
         return _record_turn(spoken, {
             "status": "ok",
-            "mode": "voice_activity",
+            "mode": "voice_action_items_closed_review",
             "agent_id": "overview",
+            "active_action_item": active_item,
+            "closed_count": len(closed_tasks),
+            "pending_count": len(pending_tasks),
             "voice_transcript": spoken,
             "normalized_command": "filter_tasks:COMPLETED",
-            "title": "✓ Showing Completed Tasks",
-            "message": "Filtered your Overview & Tasks board to show completed (✔) tasks.",
-            "spoken_reply": "Showing your completed tasks on the Overview and Tasks board.",
+            "title": f"✅ Closed Action Items ({len(closed_tasks)} Closed, {len(pending_tasks)} Open)",
+            "message": msg,
+            "spoken_reply": spoken_reply,
             "ui_actions": ui_actions,
             "executed_activities": executed_activities,
             "tokens_used": 0,
             "cost_usd": "$0.00",
         })
 
-    # 3. Complete / Mark Task as Done via Voice
-    complete_match = re.match(
-        r"^.*?\b(?:complete|finish|check\s+off|mark)\s+task\s+(?:#?(\d+)|(.+?))(?:\s+as\s+(?:done|completed|complete))?$",
+    # 2C. Daily Conversation on Open / Pending Action Items ("Let's talk about my action items", "Review my action items", "What are my open action items?")
+    is_open_action_review = (
+        re.search(r"\b(?:talk\s+about|chat\s+about|conversation\s+on|discuss|review|go\s+through|walk\s+through|read\s+out|read\s+my)\b.*\b(?:action\s+items?|tasks?)\b", lower)
+        or re.search(r"\b(?:what\s+are|show|list|view|open)\s+(?:my\s+|the\s+)?(?:open\s+|pending\s+|current\s+|today'?s?\s+|daily\s+)?(?:action\s+items?|pending\s+tasks?)\b", lower)
+        or lower in ("action items", "my action items", "open action items", "pending action items", "pending tasks", "review action items", "review tasks")
+    )
+    if is_open_action_review:
+        all_tasks = db.list_tasks(limit=200, exclude_tests=True) if (db and hasattr(db, "list_tasks")) else []
+        pending_tasks = [t for t in all_tasks if str(t.get("status") or "").lower() != "completed"]
+        closed_tasks = [t for t in all_tasks if str(t.get("status") or "").lower() == "completed"]
+        active_item = _set_voice_focused_task(pending_tasks[0] if pending_tasks else None, queue=pending_tasks, mode="pending")
+        ui_actions = [
+            {"type": "switch_agent", "agent_id": "overview"},
+            {"type": "filter_tasks", "filter": "PENDING"},
+        ]
+        if active_item:
+            ui_actions.append({"type": "focus_action_item", "task": active_item})
+        executed_activities = [
+            "🧭 Switched to Overview & Tasks",
+            f"🗣️ Started Live Action-Item Review ({len(pending_tasks)} open, {len(closed_tasks)} closed)",
+        ]
+        if pending_tasks:
+            first_t = pending_tasks[0]
+            top_list_md = "\n".join(
+                f"{'👉' if idx == 0 else '•'} **#{t['id']}**: {t.get('title')} (`{t.get('priority', 'P2')}` • {t.get('source', 'Manual')})"
+                for idx, t in enumerate(pending_tasks[:5])
+            )
+            msg = (
+                f"🗣️ **Live Action-Item Review** — **{len(pending_tasks)} Open** • **{len(closed_tasks)} Closed**\n"
+                f"{top_list_md}\n\n"
+                f"🎯 **Focused Item (1 of {len(pending_tasks)})**: **#{first_t['id']} — {first_t['title']}** (`{first_t.get('priority', 'P2')}`)\n"
+                f"💡 *Speak naturally: **\"Close it\"**, **\"Edit it to [new title]\"**, **\"Make it P1\"**, **\"Read details\"**, or **\"Next action item\"**.*"
+            )
+            spoken_reply = (
+                f"You have {len(pending_tasks)} open action items and {len(closed_tasks)} closed items. "
+                f"Item 1 of {len(pending_tasks)} is task number {first_t['id']}: {_clean_for_speech(first_t['title'])}, priority {first_t.get('priority', 'P2')}. "
+                f"Say 'close it', 'edit it to...', 'read details', or 'next action item'."
+            )
+        else:
+            msg = f"🎉 **All caught up!** You have **0 open action items** and **{len(closed_tasks)} closed action item(s)**."
+            spoken_reply = f"All caught up! You have zero open action items and {len(closed_tasks)} closed action items. Say 'show closed action items' to review them or 'add action item' to create a new one."
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "voice_action_items_open_review",
+            "agent_id": "overview",
+            "active_action_item": active_item,
+            "pending_count": len(pending_tasks),
+            "closed_count": len(closed_tasks),
+            "voice_transcript": spoken,
+            "normalized_command": "action_items:review_open",
+            "title": f"🗣️ Action Items Conversation ({len(pending_tasks)} Open, {len(closed_tasks)} Closed)",
+            "message": msg,
+            "spoken_reply": spoken_reply,
+            "ui_actions": ui_actions,
+            "executed_activities": executed_activities,
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
+
+    # 2D. Step Through Action Items ("Next action item", "Previous action item", "Skip this one", "Read details of this action item")
+    is_next_item = bool(
+        re.match(r"^(?:next|skip|move\s+to\s+(?:the\s+)?next|go\s+to\s+(?:the\s+)?next|what'?s\s+next|what\s+is\s+the\s+next)(?:\s+(?:action\s+item|item|task|one))?\b", lower)
+        or lower in ("next", "skip", "skip it", "skip this", "skip this one", "next one")
+    )
+    is_prev_item = bool(
+        re.match(r"^(?:previous|prev|go\s+back(?:\s+to\s+previous)?|last)(?:\s+(?:action\s+item|item|task|one))\b", lower)
+        or lower in ("previous item", "previous task", "previous action item")
+    )
+    if (is_next_item or is_prev_item) and db is not None and hasattr(db, "list_tasks"):
+        all_tasks = db.list_tasks(limit=200, exclude_tests=True)
+        mode = _VOICE_ACTION_ITEM_STATE.get("review_mode", "pending")
+        pool = [t for t in all_tasks if (t.get("status") == "completed" if mode == "completed" else t.get("status") != "completed")]
+        if not pool:
+            pool = all_tasks
+        if not pool:
+            return _record_turn(spoken, {
+                "status": "ok",
+                "mode": "voice_action_item_step",
+                "agent_id": "overview",
+                "voice_transcript": spoken,
+                "normalized_command": "action_items:empty",
+                "title": "📋 No Action Items in Queue",
+                "message": "Your action item queue is currently empty.",
+                "spoken_reply": "There are no action items in your queue right now.",
+                "ui_actions": [],
+                "executed_activities": [],
+                "tokens_used": 0,
+                "cost_usd": "$0.00",
+            })
+        q_ids = [int(t["id"]) for t in pool]
+        cur_id = _VOICE_ACTION_ITEM_STATE.get("focused_task_id")
+        if cur_id in q_ids:
+            idx = q_ids.index(cur_id)
+            next_idx = (idx + 1) % len(pool) if is_next_item else (idx - 1) % len(pool)
+        else:
+            next_idx = 0
+        target_task = pool[next_idx]
+        active_item = _set_voice_focused_task(target_task, queue=pool, mode=mode)
+        ui_actions = [
+            {"type": "switch_agent", "agent_id": "overview"},
+            {"type": "focus_action_item", "task": active_item},
+        ]
+        direction_label = "Next" if is_next_item else "Previous"
+        msg = (
+            f"⏭️ **{direction_label} Action Item ({next_idx + 1} of {len(pool)})**: "
+            f"**#{target_task['id']} — {target_task['title']}** (`{target_task.get('priority', 'P2')}` • `{target_task.get('status', 'pending')}`)\n"
+            f"• **Details**: {target_task.get('description') or 'No extra notes.'}\n"
+            f"💡 *Say **\"Close it\"**, **\"Edit it to ...\"**, or **\"Next action item\"**.*"
+        )
+        spoken_reply = (
+            f"Action item {next_idx + 1} of {len(pool)}: task number {target_task['id']}, "
+            f"{_clean_for_speech(target_task['title'])}, priority {target_task.get('priority', 'P2')}. "
+            f"Say 'close it', 'edit it', or 'next action item'."
+        )
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "voice_action_item_step",
+            "agent_id": "overview",
+            "task_id": target_task["id"],
+            "active_action_item": active_item,
+            "voice_transcript": spoken,
+            "normalized_command": f"action_item:{direction_label.lower()}:{target_task['id']}",
+            "title": f"🎯 Action Item {next_idx + 1}/{len(pool)}: #{target_task['id']} {target_task['title']}",
+            "message": msg,
+            "spoken_reply": spoken_reply,
+            "ui_actions": ui_actions,
+            "executed_activities": [f"🎯 Focused Action Item #{target_task['id']}: {target_task['title']}"],
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
+
+    # 2E. Read Details / Description of Focused or Specific Action Item
+    details_match = re.match(
+        r"^(?:please\s+)?(?:read\s+details|read\s+description|what\s+are\s+the\s+details|tell\s+me\s+more\s+about|details\s+(?:of|for)|describe)\s*(?:of\s+|for\s+|about\s+)?(?:action\s+item\s+|task\s+|item\s+)?(.*)$",
         spoken,
         flags=re.I,
     )
-    if complete_match and db is not None and hasattr(db, "list_tasks") and hasattr(db, "update_task_status"):
-        target_id_str = complete_match.group(1)
-        target_title_q = (complete_match.group(2) or "").strip().lower()
-        tasks_list = db.list_tasks(limit=200, exclude_tests=True)
-        matched_task = None
-        if target_id_str:
-            tid_num = int(target_id_str)
-            matched_task = next((t for t in tasks_list if int(t.get("id") or 0) == tid_num), None)
-        elif target_title_q:
-            matched_task = next(
-                (t for t in tasks_list if target_title_q in str(t.get("title") or "").lower() and t.get("status") != "completed"),
-                None,
-            ) or next((t for t in tasks_list if target_title_q in str(t.get("title") or "").lower()), None)
+    if details_match and ("detail" in lower or "description" in lower or "action item" in lower or "this task" in lower or "that task" in lower) and db is not None and hasattr(db, "list_tasks"):
+        q_target = (details_match.group(1) or "").strip()
+        all_tasks = db.list_tasks(limit=200, exclude_tests=True)
+        matched_task = _match_action_item_from_voice(all_tasks, q_target, allow_focused_fallback=True)
         if matched_task:
-            db.update_task_status(int(matched_task["id"]), "completed")
+            active_item = _set_voice_focused_task(matched_task)
+            desc_txt = str(matched_task.get("description") or "No additional description recorded.")
+            msg = (
+                f"🔎 **Action Item #{matched_task['id']} — {matched_task['title']}**\n"
+                f"• **Status**: `{matched_task.get('status', 'pending')}` | **Priority**: `{matched_task.get('priority', 'P2')}` | **Cadence**: `{matched_task.get('source', 'Manual')}`\n"
+                f"• **Details**: {desc_txt}"
+            )
+            spoken_reply = (
+                f"Action item number {matched_task['id']}, {_clean_for_speech(matched_task['title'])}, "
+                f"is currently {matched_task.get('status', 'pending')} with priority {matched_task.get('priority', 'P2')}. "
+                f"Details: {_clean_for_speech(desc_txt)}"
+            )
+            return _record_turn(spoken, {
+                "status": "ok",
+                "mode": "voice_action_item_details",
+                "agent_id": "overview",
+                "task_id": matched_task["id"],
+                "active_action_item": active_item,
+                "voice_transcript": spoken,
+                "normalized_command": f"action_item:details:{matched_task['id']}",
+                "title": f"🔎 Action Item #{matched_task['id']} Details",
+                "message": msg,
+                "spoken_reply": spoken_reply,
+                "ui_actions": [{"type": "switch_agent", "agent_id": "overview"}, {"type": "focus_action_item", "task": active_item}],
+                "executed_activities": [f"🔎 Inspected Action Item #{matched_task['id']} Details"],
+                "tokens_used": 0,
+                "cost_usd": "$0.00",
+            })
+
+    # 3A. Change Priority of Action Item via Voice ("Change priority of <X> to P1", "Make it high priority", "Set priority to urgent")
+    prio_match = (
+        re.match(
+            r"^.*?\b(?:change|set|update|make)\s+(?:the\s+)?priority\s+(?:of\s+(?:action\s+item\s+|task\s+|item\s+)?(.+?)\s+)?to\s+(p0|p1|p2|p3|urgent|critical|high(?:\s+priority)?|medium(?:\s+priority)?|normal|low(?:\s+priority)?)\b.*$",
+            spoken,
+            flags=re.I,
+        )
+        or re.match(
+            r"^.*?\b(?:make|set|reprioritize)\s+(?:action\s+item\s+|task\s+|item\s+)?(.+?)\s+(?:as\s+|to\s+)?(p0|p1|p2|p3|urgent|critical|high\s+priority|medium\s+priority|low\s+priority)\b.*$",
+            spoken,
+            flags=re.I,
+        )
+    )
+    if prio_match and db is not None and hasattr(db, "list_tasks") and hasattr(db, "update_task"):
+        target_q = (prio_match.group(1) or "it").strip()
+        raw_prio = (prio_match.group(2) or "P1").strip().lower()
+        prio_map = {
+            "p0": "P1", "urgent": "P1", "critical": "P1", "p1": "P1", "high": "P1", "high priority": "P1",
+            "p2": "P2", "medium": "P2", "medium priority": "P2", "normal": "P2",
+            "p3": "P3", "low": "P3", "low priority": "P3",
+        }
+        new_prio = prio_map.get(raw_prio, "P1")
+        tasks_list = db.list_tasks(limit=200, exclude_tests=True)
+        matched_task = _match_action_item_from_voice(tasks_list, target_q, allow_focused_fallback=True)
+        if matched_task:
+            db.update_task(int(matched_task["id"]), priority=new_prio)
+            matched_task["priority"] = new_prio
+            active_item = _set_voice_focused_task(matched_task)
+            ui_actions = [
+                {"type": "switch_agent", "agent_id": "overview"},
+                {"type": "refresh_tasks"},
+                {"type": "focus_action_item", "task": active_item},
+            ]
+            return _record_turn(spoken, {
+                "status": "ok",
+                "mode": "voice_task_edited",
+                "agent_id": "overview",
+                "task_id": matched_task["id"],
+                "active_action_item": active_item,
+                "voice_transcript": spoken,
+                "normalized_command": f"edit_task_priority:{matched_task['id']}:{new_prio}",
+                "title": f"⚡ Updated Action Item #{matched_task['id']} Priority → {new_prio}",
+                "message": f"Updated priority of **\"#{matched_task['id']}: {matched_task['title']}\"** to **{new_prio}**.",
+                "spoken_reply": f"Updated priority of {_clean_for_speech(matched_task['title'])} to {new_prio}.",
+                "ui_actions": ui_actions,
+                "executed_activities": [
+                    f"⚡ Changed Priority of Action Item #{matched_task['id']} → {new_prio}",
+                    "🔄 Refreshed Overview & Tasks Board",
+                ],
+                "tokens_used": 0,
+                "cost_usd": "$0.00",
+            })
+
+    # 3B. Add Note / Update Description of Action Item via Voice ("Add note to <X>: <note>", "Update description of <X> to <note>")
+    note_match = re.match(
+        r"^.*?\b(?:add\s+(?:a\s+)?note|update\s+(?:the\s+)?(?:description|details|notes?)|set\s+(?:the\s+)?(?:description|details))\s*(?:to|for|of|on)?\s*(?:action\s+item\s+|task\s+|item\s+)?(?:([^:]+?)\s*(?::|\bto\b|\bsaying\b)\s*(.+)|:\s*(.+))$",
+        spoken,
+        flags=re.I,
+    )
+    if note_match and db is not None and hasattr(db, "list_tasks") and hasattr(db, "update_task"):
+        if note_match.group(3):
+            target_q = "it"
+            new_note = note_match.group(3).strip()
+        else:
+            target_q = (note_match.group(1) or "it").strip()
+            new_note = (note_match.group(2) or "").strip()
+        if new_note:
+            tasks_list = db.list_tasks(limit=200, exclude_tests=True)
+            matched_task = _match_action_item_from_voice(tasks_list, target_q, allow_focused_fallback=True)
+            if matched_task:
+                existing_desc = str(matched_task.get("description") or "").strip()
+                updated_desc = f"{existing_desc} | Note: {new_note}" if (existing_desc and "add" in lower) else new_note
+                db.update_task(int(matched_task["id"]), description=updated_desc)
+                matched_task["description"] = updated_desc
+                active_item = _set_voice_focused_task(matched_task)
+                ui_actions = [
+                    {"type": "switch_agent", "agent_id": "overview"},
+                    {"type": "refresh_tasks"},
+                    {"type": "focus_action_item", "task": active_item},
+                ]
+                return _record_turn(spoken, {
+                    "status": "ok",
+                    "mode": "voice_task_edited",
+                    "agent_id": "overview",
+                    "task_id": matched_task["id"],
+                    "active_action_item": active_item,
+                    "voice_transcript": spoken,
+                    "normalized_command": f"edit_task_note:{matched_task['id']}",
+                    "title": f"📝 Updated Notes on Action Item #{matched_task['id']}",
+                    "message": f"Updated notes for **\"#{matched_task['id']}: {matched_task['title']}\"** → `{updated_desc}`.",
+                    "spoken_reply": f"Saved your note on action item {_clean_for_speech(matched_task['title'])}: {_clean_for_speech(new_note)}.",
+                    "ui_actions": ui_actions,
+                    "executed_activities": [
+                        f"📝 Updated Description on Action Item #{matched_task['id']}",
+                        "🔄 Refreshed Overview & Tasks Board",
+                    ],
+                    "tokens_used": 0,
+                    "cost_usd": "$0.00",
+                })
+
+    # 3C. Edit / Rename Action Item Title via Voice ("Edit action item <X> to <New Title>", "Edit it to <New Title>", "Rename task #5 to <New Title>")
+    edit_title_match = (
+        re.match(
+            r"^.*?\b(?:edit|rename|update|change|modify)\s+(?:the\s+title\s+of\s+)?(?:action\s+item|task|item)\s+(?:#?(\d+)|(.+?))\s+(?:to|as|into)\s+(.+)$",
+            spoken,
+            flags=re.I,
+        )
+        or re.match(
+            r"^.*?\b(?:edit|rename|update|change)\s+(it|this|that|this\s+one|that\s+one|this\s+action\s+item|that\s+action\s+item|this\s+task|that\s+task|its\s+title|the\s+title|action\s+item|task)\s+(?:to|as|into)\s+(.+)$",
+            spoken,
+            flags=re.I,
+        )
+    )
+    if edit_title_match and db is not None and hasattr(db, "list_tasks") and hasattr(db, "update_task"):
+        groups = edit_title_match.groups()
+        if len(groups) == 3:
+            target_q = f"#{groups[0]}" if groups[0] else (groups[1] or "it").strip()
+            new_title = (groups[2] or "").strip().strip("\"'")
+        else:
+            target_q = "it"
+            new_title = (groups[1] or "").strip().strip("\"'")
+        if new_title:
+            tasks_list = db.list_tasks(limit=200, exclude_tests=True)
+            matched_task = _match_action_item_from_voice(tasks_list, target_q, allow_focused_fallback=True)
+            if matched_task:
+                old_title = str(matched_task.get("title") or "")
+                db.update_task(int(matched_task["id"]), title=new_title)
+                matched_task["title"] = new_title
+                active_item = _set_voice_focused_task(matched_task)
+                ui_actions = [
+                    {"type": "switch_agent", "agent_id": "overview"},
+                    {"type": "refresh_tasks"},
+                    {"type": "focus_action_item", "task": active_item},
+                ]
+                return _record_turn(spoken, {
+                    "status": "ok",
+                    "mode": "voice_task_edited",
+                    "agent_id": "overview",
+                    "task_id": matched_task["id"],
+                    "active_action_item": active_item,
+                    "voice_transcript": spoken,
+                    "normalized_command": f"edit_task:{matched_task['id']}:{new_title}",
+                    "title": f"✏️ Edited Action Item #{matched_task['id']}",
+                    "message": f"Updated Action Item **#{matched_task['id']}** from **\"{old_title}\"** to **\"{new_title}\"**.",
+                    "spoken_reply": f"Updated action item number {matched_task['id']} to {_clean_for_speech(new_title)}.",
+                    "ui_actions": ui_actions,
+                    "executed_activities": [
+                        f"✏️ Edited Action Item #{matched_task['id']}: \"{old_title}\" → \"{new_title}\"",
+                        "🔄 Refreshed Overview & Tasks Board",
+                    ],
+                    "tokens_used": 0,
+                    "cost_usd": "$0.00",
+                })
+
+    # 3D. Reopen / Unclose a Closed Action Item via Voice ("Reopen action item <X>", "Reopen it", "Move <X> back to pending")
+    reopen_match = (
+        re.match(
+            r"^.*?\b(?:reopen|unclose|restore|reactivate)\s+(?:action\s+item\s+|task\s+|item\s+)?(?:#?(\d+)|(.+))$",
+            spoken,
+            flags=re.I,
+        )
+        or re.match(
+            r"^.*?\b(?:move|mark|set)\s+(?:action\s+item\s+|task\s+|item\s+)?(?:#?(\d+)|(.+?))\s+(?:back\s+)?(?:to\s+|as\s+)(?:pending|open|active|incomplete)\b.*$",
+            spoken,
+            flags=re.I,
+        )
+    )
+    if reopen_match and db is not None and hasattr(db, "list_tasks") and hasattr(db, "update_task_status"):
+        target_q = f"#{reopen_match.group(1)}" if reopen_match.group(1) else (reopen_match.group(2) or "it").strip()
+        tasks_list = db.list_tasks(limit=200, exclude_tests=True)
+        matched_task = _match_action_item_from_voice(tasks_list, target_q, prefer_status="completed", allow_focused_fallback=True)
+        if matched_task:
+            db.update_task_status(int(matched_task["id"]), "pending")
+            matched_task["status"] = "pending"
+            active_item = _set_voice_focused_task(matched_task, mode="pending")
             ui_actions = [
                 {"type": "switch_agent", "agent_id": "overview"},
                 {"type": "refresh_tasks"},
                 {"type": "refresh_briefing"},
+                {"type": "focus_action_item", "task": active_item},
+            ]
+            return _record_turn(spoken, {
+                "status": "ok",
+                "mode": "voice_task_reopened",
+                "agent_id": "overview",
+                "task_id": matched_task["id"],
+                "active_action_item": active_item,
+                "voice_transcript": spoken,
+                "normalized_command": f"reopen_task:{matched_task['id']}",
+                "title": f"🔄 Reopened Action Item #{matched_task['id']}",
+                "message": f"Reopened **\"{matched_task['title']}\"** (#{matched_task['id']}) back to `pending`.",
+                "spoken_reply": f"Reopened action item number {matched_task['id']}, {_clean_for_speech(matched_task['title'])}, and moved it back to your open list.",
+                "ui_actions": ui_actions,
+                "executed_activities": [
+                    f"🔄 Reopened Action Item #{matched_task['id']}: {matched_task['title']}",
+                    "🔄 Refreshed Overview & Tasks Board",
+                ],
+                "tokens_used": 0,
+                "cost_usd": "$0.00",
+            })
+
+    # 3E. Delete / Remove Action Item via Voice ("Delete action item #5", "Remove action item <X>")
+    delete_match = re.match(
+        r"^.*?\b(?:delete|remove|drop)\s+(?:the\s+)?(?:action\s+item|task)\s+(?:#?(\d+)|(.+))$",
+        spoken,
+        flags=re.I,
+    )
+    if delete_match and db is not None and hasattr(db, "list_tasks") and hasattr(db, "delete_task"):
+        target_q = f"#{delete_match.group(1)}" if delete_match.group(1) else (delete_match.group(2) or "").strip()
+        tasks_list = db.list_tasks(limit=200, exclude_tests=True)
+        matched_task = _match_action_item_from_voice(tasks_list, target_q, allow_focused_fallback=True)
+        if matched_task:
+            tid_del = int(matched_task["id"])
+            title_del = str(matched_task.get("title") or "")
+            db.delete_task(tid_del)
+            remaining = [t for t in db.list_tasks(limit=200, exclude_tests=True) if t.get("status") != "completed"]
+            active_item = _set_voice_focused_task(remaining[0] if remaining else None, queue=remaining, mode="pending")
+            ui_actions = [
+                {"type": "switch_agent", "agent_id": "overview"},
+                {"type": "refresh_tasks"},
+                {"type": "refresh_briefing"},
+                {"type": "focus_action_item", "task": active_item},
+            ]
+            return _record_turn(spoken, {
+                "status": "ok",
+                "mode": "voice_task_deleted",
+                "agent_id": "overview",
+                "task_id": tid_del,
+                "active_action_item": active_item,
+                "voice_transcript": spoken,
+                "normalized_command": f"delete_task:{tid_del}",
+                "title": f"🗑️ Deleted Action Item #{tid_del}",
+                "message": f"Deleted action item **\"#{tid_del}: {title_del}\"** from your vault.",
+                "spoken_reply": f"Deleted action item {_clean_for_speech(title_del)}.",
+                "ui_actions": ui_actions,
+                "executed_activities": [
+                    f"🗑️ Deleted Action Item #{tid_del}: {title_del}",
+                    "🔄 Refreshed Overview & Tasks Board",
+                ],
+                "tokens_used": 0,
+                "cost_usd": "$0.00",
+            })
+
+    # 3F. Close / Complete Action Item via Voice ("I already closed <X>", "Close it", "Close action item <X>", "Complete task <X>", "Mark <X> as closed")
+    complete_match = (
+        re.match(
+            r"^(?:please\s+)?(?:close|complete|finish|check\s+off|done\s+with)\s+(it|this|that|this\s+one|that\s+one|this\s+action\s+item|that\s+action\s+item|current\s+action\s+item|this\s+task|that\s+task)$",
+            lower,
+        )
+        or re.match(
+            r"^(?:please\s+)?(?:mark\s+(?:it|this|that|this\s+one|that\s+one|this\s+action\s+item|this\s+task)\s+(?:as\s+)?(?:closed|completed|complete|done|finished)|(?:it|this\s+one|that\s+one)\s+is\s+(?:already\s+)?(?:closed|done|completed))$",
+            lower,
+        )
+        or re.match(
+            r"^.*?\b(?:i\s+(?:have\s+)?(?:already\s+)?(?:closed|completed|finished|paid|done)|already\s+(?:closed|completed|finished|paid))\s+(?:the\s+|my\s+)?(?:action\s+item\s+|task\s+|item\s+)?(?:#?(\d+)|(.+))$",
+            spoken,
+            flags=re.I,
+        )
+        or re.match(
+            r"^.*?\b(?:close|complete|finish|check\s+off|mark)\s+(?:the\s+|my\s+)?(?:action\s+item|task|item)\s+(?:#?(\d+)|(.+?))(?:\s+as\s+(?:closed|done|completed|complete|finished))?$",
+            spoken,
+            flags=re.I,
+        )
+        or re.match(
+            r"^.*?\b(?:close|mark)\s+(.+?)\s+as\s+(?:closed|done|completed|complete|finished)$",
+            spoken,
+            flags=re.I,
+        )
+    )
+    if complete_match and db is not None and hasattr(db, "list_tasks") and hasattr(db, "update_task_status"):
+        groups = complete_match.groups()
+        if len(groups) == 1:
+            target_q = (groups[0] or "it").strip()
+        else:
+            target_q = f"#{groups[0]}" if groups[0] else (groups[1] or "it").strip()
+        target_q = re.sub(r"\s+as\s+(?:closed|done|completed|complete|finished)$", "", target_q, flags=re.I).strip()
+
+        tasks_list = db.list_tasks(limit=200, exclude_tests=True)
+        matched_task = _match_action_item_from_voice(
+            tasks_list,
+            target_q,
+            prefer_status="pending",
+            allow_focused_fallback=True,
+        )
+        if matched_task:
+            was_already_closed = (str(matched_task.get("status") or "").lower() == "completed")
+            db.update_task_status(int(matched_task["id"]), "completed")
+            updated_all = db.list_tasks(limit=200, exclude_tests=True)
+            remaining_pending = [t for t in updated_all if str(t.get("status") or "").lower() != "completed"]
+            next_focus_task = remaining_pending[0] if remaining_pending else None
+            active_item = _set_voice_focused_task(next_focus_task, queue=remaining_pending, mode="pending")
+            ui_actions = [
+                {"type": "switch_agent", "agent_id": "overview"},
+                {"type": "refresh_tasks"},
+                {"type": "refresh_briefing"},
+                {"type": "focus_action_item", "task": active_item},
             ]
             executed_activities = [
-                f"✓ Completed Task #{matched_task['id']}: {matched_task['title']}",
+                f"✅ Closed Action Item #{matched_task['id']}: {matched_task['title']}",
                 "🔄 Refreshed Overview & Tasks Board",
             ]
+            next_prompt_md = (
+                f"\n\n⏭️ **Next Open Action Item ({len(remaining_pending)} remaining)**: **#{next_focus_task['id']} — {next_focus_task['title']}** (`{next_focus_task.get('priority', 'P2')}`)\n"
+                f"💡 *Say **\"Close it\"**, **\"Edit it to ...\"**, or **\"Next action item\"**.*"
+                if next_focus_task
+                else "\n\n🎉 **All open action items are now closed!**"
+            )
+            next_prompt_speech = (
+                f" You have {len(remaining_pending)} open action item{'s' if len(remaining_pending) != 1 else ''} left. "
+                f"Next is task number {next_focus_task['id']}: {_clean_for_speech(next_focus_task['title'])}."
+                if next_focus_task
+                else " All of your open action items are now closed!"
+            )
+            already_note = "Confirmed! " if was_already_closed else "Done! "
             return _record_turn(spoken, {
                 "status": "ok",
                 "mode": "voice_task_completed",
                 "agent_id": "overview",
                 "task_id": matched_task["id"],
+                "active_action_item": active_item,
+                "remaining_pending_count": len(remaining_pending),
                 "voice_transcript": spoken,
                 "normalized_command": f"complete_task:{matched_task['id']}",
-                "title": f"✓ Completed Task #{matched_task['id']}",
-                "message": f"Marked **\"{matched_task['title']}\"** as completed in your local vault.",
-                "spoken_reply": f"Done! I marked {_clean_for_speech(matched_task['title'])} as completed.",
+                "title": f"✅ Closed Action Item #{matched_task['id']}",
+                "message": f"Marked **\"{matched_task['title']}\"** (#{matched_task['id']}) as closed in your local encrypted vault.{next_prompt_md}",
+                "spoken_reply": f"{already_note}I marked {_clean_for_speech(matched_task['title'])} as closed.{next_prompt_speech}",
                 "ui_actions": ui_actions,
                 "executed_activities": executed_activities,
                 "tokens_used": 0,
@@ -1690,10 +2389,10 @@ def _dispatch_voice_command_core(
         res["spoken_reply"] = _clean_for_speech(res.get("message") or f"Logged {glasses} glass of water.")
         return res
 
-    # 5. Add Task via Voice (Supports Daily, Monthly, Yearly, High Priority)
-    if re.search(r"\b(?:add|create|new)\s+(?:a\s+)?(?:high\s+priority\s+|urgent\s+|p1\s+|monthly\s+|yearly\s+)?task\b", lower):
+    # 5. Add Task / Action Item via Voice (Supports Daily, Monthly, Yearly, High Priority)
+    if re.search(r"\b(?:add|create|new)\s+(?:a\s+|an\s+)?(?:high\s+priority\s+|urgent\s+|p1\s+|monthly\s+|yearly\s+)?(?:action\s+item|task)\b", lower):
         task_body = re.sub(
-            r"^.*?\b(?:add|create|new)\s+(?:a\s+)?(?:high\s+priority\s+|urgent\s+|p1\s+|monthly\s+|yearly\s+)?task\b\s*:?\s*",
+            r"^.*?\b(?:add|create|new)\s+(?:a\s+|an\s+)?(?:high\s+priority\s+|urgent\s+|p1\s+|monthly\s+|yearly\s+)?(?:action\s+item|task)\b\s*:?\s*",
             "",
             spoken,
             flags=re.I,
@@ -1701,37 +2400,48 @@ def _dispatch_voice_command_core(
         if task_body:
             if db is not None and hasattr(db, "add_task"):
                 pri = "P1" if any(k in lower for k in ("high priority", "urgent", "p1")) else "P2"
-                src = "Monthly" if "monthly task" in lower else ("Yearly" if "yearly task" in lower else "voice_capture")
+                src = "Monthly" if "monthly" in lower else ("Yearly" if "yearly" in lower else "voice_capture")
                 tid = db.add_task(
                     title=task_body,
                     description=f"Captured via AFCC Voice Assistant ({src}): {task_body}",
                     priority=pri,
                     source=src,
                 )
+                new_task_obj = {
+                    "id": tid,
+                    "title": task_body,
+                    "description": f"Captured via AFCC Voice Assistant ({src}): {task_body}",
+                    "priority": pri,
+                    "status": "pending",
+                    "source": src,
+                }
+                active_item = _set_voice_focused_task(new_task_obj, mode="pending")
                 ui_actions = [
                     {"type": "switch_agent", "agent_id": "overview"},
                     {"type": "refresh_tasks"},
                     {"type": "refresh_briefing"},
+                    {"type": "focus_action_item", "task": active_item},
                 ]
                 executed_activities = [
-                    f"✅ Created {pri} Task #{tid} [{src}]",
+                    f"✅ Created {pri} Action Item #{tid} [{src}]",
                     "🔄 Refreshed Overview & Tasks Board",
                 ]
-                return {
+                return _record_turn(spoken, {
                     "status": "ok",
                     "mode": "voice_task_created",
                     "task_id": tid,
+                    "active_action_item": active_item,
                     "transcript": spoken,
                     "voice_transcript": spoken,
                     "normalized_command": f"add_task:{task_body}",
-                    "title": f"🎙️ Voice Task Captured ({pri}): {task_body}",
-                    "message": f"Added {pri} task '{task_body}' ({src}) to your local task vault.",
-                    "spoken_reply": f"Added {pri} task {_clean_for_speech(task_body)} to your task board.",
+                    "title": f"🎙️ Voice Action Item Captured ({pri}): {task_body}",
+                    "message": f"Added {pri} action item '{task_body}' ({src}) to your local task vault.",
+                    "spoken_reply": f"Added {pri} action item {_clean_for_speech(task_body)} to your task board.",
                     "ui_actions": ui_actions,
                     "executed_activities": executed_activities,
                     "tokens_used": 0,
                     "cost_usd": "$0.00",
-                }
+                })
             normalized = f"add task {task_body}"
 
     # 6. Log Health Vitals via Voice (Weight, Fasting/PP Blood Sugar)

@@ -1443,6 +1443,10 @@ function _launchVideoModal(filename, title, category, keepPlaylistMode = false) 
   if (modal) modal.style.display = 'flex';
 
   const isYt = Boolean(resolved.is_youtube || String(canonicalFilename).startsWith('yt_'));
+  const sysBtn = document.getElementById('btnOpenSystemPlayer');
+  if (sysBtn) {
+    sysBtn.innerHTML = isYt ? '▶️ Open on YouTube' : '🖥 Open in System Player';
+  }
   if (isYt) {
     const ytId = resolved.youtube_id || String(canonicalFilename).replace(/^yt_/, '');
     if (player) {
@@ -1455,8 +1459,10 @@ function _launchVideoModal(filename, title, category, keepPlaylistMode = false) 
       player.style.display = 'none';
     }
     if (ytIframe) {
+      ytIframe.referrerPolicy = 'strict-origin-when-cross-origin';
+      ytIframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
       ytIframe.style.display = 'block';
-      ytIframe.src = 'https://www.youtube.com/embed/' + encodeURIComponent(ytId) + '?autoplay=1&rel=0';
+      ytIframe.src = 'https://www.youtube.com/embed/' + encodeURIComponent(ytId) + '?feature=oembed&autoplay=1&rel=0&playsinline=1';
     }
     return;
   }
@@ -1788,10 +1794,14 @@ async function syncPersonalYoutubePlaylistsOAuth() {
     await fetchExerciseVideos();
     await fetchVideoPlaylists();
 
-    const msg = `✅ Synced ${data.imported_playlists_count || 0} personal YouTube playlist(s) (${data.imported_videos_count || 0} videos) from ${data.channel_title || 'your Google account'}!`;
+    const msg = `✅ Synced ${data.imported_playlists_count || 0} YouTube playlist(s) (${data.imported_videos_count || 0} videos) into your AES-256-GCM + DPAPI encrypted local vault!`;
     if (statusMsg) {
       statusMsg.style.color = '#34d399';
-      statusMsg.innerText = msg;
+      if (data.youtube_api_enable_url) {
+        statusMsg.innerHTML = `${escapeHtml(msg)} <span style="color: #94a3b8; font-size: 11px;">(Optional: <a href="${escapeHtml(data.youtube_api_enable_url)}" target="_blank" rel="noopener" style="color: #38bdf8; text-decoration: underline;">Enable YouTube Data API v3 in GCP Console</a> to also pull private custom GCP playlists)</span>`;
+      } else {
+        statusMsg.innerText = msg;
+      }
     }
     if (typeof showToast === 'function') {
       showToast(msg);

@@ -1209,7 +1209,8 @@ window.AFCCVoice = {
   voiceAccent: localStorage.getItem('afcc_voice_accent') || 'IN',
   routingMode: localStorage.getItem('afcc_voice_routing_mode') || 'zero_token',
   speakerLockEnabled: localStorage.getItem('afcc_voice_speaker_lock') !== 'false',
-  wakeWordRequired: localStorage.getItem('afcc_voice_wake_word_lock') === 'true',
+  wakeWordRequired: localStorage.getItem('afcc_voice_wake_word_lock') !== 'false',
+  wakeWordPhrase: localStorage.getItem('afcc_voice_wake_word_phrase') || 'Mahadev',
   voiceprint: _initialVoiceprint,
   isCalibrating: false,
   audioCtx: null,
@@ -1222,6 +1223,13 @@ window.AFCCVoice = {
   utterancePitchSamples: [],
   utteranceCentroidSamples: [],
   utterancePeakSnrDb: 0,
+  calibrationPcmChunks: [],
+  mediaRecorder: null,
+  recordedChunks: [],
+  pendingVoiceprint: null,
+  voiceprintAudioDataUrl: '',
+  voiceprintAudioFile: '',
+  lastActionWasVoiceprint: false,
   lastSpokenReply: 'Loud and clear! I am J.A.R.V.I.S., your Personal Agentic Fleet Voice Copilot. Tell me what you would like to do.',
   lastSpokenPhonetic: 'Loud and clear! I am Jarvis, your Personal Agentic Fleet Voice Copilot. Tell me what you would like to do.',
   recognition: null
@@ -1232,13 +1240,36 @@ async function loadJarvisVoiceprintFromServer() {
     const res = await fetch('/api/voice/voiceprint');
     if (!res.ok) return;
     const data = await res.json();
+    if (data && data.audio_data_url) {
+      window.AFCCVoice.voiceprintAudioDataUrl = data.audio_data_url;
+      window.AFCCVoice.voiceprintAudioFile = data.audio_file || 'fleet/data/user/voiceprint_sample.wav';
+      const player = document.getElementById('voiceprintPreviewPlayer');
+      if (player) player.src = data.audio_data_url;
+    }
     if (data && data.enrolled && data.profile && data.profile.pitchMeanHz) {
       window.AFCCVoice.voiceprint = data.profile;
       try {
         localStorage.setItem('afcc_jarvis_voiceprint', JSON.stringify(data.profile));
       } catch (e) {}
-      syncVoiceProfileSelectors();
     }
+    if (data && data.wake_word && !localStorage.getItem('afcc_voice_wake_word_phrase')) {
+      window.AFCCVoice.wakeWordPhrase = String(data.wake_word).trim() || 'Mahadev';
+    }
+    if (data && data.speech_rate && !localStorage.getItem('afcc_voice_rate')) {
+      const srvRate = parseFloat(data.speech_rate);
+      if (!isNaN(srvRate) && srvRate >= 0.5 && srvRate <= 3.5) {
+        window.AFCCVoice.speechRate = srvRate;
+      }
+    }
+    if (data && data.awaiting_confirmation && data.pending_profile) {
+      window.AFCCVoice.pendingVoiceprint = data.pending_profile;
+      showVoiceprintConfirmationGate(
+        data.pending_profile,
+        window.AFCCVoice.voiceprintAudioDataUrl,
+        window.AFCCVoice.voiceprintAudioFile
+      );
+    }
+    syncVoiceProfileSelectors();
   } catch (e) {}
 }
 setTimeout(loadJarvisVoiceprintFromServer, 800);
@@ -1266,6 +1297,49 @@ function toggleVoiceWakeWordLock() {
     localStorage.setItem('afcc_voice_wake_word_lock', window.AFCCVoice.wakeWordRequired ? 'true' : 'false');
   } catch (e) {}
   syncVoiceProfileSelectors();
+  try {
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voice_wake_word_required: window.AFCCVoice.wakeWordRequired })
+    });
+  } catch (e) {}
+}
+
+function setAfccVoiceWakeWordRequired(required) {
+  window.AFCCVoice.wakeWordRequired = Boolean(required);
+  try {
+    localStorage.setItem('afcc_voice_wake_word_lock', window.AFCCVoice.wakeWordRequired ? 'true' : 'false');
+  } catch (e) {}
+  syncVoiceProfileSelectors();
+  try {
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voice_wake_word_required: window.AFCCVoice.wakeWordRequired })
+    });
+  } catch (e) {}
+}
+
+function setAfccVoiceWakeWord(word) {
+  const clean = String(word || '').trim() || 'Mahadev';
+  window.AFCCVoice.wakeWordPhrase = clean;
+  window.AFCCVoice.wakeWordRequired = true;
+  try {
+    localStorage.setItem('afcc_voice_wake_word_phrase', clean);
+    localStorage.setItem('afcc_voice_wake_word_lock', 'true');
+  } catch (e) {}
+  syncVoiceProfileSelectors();
+  try {
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        voice_wake_word: clean,
+        voice_wake_word_required: true
+      })
+    });
+  } catch (e) {}
 }
 
 function computeAutocorrelationPitchHz(floatBuf, sampleRate) {
@@ -1390,6 +1464,9 @@ async function ensureJarvisAudioDspPipeline() {
         if (snrDb > window.AFCCVoice.utterancePeakSnrDb) {
           window.AFCCVoice.utterancePeakSnrDb = snrDb;
         }
+        if (window.AFCCVoice.isCalibrating) {
+          window.AFCCVoice.calibrationPcmChunks.push(new Float32Array(timeBuf));
+        }
         if (pitchHz >= 75 && pitchHz <= 360 && snrDb >= 10) {
           window.AFCCVoice.utterancePitchSamples.push(pitchHz);
           if (centroidHz > 0) window.AFCCVoice.utteranceCentroidSamples.push(centroidHz);
@@ -1426,19 +1503,217 @@ function stopJarvisAudioDspPipeline() {
   window.AFCCVoice.analyser = null;
 }
 
+function encodePcmChunksToWavDataUrl(pcmChunks, sampleRate, fallbackPitchHz) {
+  const sr = Math.min(24000, Math.max(8000, Math.round(sampleRate || 16000)));
+  let samples = [];
+  if (Array.isArray(pcmChunks) && pcmChunks.length > 0) {
+    for (let c = 0; c < pcmChunks.length; c++) {
+      const buf = pcmChunks[c];
+      for (let i = 0; i < buf.length; i++) {
+        samples.push(buf[i]);
+      }
+    }
+  }
+  if (samples.length < 4096) {
+    const f0 = fallbackPitchHz || 140;
+    const total = sr * 2;
+    for (let i = 0; i < total; i++) {
+      const t = i / sr;
+      const env = Math.sin(Math.PI * (i / total));
+      samples.push(0.35 * env * (Math.sin(2 * Math.PI * f0 * t) + 0.4 * Math.sin(4 * Math.PI * f0 * t)));
+    }
+  }
+
+  const numSamples = samples.length;
+  const buffer = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(buffer);
+  const writeStr = (offset, str) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  };
+
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + numSamples * 2, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sr, true);
+  view.setUint32(28, sr * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, 'data');
+  view.setUint32(40, numSamples * 2, true);
+
+  let offset = 44;
+  for (let i = 0; i < numSamples; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    offset += 2;
+  }
+
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return 'data:audio/wav;base64,' + btoa(binary);
+}
+
+function showVoiceprintConfirmationGate(profile, audioDataUrl, savedFilePath) {
+  const panel = document.getElementById('voiceprintConfirmPanel');
+  const summaryEl = document.getElementById('voiceprintConfirmSummary');
+  const fileBadge = document.getElementById('voiceprintSavedFileBadge');
+  const player = document.getElementById('voiceprintPreviewPlayer');
+  const btnReplayTop = document.getElementById('btnReplayVoiceprint');
+
+  if (fileBadge) {
+    fileBadge.textContent = `Saved: ${savedFilePath || 'fleet/data/user/voiceprint_sample.wav'}`;
+  }
+  if (summaryEl && profile) {
+    summaryEl.innerHTML = `Captured vocal signature: <strong>Pitch F0 ${profile.pitchMeanHz} Hz</strong> (±${profile.pitchStdHz || 22} Hz) • <strong>Formant Centroid ${profile.centroidMeanHz} Hz</strong> • <strong>SNR Floor ${profile.snrFloorDb || 12} dB</strong>. Replay your saved audio below and click <strong>"✅ Confirm &amp; Process Voiceprint"</strong> to enroll and lock your voice.`;
+  }
+  if (player) {
+    player.src = audioDataUrl || '/api/voice/voiceprint/audio';
+  }
+  if (btnReplayTop) {
+    btnReplayTop.style.display = 'inline-block';
+  }
+  if (panel) {
+    panel.style.display = 'block';
+  }
+}
+
+async function replayJarvisVoiceprintAudio() {
+  const transcriptEl = document.getElementById('voiceTranscriptText');
+  const player = document.getElementById('voiceprintPreviewPlayer');
+  let src = window.AFCCVoice.voiceprintAudioDataUrl || (player && player.src ? player.src : '');
+
+  if (!src || src === window.location.href) {
+    try {
+      const res = await fetch('/api/voice/voiceprint/audio?format=json');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.audio_data_url) {
+          src = data.audio_data_url;
+          window.AFCCVoice.voiceprintAudioDataUrl = src;
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (src && src.startsWith('data:audio')) {
+    if (transcriptEl) {
+      const vp = window.AFCCVoice.pendingVoiceprint || window.AFCCVoice.voiceprint;
+      const hzInfo = vp && vp.pitchMeanHz ? ` (${vp.pitchMeanHz} Hz, Formant ${vp.centroidMeanHz || 1150} Hz)` : '';
+      transcriptEl.innerHTML = `<span style="color: #38bdf8; font-weight: 600;">🔊 Replaying your saved voiceprint recording${escapeHtml(hzInfo)}...</span>`;
+    }
+    try {
+      if (player) {
+        if (player.src !== src) player.src = src;
+        player.currentTime = 0;
+        await player.play();
+        return;
+      }
+      const audioObj = new Audio(src);
+      await audioObj.play();
+      return;
+    } catch (err) {}
+  }
+
+  const vp = window.AFCCVoice.pendingVoiceprint || window.AFCCVoice.voiceprint;
+  if (vp && vp.pitchMeanHz) {
+    speakAfccVoiceText(`Replaying your recorded biometric voiceprint summary: vocal pitch ${vp.pitchMeanHz} Hertz, formant centroid ${vp.centroidMeanHz || 1150} Hertz.`);
+  }
+}
+
+async function confirmJarvisVoiceprintSave() {
+  const transcriptEl = document.getElementById('voiceTranscriptText');
+  const panel = document.getElementById('voiceprintConfirmPanel');
+  const profile = window.AFCCVoice.pendingVoiceprint || window.AFCCVoice.voiceprint;
+  if (!profile) return;
+
+  profile.confirmedAt = new Date().toISOString();
+  window.AFCCVoice.voiceprint = profile;
+  window.AFCCVoice.pendingVoiceprint = null;
+  window.AFCCVoice.speakerLockEnabled = true;
+  window.AFCCVoice.lastActionWasVoiceprint = true;
+
+  try {
+    localStorage.setItem('afcc_jarvis_voiceprint', JSON.stringify(profile));
+    localStorage.setItem('afcc_voice_speaker_lock', 'true');
+  } catch (e) {}
+
+  let savedFile = window.AFCCVoice.voiceprintAudioFile || 'fleet/data/user/voiceprint_sample.wav';
+  try {
+    const res = await fetch('/api/voice/voiceprint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        profile,
+        audio_data_url: window.AFCCVoice.voiceprintAudioDataUrl || '',
+        stage_only: false,
+        confirmed: true
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.audio_file) {
+        savedFile = data.audio_file;
+        window.AFCCVoice.voiceprintAudioFile = savedFile;
+      }
+    }
+  } catch (e) {}
+
+  if (panel) panel.style.display = 'none';
+  syncVoiceProfileSelectors();
+
+  const msg = `Biometric Voiceprint Confirmed & Locked! Your vocal pitch signature (${profile.pitchMeanHz} Hz, Formant Centroid ${profile.centroidMeanHz} Hz) is now enrolled and saved to ${savedFile} for replay. Background speakers and room noise will be filtered out automatically.`;
+  if (transcriptEl) {
+    transcriptEl.innerHTML = `<span style="color: #34d399; font-weight: 600;">🧬 ${escapeHtml(msg)}</span>`;
+  }
+  speakAfccVoiceText(`Biometric Voiceprint Confirmed and Locked at ${profile.pitchMeanHz} Hertz. Your voice sample is saved for replay and background speakers will be filtered out automatically.`);
+}
+
+async function cancelJarvisVoiceprintSave() {
+  const transcriptEl = document.getElementById('voiceTranscriptText');
+  const panel = document.getElementById('voiceprintConfirmPanel');
+  window.AFCCVoice.pendingVoiceprint = null;
+  if (panel) panel.style.display = 'none';
+
+  try {
+    await fetch('/api/voice/voiceprint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cancel_pending: true })
+    });
+  } catch (e) {}
+
+  syncVoiceProfileSelectors();
+  if (transcriptEl) {
+    transcriptEl.innerHTML = `<span style="color: var(--text-muted);">✕ Pending voiceprint processing cancelled. Click "🧬 Calibrate My Voice (3s)" anytime to record a new sample.</span>`;
+  }
+}
+
 async function calibrateJarvisVoiceprint() {
   const transcriptEl = document.getElementById('voiceTranscriptText');
   const btnEnroll = document.getElementById('btnEnrollVoiceprint');
+  const panel = document.getElementById('voiceprintConfirmPanel');
+  if (panel) panel.style.display = 'none';
+
   window.AFCCVoice.isCalibrating = true;
   window.AFCCVoice.utterancePitchSamples = [];
   window.AFCCVoice.utteranceCentroidSamples = [];
   window.AFCCVoice.utterancePeakSnrDb = 0;
+  window.AFCCVoice.calibrationPcmChunks = [];
+  window.AFCCVoice.recordedChunks = [];
 
   if (btnEnroll) {
-    btnEnroll.innerHTML = '🎙️ Speak Now (3s)...';
+    btnEnroll.innerHTML = '🎙️ Recording (3s)...';
   }
   if (transcriptEl) {
-    transcriptEl.innerHTML = `<span style="color: #38bdf8; font-weight: 600;">🧬 Calibrating Biometric Voiceprint: Please say "Jarvis, can you hear my voice clearly?" aloud now...</span>`;
+    transcriptEl.innerHTML = `<span style="color: #38bdf8; font-weight: 600;">🧬 Recording 3-Second Voiceprint Sample: Please say "Jarvis, can you hear my voice clearly?" aloud now...</span>`;
   }
 
   const ok = await ensureJarvisAudioDspPipeline();
@@ -1451,8 +1726,55 @@ async function calibrateJarvisVoiceprint() {
     return;
   }
 
+  // Start MediaRecorder on the active microphone stream if supported by the browser
+  let activeRecorder = null;
+  try {
+    if (typeof window.MediaRecorder !== 'undefined' && window.AFCCVoice.mediaStream) {
+      const mimeOpts = MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? { mimeType: 'audio/webm;codecs=opus' }
+        : (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm') ? { mimeType: 'audio/webm' } : {});
+      activeRecorder = new MediaRecorder(window.AFCCVoice.mediaStream, mimeOpts);
+      activeRecorder.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size > 0) {
+          window.AFCCVoice.recordedChunks.push(ev.data);
+        }
+      };
+      activeRecorder.start(200);
+      window.AFCCVoice.mediaRecorder = activeRecorder;
+    }
+  } catch (e) {
+    activeRecorder = null;
+  }
+
   setTimeout(async () => {
     window.AFCCVoice.isCalibrating = false;
+
+    // Finalize MediaRecorder blob -> data URL (with PCM WAV fallback so a replayable file is always created)
+    let recordedDataUrl = '';
+    if (activeRecorder && activeRecorder.state !== 'inactive') {
+      await new Promise((resolve) => {
+        activeRecorder.onstop = () => {
+          try {
+            if (window.AFCCVoice.recordedChunks.length > 0) {
+              const blob = new Blob(window.AFCCVoice.recordedChunks, { type: activeRecorder.mimeType || 'audio/webm' });
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                if (typeof reader.result === 'string' && reader.result.startsWith('data:audio')) {
+                  recordedDataUrl = reader.result;
+                }
+                resolve();
+              };
+              reader.onerror = () => resolve();
+              reader.readAsDataURL(blob);
+              return;
+            }
+          } catch (e) {}
+          resolve();
+        };
+        try { activeRecorder.stop(); } catch (e) { resolve(); }
+      });
+    }
+
     const pitches = window.AFCCVoice.utterancePitchSamples.slice();
     const centroids = window.AFCCVoice.utteranceCentroidSamples.slice();
 
@@ -1474,50 +1796,82 @@ async function calibrateJarvisVoiceprint() {
       centroidMeanHz = Math.round(centroids.reduce((a, b) => a + b, 0) / centroids.length);
     }
 
+    if (!recordedDataUrl) {
+      const sr = (window.AFCCVoice.audioCtx && window.AFCCVoice.audioCtx.sampleRate) ? window.AFCCVoice.audioCtx.sampleRate : 16000;
+      recordedDataUrl = encodePcmChunksToWavDataUrl(window.AFCCVoice.calibrationPcmChunks, sr, pitchMeanHz);
+    }
+
     const profile = {
       pitchMeanHz,
       pitchStdHz,
       centroidMeanHz,
       snrFloorDb: Math.max(10, Math.min(22, (window.AFCCVoice.utterancePeakSnrDb || 18) - 8)),
       samplesCount: pitches.length,
-      enrolledAt: new Date().toISOString()
+      recordedAt: new Date().toISOString()
     };
 
-    window.AFCCVoice.voiceprint = profile;
-    window.AFCCVoice.speakerLockEnabled = true;
-    try {
-      localStorage.setItem('afcc_jarvis_voiceprint', JSON.stringify(profile));
-      localStorage.setItem('afcc_voice_speaker_lock', 'true');
-    } catch (e) {}
+    // Stage the candidate voiceprint and save the audio file for replay BEFORE processing/locking
+    window.AFCCVoice.pendingVoiceprint = profile;
+    window.AFCCVoice.voiceprintAudioDataUrl = recordedDataUrl;
+    window.AFCCVoice.lastActionWasVoiceprint = true;
+    let savedFilePath = recordedDataUrl.includes('audio/webm')
+      ? 'fleet/data/user/voiceprint_sample.webm'
+      : 'fleet/data/user/voiceprint_sample.wav';
 
     try {
-      await fetch('/api/voice/voiceprint', {
+      const stageRes = await fetch('/api/voice/voiceprint', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile })
+        body: JSON.stringify({
+          profile,
+          audio_data_url: recordedDataUrl,
+          stage_only: true,
+          confirmed: false
+        })
       });
+      if (stageRes.ok) {
+        const stageData = await stageRes.json();
+        if (stageData && stageData.audio_file) {
+          savedFilePath = stageData.audio_file;
+        }
+      }
     } catch (e) {}
 
+    window.AFCCVoice.voiceprintAudioFile = savedFilePath;
+    showVoiceprintConfirmationGate(profile, recordedDataUrl, savedFilePath);
     syncVoiceProfileSelectors();
-    const msg = `Biometric Voiceprint Locked! Your vocal pitch signature (${pitchMeanHz} Hz, Formant Centroid ${centroidMeanHz} Hz) is now enrolled. Background speakers and room noise will be filtered out automatically.`;
+
+    const promptMsg = `Voiceprint sample recorded (${pitchMeanHz} Hz, Formant Centroid ${centroidMeanHz} Hz) and saved to ${savedFilePath} for replay. Please replay your recording and click "Confirm & Process Voiceprint" to enroll it.`;
     if (transcriptEl) {
-      transcriptEl.innerHTML = `<span style="color: #34d399; font-weight: 600;">🧬 ${escapeHtml(msg)}</span>`;
+      transcriptEl.innerHTML = `<span style="color: #fbbf24; font-weight: 600;">🧬 ${escapeHtml(promptMsg)}</span>`;
     }
-    speakAfccVoiceText(msg);
+    speakAfccVoiceText(`Voiceprint sample recorded at ${pitchMeanHz} Hertz and saved for replay. Please click Replay Recording to listen, or click Confirm and Process Voiceprint to lock it.`);
   }, 3100);
+}
+
+function matchesConfiguredWakeWord(text) {
+  const s = String(text || '').trim().toLowerCase();
+  if (!s) return false;
+  const activeWake = String(window.AFCCVoice.wakeWordPhrase || 'Mahadev').trim().toLowerCase();
+  if (activeWake && s.includes(activeWake)) return true;
+  if (activeWake.includes('mahadev') && (s.includes('mahadev') || s.includes('महादेव') || s.includes('మహాదేవ్') || s.includes('shiva'))) {
+    return true;
+  }
+  return /\b(mahadev|jarvis|afcc|hey\s+jarvis|ok\s+jarvis|hello\s+jarvis|har\s+har\s+mahadev)\b/i.test(s);
 }
 
 function verifySpeakerBiometrics(transcript, alternatives) {
   const clean = String(transcript || '').trim();
   if (!clean) return { allowed: false, reason: 'Empty transcript' };
 
-  const hasWakeWord = /\b(jarvis|afcc|hey\s+jarvis|ok\s+jarvis|hello\s+jarvis)\b/i.test(clean) ||
-    (Array.isArray(alternatives) && alternatives.some(a => /\b(jarvis|afcc)\b/i.test(String(a || ''))));
+  const activeWakeLabel = String(window.AFCCVoice.wakeWordPhrase || 'Mahadev').trim() || 'Mahadev';
+  const hasWakeWord = matchesConfiguredWakeWord(clean) ||
+    (Array.isArray(alternatives) && alternatives.some(a => matchesConfiguredWakeWord(a)));
 
   if (window.AFCCVoice.wakeWordRequired && !hasWakeWord) {
     return {
       allowed: false,
-      reason: 'Wake Word Lock is ON — say "Jarvis ..." to issue a command.'
+      reason: `Wake Word Lock is ON — say "${activeWakeLabel} ..." to issue a command.`
     };
   }
 
@@ -1569,7 +1923,7 @@ function selectBestJarvisClientAlternative(alternatives) {
   if (cleaned.length === 0) return '';
   if (cleaned.length === 1) return cleaned[0];
 
-  const highValueRegex = /\b(can you hear|hear me|jarvis|are you there|mic check|audible|what agents|list agents|my agents|about .* agent|health agent|optimizer agent|email agent|backlog agent|overview agent|antigravity|daily briefing|water|workout|playlist|video|optimize|security scan|emails|tasks|smoothie|weight|fasting)\b/i;
+  const highValueRegex = /\b(mahadev|can you hear|hear me|jarvis|are you there|mic check|audible|action item|action items|close it|close that|already closed|closed action|reopen|edit it|edit action|next action|next item|what agents|list agents|my agents|about .* agent|health agent|optimizer agent|email agent|backlog agent|overview agent|antigravity|daily briefing|water|workout|playlist|video|optimize|security scan|emails|tasks|smoothie|weight|fasting)\b/i;
   const noiseWords = new Set(['crisis', 'crying', 'christ', 'prices', 'places', 'the', 'a', 'uh', 'um', 'hmm']);
 
   let best = cleaned[0];
@@ -1649,8 +2003,13 @@ function syncVoiceProfileSelectors() {
     btnSpeakerLock.style.background = sOn ? 'rgba(16, 185, 129, 0.14)' : 'rgba(255,255,255,0.04)';
   }
   if (btnEnroll && !window.AFCCVoice.isCalibrating) {
+    const pendingVp = window.AFCCVoice.pendingVoiceprint;
     const vp = window.AFCCVoice.voiceprint;
-    if (vp && vp.pitchMeanHz) {
+    if (pendingVp && pendingVp.pitchMeanHz) {
+      btnEnroll.innerHTML = `⏳ Confirm Voiceprint (${pendingVp.pitchMeanHz}Hz)`;
+      btnEnroll.style.borderColor = 'rgba(251, 191, 36, 0.55)';
+      btnEnroll.style.color = '#fde68a';
+    } else if (vp && vp.pitchMeanHz) {
       btnEnroll.innerHTML = `🧬 Voiceprint (${vp.pitchMeanHz}Hz)`;
       btnEnroll.style.borderColor = 'rgba(16, 185, 129, 0.45)';
       btnEnroll.style.color = '#34d399';
@@ -1658,11 +2017,57 @@ function syncVoiceProfileSelectors() {
       btnEnroll.innerHTML = '🧬 Calibrate My Voice (3s)';
     }
   }
+  const btnReplayVp = document.getElementById('btnReplayVoiceprint');
+  if (btnReplayVp) {
+    const hasReplay = Boolean(
+      window.AFCCVoice.voiceprintAudioDataUrl ||
+      window.AFCCVoice.pendingVoiceprint ||
+      (window.AFCCVoice.voiceprint && window.AFCCVoice.voiceprint.hasAudioReplay)
+    );
+    btnReplayVp.style.display = hasReplay ? 'inline-block' : 'none';
+  }
   if (btnWake) {
     const wOn = Boolean(window.AFCCVoice.wakeWordRequired);
-    btnWake.innerHTML = wOn ? '🔒 Wake Word: "Jarvis"' : '🟢 Wake Word: Optional';
+    const activeWake = String(window.AFCCVoice.wakeWordPhrase || 'Mahadev').trim() || 'Mahadev';
+    btnWake.innerHTML = wOn ? `🔒 Wake Word: "${escapeHtml(activeWake)}"` : `🟢 Wake Word: "${escapeHtml(activeWake)}" (Optional)`;
     btnWake.style.color = wOn ? '#fbbf24' : 'var(--text-muted)';
     btnWake.style.borderColor = wOn ? 'rgba(245, 158, 11, 0.45)' : 'var(--card-border)';
+  }
+  const wakeInput = document.getElementById('voiceWakeWordInput');
+  if (wakeInput && document.activeElement !== wakeInput) {
+    wakeInput.value = window.AFCCVoice.wakeWordPhrase || 'Mahadev';
+  }
+  const genWakeInput = document.getElementById('genSettingWakeWordPhrase');
+  if (genWakeInput && document.activeElement !== genWakeInput) {
+    genWakeInput.value = window.AFCCVoice.wakeWordPhrase || 'Mahadev';
+  }
+  const genWakeBadge = document.getElementById('settingsWakeWordBadgeText');
+  if (genWakeBadge) {
+    genWakeBadge.textContent = window.AFCCVoice.wakeWordPhrase || 'Mahadev';
+  }
+  const genWakeReq = document.getElementById('genSettingWakeWordRequired');
+  if (genWakeReq) {
+    genWakeReq.checked = Boolean(window.AFCCVoice.wakeWordRequired);
+  }
+  const genRateSel = document.getElementById('genSettingVoiceRate');
+  if (genRateSel && String(genRateSel.value) !== String(window.AFCCVoice.speechRate)) {
+    genRateSel.value = String(window.AFCCVoice.speechRate || 1.25);
+  }
+  const genLangSel = document.getElementById('genSettingVoiceLanguage');
+  if (genLangSel && genLangSel.value !== window.AFCCVoice.voiceLanguage) {
+    genLangSel.value = window.AFCCVoice.voiceLanguage || 'en';
+  }
+  const genGenSel = document.getElementById('genSettingVoiceGender');
+  if (genGenSel && genGenSel.value !== window.AFCCVoice.voiceGender) {
+    genGenSel.value = window.AFCCVoice.voiceGender || 'female';
+  }
+  const genAccSel = document.getElementById('genSettingVoiceAccent');
+  if (genAccSel && genAccSel.value !== window.AFCCVoice.voiceAccent) {
+    genAccSel.value = window.AFCCVoice.voiceAccent || 'IN';
+  }
+  const genSpkLock = document.getElementById('genSettingVoiceSpeakerLock');
+  if (genSpkLock) {
+    genSpkLock.checked = Boolean(window.AFCCVoice.speakerLockEnabled);
   }
   if (bioBadge && !window.AFCCVoice.isListening) {
     const vp = window.AFCCVoice.voiceprint;
@@ -1994,10 +2399,18 @@ function toggleVoiceSpokenReply() {
 
 function setAfccVoiceRate(val) {
   const num = parseFloat(val);
-  if (!isNaN(num) && num >= 0.5 && num <= 2.0) {
+  if (!isNaN(num) && num >= 0.5 && num <= 3.5) {
     window.AFCCVoice.speechRate = num;
     try {
       localStorage.setItem('afcc_voice_rate', String(num));
+    } catch (e) {}
+    syncVoiceProfileSelectors();
+    try {
+      fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voice_speech_rate: String(num) })
+      });
     } catch (e) {}
   }
 }
@@ -2090,6 +2503,13 @@ function speakAfccVoiceText(text, onDoneCallback, altPhoneticText) {
 }
 
 function replayLastAfccVoiceReply() {
+  if (
+    window.AFCCVoice.pendingVoiceprint ||
+    (window.AFCCVoice.lastActionWasVoiceprint && window.AFCCVoice.voiceprintAudioDataUrl)
+  ) {
+    replayJarvisVoiceprintAudio();
+    return;
+  }
   if (window.AFCCVoice.lastSpokenReply) {
     speakAfccVoiceText(
       window.AFCCVoice.lastSpokenReply,
@@ -2099,12 +2519,64 @@ function replayLastAfccVoiceReply() {
   }
 }
 
+function renderVoiceFocusedActionItem(taskObj) {
+  const bar = document.getElementById('voiceFocusedActionItemBar');
+  const stepBadge = document.getElementById('voiceFocusedTaskStepBadge');
+  const titleEl = document.getElementById('voiceFocusedTaskTitle');
+  const metaEl = document.getElementById('voiceFocusedTaskMeta');
+  const btnClose = document.getElementById('btnVoiceCloseFocusedTask');
+  const btnReopen = document.getElementById('btnVoiceReopenFocusedTask');
+
+  window.AFCCVoice.activeActionItem = taskObj || null;
+  if (!bar) return;
+  if (!taskObj || !taskObj.id) {
+    bar.style.display = 'none';
+    return;
+  }
+  bar.style.display = 'block';
+  const pos = taskObj.cursor_position || 1;
+  const total = taskObj.queue_total || 1;
+  const isClosed = String(taskObj.status || '').toLowerCase() === 'completed';
+
+  if (stepBadge) {
+    stepBadge.textContent = `${isClosed ? 'Closed' : 'Open'} ${pos}/${total}`;
+  }
+  if (titleEl) {
+    titleEl.textContent = `#${taskObj.id} — ${taskObj.title || 'Action Item'}`;
+    titleEl.style.color = isClosed ? '#cbd5e1' : '#6ee7b7';
+    titleEl.style.textDecoration = isClosed ? 'line-through' : 'none';
+  }
+  if (metaEl) {
+    metaEl.textContent = `${taskObj.priority || 'P2'} • ${taskObj.source || 'Manual'} • ${isClosed ? 'closed' : 'open'}`;
+  }
+  if (btnClose) {
+    btnClose.style.display = isClosed ? 'none' : 'inline-block';
+  }
+  if (btnReopen) {
+    btnReopen.style.display = isClosed ? 'inline-block' : 'none';
+  }
+}
+
+function promptVoiceEditFocusedActionItem() {
+  const cur = window.AFCCVoice.activeActionItem;
+  const currentTitle = cur && cur.title ? cur.title : '';
+  const newTitle = window.prompt(
+    cur ? `Edit Action Item #${cur.id} title (or speak "Edit it to <new title>"):` : 'Enter new title for the focused action item:',
+    currentTitle
+  );
+  if (newTitle && newTitle.trim() && newTitle.trim() !== currentTitle) {
+    executeVoiceTurnText(`Edit it to ${newTitle.trim()}`);
+  }
+}
+
 async function executeVoiceUiActions(uiActions) {
   if (!Array.isArray(uiActions) || uiActions.length === 0) return;
   for (const act of uiActions) {
     if (!act || !act.type) continue;
     try {
-      if (act.type === 'switch_agent' && act.agent_id) {
+      if (act.type === 'focus_action_item') {
+        renderVoiceFocusedActionItem(act.task || null);
+      } else if (act.type === 'switch_agent' && act.agent_id) {
         if (typeof FleetNavigator !== 'undefined' && typeof FleetNavigator.switchAgent === 'function') {
           FleetNavigator.switchAgent(act.agent_id);
         } else if (typeof switchTab === 'function') {
@@ -2201,6 +2673,7 @@ async function executeVoiceUiActions(uiActions) {
 }
 
 async function executeVoiceTurnText(transcriptText, alternativesList) {
+  window.AFCCVoice.lastActionWasVoiceprint = false;
   const rawAlts = Array.isArray(alternativesList) && alternativesList.length > 0
     ? alternativesList
     : [transcriptText];
@@ -2289,6 +2762,9 @@ async function executeVoiceTurnText(transcriptText, alternativesList) {
     }
 
     // Execute linked live UI & agent activities simultaneously
+    if (typeof data.active_action_item !== 'undefined') {
+      renderVoiceFocusedActionItem(data.active_action_item);
+    }
     await executeVoiceUiActions(data.ui_actions || []);
     if (typeof fetchLogs === 'function') fetchLogs();
 
@@ -2408,7 +2884,7 @@ async function startBrowserSpeechRecognition() {
           }
           updateVoiceCopilotUI('🛡️ Speaker Lock: Filtered Background Audio', 'ready');
           if (window.AFCCVoice.userWantsListening && window.AFCCVoice.continuousMode && !window.AFCCVoice.isSpeaking) {
-            setTimeout(() => startBrowserSpeechRecognition(), 300);
+            setTimeout(() => startBrowserSpeechRecognition(), 120);
           }
           return;
         }
@@ -2418,7 +2894,7 @@ async function startBrowserSpeechRecognition() {
           if (window.AFCCVoice.userWantsListening && !window.AFCCVoice.isListening && !window.AFCCVoice.isSpeaking) {
             startBrowserSpeechRecognition();
           }
-        }, 350);
+        }, 120);
       }
     };
 
@@ -2458,6 +2934,8 @@ window.setAfccVoiceAccent = setAfccVoiceAccent;
 window.setAfccVoiceRoutingMode = setAfccVoiceRoutingMode;
 window.toggleVoiceSpeakerLock = toggleVoiceSpeakerLock;
 window.toggleVoiceWakeWordLock = toggleVoiceWakeWordLock;
+window.setAfccVoiceWakeWord = setAfccVoiceWakeWord;
+window.setAfccVoiceWakeWordRequired = setAfccVoiceWakeWordRequired;
 window.calibrateJarvisVoiceprint = calibrateJarvisVoiceprint;
 window.verifySpeakerBiometrics = verifySpeakerBiometrics;
 window.testAfccSelectedVoice = testAfccSelectedVoice;

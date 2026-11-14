@@ -326,7 +326,9 @@ class FleetScheduler:
         f = self._get_overrides_file()
         if f.is_file():
             try:
-                return json.loads(f.read_text(encoding="utf-8"))
+                from fleet.core.crypto_vault import read_encrypted_json_file
+                data = read_encrypted_json_file(f, default={})
+                return data if isinstance(data, dict) else {}
             except Exception:
                 pass
         return {}
@@ -334,7 +336,8 @@ class FleetScheduler:
     def save_overrides(self, overrides: Dict[str, Any]) -> None:
         f = self._get_overrides_file()
         try:
-            f.write_text(json.dumps(overrides, indent=2), encoding="utf-8")
+            from fleet.core.crypto_vault import write_encrypted_json_file
+            write_encrypted_json_file(f, overrides)
         except Exception as e:
             logger.error(f"Error saving schedule overrides: {e}")
 

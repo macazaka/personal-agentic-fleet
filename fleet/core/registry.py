@@ -81,7 +81,9 @@ class AgentRegistry:
         f = self._get_overrides_file()
         if f.is_file():
             try:
-                return json.loads(f.read_text(encoding="utf-8"))
+                from fleet.core.crypto_vault import read_encrypted_json_file
+                data = read_encrypted_json_file(f, default={})
+                return data if isinstance(data, dict) else {}
             except Exception as e:
                 logger.warning(f"Could not load agent overrides: {e}")
         return {}
@@ -90,7 +92,8 @@ class AgentRegistry:
         """Persists user agent customizations safely."""
         f = self._get_overrides_file()
         try:
-            f.write_text(json.dumps(overrides, indent=2), encoding="utf-8")
+            from fleet.core.crypto_vault import write_encrypted_json_file
+            write_encrypted_json_file(f, overrides)
         except Exception as e:
             logger.error(f"Could not save agent overrides: {e}")
 
@@ -1088,7 +1091,8 @@ class AgentRegistry:
                 rep_file.unlink(missing_ok=True)
             sched_path = vault_dir / "schedule_overrides.json"
             if sched_path.is_file():
-                sched_overrides = json.loads(sched_path.read_text(encoding="utf-8"))
+                from fleet.core.crypto_vault import read_encrypted_json_file, write_encrypted_json_file
+                sched_overrides = read_encrypted_json_file(sched_path, default={})
                 if isinstance(sched_overrides, dict):
                     keys_to_remove = [
                         k for k, v in sched_overrides.items()
@@ -1099,7 +1103,7 @@ class AgentRegistry:
                     if keys_to_remove:
                         for k in keys_to_remove:
                             sched_overrides.pop(k, None)
-                        sched_path.write_text(json.dumps(sched_overrides, indent=2), encoding="utf-8")
+                        write_encrypted_json_file(sched_path, sched_overrides)
         except Exception as e:
             logger.warning(f"Error cleaning auxiliary files/schedules for deleted agent '{clean_id}': {e}")
 

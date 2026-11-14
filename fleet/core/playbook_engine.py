@@ -136,11 +136,13 @@ def list_playbooks() -> List[Dict[str, Any]]:
         return [dict(p) for p in _TEST_PLAYBOOKS_MEMORY]
 
     if not store_path.is_file():
-        store_path.write_text(json.dumps(DEFAULT_PLAYBOOKS, indent=2), encoding="utf-8", newline="\n")
+        from fleet.core.crypto_vault import write_encrypted_json_file
+        write_encrypted_json_file(store_path, DEFAULT_PLAYBOOKS)
         return [dict(p) for p in DEFAULT_PLAYBOOKS]
 
     try:
-        loaded = json.loads(store_path.read_text(encoding="utf-8"))
+        from fleet.core.crypto_vault import read_encrypted_json_file
+        loaded = read_encrypted_json_file(store_path, default=[])
         if isinstance(loaded, list) and loaded:
             return loaded
     except Exception:
@@ -154,7 +156,8 @@ def save_playbooks(playbooks: List[Dict[str, Any]]) -> None:
     if store_path is None:
         _TEST_PLAYBOOKS_MEMORY = [dict(p) for p in playbooks]
         return
-    store_path.write_text(json.dumps(playbooks, indent=2), encoding="utf-8", newline="\n")
+    from fleet.core.crypto_vault import write_encrypted_json_file
+    write_encrypted_json_file(store_path, playbooks)
 
 
 def add_or_update_playbook(playbook: Dict[str, Any]) -> Dict[str, Any]:

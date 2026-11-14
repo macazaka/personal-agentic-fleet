@@ -520,6 +520,11 @@ def test_microphone_permissions_policy_and_multilingual_indian_voice_copilot():
     assert 'id="voiceLanguageSelect"' in dash_html
     assert 'id="voiceGenderSelect"' in dash_html
     assert 'id="voiceAccentSelect"' in dash_html
+    assert 'id="voiceWakeWordInput"' in dash_html
+    assert 'id="genSettingWakeWordPhrase"' in dash_html
+    assert 'id="genSettingVoiceRate"' in dash_html
+    for spd in ('1.5', '1.75', '2', '2.5', '3'):
+        assert f'<option value="{spd}">' in dash_html
     assert 'value="hi"' in dash_html
     assert 'value="te"' in dash_html
     assert 'value="mr"' in dash_html
@@ -530,8 +535,13 @@ def test_microphone_permissions_policy_and_multilingual_indian_voice_copilot():
     assert "voiceLanguage: localStorage.getItem('afcc_voice_lang') || 'en'" in ag_js
     assert "voiceGender: localStorage.getItem('afcc_voice_gender') || 'female'" in ag_js
     assert "voiceAccent: localStorage.getItem('afcc_voice_accent') || 'IN'" in ag_js
+    assert "wakeWordPhrase: localStorage.getItem('afcc_voice_wake_word_phrase') || 'Mahadev'" in ag_js
 
     from fleet.core.omnibar_dispatcher import transcribe_and_dispatch_voice_command
+
+    res_mahadev = transcribe_and_dispatch_voice_command("Mahadev, mask sensitive IDs", language="en", gender="female", accent="IN")
+    assert res_mahadev["status"] == "ok"
+    assert res_mahadev["normalized_command"] == "task_mask:on"
 
     res_en = transcribe_and_dispatch_voice_command("Mask sensitive IDs", language="en", gender="female", accent="IN")
     assert res_en["status"] == "ok"
@@ -555,6 +565,67 @@ def test_microphone_permissions_policy_and_multilingual_indian_voice_copilot():
     assert res_mr["voice_profile"]["bcp47"] == "mr-IN"
     assert "नमस्कार" in res_mr["spoken_reply"]
     assert "Namaskar" in res_mr["spoken_reply_phonetic"]
+
+
+def test_hkdf_binary_vault_sweep_and_zero_cloud_egress_guard(tmp_path):
+    from fleet.core.crypto_vault import (
+        BINARY_AESGCM_PREFIX,
+        assert_zero_cloud_user_data_egress,
+        contains_encrypted_or_user_vault_marker,
+        decrypt_binary_bytes_at_rest,
+        derive_domain_subkey,
+        encrypt_aes256_gcm,
+        encrypt_binary_bytes_at_rest,
+        enforce_all_user_data_encrypted_at_rest,
+        is_json_file_encrypted_at_rest,
+        read_encrypted_json_file,
+        sanitize_outbound_cloud_payload,
+    )
+
+    # 1. RFC 5869 HKDF-SHA256 domain separation produces distinct 256-bit keys
+    k_aead = derive_domain_subkey(b"afcc-aes256gcm-v1", 32)
+    k_fpe = derive_domain_subkey(b"afcc-fpe-v1", 32)
+    k_bin = derive_domain_subkey(b"afcc-binary-vault-v1", 32)
+    assert len(k_aead) == 32 and len(k_fpe) == 32 and len(k_bin) == 32
+    assert k_aead != k_fpe and k_aead != k_bin and k_fpe != k_bin
+
+    # 2. Binary file at-rest encryption (ENCBIN:aes256gcm:) roundtrip
+    raw_wav = b"RIFF$\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00"
+    enc_wav = encrypt_binary_bytes_at_rest(raw_wav)
+    assert enc_wav != raw_wav
+    assert enc_wav.startswith(BINARY_AESGCM_PREFIX)
+    assert decrypt_binary_bytes_at_rest(enc_wav) == raw_wav
+
+    # 3. Vault sweep encrypts all plaintext JSON & binary files in user directory
+    fake_user_dir = tmp_path / "user"
+    fake_user_dir.mkdir(parents=True)
+    plain_json = fake_user_dir / "sample_vault.json"
+    plain_json.write_text('{"secret_note": "strictly_local"}', encoding="utf-8")
+    plain_wav = fake_user_dir / "voiceprint_sample.wav"
+    plain_wav.write_bytes(raw_wav)
+    plain_token = tmp_path / "gmail_token.json"
+    plain_token.write_text('{"token": "ya29.local"}', encoding="utf-8")
+
+    sweep_res = enforce_all_user_data_encrypted_at_rest(target_data_dir=tmp_path)
+    assert sweep_res["total_protected_files"] == 3
+    assert is_json_file_encrypted_at_rest(plain_json) is True
+    assert is_json_file_encrypted_at_rest(plain_token) is True
+    assert read_encrypted_json_file(plain_json) == {"secret_note": "strictly_local"}
+    assert read_encrypted_json_file(plain_token) == {"token": "ya29.local"}
+    assert plain_wav.read_bytes().startswith(BINARY_AESGCM_PREFIX)
+    assert decrypt_binary_bytes_at_rest(plain_wav.read_bytes()) == raw_wav
+
+    # 4. Zero-Cloud Egress Guard blocks & sanitizes any encrypted or vault markers
+    ct_sample = encrypt_aes256_gcm("confidential_user_payload")
+    outbound = {"query": "hello", "leaked_vault": {"_encrypted_vault": True, "ciphertext": ct_sample}, "token": ct_sample}
+    assert contains_encrypted_or_user_vault_marker(outbound) is True
+    with pytest.raises(PermissionError, match="Zero-Cloud Security Policy Violation"):
+        assert_zero_cloud_user_data_egress(outbound, destination="github.com")
+
+    sanitized = sanitize_outbound_cloud_payload(outbound)
+    assert contains_encrypted_or_user_vault_marker(sanitized) is False
+    assert isinstance(sanitized, dict) and sanitized["query"] == "hello"
+
 
 
 

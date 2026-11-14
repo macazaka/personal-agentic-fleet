@@ -30,6 +30,24 @@ repo_root = Path(__file__).resolve().parent.parent.parent
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
+print("[Fleet Zero-Cloud Vault Firewall] Enforcing at-rest AES-256-GCM encryption & Zero-Cloud Git exclusion (pre-commit)...")
+try:
+    from fleet.core.crypto_vault import enforce_all_user_data_encrypted_at_rest
+    enforce_all_user_data_encrypted_at_rest()
+    # Explicitly unstage any file under fleet/data/ (except .example/.gitignore) so neither encrypted nor plaintext user data ever enters Git
+    git_exe_local = "git"
+    staged_res = subprocess.run([git_exe_local, "-C", str(repo_root), "diff", "--cached", "--name-only", "--diff-filter=ACMR"], capture_output=True, text=True, check=False)
+    for staged_rel in (staged_res.stdout or "").splitlines():
+        s_clean = staged_rel.strip().replace("\\\\", "/")
+        if s_clean.startswith("fleet/data/") and not s_clean.endswith((".example", ".gitignore")):
+            subprocess.run([git_exe_local, "-C", str(repo_root), "reset", "HEAD", "--", s_clean], capture_output=True, check=False)
+            print(f"[BLOCKED & UNSTAGED] Zero-Cloud Policy: '{{s_clean}}' is local user data and cannot be committed to Git/GitHub.")
+            sys.exit(1)
+except SystemExit:
+    raise
+except Exception:
+    pass
+
 print("[Fleet Proactive Lifecycle] Running CodeQL/VS Code Auto-Fixer, Semantic Release Sync & Doc/Wiki Enhancer (pre-commit)...")
 try:
     from fleet.tools.proactive_lifecycle import run_proactive_lifecycle
@@ -95,6 +113,25 @@ fallback_git = Path(os.path.expanduser(r"~\\AppData\\Local\\Programs\\Git\\cmd\\
 if fallback_git.is_file():
     git_exe = str(fallback_git)
 hidden_kw = {{"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}} if os.name == "nt" else {{}}
+
+# ---------------------------------------------------------------------------
+# 0. Zero-Cloud User Data & Ciphertext Firewall (Blocks any fleet/data/ or encrypted vault push)
+# ---------------------------------------------------------------------------
+try:
+    from fleet.core.crypto_vault import enforce_all_user_data_encrypted_at_rest
+    enforce_all_user_data_encrypted_at_rest()
+    ls_res = subprocess.run([git_exe, "-C", str(repo_root), "ls-files", "fleet/data"], capture_output=True, text=True, check=False, **hidden_kw)
+    for tracked_data in (ls_res.stdout or "").splitlines():
+        td = tracked_data.strip().replace("\\\\", "/")
+        if td and not td.endswith((".example", ".gitignore")):
+            print("==================================================================")
+            print(f"[BLOCKED] Zero-Cloud Policy: Local user data file '{{td}}' is tracked in Git and cannot be pushed to any cloud remote.")
+            print("==================================================================")
+            sys.exit(1)
+except SystemExit:
+    raise
+except Exception:
+    pass
 
 # ---------------------------------------------------------------------------
 # 1. Main Branch Protection Gate

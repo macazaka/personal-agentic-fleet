@@ -423,12 +423,25 @@ def test_video_thumbnails_youtube_crud_and_oauth_sync(tmp_path, monkeypatch):
     assert res_del["status"] == "deleted"
     assert res_del["deleted"] is True
 
-    # 5. Check Google YouTube OAuth status
+    # 5. Check Google YouTube OAuth status & AES-256-GCM + DPAPI + Voltage FPE encryption
     h7 = _make_handler()
     health_api.get_youtube_oauth_status(h7, urllib.parse.urlparse("/api/health/youtube/oauth/status"))
     res_status = h7._send_json.call_args[0][0]
     assert res_status["status"] == "ok"
     assert "credentials_file_present" in res_status
+    assert "encryption" in res_status
+
+    from fleet.core.crypto_vault import fpe_decrypt_identifier, fpe_encrypt_identifier
+    raw_proj = "1014573511473"
+    fpe_ct = fpe_encrypt_identifier(raw_proj)
+    assert len(fpe_ct) == len(raw_proj)
+    assert fpe_ct.isdigit()
+    assert fpe_ct != raw_proj
+    assert fpe_decrypt_identifier(fpe_ct) == raw_proj
+
+    # Verify youtube_videos.json and video_playlists.json are encrypted at rest on disk
+    raw_disk_pl = (tmp_path / "video_playlists.json").read_text(encoding="utf-8")
+    assert '"_encrypted_vault": true' in raw_disk_pl
 
     # Verify frontend wiring for thumbnails, YouTube iframe & Google OAuth sync
     root_dir = Path(__file__).resolve().parent.parent

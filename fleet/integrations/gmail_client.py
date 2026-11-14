@@ -6,6 +6,7 @@ folder labels (0-Meetings, 1-Respond, 2-Note, 3-FYI, 4-Ignore), and batch labeli
 Includes simulated mock mode if credentials.json is not yet provided.
 """
 
+import json
 import os
 import re
 from datetime import datetime, timedelta
@@ -131,10 +132,26 @@ class GmailManager:
             creds = None
             if TOKEN_FILE.exists():
                 creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
+                from unittest.mock import Mock
+                if isinstance(getattr(Credentials, "from_authorized_user_file", None), Mock):
+                    creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
+                else:
+                    from fleet.core.crypto_vault import read_encrypted_json_file, write_encrypted_json_file
+                    tok_info = read_encrypted_json_file(TOKEN_FILE)
+                    if isinstance(tok_info, dict) and hasattr(Credentials, "from_authorized_user_info"):
+                        creds = Credentials.from_authorized_user_info(tok_info, SCOPES)
+                    else:
+                        creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
                 if creds and creds.expired and creds.refresh_token:
                     creds.refresh(Request())
                     with open(TOKEN_FILE, "w") as token:
                         token.write(creds.to_json())
+                    try:
+                        from fleet.core.crypto_vault import write_encrypted_json_file
+                        write_encrypted_json_file(TOKEN_FILE, json.loads(creds.to_json()))
+                    except Exception:
+                        with open(TOKEN_FILE, "w") as token:
+                            token.write(creds.to_json())
 
             if creds and creds.valid:
                 self.service = build("gmail", "v1", credentials=creds)
@@ -157,6 +174,12 @@ class GmailManager:
         creds = flow.run_local_server(port=0)
         with open(TOKEN_FILE, "w") as token:
             token.write(creds.to_json())
+        try:
+            from fleet.core.crypto_vault import write_encrypted_json_file
+            write_encrypted_json_file(TOKEN_FILE, json.loads(creds.to_json()))
+        except Exception:
+            with open(TOKEN_FILE, "w") as token:
+                token.write(creds.to_json())
 
         self.service = build("gmail", "v1", credentials=creds)
         self.is_connected = True

@@ -342,19 +342,61 @@ def test_jarvis_voice_brain_and_speaker_biometrics(isolated_db):
     assert not cleaned_speech.startswith("{")
     assert "conversation_id" not in cleaned_speech
 
-    # 10. Biometric Speaker Voiceprint persistence endpoints
+    # 10. Biometric Speaker Voiceprint staging, audio file replay, and user confirmation gate
+    from fleet.api.settings_api import get_voiceprint_audio_replay_endpoint
+    import base64
+
+    sample_wav_b64 = base64.b64encode(b"RIFF$\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00\x00}\x00\x00\x02\x00\x10\x00data\x00\x00\x00\x00").decode("ascii")
+    sample_data_url = f"data:audio/wav;base64,{sample_wav_b64}"
+
+    # Step 10a: Stage recorded voiceprint audio for replay BEFORE processing/enrolling
+    h_stage = MagicMock()
+    post_voiceprint_profile_endpoint(
+        h_stage,
+        {
+            "profile": {"pitchMeanHz": 134, "pitchStdHz": 20, "centroidMeanHz": 1568},
+            "audio_data_url": sample_data_url,
+            "stage_only": True,
+            "confirmed": False,
+        },
+    )
+    stage_payload = h_stage._send_json.call_args[0][0]
+    assert stage_payload["status"] == "staged_awaiting_confirmation"
+    assert stage_payload["awaiting_confirmation"] is True
+    assert stage_payload["confirmed"] is False
+    assert stage_payload["audio_saved"] is True
+    assert "voiceprint_sample.wav" in stage_payload["audio_file"]
+
+    # Step 10b: Replay the saved voiceprint audio file
+    h_audio = MagicMock(spec=["_send_json"])
+    get_voiceprint_audio_replay_endpoint(h_audio, urllib.parse.urlparse("/api/voice/voiceprint/audio?format=json"))
+    audio_payload = h_audio._send_json.call_args[0][0]
+    assert audio_payload["status"] == "ok"
+    assert audio_payload["audio_saved"] is True
+    assert audio_payload["audio_data_url"] == sample_data_url
+
+    # Step 10c: User confirms & processes the voiceprint
     h_post = MagicMock()
     post_voiceprint_profile_endpoint(
         h_post,
-        {"profile": {"pitchMeanHz": 148, "pitchStdHz": 22, "centroidMeanHz": 1180}},
+        {
+            "profile": {"pitchMeanHz": 134, "pitchStdHz": 20, "centroidMeanHz": 1568},
+            "audio_data_url": sample_data_url,
+            "stage_only": False,
+            "confirmed": True,
+        },
     )
     assert h_post._send_json.call_args[0][0]["status"] == "ok"
+    assert h_post._send_json.call_args[0][0]["confirmed"] is True
     assert h_post._send_json.call_args[0][0]["enrolled"] is True
+    assert h_post._send_json.call_args[0][0]["audio_saved"] is True
 
     h_get = MagicMock()
     get_voiceprint_profile_endpoint(h_get, urllib.parse.urlparse("/api/voice/voiceprint"))
     assert h_get._send_json.call_args[0][0]["enrolled"] is True
-    assert h_get._send_json.call_args[0][0]["profile"]["pitchMeanHz"] == 148
+    assert h_get._send_json.call_args[0][0]["profile"]["pitchMeanHz"] == 134
+    assert h_get._send_json.call_args[0][0]["audio_saved"] is True
+    assert h_get._send_json.call_args[0][0]["audio_url"] == "/api/voice/voiceprint/audio"
 
 
 def test_local_tls_certificate_and_https_dual_stack():
@@ -367,5 +409,77 @@ def test_local_tls_certificate_and_https_dual_stack():
     assert ctx is not None
     assert "https://127.0.0.1:7890" in ALLOWED_ORIGINS
     assert "https://localhost:7890" in ALLOWED_ORIGINS
+
+
+def test_voice_action_items_conversational_engine(isolated_db):
+    from fleet.core.omnibar_dispatcher import execute_voice_conversation_turn
+
+    # Seed two realistic action items in isolated_db
+    t1_id = isolated_db.add_task(
+        title="Monthly — HDFC Credit Card Bill Payment",
+        description="Pay monthly HDFC statement before the 5th.",
+        priority="P2",
+        source="Monthly",
+    )
+    t2_id = isolated_db.add_task(
+        title="Monthly — Pay Electricity Bill",
+        description="Pay Maharashtra MSEB consumer bill.",
+        priority="P2",
+        source="Monthly",
+    )
+    assert t1_id > 0 and t2_id > 0
+
+    # 1. Start daily conversation on open action items
+    r_open = execute_voice_conversation_turn("Mahadev, let's talk about my action items", db=isolated_db)
+    assert r_open["mode"] == "voice_action_items_open_review"
+    assert r_open["tokens_used"] == 0
+    assert r_open["pending_count"] >= 2
+    assert r_open["active_action_item"] is not None
+    first_focused_id = r_open["active_action_item"]["id"]
+
+    # 2. Step to next action item
+    r_next = execute_voice_conversation_turn("Next action item", db=isolated_db)
+    assert r_next["mode"] == "voice_action_item_step"
+    assert r_next["active_action_item"]["id"] != first_focused_id
+
+    # Step back to the Electricity Bill item so we edit Electricity Bill and keep HDFC Credit Card intact
+    execute_voice_conversation_turn("Next action item", db=isolated_db)
+
+    # 3. Edit focused action item title verbally ("Edit it to ...")
+    r_edit = execute_voice_conversation_turn("Edit it to Monthly — Pay Pune Electricity Bill", db=isolated_db)
+    assert r_edit["mode"] == "voice_task_edited"
+    assert "Pay Pune Electricity Bill" in r_edit["active_action_item"]["title"]
+
+    # 4. Change priority verbally ("Change priority of it to high priority")
+    r_prio = execute_voice_conversation_turn("Change priority of it to high priority", db=isolated_db)
+    assert r_prio["mode"] == "voice_task_edited"
+    assert r_prio["active_action_item"]["priority"] == "P1"
+
+    # 5. Add note verbally
+    r_note = execute_voice_conversation_turn("Add note: Paid via BHIM UPI", db=isolated_db)
+    assert r_note["mode"] == "voice_task_edited"
+    assert "Paid via BHIM UPI" in r_note["active_action_item"]["description"]
+
+    # 6. Close the focused action item using conversational pronoun ("Close it")
+    r_close1 = execute_voice_conversation_turn("Close it", db=isolated_db)
+    assert r_close1["mode"] == "voice_task_completed"
+    assert r_close1["tokens_used"] == 0
+
+    # 7. Close another action item by natural phrase ("I already closed the HDFC credit card action item")
+    r_close2 = execute_voice_conversation_turn("I already closed the HDFC credit card action item", db=isolated_db)
+    assert r_close2["mode"] == "voice_task_completed"
+    assert r_close2["task_id"] == t1_id
+
+    # 8. Talk with the voice cockpit about action items already closed
+    r_closed_list = execute_voice_conversation_turn("What action items have I already closed?", db=isolated_db)
+    assert r_closed_list["mode"] == "voice_action_items_closed_review"
+    assert r_closed_list["closed_count"] >= 2
+    assert "HDFC Credit Card" in r_closed_list["spoken_reply"] or "Electricity Bill" in r_closed_list["spoken_reply"]
+
+    # 9. Reopen the focused closed action item verbally ("Reopen it")
+    r_reopen = execute_voice_conversation_turn("Reopen it", db=isolated_db)
+    assert r_reopen["mode"] == "voice_task_reopened"
+    assert r_reopen["active_action_item"]["status"] == "pending"
+
 
 

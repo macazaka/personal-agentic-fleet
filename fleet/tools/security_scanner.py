@@ -49,6 +49,7 @@ FORBIDDEN_TRACKED_FILES = [
     re.compile(r".*\.sqlite3?$", re.IGNORECASE),
     re.compile(r".*client_secret.*\.json$", re.IGNORECASE),
     re.compile(r".*gmail_token\.json$", re.IGNORECASE),
+    re.compile(r".*youtube_token\.json$", re.IGNORECASE),
     re.compile(r"(?:^|/)\.env(?:\..+)?$", re.IGNORECASE),
     re.compile(r".*\.(?:pem|key|pfx|p12)$", re.IGNORECASE),
     re.compile(r"^fleet/data/user/.*", re.IGNORECASE),
@@ -131,17 +132,21 @@ def _load_pii_blocklist() -> List[str]:
         except Exception:
             pass
         try:
-            blocklist_file.write_text(
-                json.dumps({"blocked_terms": default_terms, "description": "Local-only list of personal terms that must never appear in git-tracked files."}, indent=2),
-                encoding="utf-8",
+            from fleet.core.crypto_vault import write_encrypted_json_file
+            write_encrypted_json_file(
+                blocklist_file,
+                {"blocked_terms": default_terms, "description": "Local-only list of personal terms that must never appear in git-tracked files."},
             )
         except Exception:
             pass
         return default_terms
 
     try:
-        data = json.loads(blocklist_file.read_text(encoding="utf-8"))
-        return [t.strip() for t in data.get("blocked_terms", []) if len(t.strip()) >= 3]
+        from fleet.core.crypto_vault import read_encrypted_json_file
+        data = read_encrypted_json_file(blocklist_file, default={})
+        if isinstance(data, dict):
+            return [t.strip() for t in data.get("blocked_terms", []) if len(t.strip()) >= 3]
+        return []
     except Exception:
         return []
 
@@ -326,7 +331,18 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
                 findings.append(hit)
 
     for rel_path in tracked_files:
-        if rel_path.endswith(".example"):
+        if rel_path.endswith(".example") or rel_path.endswith(".gitignore"):
+            continue
+        if rel_path.startswith("fleet/data/"):
+            hit = {
+                "severity": "CRITICAL",
+                "category": "Zero-Cloud User Data Guard",
+                "file": rel_path,
+                "line": 0,
+                "detail": f"User data file '{rel_path}' under fleet/data/ must NEVER be tracked by Git or synced to the cloud (encrypted or plaintext)!",
+            }
+            hygiene_hits.append(hit)
+            findings.append(hit)
             continue
         for pat in FORBIDDEN_TRACKED_FILES:
             if pat.match(rel_path):
@@ -339,6 +355,23 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
                 }
                 hygiene_hits.append(hit)
                 findings.append(hit)
+        if rel_path.endswith((".json", ".yaml", ".yml", ".csv", ".wav", ".webm")):
+            fp_check = repo_root / rel_path
+            if fp_check.is_file():
+                try:
+                    raw_head = fp_check.read_text(encoding="utf-8", errors="ignore")[:4096]
+                    if '"_encrypted_vault": true' in raw_head or "ENC:aes256gcm:" in raw_head or "ENCBIN:aes256gcm:" in raw_head:
+                        hit = {
+                            "severity": "CRITICAL",
+                            "category": "Zero-Cloud Ciphertext Guard",
+                            "file": rel_path,
+                            "line": 1,
+                            "detail": f"Encrypted vault file '{rel_path}' is tracked by Git! Zero user data (encrypted or plaintext) may exist in Git/cloud.",
+                        }
+                        hygiene_hits.append(hit)
+                        findings.append(hit)
+                except Exception:
+                    pass
 
     checks.append({
         "id": "git_hygiene",
@@ -581,21 +614,47 @@ def run_security_scan(repo_root: Path = REPO_ROOT, save_report: bool = True) -> 
     })
 
     # -------------------------------------------------------------------------
-    # Check 7: At-Rest DPAPI Cryptographic Vault Verification
+    # Check 7: At-Rest DPAPI, AES-256-GCM, HKDF-SHA256 & Voltage FPE Crypto Vault Verification
     # -------------------------------------------------------------------------
     crypto_hits = []
     try:
-        from fleet.core.crypto_vault import decrypt_sensitive_text, encrypt_sensitive_text
+        from fleet.core.crypto_vault import (
+            decrypt_aes256_gcm,
+            decrypt_binary_bytes_at_rest,
+            decrypt_sensitive_text,
+            derive_domain_subkey,
+            encrypt_aes256_gcm,
+            encrypt_binary_bytes_at_rest,
+            encrypt_sensitive_text,
+            fpe_decrypt_identifier,
+            fpe_encrypt_identifier,
+        )
         probe = "fleet_dpapi_integrity_probe_2026"
         ct = encrypt_sensitive_text(probe)
         pt = decrypt_sensitive_text(ct)
-        if not ct.startswith("ENC:") or pt != probe:
+        ct_gcm = encrypt_aes256_gcm(probe)
+        pt_gcm = decrypt_aes256_gcm(ct_gcm)
+        fpe_ct = fpe_encrypt_identifier("1014573511473")
+        fpe_pt = fpe_decrypt_identifier(fpe_ct)
+        bin_ct = encrypt_binary_bytes_at_rest(b"RIFF_WAV_PROBE")
+        bin_pt = decrypt_binary_bytes_at_rest(bin_ct)
+        sub_k1 = derive_domain_subkey(b"domain-a", 32)
+        sub_k2 = derive_domain_subkey(b"domain-b", 32)
+        if (
+            not ct.startswith("ENC:")
+            or pt != probe
+            or pt_gcm != probe
+            or fpe_pt != "1014573511473"
+            or fpe_ct == "1014573511473"
+            or bin_pt != b"RIFF_WAV_PROBE"
+            or sub_k1 == sub_k2
+        ):
             hit = {
                 "severity": "HIGH",
                 "category": "At-Rest Encryption",
                 "file": "fleet/core/crypto_vault.py",
                 "line": 1,
-                "detail": "Cryptographic vault roundtrip check failed.",
+                "detail": "Cryptographic vault roundtrip check (DPAPI + AES-256-GCM + HKDF-SHA256 + Voltage FPE) failed.",
             }
             crypto_hits.append(hit)
             findings.append(hit)

@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>Personal Agentic Fleet — Agentic Fleet Control Center (AFCC)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -839,23 +840,30 @@
         </div>
 
         <!-- Collapsible Add YouTube Video / Playlist Panel -->
-        <div id="addYoutubeVideoPanel" style="display: none; background: rgba(15, 23, 42, 0.82); border: 1px solid rgba(244, 63, 94, 0.4); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; flex-direction: column; gap: 10px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="font-size: 16px;">🔴</span>
-              <strong style="font-size: 12.5px; color: #fff;">Add YouTube Video or Import YouTube Playlist</strong>
-              <span style="font-size: 11px; color: var(--text-muted);">Paste any YouTube video link, Shorts link, playlist link (`?list=PL...`), or sync via Google Login</span>
+        <div id="addYoutubeVideoPanel" style="display: none; background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(244, 63, 94, 0.4); border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; flex-direction: column; gap: 10px; box-sizing: border-box; overflow: hidden;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+            <div style="display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span style="font-size: 15px;">🔴</span>
+                <strong style="font-size: 13px; color: #fff;">Add YouTube Video or Import YouTube Playlist</strong>
+                <span class="badge" style="font-size: 10px; padding: 2px 7px; background: rgba(16, 185, 129, 0.14); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);" title="OAuth tokens &amp; playlists are encrypted at rest with AES-256-GCM + Windows DPAPI + Voltage FPE and never synced to Git">
+                  🔒 AES-256-GCM + DPAPI + Voltage FPE Encrypted (Local-Only)
+                </span>
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+                Paste any YouTube video link, Shorts link, playlist link (<code>?list=PL...</code>), or sync via Google Login
+              </div>
             </div>
-            <button title="Close Add YouTube panel" class="btn" onclick="toggleAddYoutubePanel(false)" style="font-size: 11px; padding: 2px 8px;">✕</button>
+            <button title="Close Add YouTube panel" class="btn" onclick="toggleAddYoutubePanel(false)" style="font-size: 11px; padding: 3px 9px; flex-shrink: 0;">✕</button>
           </div>
-          <div style="display: grid; grid-template-columns: 2fr 1.4fr 1fr 1.2fr; gap: 8px; align-items: center;">
-            <input type="text" id="ytVideoUrlInput" placeholder="Paste YouTube Video or Playlist URL (e.g. https://www.youtube.com/watch?v=... or playlist?list=...)" style="font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text);">
-            <input type="text" id="ytVideoTitleInput" placeholder="Optional custom title (auto-fetched if blank)" style="font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text);">
-            <select id="ytVideoTypeSelect" title="Select video library section" style="font-size: 12px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(15, 23, 42, 0.95); color: var(--text);">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; align-items: center; width: 100%; box-sizing: border-box;">
+            <input type="text" id="ytVideoUrlInput" placeholder="Paste YouTube Video or Playlist URL (e.g. https://www.youtube.com/watch?v=...)" style="width: 100%; min-width: 0; box-sizing: border-box; font-size: 12px; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text);">
+            <input type="text" id="ytVideoTitleInput" placeholder="Optional custom title (auto-fetched if blank)" style="width: 100%; min-width: 0; box-sizing: border-box; font-size: 12px; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text);">
+            <select id="ytVideoTypeSelect" title="Select video library section" style="width: 100%; min-width: 0; box-sizing: border-box; font-size: 12px; padding: 7px 8px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(15, 23, 42, 0.95); color: var(--text);">
               <option value="exercise">🏋️‍♂️ Exercise &amp; Movement</option>
               <option value="diet">🥗 Diet &amp; Nutrition</option>
             </select>
-            <select id="ytVideoCategorySelect" title="Select video category" style="font-size: 12px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(15, 23, 42, 0.95); color: var(--text);">
+            <select id="ytVideoCategorySelect" title="Select video category" style="width: 100%; min-width: 0; box-sizing: border-box; font-size: 12px; padding: 7px 8px; border-radius: 6px; border: 1px solid var(--card-border); background: rgba(15, 23, 42, 0.95); color: var(--text);">
               <option value="">✨ Auto-Detect Category</option>
               <option value="World's Best Warm-Up &amp; Mobility">🔥 World's Best Warm-Up &amp; Mobility</option>
               <option value="Super Brain Yoga &amp; Flexibility">🧠 Super Brain Yoga &amp; Flexibility</option>
@@ -875,7 +883,7 @@
               <input type="checkbox" id="ytAddToPlaylistCheckbox" checked>
               Also add directly to my currently selected playlist in <strong>My Video Playlists</strong>
             </label>
-            <div style="display: flex; gap: 8px; align-items: center;">
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
               <button title="Import all personal YouTube playlists from your Google Account via OAuth2" class="btn" onclick="syncPersonalYoutubePlaylistsOAuth()" style="font-size: 11.5px; padding: 5px 12px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe;">
                 🔑 Import From My Google YouTube Account
               </button>
@@ -884,7 +892,7 @@
               </button>
             </div>
           </div>
-          <div id="ytAddStatusMsg" style="font-size: 11.5px; color: var(--text-muted); min-height: 16px;"></div>
+          <div id="ytAddStatusMsg" style="font-size: 11.5px; color: var(--text-muted); min-height: 16px; line-height: 1.45; word-break: break-word; overflow-wrap: anywhere;"></div>
         </div>
 
         <!-- Dynamic Category Filters based on active video type -->
@@ -1686,16 +1694,62 @@
                 <button id="btnVoiceSpeakerLock" type="button" title="Toggle Biometric Speaker Isolation &amp; Background Noise Shield (85-3800Hz DSP + Vocal Pitch Lock)" class="btn" onclick="toggleVoiceSpeakerLock()" style="font-size: 10px; padding: 3px 8px; border-color: rgba(16, 185, 129, 0.45); color: #34d399; background: rgba(16, 185, 129, 0.14);">
                   🛡️ My Voice Only: ON
                 </button>
-                <button id="btnEnrollVoiceprint" type="button" title="Calibrate a 3-second biometric voiceprint of your vocal pitch (Hz) &amp; timbre so background voices are rejected" class="btn" onclick="calibrateJarvisVoiceprint()" style="font-size: 10px; padding: 3px 8px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.14);">
+                <button id="btnEnrollVoiceprint" type="button" title="Record a 3-second voice sample, replay it, and confirm before processing your biometric voiceprint" class="btn" onclick="calibrateJarvisVoiceprint()" style="font-size: 10px; padding: 3px 8px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.14);">
                   🧬 Calibrate My Voice (3s)
                 </button>
-                <button id="btnVoiceWakeWordMode" type="button" title="Require 'Jarvis' wake-word prefix in noisy multi-speaker rooms" class="btn" onclick="toggleVoiceWakeWordLock()" style="font-size: 10px; padding: 3px 8px; border-color: var(--card-border); color: var(--text-muted); background: rgba(255,255,255,0.04);">
-                  🟢 Wake Word: Optional
+                <button id="btnReplayVoiceprint" type="button" title="Replay your saved biometric voiceprint audio recording" class="btn" onclick="replayJarvisVoiceprintAudio()" style="display: none; font-size: 10px; padding: 3px 8px; border-color: rgba(56, 189, 248, 0.45); color: #38bdf8; background: rgba(56, 189, 248, 0.14);">
+                  ▶️ Replay Voiceprint
                 </button>
+                <button id="btnVoiceWakeWordMode" type="button" title="Toggle requiring your wake word prefix ('Mahadev') before processing spoken commands" class="btn" onclick="toggleVoiceWakeWordLock()" style="font-size: 10px; padding: 3px 8px; border-color: rgba(245, 158, 11, 0.45); color: #fbbf24; background: rgba(245, 158, 11, 0.12);">
+                  🔒 Wake Word: "Mahadev"
+                </button>
+                <div style="display: inline-flex; align-items: center; gap: 4px; background: rgba(15, 23, 42, 0.92); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; padding: 2px 6px;">
+                  <span style="font-size: 9.5px; color: #fbbf24; font-weight: 600;">🔱 Word:</span>
+                  <input id="voiceWakeWordInput" type="text" list="voiceWakeWordPresetsDatalist" value="Mahadev" title="Change the active voice wake word (e.g. Mahadev, Jarvis, Shiva, AFCC)" onchange="setAfccVoiceWakeWord(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();setAfccVoiceWakeWord(this.value);}" style="background: transparent; border: none; color: #fde68a; font-size: 10.5px; font-weight: 700; width: 76px; outline: none;" />
+                  <datalist id="voiceWakeWordPresetsDatalist">
+                    <option value="Mahadev"></option>
+                    <option value="Har Har Mahadev"></option>
+                    <option value="Jarvis"></option>
+                    <option value="Shiva"></option>
+                    <option value="AFCC"></option>
+                  </datalist>
+                </div>
               </div>
               <div id="voiceAcousticTelemetryBar" style="display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--text-muted); font-family: monospace;">
                 <span id="voiceDspStatusBadge" class="badge" style="background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 9.5px;">DSP 85-3800Hz</span>
                 <span id="voiceBiometricMatchBadge" class="badge" style="background: rgba(56, 189, 248, 0.12); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.3); font-size: 9.5px;">Speaker: Ready</span>
+              </div>
+            </div>
+
+            <!-- Voiceprint Replay & Confirmation Gate (Shown after 3s capture before processing/locking) -->
+            <div id="voiceprintConfirmPanel" style="display: none; margin-bottom: 8px; padding: 9px 12px; border-radius: 9px; background: linear-gradient(135deg, rgba(245, 158, 11, 0.14), rgba(15, 23, 42, 0.92)); border: 1px solid rgba(251, 191, 36, 0.5); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+                <div style="font-size: 11px; color: #fde68a; font-weight: 700;">
+                  🧬 Confirm Recorded Voiceprint Before Processing
+                </div>
+                <span id="voiceprintSavedFileBadge" class="badge" style="background: rgba(56, 189, 248, 0.14); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); font-size: 9.5px; font-family: monospace;">Saved: fleet/data/user/voiceprint_sample.wav</span>
+              </div>
+              <div id="voiceprintConfirmSummary" style="font-size: 11px; color: #e2e8f0; margin-bottom: 8px; line-height: 1.4;">
+                Recorded 3-second voice sample. Please replay your recording below and confirm to process &amp; lock your biometric voiceprint.
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <button id="btnReplayStagedVoiceprint" title="Replay your recorded 3-second voiceprint audio sample before confirming" type="button" class="btn" onclick="replayJarvisVoiceprintAudio()" style="font-size: 10.5px; padding: 4px 10px; border-color: rgba(56, 189, 248, 0.55); color: #38bdf8; background: rgba(56, 189, 248, 0.16); font-weight: 700;">
+                    ▶️ Replay Recording
+                  </button>
+                  <audio id="voiceprintPreviewPlayer" controls preload="metadata" style="height: 26px; max-width: 195px; border-radius: 6px;"></audio>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <button id="btnConfirmVoiceprintSave" title="Confirm and process your recorded voiceprint to lock speaker biometrics" type="button" class="btn btn-primary" onclick="confirmJarvisVoiceprintSave()" style="font-size: 10.5px; padding: 4px 11px; background: linear-gradient(135deg, #10b981, #059669); border: none; color: #fff; font-weight: 700;">
+                    ✅ Confirm &amp; Process Voiceprint
+                  </button>
+                  <button id="btnRerecordVoiceprint" title="Discard this sample and record a new 3-second voiceprint" type="button" class="btn" onclick="calibrateJarvisVoiceprint()" style="font-size: 10px; padding: 4px 9px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.14);">
+                    🔄 Re-Record
+                  </button>
+                  <button id="btnCancelVoiceprintSave" title="Cancel voiceprint processing and keep your existing speaker settings" type="button" class="btn" onclick="cancelJarvisVoiceprintSave()" style="font-size: 10px; padding: 4px 8px; border-color: rgba(244, 63, 94, 0.4); color: #fb7185; background: rgba(244, 63, 94, 0.1);">
+                    ✕ Cancel
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1718,11 +1772,16 @@
                   <option value="US">🇺🇸 US Accent</option>
                   <option value="GB">🇬🇧 UK Accent</option>
                 </select>
-                <select id="voiceRateSelect" title="Adjust AFCC spoken voice speed" onchange="setAfccVoiceRate(this.value)" style="background: rgba(15, 23, 42, 0.9); border: 1px solid var(--card-border); color: var(--text); border-radius: 6px; padding: 3px 6px; font-size: 10.5px;">
+                <select id="voiceRateSelect" title="Adjust AFCC spoken voice speed (up to 3x)" onchange="setAfccVoiceRate(this.value)" style="background: rgba(15, 23, 42, 0.9); border: 1px solid var(--card-border); color: var(--text); border-radius: 6px; padding: 3px 6px; font-size: 10.5px;">
                   <option value="0.95">0.95x</option>
-                  <option value="1.05" selected>1.05x Natural</option>
+                  <option value="1.05">1.05x Natural</option>
                   <option value="1.15">1.15x Fast</option>
-                  <option value="1.25">1.25x Rapid</option>
+                  <option value="1.25" selected>1.25x Rapid</option>
+                  <option value="1.5">1.5x Speed</option>
+                  <option value="1.75">1.75x Speed</option>
+                  <option value="2">2x Speed</option>
+                  <option value="2.5">2.5x Speed</option>
+                  <option value="3">3x Speed</option>
                 </select>
               </div>
               <div style="display: flex; align-items: center; gap: 6px;">
@@ -1745,6 +1804,22 @@
                 🔊 <strong style="color: #34d399;">J.A.R.V.I.S.:</strong> <span id="voiceSpokenReplyText"></span>
               </div>
               <div id="voiceExecutedActivitiesStrip" style="display: none; gap: 6px; flex-wrap: wrap; margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.1);"></div>
+              <!-- Focused Action Item Live Conversational Bar -->
+              <div id="voiceFocusedActionItemBar" style="display: none; margin-top: 7px; padding: 7px 9px; border-radius: 7px; background: rgba(16, 185, 129, 0.09); border: 1px solid rgba(16, 185, 129, 0.32);">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <div style="font-size: 11px; color: #f8fafc; font-weight: 600; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <span id="voiceFocusedTaskStepBadge" class="badge" style="background: rgba(56, 189, 248, 0.18); color: #38bdf8; font-size: 9.5px;">Item 1/1</span>
+                    <span id="voiceFocusedTaskTitle" style="color: #6ee7b7;">#1 — Action Item</span>
+                    <span id="voiceFocusedTaskMeta" class="badge" style="background: rgba(255,255,255,0.08); color: #cbd5e1; font-size: 9.5px;">P1 • pending</span>
+                  </div>
+                  <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                    <button id="btnVoiceCloseFocusedTask" type="button" title="Close this focused action item immediately (or say 'Close it')" class="btn" onclick="executeVoiceTurnText('Close it')" style="font-size: 9.5px; padding: 2px 7px; background: rgba(16, 185, 129, 0.22); border-color: rgba(16, 185, 129, 0.5); color: #6ee7b7;">✅ Close It</button>
+                    <button id="btnVoiceEditFocusedTask" type="button" title="Edit or rename this focused action item verbally or via prompt" class="btn" onclick="promptVoiceEditFocusedActionItem()" style="font-size: 9.5px; padding: 2px 7px; background: rgba(56, 189, 248, 0.16); border-color: rgba(56, 189, 248, 0.45); color: #7dd3fc;">✏️ Edit</button>
+                    <button id="btnVoiceReopenFocusedTask" type="button" title="Reopen a closed action item back to pending (or say 'Reopen it')" class="btn" onclick="executeVoiceTurnText('Reopen it')" style="font-size: 9.5px; padding: 2px 7px; background: rgba(245, 158, 11, 0.16); border-color: rgba(245, 158, 11, 0.45); color: #fcd34d;">🔄 Reopen</button>
+                    <button id="btnVoiceNextFocusedTask" type="button" title="Advance to the next action item in your verbal review (or say 'Next action item')" class="btn" onclick="executeVoiceTurnText('Next action item')" style="font-size: 9.5px; padding: 2px 7px; background: rgba(168, 85, 247, 0.18); border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe;">⏭️ Next</button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Linked Activities You Can Trigger While Speaking -->
@@ -1753,6 +1828,9 @@
               <span style="color: #34d399;">🛡️ Noise Shield Active</span>
             </div>
             <div id="voiceQuickActivitiesGrid" style="display: flex; gap: 5px; flex-wrap: wrap;">
+              <button title="Start a live verbal conversation on your open action items (close, edit, or step through them)" type="button" class="quick-chip" style="border-color: rgba(16, 185, 129, 0.55); color: #34d399; font-weight: 700;" onclick="executeVoiceTurnText('Let\'s talk about my action items')">🗣️ Action Items Chat</button>
+              <button title="Talk with the Voice Cockpit about action items you have already closed" type="button" class="quick-chip" style="border-color: rgba(52, 211, 153, 0.45); color: #6ee7b7;" onclick="executeVoiceTurnText('What action items have I already closed?')">✅ Closed Action Items</button>
+              <button title="Step to the next action item in your verbal review" type="button" class="quick-chip" style="border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe;" onclick="executeVoiceTurnText('Next action item')">⏭️ Next Action Item</button>
               <button title="Speak or click: Can you hear me?" type="button" class="quick-chip" style="border-color: rgba(56, 189, 248, 0.5); color: var(--accent-cyan);" onclick="executeVoiceTurnText('Can you hear me?')">🎙️ Can You Hear Me?</button>
               <button title="Speak or click: What agents do I have?" type="button" class="quick-chip" style="border-color: rgba(168, 85, 247, 0.5); color: #d8b4fe;" onclick="executeVoiceTurnText('What agents do I have?')">🤖 What Agents Do I Have?</button>
               <button title="Speak or click: Tell me about the Health agent" type="button" class="quick-chip" onclick="executeVoiceTurnText('Tell me about the Health agent')">🌿 About Health Agent</button>
@@ -2177,7 +2255,7 @@
         <video id="exerciseVideoPlayer" controls playsinline style="width: 100%; max-height: 62vh; display: block;" preload="auto">
           Your browser does not support HTML5 video streaming.
         </video>
-        <iframe id="exerciseYoutubeIframe" title="YouTube Video Player" style="width: 100%; height: 440px; border: 0; display: none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+        <iframe id="exerciseYoutubeIframe" title="YouTube Video Player" referrerpolicy="strict-origin-when-cross-origin" style="width: 100%; height: 440px; border: 0; display: none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
       </div>
       <div id="videoModalStatusBanner" style="display: none; margin-top: 8px; padding: 8px 12px; border-radius: 6px; background: rgba(245, 158, 11, 0.14); border: 1px solid rgba(245, 158, 11, 0.4); font-size: 12px; color: #fbbf24; align-items: center; justify-content: space-between; gap: 10px;">
         <span id="videoModalStatusText">Streaming video...</span>
@@ -2440,6 +2518,103 @@
                 <option value="aurora">Emerald Aurora Matrix</option>
                 <option value="solar">High-Contrast Obsidian Gold</option>
               </select>
+            </div>
+
+            <!-- Voice Profile, Speed (1.5x - 3x) & Wake Word ("Mahadev") Settings Section -->
+            <div class="form-group" style="padding: 14px; background: rgba(168, 85, 247, 0.06); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                <label style="font-size: 13.5px; font-weight: 700; color: #d8b4fe;">🎙️ Voice Profile, Speed (up to 3x) &amp; Wake Word Configuration</label>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span class="badge" style="background: rgba(245, 158, 11, 0.16); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); font-size: 10.5px;">🔱 Active Wake Word: <strong id="settingsWakeWordBadgeText">Mahadev</strong></span>
+                  <button type="button" title="Test your selected voice profile, language, accent, and playback speed aloud" class="btn btn-sm" onclick="testAfccSelectedVoice()" style="font-size: 11px; padding: 3px 9px; border-color: rgba(168, 85, 247, 0.45); color: #e9d5ff; background: rgba(168, 85, 247, 0.18);">
+                    🔊 Test Voice &amp; Speed
+                  </button>
+                </div>
+              </div>
+              <p style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 12px 0;">
+                Configure your spoken wake word (default: <strong>"Mahadev"</strong>), playback speed (`0.95x` up to `3x`), language, gender, and accent. Changes sync immediately with the Voice Cockpit.
+              </p>
+
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px;">
+                <div>
+                  <label style="font-size: 11.5px; font-weight: 600; color: #fde68a;">🔱 Wake Word Phrase</label>
+                  <div style="display: flex; gap: 6px; margin-top: 4px;">
+                    <input type="text" id="genSettingWakeWordPhrase" list="voiceWakeWordPresetsDatalist" class="form-control" value="Mahadev" placeholder="e.g. Mahadev, Jarvis, Shiva" onchange="setAfccVoiceWakeWord(this.value)" style="font-size: 12.5px; font-weight: 700; color: #fde68a;">
+                  </div>
+                  <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px;">
+                    <button type="button" title="Set wake word to Mahadev" class="quick-chip" onclick="setAfccVoiceWakeWord('Mahadev')" style="font-size: 10px; padding: 2px 7px; border-color: rgba(245, 158, 11, 0.45); color: #fde68a;">🔱 Mahadev</button>
+                    <button type="button" title="Set wake word to Har Har Mahadev" class="quick-chip" onclick="setAfccVoiceWakeWord('Har Har Mahadev')" style="font-size: 10px; padding: 2px 7px;">🕉️ Har Har Mahadev</button>
+                    <button type="button" title="Set wake word to Shiva" class="quick-chip" onclick="setAfccVoiceWakeWord('Shiva')" style="font-size: 10px; padding: 2px 7px;">🔱 Shiva</button>
+                    <button type="button" title="Set wake word to Jarvis" class="quick-chip" onclick="setAfccVoiceWakeWord('Jarvis')" style="font-size: 10px; padding: 2px 7px;">🤖 Jarvis</button>
+                  </div>
+                </div>
+
+                <div>
+                  <label style="font-size: 11.5px; font-weight: 600; color: var(--text);">⚡ Voice Playback Speed</label>
+                  <select id="genSettingVoiceRate" class="form-control" onchange="setAfccVoiceRate(this.value)" style="margin-top: 4px; font-size: 12.5px;">
+                    <option value="0.95">0.95x</option>
+                    <option value="1.05">1.05x Natural</option>
+                    <option value="1.15">1.15x Fast</option>
+                    <option value="1.25">1.25x Rapid</option>
+                    <option value="1.5">1.5x Speed</option>
+                    <option value="1.75">1.75x Speed</option>
+                    <option value="2">2x Speed</option>
+                    <option value="2.5">2.5x Speed</option>
+                    <option value="3">3x Speed</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style="font-size: 11.5px; font-weight: 600; color: var(--text);">🌐 Voice Language</label>
+                  <select id="genSettingVoiceLanguage" class="form-control" onchange="setAfccVoiceLanguage(this.value)" style="margin-top: 4px; font-size: 12.5px;">
+                    <option value="en">🇮🇳 English</option>
+                    <option value="hi">🇮🇳 हिंदी (Hindi)</option>
+                    <option value="te">🇮🇳 తెలుగు (Telugu)</option>
+                    <option value="mr">🇮🇳 मराठी (Marathi)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style="font-size: 11.5px; font-weight: 600; color: var(--text);">👤 Voice Gender</label>
+                  <select id="genSettingVoiceGender" class="form-control" onchange="setAfccVoiceGender(this.value)" style="margin-top: 4px; font-size: 12.5px;">
+                    <option value="female">👩 Lady (Female)</option>
+                    <option value="male">👨 Male</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style="font-size: 11.5px; font-weight: 600; color: var(--text);">🗣️ Voice Accent</label>
+                  <select id="genSettingVoiceAccent" class="form-control" onchange="setAfccVoiceAccent(this.value)" style="margin-top: 4px; font-size: 12.5px;">
+                    <option value="IN">🇮🇳 Indian Accent</option>
+                    <option value="US">🇺🇸 US Accent</option>
+                    <option value="GB">🇬🇧 UK Accent</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 8px; border: 1px solid var(--card-border);">
+                  <div>
+                    <strong style="font-size: 12px; color: var(--text);">🔒 Require Wake Word Prefix</strong>
+                    <div style="font-size: 10.5px; color: var(--text-muted);">Only process spoken commands that include your wake word</div>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="genSettingWakeWordRequired" checked onchange="setAfccVoiceWakeWordRequired(this.checked)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 8px; border: 1px solid var(--card-border);">
+                  <div>
+                    <strong style="font-size: 12px; color: var(--text);">🛡️ Biometric Speaker Lock ("My Voice Only")</strong>
+                    <div style="font-size: 10.5px; color: var(--text-muted);">Filter out background speakers using 85–3800Hz DSP &amp; pitch lock</div>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="genSettingVoiceSpeakerLock" checked onchange="if(Boolean(window.AFCCVoice?.speakerLockEnabled)!==this.checked){toggleVoiceSpeakerLock();}">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
             </div>
 
             <div style="display: flex; justify-content: flex-end; margin-top: 8px;">

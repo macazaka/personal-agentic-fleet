@@ -9,7 +9,10 @@ fleet.json
 .env.*
 !.env.example
 
-# 2. Sensitive Authentication & API Credentials
+# 2. Sensitive Authentication, API Credentials & Entire Local Data Vault (100% Local-Only)
+fleet/data/
+fleet/data/*
+fleet/data/**
 fleet/data/credentials.json
 fleet/data/client_secret*.json
 fleet/data/gmail_token.json
@@ -37,6 +40,10 @@ tests/test_custom_*.py
 fleet/data/test_user/
 fleet/data/test_user/*
 fleet/data/latest_security_scan.json
+fleet/data/auto_improvements.json
+fleet/data/latest_test_results.json
+fleet/data/*.json
+!fleet/data/*.example
 fleet/data/sbom.cdx.json
 fleet/data/uploads/*
 !fleet/data/uploads/.gitkeep

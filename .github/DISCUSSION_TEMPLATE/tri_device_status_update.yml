@@ -1,0 +1,29 @@
+title: "[Tri-Device Status Update] Phase / Milestone Progress & Architecture Sync"
+labels:
+  - "project:tri-device-architecture"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 📡 Tri-Device Architecture — Project Communication & Status Update
+        Share milestone sign-offs, iOS Shortcut recipes, Apple Watch complication previews, or architecture decisions.
+
+  - type: dropdown
+    id: milestone
+    attributes:
+      label: "Active Milestone"
+      options:
+        - "Phase 1: Encrypted Apple Watch & iPhone HealthKit Bridge"
+        - "Phase 2: iPhone Pocket Cockpit PWA & High-Speed Voice Relay"
+        - "Phase 3: 1-Tap Open Payment Deep-Link Engine (BHIM / ICICI / UPI)"
+        - "Phase 4: Apple Watch Smart Stack Complication & Siri AppIntents"
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: "Delivered Highlights & Telemetry"
+      placeholder: "Summarize completed TD-* items, test pass rates, and next actions..."
+    validations:
+      required: true

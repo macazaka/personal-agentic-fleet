@@ -47,7 +47,7 @@ Executed automatically on every `git commit` before code is staged:
 
 ---
 
-## 4. Proactive Automation Modules (`21` Tools)
+## 4. Proactive Automation Modules (`22` Tools)
 
 | Python Module | Source File | Purpose |
 | :--- | :--- | :--- |
@@ -61,6 +61,7 @@ Executed automatically on every `git commit` before code is staged:
 | `fleet.tools.fleet_mind` | [`fleet/tools/fleet_mind.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/tools/fleet_mind.py) | Fleet Mind CLI — Command-line introspection & trigger for the 4 cognitive layers. |
 | `fleet.tools.github_branch_protection` | [`fleet/tools/github_branch_protection.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/tools/github_branch_protection.py) | GitHub Rulesets & Local Main Branch Protection Verifier and Provisioner for Personal Agentic Fleet. |
 | `fleet.tools.github_pipeline_sentinel` | [`fleet/tools/github_pipeline_sentinel.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/tools/github_pipeline_sentinel.py) | Autonomous Post-Commit GitHub Pipeline, Vulnerability & Code-Scan Sentinel for Personal Agentic Fleet. |
+| `fleet.tools.github_project_manager` | [`fleet/tools/github_project_manager.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/tools/github_project_manager.py) | GitHub Project Governance, Milestone, Issue, Wiki & Telemetry Manager for the |
 | `fleet.tools.install_git_hooks` | [`fleet/tools/install_git_hooks.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/tools/install_git_hooks.py) | Git Pre-Commit & Pre-Push Security & CI Quality Gate Installer for Personal Agentic Fleet. |
 | `fleet.tools.install_service` | [`fleet/tools/install_service.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/tools/install_service.py) | Workstation Service Daemonization Installer for Personal Agentic Fleet. |
 | `fleet.tools.preflight_gate` | [`fleet/tools/preflight_gate.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/tools/preflight_gate.py) | Pre-Push Quality Gate and Preflight Verifier for Personal Agentic Fleet. |

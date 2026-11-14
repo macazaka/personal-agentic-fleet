@@ -148,13 +148,13 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
         from fleet.core.session_auth import get_session_cookie_header
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
-        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
         self.send_header(
             "Content-Security-Policy",
-            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: data:; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' http://127.0.0.1:7890 http://localhost:7890 https://127.0.0.1:7890 https://localhost:7890; object-src 'none'; frame-ancestors 'none'; base-uri 'self'",
+            "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: data: https:; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://youtu.be; connect-src 'self' http://127.0.0.1:7890 http://localhost:7890 https://127.0.0.1:7890 https://localhost:7890; object-src 'none'; frame-ancestors 'none'; base-uri 'self'",
         )
-        self.send_header("Permissions-Policy", "camera=(), microphone=(self), geolocation=(), payment=(), usb=()")
-        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+        self.send_header("Permissions-Policy", "camera=(), microphone=(self), autoplay=(self \"https://www.youtube.com\" \"https://www.youtube-nocookie.com\"), fullscreen=(self \"https://www.youtube.com\" \"https://www.youtube-nocookie.com\"), encrypted-media=(self \"https://www.youtube.com\" \"https://www.youtube-nocookie.com\"), picture-in-picture=(self \"https://www.youtube.com\" \"https://www.youtube-nocookie.com\"), geolocation=(), payment=(), usb=()")
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin-allow-popups")
         self.send_header("Cross-Origin-Resource-Policy", "same-origin")
         if set_session_cookie:
             self.send_header("Set-Cookie", get_session_cookie_header())
@@ -955,6 +955,11 @@ def start_server(port: int = PORT):
         os.environ["FLEET_PRODUCTION_SERVER"] = "1"
         os.environ.pop("FLEET_TEST_MODE", None)
         os.environ.pop("PYTEST_CURRENT_TEST", None)
+        try:
+            from fleet.core.crypto_vault import enforce_all_user_data_encrypted_at_rest
+            enforce_all_user_data_encrypted_at_rest()
+        except Exception:
+            pass
     global db, briefing_engine
     prev_db, prev_briefing = db, briefing_engine
     from fleet.config import DB_PATH

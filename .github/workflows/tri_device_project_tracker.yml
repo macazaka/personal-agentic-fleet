@@ -1,0 +1,58 @@
+name: Tri-Device Architecture Project Governance & Tracker
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/projects/**'
+      - '.github/workflows/tri_device_project_tracker.yml'
+      - '.github/ISSUE_TEMPLATE/tri_device_deliverable.yml'
+      - 'docs/APPLE_ECOSYSTEM_IPHONE_WATCH_AFCC_ARCHITECTURE.md'
+      - 'docs/PROJECTS_TRI_DEVICE_ROADMAP.md'
+      - 'wiki/Tri-Device-Architecture-Project.md'
+      - 'fleet/tools/github_project_manager.py'
+      - 'fleet/api/mobile_tri_device_api.py'
+      - 'tests/test_tri_device_project_and_apis.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  discussions: write
+  checks: write
+  statuses: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  track-and-deliver-tri-device-project:
+    name: Sync GitHub Milestones, Epic, Issues & Verify Tri-Device APIs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Test Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest cryptography
+
+      - name: Verify Tri-Device Architecture Endpoints & Project Governance Tests
+        run: |
+          pytest tests/test_tri_device_project_and_apis.py -v
+
+      - name: Provision & Synchronize GitHub Labels, Milestones, Epic & Issues (TD-01..TD-12)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python -m fleet.tools.github_project_manager --sync-github

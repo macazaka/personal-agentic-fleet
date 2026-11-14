@@ -71,10 +71,11 @@ class TasksMixin(_DbBase):
             return 0
         try:
             from pathlib import Path
+            from fleet.core.crypto_vault import read_encrypted_json_file
             vault_path = Path(self.db_path).resolve().parent / "user" / "personal_tasks_vault.json"
             if not vault_path.exists():
                 return 0
-            raw = json.loads(vault_path.read_text(encoding="utf-8"))
+            raw = read_encrypted_json_file(vault_path, default={})
             items = raw.get("tasks", []) if isinstance(raw, dict) else (raw if isinstance(raw, list) else [])
             if not items:
                 return 0
@@ -204,45 +205,73 @@ class TasksMixin(_DbBase):
 
     def update_task_status(self, task_id: int, status: str) -> bool:
         now = datetime.now().isoformat()
+        old_title = ""
         with self._get_connection() as conn:
             cursor = conn.cursor()
+            cursor.execute("SELECT title FROM tasks WHERE id = ?", (task_id,))
+            row = cursor.fetchone()
+            if row:
+                old_title = str(row["title"] or "").strip()
             cursor.execute("""
                 UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?
             """, (status, now, task_id))
             conn.commit()
             updated = cursor.rowcount > 0
             if updated:
+                db_path_norm = str(getattr(self, "db_path", "")).replace("\\", "/")
+                if old_title and db_path_norm.endswith("fleet/data/fleet_memory.db"):
+                    try:
+                        from pathlib import Path
+                        from fleet.core.crypto_vault import read_encrypted_json_file, write_encrypted_json_file
+                        vault_path = Path(self.db_path).resolve().parent / "user" / "personal_tasks_vault.json"
+                        if vault_path.exists():
+                            raw = read_encrypted_json_file(vault_path, default={})
+                            items = raw.get("tasks", []) if isinstance(raw, dict) else []
+                            changed_vault = False
+                            for it in items:
+                                if isinstance(it, dict) and str(it.get("title") or "").strip().lower() == old_title.lower():
+                                    it["status"] = status
+                                    changed_vault = True
+                                    break
+                            if changed_vault and isinstance(raw, dict):
+                                write_encrypted_json_file(vault_path, raw)
+                    except Exception:
+                        pass
                 self.log_activity("AgendaAgent", "update_task", f"Task #{task_id} marked as {status}")
             return updated
 
     def update_task(
         self,
         task_id: int,
-        title: str,
-        description: str,
-        priority: str = "P2",
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        priority: Optional[str] = None,
         source: Optional[str] = None,
         due_date: Optional[str] = None,
     ) -> bool:
         now = datetime.now().isoformat()
-        clean_title = (title or "").strip()
-        clean_desc = (description or "").strip()
-        clean_prio = (priority or "P2").strip().upper()
-        if clean_prio not in ("P1", "P2", "P3"):
-            clean_prio = "P2"
-        clean_due = (due_date or "").strip() or None
 
         old_title = ""
         old_source = ""
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT title, source FROM tasks WHERE id = ?", (task_id,))
+            cursor.execute("SELECT title, description, priority, source, due_date FROM tasks WHERE id = ?", (task_id,))
             row = cursor.fetchone()
             if not row:
                 return False
             old_title = str(row["title"] or "").strip()
+            old_desc = str(row["description"] or "").strip()
+            old_prio = str(row["priority"] or "P2").strip().upper()
             old_source = str(row["source"] or "Manual").strip()
-            clean_source = (source or old_source or "Manual").strip()
+            old_due = row["due_date"]
+
+            clean_title = (title.strip() if title is not None and title.strip() else old_title)
+            clean_desc = (description.strip() if description is not None else old_desc)
+            clean_prio = (priority.strip().upper() if priority is not None and priority.strip() else old_prio)
+            if clean_prio not in ("P0", "P1", "P2", "P3"):
+                clean_prio = old_prio if old_prio in ("P0", "P1", "P2", "P3") else "P2"
+            clean_source = (source.strip() if source is not None and source.strip() else old_source) or "Manual"
+            clean_due = (due_date.strip() if due_date is not None else (str(old_due or "").strip())) or None
 
             cursor.execute(
                 """
@@ -261,9 +290,10 @@ class TasksMixin(_DbBase):
             if db_path_norm.endswith("fleet/data/fleet_memory.db"):
                 try:
                     from pathlib import Path
+                    from fleet.core.crypto_vault import read_encrypted_json_file, write_encrypted_json_file
                     vault_path = Path(self.db_path).resolve().parent / "user" / "personal_tasks_vault.json"
                     if vault_path.exists():
-                        raw = json.loads(vault_path.read_text(encoding="utf-8"))
+                        raw = read_encrypted_json_file(vault_path, default={})
                         items = raw.get("tasks", []) if isinstance(raw, dict) else []
                         changed_vault = False
                         for it in items:
@@ -276,7 +306,7 @@ class TasksMixin(_DbBase):
                                 changed_vault = True
                                 break
                         if changed_vault and isinstance(raw, dict):
-                            vault_path.write_text(json.dumps(raw, indent=2, ensure_ascii=False), encoding="utf-8")
+                            write_encrypted_json_file(vault_path, raw)
                 except Exception:
                     pass
             self.log_activity("AgendaAgent", "edit_task", f"Edited task #{task_id}: {clean_title}")
@@ -298,9 +328,10 @@ class TasksMixin(_DbBase):
                 if old_title and db_path_norm.endswith("fleet/data/fleet_memory.db"):
                     try:
                         from pathlib import Path
+                        from fleet.core.crypto_vault import read_encrypted_json_file, write_encrypted_json_file
                         vault_path = Path(self.db_path).resolve().parent / "user" / "personal_tasks_vault.json"
                         if vault_path.exists():
-                            raw = json.loads(vault_path.read_text(encoding="utf-8"))
+                            raw = read_encrypted_json_file(vault_path, default={})
                             if isinstance(raw, dict) and isinstance(raw.get("tasks"), list):
                                 before_len = len(raw["tasks"])
                                 raw["tasks"] = [
@@ -308,7 +339,7 @@ class TasksMixin(_DbBase):
                                     if not (isinstance(it, dict) and str(it.get("title") or "").strip().lower() == old_title.lower())
                                 ]
                                 if len(raw["tasks"]) != before_len:
-                                    vault_path.write_text(json.dumps(raw, indent=2, ensure_ascii=False), encoding="utf-8")
+                                    write_encrypted_json_file(vault_path, raw)
                     except Exception:
                         pass
                 self.log_activity("AgendaAgent", "delete_task", f"Task #{task_id} deleted")

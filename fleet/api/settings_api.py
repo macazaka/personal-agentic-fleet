@@ -31,6 +31,14 @@ DEFAULT_SETTINGS = {
     "theme": "dark",
     "layout": "sidebar_dock",
     "default_agent": "overview",
+    "voice_wake_word": "Mahadev",
+    "voice_wake_word_required": "true",
+    "voice_speech_rate": "1.25",
+    "voice_language": "en",
+    "voice_gender": "female",
+    "voice_accent": "IN",
+    "voice_continuous_mode": "true",
+    "voice_speaker_lock": "true",
 }
 
 AVAILABLE_LAYOUTS = [
@@ -2178,39 +2186,281 @@ def post_voice_converse_endpoint(handler: Any, body: Dict[str, Any]):
     handler._send_json(res)
 
 
+def _get_voiceprint_storage_paths() -> Dict[str, Path]:
+    user_dir = DATA_DIR / "user"
+    user_dir.mkdir(parents=True, exist_ok=True)
+    return {
+        "user_dir": user_dir,
+        "vault_json": user_dir / "voiceprint_audio_vault.json",
+        "wav_file": user_dir / "voiceprint_sample.wav",
+        "webm_file": user_dir / "voiceprint_sample.webm",
+    }
+
+
+def _save_voiceprint_audio_data_url(audio_data_url: str, profile: Optional[Dict[str, Any]] = None, staged: bool = False) -> Dict[str, Any]:
+    """Saves a base64 data:audio/... URL to disk (both raw audio file for replay and AES-256-GCM encrypted vault)."""
+    import base64
+
+    paths = _get_voiceprint_storage_paths()
+    clean_url = str(audio_data_url or "").strip()
+    if not clean_url.startswith("data:audio"):
+        return {"audio_saved": False, "audio_file": "", "mime_type": ""}
+
+    header, _, b64_data = clean_url.partition(",")
+    if not b64_data:
+        return {"audio_saved": False, "audio_file": "", "mime_type": ""}
+
+    mime_type = "audio/wav"
+    if "webm" in header.lower():
+        mime_type = "audio/webm"
+    elif "ogg" in header.lower():
+        mime_type = "audio/ogg"
+
+    target_file = paths["webm_file"] if "webm" in mime_type else paths["wav_file"]
+    try:
+        from fleet.core.crypto_vault import encrypt_binary_bytes_at_rest
+        raw_bytes = base64.b64decode(b64_data)
+        target_file.write_bytes(raw_bytes)
+        target_file.write_bytes(encrypt_binary_bytes_at_rest(raw_bytes))
+    except Exception:
+        raw_bytes = b""
+
+    vault_record = {
+        "audio_data_url": clean_url,
+        "mime_type": mime_type,
+        "byte_length": len(raw_bytes),
+        "audio_file": f"fleet/data/user/{target_file.name}",
+        "staged": bool(staged),
+        "profile": profile or {},
+        "saved_at": datetime.now().isoformat(),
+    }
+    try:
+        from fleet.core.crypto_vault import write_encrypted_json_file
+
+        write_encrypted_json_file(paths["vault_json"], vault_record)
+    except Exception:
+        paths["vault_json"].write_text(json.dumps(vault_record, indent=2), encoding="utf-8")
+
+    return {
+        "audio_saved": True,
+        "audio_file": f"fleet/data/user/{target_file.name}",
+        "mime_type": mime_type,
+        "byte_length": len(raw_bytes),
+    }
+
+
+def _load_voiceprint_audio_record() -> Dict[str, Any]:
+    paths = _get_voiceprint_storage_paths()
+    vault_path = paths["vault_json"]
+    if not vault_path.exists():
+        return {}
+    try:
+        from fleet.core.crypto_vault import read_encrypted_json_file
+
+        data = read_encrypted_json_file(vault_path, default={})
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        try:
+            return json.loads(vault_path.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+
+
 @router.get("/api/voice/voiceprint")
 def get_voiceprint_profile_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
-    """Returns the user's enrolled biometric speaker voiceprint profile from local SQLite settings."""
+    """Returns the user's enrolled biometric speaker voiceprint profile and saved replay audio metadata."""
     db_inst = getattr(srv, "db", None)
     profile = None
+    pending_profile = None
     if db_inst and hasattr(db_inst, "get_setting"):
+        from fleet.core.crypto_vault import decrypt_sensitive_text
         raw = db_inst.get_setting("jarvis_voiceprint_profile", "")
         if raw:
             try:
-                profile = json.loads(raw)
+                profile = json.loads(decrypt_sensitive_text(str(raw)))
             except Exception:
                 profile = None
-    handler._send_json({"status": "ok", "enrolled": bool(profile), "voiceprint": profile, "profile": profile})
+        raw_pending = db_inst.get_setting("jarvis_voiceprint_pending", "")
+        if raw_pending:
+            try:
+                pending_profile = json.loads(decrypt_sensitive_text(str(raw_pending)))
+            except Exception:
+                pending_profile = None
+
+    audio_rec = _load_voiceprint_audio_record()
+    if not profile and isinstance(audio_rec.get("profile"), dict) and not audio_rec.get("staged"):
+        profile = audio_rec.get("profile")
+    has_audio = bool(audio_rec.get("audio_data_url"))
+    wake_word = "Mahadev"
+    speech_rate = ""
+    if db_inst and hasattr(db_inst, "get_setting"):
+        wake_word = db_inst.get_setting("voice_wake_word", "Mahadev") or "Mahadev"
+        speech_rate = db_inst.get_setting("voice_speech_rate", "") or ""
+    handler._send_json(
+        {
+            "status": "ok",
+            "enrolled": bool(profile),
+            "voiceprint": profile,
+            "profile": profile,
+            "pending_profile": pending_profile,
+            "awaiting_confirmation": bool(pending_profile),
+            "audio_saved": has_audio,
+            "audio_file": audio_rec.get("audio_file", ""),
+            "audio_url": "/api/voice/voiceprint/audio" if has_audio else "",
+            "audio_data_url": audio_rec.get("audio_data_url", ""),
+            "wake_word": wake_word,
+            "speech_rate": speech_rate,
+        }
+    )
+
+
+@router.get("/api/voice/voiceprint/audio")
+def get_voiceprint_audio_replay_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """Streams or returns the saved voiceprint audio sample for replay."""
+    import base64
+
+    audio_rec = _load_voiceprint_audio_record()
+    data_url = str(audio_rec.get("audio_data_url") or "")
+    qs = urllib.parse.parse_qs(parsed_url.query or "")
+    if qs.get("format", [""])[0] == "json" or not hasattr(handler, "send_response") or not hasattr(handler, "wfile"):
+        handler._send_json(
+            {
+                "status": "ok" if data_url else "not_found",
+                "audio_saved": bool(data_url),
+                "audio_file": audio_rec.get("audio_file", ""),
+                "mime_type": audio_rec.get("mime_type", "audio/wav"),
+                "audio_data_url": data_url,
+            }
+        )
+        return
+
+    if not data_url:
+        handler._send_json({"status": "not_found", "message": "No recorded voiceprint audio sample found."}, status=404)
+        return
+
+    _, _, b64_payload = data_url.partition(",")
+    try:
+        raw_bytes = base64.b64decode(b64_payload)
+    except Exception:
+        raw_bytes = b""
+
+    mime_type = str(audio_rec.get("mime_type") or "audio/wav")
+    handler.send_response(200)
+    handler.send_header("Content-Type", mime_type)
+    handler.send_header("Content-Length", str(len(raw_bytes)))
+    handler.send_header("Cache-Control", "no-store")
+    handler.end_headers()
+    handler.wfile.write(raw_bytes)
 
 
 @router.post("/api/voice/voiceprint")
 def save_voiceprint_profile_endpoint(handler: Any, body: Dict[str, Any]):
-    """Persists or clears the user's biometric speaker voiceprint profile (F0 pitch, spectral centroid, harmonic ratio)."""
+    """
+    Stages a recorded voiceprint audio file for replay & user confirmation (`stage_only: True`),
+    or confirms & enrolls the biometric speaker voiceprint profile (`confirmed: True`).
+    """
     payload = body if isinstance(body, dict) else {}
     db_inst = getattr(srv, "db", None)
+    paths = _get_voiceprint_storage_paths()
+
     if payload.get("clear"):
         if db_inst and hasattr(db_inst, "set_setting"):
             db_inst.set_setting("jarvis_voiceprint_profile", "")
-        handler._send_json({"status": "cleared", "enrolled": False, "voiceprint": None, "profile": None})
+            db_inst.set_setting("jarvis_voiceprint_pending", "")
+        for p in (paths["vault_json"], paths["wav_file"], paths["webm_file"]):
+            try:
+                if p.exists():
+                    p.unlink()
+            except Exception:
+                pass
+        handler._send_json({"status": "cleared", "enrolled": False, "voiceprint": None, "profile": None, "audio_saved": False})
         return
-    vp = (
+
+    if payload.get("cancel_pending"):
+        if db_inst and hasattr(db_inst, "set_setting"):
+            db_inst.set_setting("jarvis_voiceprint_pending", "")
+        handler._send_json({"status": "pending_cancelled", "awaiting_confirmation": False})
+        return
+
+    raw_vp = (
         payload.get("profile")
         if isinstance(payload.get("profile"), dict)
-        else (payload.get("voiceprint") if isinstance(payload.get("voiceprint"), dict) else payload)
+        else (payload.get("voiceprint") if isinstance(payload.get("voiceprint"), dict) else dict(payload))
     )
+    # Strip large audio payload out of the lightweight profile dict itself
+    vp: Dict[str, Any] = {
+        k: v for k, v in (raw_vp if isinstance(raw_vp, dict) else {}).items()
+        if k not in ("audio_data_url", "stage_only", "confirmed", "clear", "cancel_pending")
+    }
+
+    audio_data_url = str(payload.get("audio_data_url") or "")
+    stage_only = bool(payload.get("stage_only", False))
+
+    audio_meta = {"audio_saved": False, "audio_file": ""}
+    if audio_data_url.startswith("data:audio"):
+        audio_meta = _save_voiceprint_audio_data_url(audio_data_url, profile=vp, staged=stage_only)
+    else:
+        existing_rec = _load_voiceprint_audio_record()
+        if existing_rec.get("audio_data_url"):
+            audio_meta = {
+                "audio_saved": True,
+                "audio_file": existing_rec.get("audio_file", "fleet/data/user/voiceprint_sample.wav"),
+            }
+            if not stage_only and existing_rec.get("staged"):
+                existing_rec["staged"] = False
+                existing_rec["profile"] = vp
+                try:
+                    from fleet.core.crypto_vault import write_encrypted_json_file
+
+                    write_encrypted_json_file(paths["vault_json"], existing_rec)
+                except Exception:
+                    pass
+
+    if audio_meta.get("audio_saved"):
+        vp["hasAudioReplay"] = True
+        vp["audioFile"] = audio_meta.get("audio_file", "fleet/data/user/voiceprint_sample.wav")
+
+    if stage_only:
+        if db_inst and hasattr(db_inst, "set_setting"):
+            db_inst.set_setting("jarvis_voiceprint_pending", json.dumps(vp))
+            from fleet.core.crypto_vault import encrypt_aes256_gcm
+            db_inst.set_setting("jarvis_voiceprint_pending", encrypt_aes256_gcm(json.dumps(vp)))
+        existing_enrolled = False
+        if db_inst and hasattr(db_inst, "get_setting"):
+            existing_enrolled = bool(db_inst.get_setting("jarvis_voiceprint_profile", ""))
+        handler._send_json(
+            {
+                "status": "staged_awaiting_confirmation",
+                "staged": True,
+                "confirmed": False,
+                "awaiting_confirmation": True,
+                "enrolled": existing_enrolled,
+                "pending_profile": vp,
+                "audio_saved": bool(audio_meta.get("audio_saved")),
+                "audio_file": audio_meta.get("audio_file", ""),
+                "audio_url": "/api/voice/voiceprint/audio" if audio_meta.get("audio_saved") else "",
+            }
+        )
+        return
+
     if db_inst and hasattr(db_inst, "set_setting"):
         db_inst.set_setting("jarvis_voiceprint_profile", json.dumps(vp))
-    handler._send_json({"status": "ok", "enrolled": True, "voiceprint": vp, "profile": vp})
+        from fleet.core.crypto_vault import encrypt_aes256_gcm
+        db_inst.set_setting("jarvis_voiceprint_profile", encrypt_aes256_gcm(json.dumps(vp)))
+        db_inst.set_setting("jarvis_voiceprint_pending", "")
+    handler._send_json(
+        {
+            "status": "ok",
+            "confirmed": True,
+            "awaiting_confirmation": False,
+            "enrolled": True,
+            "voiceprint": vp,
+            "profile": vp,
+            "audio_saved": bool(audio_meta.get("audio_saved")),
+            "audio_file": audio_meta.get("audio_file", ""),
+            "audio_url": "/api/voice/voiceprint/audio" if audio_meta.get("audio_saved") else "",
+        }
+    )
 
 
 post_voiceprint_profile_endpoint = save_voiceprint_profile_endpoint

@@ -1,0 +1,53 @@
+name: "⌚📱💻 Tri-Device Architecture Deliverable (Watch • iPhone • Laptop)"
+description: "Track, monitor, and deliver a feature across Apple Watch, iPhone Pocket Cockpit, and the Windows Laptop AFCC Hub."
+title: "[TD-XX] "
+labels: ["project:tri-device-architecture"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### ⌚📱💻 AFCC Tri-Device Ecosystem Architecture Deliverable
+        Use this template to track work across **Apple Watch (watchOS)**, **iPhone (iOS PWA / Shortcuts / UPI)**, and **Windows Laptop (AFCC Sovereign Hub)**.
+        Architecture Reference: [`docs/APPLE_ECOSYSTEM_IPHONE_WATCH_AFCC_ARCHITECTURE.md`](https://github.com/macazaka/personal-agentic-fleet/blob/main/docs/APPLE_ECOSYSTEM_IPHONE_WATCH_AFCC_ARCHITECTURE.md)
+
+  - type: dropdown
+    id: phase_milestone
+    attributes:
+      label: "Target Delivery Phase / Milestone"
+      options:
+        - "Phase 1: Encrypted Apple Watch & iPhone HealthKit Bridge"
+        - "Phase 2: iPhone Pocket Cockpit PWA & High-Speed Voice Relay"
+        - "Phase 3: 1-Tap Open Payment Deep-Link Engine (BHIM / ICICI / UPI)"
+        - "Phase 4: Apple Watch Smart Stack Complication & Siri AppIntents"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: target_devices
+    attributes:
+      label: "Target Device Tier(s)"
+      options:
+        - label: "⌚ Tier 1: Apple Watch (HealthKit Sensors, Smart Stack Complication, Siri Action Button)"
+        - label: "📱 Tier 2: iPhone (Pocket Cockpit PWA, iOS Shortcuts, BHIM / ICICI / UPI Deep Links)"
+        - label: "💻 Tier 3: Windows Laptop Hub (Sovereign SQLite, AES-256-GCM Vault, Voice Cockpit)"
+
+  - type: textarea
+    id: problem_statement
+    attributes:
+      label: "Problem Statement & User Experience Goal"
+      description: "What friction between the laptop, iPhone, and Apple Watch does this deliverable eliminate?"
+      placeholder: "e.g., Trigger BHIM UPI deep link on iPhone from a Laptop Monthly Action Item and auto-close the item upon completion."
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: "Acceptance Criteria & Verification Checklist"
+      value: |
+        - [ ] Zero-token ($0.00) deterministic execution on Laptop Hub (`< 15ms` latency)
+        - [ ] All personal/health/financial data encrypted at rest with AES-256-GCM + HKDF-SHA256
+        - [ ] Zero personal data transmitted to GitHub or external clouds (`enforce_zero_cloud_data_leak_guard`)
+        - [ ] Automated unit tests added and passing (`pytest`)
+    validations:
+      required: true
