@@ -563,8 +563,16 @@ def test_task_editing_and_split_credit_cards():
 
     vault_path = Path(__file__).resolve().parent.parent / "fleet" / "data" / "user" / "personal_tasks_vault.json"
     if vault_path.exists():
-        vault_data = json.loads(vault_path.read_text(encoding="utf-8"))
-        vault_items = vault_data.get("tasks", []) if isinstance(vault_data, dict) else vault_data
+        from fleet.core.crypto_vault import read_encrypted_json_file
+
+        vault_data = read_encrypted_json_file(vault_path, {})
+        if not vault_data:
+            vault_data = json.loads(vault_path.read_text(encoding="utf-8"))
+        vault_items = (
+            vault_data.get("tasks", [])
+            if isinstance(vault_data, dict)
+            else (vault_data if isinstance(vault_data, list) else [])
+        )
         titles = [item.get("title", "") for item in vault_items if isinstance(item, dict)]
         assert "Monthly — Credit Card Bill Payments" not in titles
         assert "Monthly — Investments (NPS, PPF & Stock)" not in titles

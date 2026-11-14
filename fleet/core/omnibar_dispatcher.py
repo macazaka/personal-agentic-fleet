@@ -2361,7 +2361,7 @@ def _dispatch_voice_command_core(
                 "normalized_command": f"complete_task:{matched_task['id']}",
                 "title": f"✅ Closed Action Item #{matched_task['id']}",
                 "message": f"Marked **\"{matched_task['title']}\"** (#{matched_task['id']}) as closed in your local encrypted vault.{next_prompt_md}",
-                "spoken_reply": f"{already_note}I marked {_clean_for_speech(matched_task['title'])} as closed.{next_prompt_speech}",
+                "spoken_reply": f"{already_note}I marked {_clean_for_speech(matched_task['title'])} as closed and completed.{next_prompt_speech}",
                 "ui_actions": ui_actions,
                 "executed_activities": executed_activities,
                 "tokens_used": 0,

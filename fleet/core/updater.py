@@ -210,9 +210,16 @@ def get_cached_version_check(max_age_sec: float = 300.0) -> Dict[str, Any]:
         return cached
     if LATEST_VERSION_CACHE_FILE.is_file():
         try:
-            data = json.loads(LATEST_VERSION_CACHE_FILE.read_text(encoding="utf-8"))
-            if isinstance(data, dict):
+            from fleet.core.crypto_vault import read_encrypted_json_file
+
+            data = read_encrypted_json_file(LATEST_VERSION_CACHE_FILE, {})
+            if not isinstance(data, dict) or "latest_version" not in data:
+                raw_data = json.loads(LATEST_VERSION_CACHE_FILE.read_text(encoding="utf-8"))
+                if isinstance(raw_data, dict):
+                    data = dict(raw_data)
+            if isinstance(data, dict) and data:
                 data["current_version"] = live_ver
+                data.setdefault("latest_version", live_ver)
                 data["update_available"] = parse_version_tuple(str(data.get("latest_version") or live_ver)) > parse_version_tuple(live_ver)
                 data["up_to_date"] = not data["update_available"]
                 return data
