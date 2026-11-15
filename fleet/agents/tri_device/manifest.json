@@ -1,0 +1,16 @@
+{
+  "id": "tri_device",
+  "name": "Tri-Device & Connections",
+  "version": "1.0.0",
+  "icon": "⌚",
+  "order": 15,
+  "category": "Connection Agents",
+  "description": "Dedicated Tri-Device Ecosystem & Hardware Connections Hub managing Apple Watch (via mandatory iPhone Companion Relay), iPhone Bridge (ChandavaneMaCaZaKa), Wi-Fi LAN & Tailscale Mesh, 1-Tap UPI Payment Bridge, and Local Biometric Audio DSP.",
+  "permissions": [
+    "db:read",
+    "db:write",
+    "event_bus:publish",
+    "network:outbound",
+    "ui:render"
+  ]
+}

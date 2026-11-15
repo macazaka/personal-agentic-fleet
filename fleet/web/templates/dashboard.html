@@ -141,6 +141,7 @@
         <div class="nav-tabs" id="dynamicNavTabs">
           <button title="⚡ Overview & Tasks" class="nav-tab active" id="tabBtnOverview" onclick="switchTab('overview')">⚡ Overview</button>
           <button title="🌿 Health & Wellness" class="nav-tab" id="tabBtnHealth" onclick="switchTab('health')">🌿 Health & Wellness</button>
+          <button title="⌚ Tri-Device &amp; Hardware Connections (Connection Agents Group)" class="nav-tab" id="tabBtnTriDevice" onclick="switchTab('tri_device')">⌚ Connections</button>
           <button title="🤖 Antigravity Live" class="nav-tab" id="tabBtnAntigravity" onclick="switchTab('antigravity')">🤖 Antigravity Live</button>
           <button title="📋 Feature Backlog" class="nav-tab" id="tabBtnBacklog" onclick="switchTab('backlog')">📋 Feature Backlog</button>
           <button title="🚀 PC Optimizer" class="nav-tab" id="tabBtnOptimizer" onclick="switchTab('optimizer')">🚀 PC Optimizer</button>
@@ -571,64 +572,15 @@
       </div>
     </div>
 
-    <!-- Phase 1 Tri-Device Ecosystem Hub: Apple Watch + iPhone HealthKit + FFD Readiness (TD-01, TD-02, TD-03) -->
-    <div id="triDeviceHealthHubCard" style="background: linear-gradient(135deg, rgba(0, 242, 254, 0.08), rgba(168, 85, 247, 0.08)); border: 1px solid rgba(0, 242, 254, 0.35); border-radius: var(--radius); padding: 16px 20px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
-        <div>
-          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <span style="font-size: 18px;">⌚📱💻</span>
-            <strong style="font-size: 15px; color: #fff;">Tri-Device Ecosystem Hub — Apple Watch &amp; iPhone HealthKit (Phase 1 Live)</strong>
-            <span id="triDeviceReadinessBadge" class="badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.45); font-weight: 700;">⏳ Awaiting Real Watch / iPhone Sync</span>
-            <span class="badge" style="background: rgba(0, 242, 254, 0.14); color: var(--accent-cyan); font-size: 10.5px;">🔒 AES-256-GCM + Zero-Cloud</span>
-          </div>
-          <div id="triDeviceRecommendationText" style="font-size: 12px; color: #cbd5e1; margin-top: 4px;">
-            Click &ldquo;⌚ Sync Apple Watch Now&rdquo; to verify your Apple Watch / iPhone hardware &amp; Wi-Fi connection and run a real sync.
-          </div>
-        </div>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-          <button id="btnSyncAppleWatchNow" title="Verify Apple Watch &amp; iPhone Connection and Execute Live Step-by-Step Sync" class="btn btn-primary" onclick="triggerAppleWatchDemoSync()" style="font-size: 11.5px; padding: 6px 12px;">
-            ⌚ Sync Apple Watch Now
-          </button>
-          <button title="Upload Apple Health export.xml or .json file from your iPhone" class="btn" onclick="document.getElementById('appleHealthFileInput').click()" style="font-size: 11.5px; padding: 6px 12px; border-color: rgba(16, 185, 129, 0.45); color: #34d399;">
-            📂 Upload Health Export
-          </button>
-          <input type="file" id="appleHealthFileInput" accept=".xml,.json" style="display: none;" onchange="uploadAppleHealthExportFile(this)">
-          <button title="Copy iOS Background Health Sync Shortcut Recipe" class="btn" onclick="copyTriDeviceShortcutRecipe()" style="font-size: 11.5px; padding: 6px 12px; border-color: rgba(0, 242, 254, 0.4);">
-            📲 iOS Shortcut Recipe
-          </button>
-          <a href="/api/security/ca.crt" download="afcc_root_ca.crt" title="Download AFCC Root CA Certificate for iPhone/iPad Safari" class="btn" style="font-size: 11.5px; padding: 6px 12px; text-decoration: none; border-color: rgba(168, 85, 247, 0.4);">
-            🔐 Root CA (.crt)
-          </a>
-        </div>
+    <!-- Hardware & Wearable Sync Moved to Dedicated Connection Agent (tri_device) -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(0, 242, 254, 0.28); border-radius: 10px; padding: 10px 16px;">
+      <div style="font-size: 12px; color: #cbd5e1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <span style="font-size: 16px;">⌚📱💻</span>
+        <span><strong>Wearable &amp; Hardware Connections:</strong> Apple Watch (via mandatory iPhone Companion Relay) &amp; iPhone HealthKit sync are managed in the dedicated <strong>Tri-Device &amp; Connections Agent</strong>.</span>
       </div>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 12px;">
-        <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 12px;">
-          <div style="font-size: 10.5px; color: var(--text-muted);">❤️ HRV (SDNN) &amp; RHR</div>
-          <div id="triDeviceHrvRhrVal" style="font-weight: 700; color: #38bdf8; margin-top: 2px;">-- ms • -- bpm (Not Synced)</div>
-        </div>
-        <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 12px;">
-          <div style="font-size: 10.5px; color: var(--text-muted);">💤 Watch Sleep &amp; SpO2</div>
-          <div id="triDeviceSleepSpo2Val" style="font-weight: 700; color: #c084fc; margin-top: 2px;">-- hrs • --% SpO2 (Not Synced)</div>
-        </div>
-        <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 12px;">
-          <div style="font-size: 10.5px; color: var(--text-muted);">🏋️ Today's 6-Day Schedule</div>
-          <div id="triDeviceWorkoutPlanVal" style="font-weight: 700; color: #34d399; margin-top: 2px;">Mudgal / Samtola / Bhim Gadha</div>
-        </div>
-        <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 12px;">
-          <div style="font-size: 10.5px; color: var(--text-muted);">🌐 iPhone Live Bridge URL</div>
-          <div id="triDeviceGatewayUrlVal" style="font-weight: 700; color: #fbbf24; margin-top: 2px;">http://192.168.1.35:7890/mobile-pair</div>
-        </div>
-      </div>
-
-      <!-- Step-by-Step Apple Watch & iPhone Connection & Sync Diagnostic Console -->
-      <div id="triDeviceSyncStepsPanel" style="display: none; margin-top: 12px; background: rgba(9, 13, 22, 0.9); border: 1px solid rgba(0, 242, 254, 0.35); border-radius: 10px; padding: 14px 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-          <strong style="font-size: 13px; color: var(--accent-cyan);" id="triDeviceSyncConsoleTitle">🔍 Step-by-Step Apple Watch &amp; iPhone Connection Verification</strong>
-          <button class="btn" onclick="closeTriDeviceSyncConsole()" style="font-size: 11px; padding: 2px 8px;" title="✕ Close">✕ Close</button>
-        </div>
-        <div id="triDeviceSyncStepsList" style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;"></div>
-        <div id="triDeviceLiveBridgeFooter" style="display: none; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 12px; color: #cbd5e1;"></div>
-      </div>
+      <button type="button" title="Open Dedicated Tri-Device &amp; Hardware Connections Agent" class="btn" onclick="switchTab('tri_device')" style="font-size: 11.5px; padding: 5px 12px; border-color: rgba(0, 242, 254, 0.45); color: var(--accent-cyan); background: rgba(0, 242, 254, 0.12);">
+        ⌚ Open Tri-Device &amp; Connections Agent ▸
+      </button>
     </div>
 
     <!-- Health Overview Vitals Stat Grid -->
@@ -1241,6 +1193,224 @@
               • <strong>BSL &lt; 70 mg/dL:</strong> Have 3 tsp sugar OR 3 dates immediately + water.<br>
               • Recheck BSL every 20 minutes until normalized!
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- View 3: Dedicated Tri-Device Ecosystem & Hardware Connections Agent (#viewTriDevice) -->
+  <div id="viewTriDevice" style="display: none; flex-direction: column; gap: 20px;">
+    <!-- Tri-Device & Hardware Connections Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 18px 22px; backdrop-filter: blur(12px);">
+      <div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <span style="font-size: 24px;">⌚</span>
+          <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: #fff;">Tri-Device Ecosystem &amp; Hardware Connections Hub</h2>
+          <span class="badge" style="background: rgba(0, 242, 254, 0.16); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.35); font-size: 11px;">🔌 Connection Agents Group</span>
+          <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 11px;">★ Core Hardware Bridge</span>
+          <span class="badge" style="background: rgba(168, 85, 247, 0.16); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.35); font-size: 11px;">⚡ Tier 0 Deterministic ($0.00)</span>
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
+          Centralized hardware &amp; external device connection manager: Apple Watch (via Mandatory iPhone Companion Relay) • iPhone Bridge (<code>ChandavaneMaCaZaKa</code>) • Wi-Fi LAN &amp; Tailscale Mesh • 1-Tap UPI Payment Bridge • Local Audio Biometric DSP
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <button id="btnSelfImproveIcon_tri_device" title="Self-Improvement &amp; Feature Evolution (Tri-Device &amp; Connections) — Click to open/close panel (Shift+Click: 10 Ways to Improve)" class="btn btn-icon" onclick="if(event.shiftKey){openEvolveAgentModal('tri_device');}else{FleetNavigator.toggleSelfImprovePanel('tri_device');}" style="font-size: 13px; padding: 6px 10px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.14); display: inline-flex; align-items: center; gap: 4px;">
+          ✨
+        </button>
+        <button title="Open Health &amp; Wellness Dashboard" class="btn" onclick="switchTab('health')" style="font-size: 12px; padding: 7px 12px; border-color: rgba(16, 185, 129, 0.4); color: #34d399;">
+          🌿 View Health Vitals
+        </button>
+        <button title="Refresh all hardware &amp; bridge connections" class="btn" onclick="fetchHealthDashboard()" style="font-size: 12px; padding: 7px 12px;">
+          🔄 Refresh Connections
+        </button>
+      </div>
+    </div>
+    <div id="coreSelfImproveBanner_tri_device" style="display: none;"></div>
+
+    <!-- Mandatory Apple Watch -> iPhone Companion Relay Architectural Rule Banner -->
+    <div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(0, 242, 254, 0.08)); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: var(--radius); padding: 16px 20px;">
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+        <span style="font-size: 18px;">🔗</span>
+        <strong style="font-size: 14.5px; color: #fde68a;">Apple Hardware Pairing Rule — Mandatory iPhone Companion Relay Topology</strong>
+        <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 10.5px;">✓ Addressed by Design</span>
+      </div>
+      <div style="font-size: 12px; color: #e2e8f0; line-height: 1.55; margin-bottom: 12px;">
+        <strong>Why Apple Watch never pairs directly to Windows:</strong> Apple restricts <code>watchOS</code> so an Apple Watch cannot pair or connect directly to a Windows laptop for normal use, notifications, HealthKit sync, or Bluetooth control — <strong>Apple only supports pairing an Apple Watch with a compatible iPhone</strong>. Therefore, AFCC uses your <strong>iPhone (<code>ChandavaneMaCaZaKa</code>) as the Mandatory Encrypted Companion Relay Bridge</strong>:
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; font-size: 11.5px;">
+        <div style="background: rgba(15, 23, 42, 0.78); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 8px; padding: 10px 14px;">
+          <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">1️⃣ Tier 1: ⌚ Apple Watch (Wearable Edge)</div>
+          <div style="color: #cbd5e1; line-height: 1.45;">
+            Pairs <strong>exclusively with your iPhone</strong> via Apple <code>WatchConnectivity</code> &amp; <code>HKHealthStore</code> (never directly to Windows Bluetooth). Streams HRV (SDNN), Resting HR, Sleep Stages, SpO2, Steps &amp; Active Calories to iPhone.
+          </div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.78); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 8px; padding: 10px 14px;">
+          <div style="font-weight: 700; color: #d8b4fe; margin-bottom: 4px;">2️⃣ Tier 2: 📱 iPhone Companion Bridge (<code>ChandavaneMaCaZaKa</code>)</div>
+          <div style="color: #cbd5e1; line-height: 1.45;">
+            Aggregates Apple Watch sensors in iOS <strong>Apple Health</strong>, runs <strong>iOS Shortcuts / Safari Bridge</strong>, and executes <strong>1-Tap UPI Open Payments</strong> (BHIM, ICICI iMobile, GPay). Relays data over Wi-Fi LAN (<code>192.168.1.35:7890</code>) to Windows.
+          </div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.78); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 8px; padding: 10px 14px;">
+          <div style="font-weight: 700; color: #34d399; margin-bottom: 4px;">3️⃣ Tier 3: 💻 Windows Laptop AFCC Hub (<code>0.0.0.0:7890</code>)</div>
+          <div style="color: #cbd5e1; line-height: 1.45;">
+            Verifies your iPhone Companion Bridge via Windows Bluetooth Registry + Wi-Fi LAN, ingests relayed Watch HealthKit payloads into local SQLite (<code>fleet_memory.db</code>), and forwards readiness to the Health Agent.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase 1 Tri-Device Ecosystem Hub: Apple Watch (via iPhone Relay) + iPhone HealthKit + Live Verification Console -->
+    <div id="triDeviceHealthHubCard" style="background: linear-gradient(135deg, rgba(0, 242, 254, 0.08), rgba(168, 85, 247, 0.08)); border: 1px solid rgba(0, 242, 254, 0.35); border-radius: var(--radius); padding: 18px 22px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 18px;">⌚📱💻</span>
+            <strong style="font-size: 15.5px; color: #fff;">Tri-Device Ecosystem Hub — Apple Watch (via iPhone Companion Relay) &amp; HealthKit Bridge</strong>
+            <span id="triDeviceReadinessBadge" class="badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.45); font-weight: 700;">⏳ Awaiting Real Watch / iPhone Sync</span>
+            <span id="triDeviceConnStatusBadge" class="badge" style="background: rgba(0, 242, 254, 0.14); color: var(--accent-cyan); font-size: 10.5px;">🔒 Watch ➔ iPhone Relay ➔ Windows Hub</span>
+          </div>
+          <div id="triDeviceRecommendationText" style="font-size: 12px; color: #cbd5e1; margin-top: 4px;">
+            Click &ldquo;⌚ Sync Apple Watch Now&rdquo; to verify your iPhone Companion Relay Bridge (<code>ChandavaneMaCaZaKa</code>) and run the 5-step Apple Watch &rarr; iPhone &rarr; Windows sync check.
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button id="btnSyncAppleWatchNow" title="Verify iPhone Companion Relay Bridge and Execute Live 5-Step Apple Watch Sync" class="btn btn-primary" onclick="triggerAppleWatchDemoSync()" style="font-size: 11.5px; padding: 6px 12px;">
+            ⌚ Sync Apple Watch Now
+          </button>
+          <button title="Upload Apple Health export.xml or .json file from your iPhone" class="btn" onclick="document.getElementById('appleHealthFileInput').click()" style="font-size: 11.5px; padding: 6px 12px; border-color: rgba(16, 185, 129, 0.45); color: #34d399;">
+            📂 Upload Health Export
+          </button>
+          <input type="file" id="appleHealthFileInput" accept=".xml,.json" style="display: none;" onchange="uploadAppleHealthExportFile(this)">
+          <button title="Copy iOS Background Health Sync Shortcut Recipe" class="btn" onclick="copyTriDeviceShortcutRecipe()" style="font-size: 11.5px; padding: 6px 12px; border-color: rgba(0, 242, 254, 0.4);">
+            📲 iOS Shortcut Recipe
+          </button>
+          <a href="/api/security/ca.crt" download="afcc_root_ca.crt" title="Download AFCC Root CA Certificate for iPhone/iPad Safari" class="btn" style="font-size: 11.5px; padding: 6px 12px; text-decoration: none; border-color: rgba(168, 85, 247, 0.4);">
+            🔐 Root CA (.crt)
+          </a>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; font-size: 12px;">
+        <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 12px;">
+          <div style="font-size: 10.5px; color: var(--text-muted);">❤️ Watch HRV (SDNN) &amp; RHR (via iPhone)</div>
+          <div id="triDeviceHrvRhrVal" style="font-weight: 700; color: #38bdf8; margin-top: 2px;">-- ms • -- bpm (Not Synced)</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 12px;">
+          <div style="font-size: 10.5px; color: var(--text-muted);">💤 Watch Sleep &amp; SpO2 (via iPhone)</div>
+          <div id="triDeviceSleepSpo2Val" style="font-weight: 700; color: #c084fc; margin-top: 2px;">-- hrs • --% SpO2 (Not Synced)</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 12px;">
+          <div style="font-size: 10.5px; color: var(--text-muted);">🏋️ Today's 6-Day Akhada Schedule</div>
+          <div id="triDeviceWorkoutPlanVal" style="font-weight: 700; color: #34d399; margin-top: 2px;">Mudgal / Samtola / Bhim Gadha</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 12px;">
+          <div style="font-size: 10.5px; color: var(--text-muted);">🌐 iPhone Companion Bridge URL</div>
+          <div id="triDeviceGatewayUrlVal" style="font-weight: 700; color: #fbbf24; margin-top: 2px;">http://192.168.1.35:7890/mobile-pair</div>
+        </div>
+      </div>
+
+      <!-- Step-by-Step Apple Watch (via iPhone Relay) Connection & Sync Diagnostic Console -->
+      <div id="triDeviceSyncStepsPanel" style="display: none; margin-top: 14px; background: rgba(9, 13, 22, 0.92); border: 1px solid rgba(0, 242, 254, 0.35); border-radius: 10px; padding: 14px 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <strong style="font-size: 13px; color: var(--accent-cyan);" id="triDeviceSyncConsoleTitle">🔍 Step-by-Step Apple Watch (via iPhone Relay) Connection Verification</strong>
+          <button class="btn" onclick="closeTriDeviceSyncConsole()" style="font-size: 11px; padding: 2px 8px;" title="✕ Close">✕ Close</button>
+        </div>
+        <div id="triDeviceSyncStepsList" style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;"></div>
+        <div id="triDeviceLiveBridgeFooter" style="display: none; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 12px; color: #cbd5e1;"></div>
+      </div>
+    </div>
+
+    <!-- All Hardware, Wearable, Mobile & Protocol Connections Grid (Connection Agents Group) -->
+    <div class="card" style="margin: 0; padding: 18px 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
+        <div>
+          <strong style="font-size: 15px; color: #fff;">🔌 External Hardware, Wearable &amp; Protocol Connection Matrix</strong>
+          <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+            All hardware peripherals, mobile bridges, and external protocol agents managed under the <strong>Connection Agents</strong> group
+          </div>
+        </div>
+        <span class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);">7 Hardware &amp; Protocol Bridges</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+        <!-- 1. Apple Watch via iPhone Companion Relay -->
+        <div style="background: rgba(15, 23, 42, 0.72); border: 1px solid rgba(56, 189, 248, 0.32); border-radius: 10px; padding: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="font-size: 13px; color: #fff;">⌚ Apple Watch (watchOS Sensor Edge)</strong>
+            <span class="badge" style="background: rgba(56, 189, 248, 0.16); color: #38bdf8; font-size: 10px;">iPhone Relay Only</span>
+          </div>
+          <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.45; margin-bottom: 10px;">
+            Cannot pair directly to Windows. Pairs exclusively with your iPhone via <code>WatchConnectivity</code> &amp; <code>HKHealthStore</code>; iPhone relays vitals to AFCC.
+          </div>
+          <button type="button" class="btn" onclick="triggerAppleWatchDemoSync()" style="font-size: 11px; padding: 4px 10px; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" title="🔍 Verify Relay &amp; Sync">🔍 Verify Relay &amp; Sync</button>
+        </div>
+
+        <!-- 2. iPhone Companion Bridge (ChandavaneMaCaZaKa) -->
+        <div style="background: rgba(15, 23, 42, 0.72); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 10px; padding: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="font-size: 13px; color: #fff;">📱 iPhone Bridge (<code>ChandavaneMaCaZaKa</code>)</strong>
+            <span class="badge" style="background: rgba(16, 185, 129, 0.18); color: #34d399; font-size: 10px;">BT Paired + LAN Bridge</span>
+          </div>
+          <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.45; margin-bottom: 10px;">
+            Paired in Windows Bluetooth Registry &amp; connected via Wi-Fi LAN Bridge (<code>http://192.168.1.35:7890/mobile-pair</code>) for HealthKit &amp; Shortcuts sync.
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <a href="/mobile-pair" target="_blank" class="btn" style="font-size: 11px; padding: 4px 10px; text-decoration: none; border-color: rgba(16, 185, 129, 0.4); color: #34d399;">🌐 Open Mobile-Pair Page</a>
+            <button type="button" class="btn" onclick="copyTriDeviceShortcutRecipe()" style="font-size: 11px; padding: 4px 10px;" title="📲 Copy iOS Shortcut">📲 Copy iOS Shortcut</button>
+          </div>
+        </div>
+
+        <!-- 3. Local Wi-Fi LAN & Tailscale Mesh Gateway -->
+        <div style="background: rgba(15, 23, 42, 0.72); border: 1px solid rgba(168, 85, 247, 0.35); border-radius: 10px; padding: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="font-size: 13px; color: #fff;">🌐 Wi-Fi LAN &amp; Tailscale Mesh Gateway</strong>
+            <span class="badge" style="background: rgba(168, 85, 247, 0.18); color: #d8b4fe; font-size: 10px;">0.0.0.0:7890 Active</span>
+          </div>
+          <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.45; margin-bottom: 10px;">
+            RFC-1918 Private Subnet &amp; Tailscale WireGuard Mesh listener with local Root CA TLS certificate for iOS Safari PWA &amp; WebAudio mic access.
+          </div>
+          <a href="/api/security/ca.crt" download="afcc_root_ca.crt" class="btn" style="font-size: 11px; padding: 4px 10px; text-decoration: none; border-color: rgba(168, 85, 247, 0.4); color: #d8b4fe;">🔐 Download Root CA (.crt)</a>
+        </div>
+
+        <!-- 4. Mobile Open Payment UPI Deep-Link Bridge -->
+        <div style="background: rgba(15, 23, 42, 0.72); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 10px; padding: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="font-size: 13px; color: #fff;">💳 Mobile UPI Open Payment Bridge</strong>
+            <span class="badge" style="background: rgba(245, 158, 11, 0.18); color: #fbbf24; font-size: 10px;">BHIM • ICICI • GPay</span>
+          </div>
+          <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.45; margin-bottom: 10px;">
+            Generates NPCI-compliant <code>upi://pay</code> deep links &amp; QR payloads from laptop monthly bills so iPhone executes FaceID UPI payment in 1 tap.
+          </div>
+          <button type="button" class="btn" onclick="switchTab('overview'); filterTasksBySource('Monthly');" style="font-size: 11px; padding: 4px 10px; border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;" title="📅 View Monthly Bill Tasks">📅 View Monthly Bill Tasks</button>
+        </div>
+
+        <!-- 5. Windows Acoustic Biometric Microphone DSP -->
+        <div style="background: rgba(15, 23, 42, 0.72); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 10px; padding: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="font-size: 13px; color: #fff;">🎙️ Local Biometric Mic &amp; Acoustic DSP</strong>
+            <span class="badge" style="background: rgba(236, 72, 153, 0.18); color: #f472b6; font-size: 10px;">85–3800 Hz + 6D Lock</span>
+          </div>
+          <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.45; margin-bottom: 10px;">
+            Hardware WebAudio bandpass + compressor chain with 12s 3-phase NIST/IEEE speaker voiceprint verification and wake word <code>&ldquo;Mahadev&rdquo;</code>.
+          </div>
+          <button type="button" class="btn" onclick="openVoiceprintGuidedTeleprompter(false)" style="font-size: 11px; padding: 4px 10px; border-color: rgba(236, 72, 153, 0.4); color: #f472b6;" title="🧬 Calibrate Voiceprint">🧬 Calibrate Voiceprint</button>
+        </div>
+
+        <!-- 6. External Connection Agents Quick Launchers -->
+        <div style="background: rgba(15, 23, 42, 0.72); border: 1px solid rgba(56, 189, 248, 0.28); border-radius: 10px; padding: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="font-size: 13px; color: #fff;">🤖 Other Connection Group Agents</strong>
+            <span class="badge" style="background: rgba(56, 189, 248, 0.16); color: #38bdf8; font-size: 10px;">Connection Agents</span>
+          </div>
+          <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.45; margin-bottom: 10px;">
+            Switch directly to companion messaging, MCP hardware/tool server, or email bridge agents in the Connection Agents group:
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button type="button" class="btn" onclick="FleetNavigator.switchAgent('remote_chat')" style="font-size: 11px; padding: 4px 9px;" title="📱 Telegram &amp; WhatsApp">📱 Telegram &amp; WhatsApp</button>
+            <button type="button" class="btn" onclick="FleetNavigator.switchAgent('mcp_studio')" style="font-size: 11px; padding: 4px 9px;" title="🔌 MCP Studio">🔌 MCP Studio</button>
+            <button type="button" class="btn" onclick="FleetNavigator.switchAgent('gmail')" style="font-size: 11px; padding: 4px 9px;" title="📬 Gmail Bridge">📬 Gmail Bridge</button>
           </div>
         </div>
       </div>

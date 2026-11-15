@@ -4,13 +4,13 @@
  * Powered by Antigravity
  */
 
-const STATIC_CORE_TAB_IDS = new Set(['health', 'overview', 'antigravity', 'backlog', 'optimizer']);
+const STATIC_CORE_TAB_IDS = new Set(['health', 'tri_device', 'overview', 'antigravity', 'backlog', 'optimizer']);
 const VALID_WORKSPACE_LAYOUTS = ['sidebar_dock', 'command_deck', 'launchpad_grid'];
 const VALID_WORKSPACE_THEMES = ['dark', 'midnight', 'aurora', 'solar'];
 
 const FleetNavigator = {
   agents: [],
-  pinnedIds: new Set(['overview', 'health', 'antigravity', 'backlog', 'optimizer']),
+  pinnedIds: new Set(['overview', 'health', 'tri_device', 'antigravity', 'backlog', 'optimizer']),
   layoutMode: 'sidebar_dock', // 'sidebar_dock' | 'command_deck' | 'launchpad_grid'
   themeMode: 'dark',
   sidebarCollapsed: false,
@@ -45,6 +45,7 @@ const FleetNavigator = {
         const parsed = JSON.parse(savedPinned);
         if (Array.isArray(parsed) && parsed.length > 0) {
           this.pinnedIds = new Set(parsed);
+          this.pinnedIds.add('tri_device');
         }
       }
       const savedLayout = localStorage.getItem('fleet_workspace_layout');
@@ -250,7 +251,9 @@ const FleetNavigator = {
     const name = (agent.name || '').toLowerCase();
     const perms = agent.permissions || [];
 
-    if (id.includes('crypto') || id.includes('finance') || id.includes('budget') || id.includes('invoice') || id.includes('trader')) {
+    if (id === 'tri_device' || id === 'remote_chat' || id === 'mcp_studio' || id === 'gmail' || id.includes('connection') || id.includes('bridge') || category === 'Connection Agents') {
+      category = 'Connection Agents';
+    } else if (id.includes('crypto') || id.includes('finance') || id.includes('budget') || id.includes('invoice') || id.includes('trader')) {
       category = 'Finance & Markets';
     } else if (id.includes('home') || id.includes('iot') || id.includes('device') || id.includes('automation')) {
       category = 'Smart Home & IoT';
@@ -270,7 +273,7 @@ const FleetNavigator = {
     let status = 'idle';
     if (!agent.enabled) {
       status = 'disabled';
-    } else if (agent.is_busy || agent.is_running || id === 'antigravity' || id === 'overview') {
+    } else if (agent.is_busy || agent.is_running || id === 'antigravity' || id === 'overview' || id === 'tri_device') {
       status = 'working';
     }
 
@@ -388,9 +391,9 @@ const FleetNavigator = {
       pinnedContainer.innerHTML = coreAndPinned.map(a => this.renderSidebarAgentItemHtml(a)).join('');
     }
 
-    // 2. Collapsible Domain Categories Tree for Additional / Unpinned Agents (Zero Duplication with Pinned List)
-    const unpinnedDomainAgents = this.agents.filter(a => !coreAndPinnedIds.has(a.id) && matchesSearch(a) && matchesFilter(a));
-    if (unpinnedDomainAgents.length === 0) {
+    // 2. Collapsible Domain Categories Tree for Domain & Connection Agents
+    const domainAgents = this.agents.filter(a => (!coreAndPinnedIds.has(a.id) || a.category === 'Connection Agents') && matchesSearch(a) && matchesFilter(a));
+    if (domainAgents.length === 0) {
       categoriesContainer.innerHTML = q
         ? `<div style="font-size: 11.5px; color: var(--text-muted); padding: 12px 8px; text-align: center;">No additional domain agents match "${q}"</div>`
         : `<div style="font-size: 11px; color: var(--text-muted); padding: 8px 10px; background: rgba(255,255,255,0.02); border-radius: 6px;">All active agents are pinned above. Add or unpin agents to browse by domain.</div>`;
@@ -398,7 +401,7 @@ const FleetNavigator = {
     }
 
     const groups = {};
-    unpinnedDomainAgents.forEach(a => {
+    domainAgents.forEach(a => {
       const cat = a.category || 'Productivity';
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(a);
@@ -1010,7 +1013,7 @@ const FleetNavigator = {
     this.closeFleetDrawer();
     this.closeCommandPalette();
 
-    const standardTabs = ['overview', 'health', 'antigravity', 'backlog', 'optimizer'];
+    const standardTabs = ['overview', 'health', 'tri_device', 'antigravity', 'backlog', 'optimizer'];
     if (standardTabs.includes(agentId)) {
       if (typeof switchTab === 'function') switchTab(agentId);
       this.syncActiveTabUI(agentId);
@@ -1033,7 +1036,7 @@ const FleetNavigator = {
     window.lastNonAgTab = agentId;
 
     // Hide all standard view divs (except viewAntigravity when docked to the right panel)
-    ['viewOverview', 'viewAntigravity', 'viewHealth', 'viewBacklog', 'viewOptimizer'].forEach(id => {
+    ['viewOverview', 'viewAntigravity', 'viewHealth', 'viewTriDevice', 'viewBacklog', 'viewOptimizer'].forEach(id => {
       if (id === 'viewAntigravity' && window.isAgRightDocked) return;
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
@@ -1174,7 +1177,7 @@ const FleetNavigator = {
   },
 
   renderActiveAgentSelfImprovementsBanner(agentId) {
-    const targetIds = new Set(['overview', 'health', 'antigravity', 'backlog', 'optimizer']);
+    const targetIds = new Set(['overview', 'health', 'tri_device', 'antigravity', 'backlog', 'optimizer']);
     if (agentId) targetIds.add(agentId);
 
     targetIds.forEach(aid => {

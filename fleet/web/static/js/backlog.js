@@ -535,7 +535,7 @@ async function triggerAppleWatchDemoSync() {
   }
 
   const pendingSteps = [
-    { step: 1, title: 'Scanning Windows Bluetooth Stack (Apple VID_004C)...', status: 'running', detail: 'Querying Windows PnP Bluetooth devices for Apple Watch and paired iPhone...' },
+    { step: 1, title: 'Checking iPhone Companion Relay Bridge (Apple Watch → iPhone → Windows Hub)...', status: 'running', detail: 'Apple Watch pairs exclusively with your iPhone (never directly to Windows). Checking Windows Bluetooth Registry for your paired iPhone Companion Bridge...' },
     { step: 2, title: 'Verifying Laptop Wi-Fi LAN & Tailscale Listener (Port 7890)...', status: 'running', detail: 'Checking 0.0.0.0:7890 binding and active 192.168.1.x Wi-Fi neighbors...' },
     { step: 3, title: 'Scanning Local Apple Health Inbox (fleet/data/user/apple_health_inbox/)...', status: 'running', detail: 'Looking for Apple Health export.xml / .json files...' },
     { step: 4, title: 'Verifying Real Incoming Apple Watch / iPhone Telemetry...', status: 'running', detail: 'Checking apple_health_sync_vault.json for authenticated real-device packets...' },

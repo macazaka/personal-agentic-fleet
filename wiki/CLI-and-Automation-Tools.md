@@ -76,7 +76,7 @@ Executed automatically on every `git commit` before code is staged:
 
 ---
 
-## 5. Isolated Agent Packages (`10` Built-In Agents)
+## 5. Isolated Agent Packages (`11` Built-In Agents)
 
 | Agent ID | Display Name & Version | Capability Permissions | Description |
 | :--- | :--- | :--- | :--- |
@@ -90,3 +90,4 @@ Executed automatically on every `git commit` before code is staged:
 | `overview` | **Overview** (`v1.8.0`) | `db:read, db:write, event_bus:publish, event_bus:subscribe, ui:render` | Daily Morning Briefing, Task & Goal Board, Routine Checklist, and Automated Test Suite. |
 | `pr_review` | **Admin PR Review & CI Quality Gate** (`v1.0.0`) | `db:read, db:write, event_bus:publish, event_bus:subscribe, network:github_api, ui:render` | Admin-only GitHub Pull Request auditor, CI health monitor, and Dependabot automation. |
 | `remote_chat` | **Telegram & WhatsApp Bot** (`v1.0.0`) | `db:read, db:write, event_bus:publish, network:outbound, ui:render` | Bidirectional Telegram & WhatsApp Remote Bot Interface for controlling Personal Agentic Fleet from mobile at $0.00 token cost. |
+| `tri_device` | **Tri-Device & Connections** (`v1.0.0`) | `db:read, db:write, event_bus:publish, network:outbound, ui:render` | Dedicated Tri-Device Ecosystem & Hardware Connections Hub managing Apple Watch (via mandatory iPhone Companion Relay), iPhone Bridge (ChandavaneMaCaZaKa), Wi-Fi LAN & Tailscale Mesh, 1-Tap UPI Payment Bridge, and Local Biometric Audio DSP. |

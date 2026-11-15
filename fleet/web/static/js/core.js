@@ -61,11 +61,13 @@
       const tabOverview = document.getElementById('tabBtnOverview');
       const tabAg = document.getElementById('tabBtnAntigravity');
       const tabHealth = document.getElementById('tabBtnHealth');
+      const tabTriDevice = document.getElementById('tabBtnTriDevice');
       const tabBacklog = document.getElementById('tabBtnBacklog');
       const tabOptimizer = document.getElementById('tabBtnOptimizer');
       const viewOverview = document.getElementById('viewOverview');
       const viewAg = document.getElementById('viewAntigravity');
       const viewHealth = document.getElementById('viewHealth');
+      const viewTriDevice = document.getElementById('viewTriDevice');
       const viewBacklog = document.getElementById('viewBacklog');
       const viewOptimizer = document.getElementById('viewOptimizer');
       const viewStage = document.getElementById('viewActiveAgentStage');
@@ -78,6 +80,7 @@
       if (viewOverview) viewOverview.style.display = 'none';
       if (viewAg && !window.isAgRightDocked) viewAg.style.display = 'none';
       if (viewHealth) viewHealth.style.display = 'none';
+      if (viewTriDevice) viewTriDevice.style.display = 'none';
       if (viewBacklog) viewBacklog.style.display = 'none';
       if (viewOptimizer) viewOptimizer.style.display = 'none';
       if (viewStage) viewStage.style.display = 'none';
@@ -105,6 +108,10 @@
       } else if (tab === 'health') {
         if (tabHealth) tabHealth.classList.add('active');
         if (viewHealth) viewHealth.style.display = 'flex';
+        fetchHealthDashboard();
+      } else if (tab === 'tri_device') {
+        if (tabTriDevice) tabTriDevice.classList.add('active');
+        if (viewTriDevice) viewTriDevice.style.display = 'flex';
         fetchHealthDashboard();
       } else if (tab === 'backlog') {
         if (tabBacklog) tabBacklog.classList.add('active');

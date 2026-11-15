@@ -316,3 +316,29 @@ def test_tri_device_backlog_sync_and_phase1_gateway_pwa_endpoints(isolated_db, m
     assert guard_res["status"] == "requires_2fa_approval"
 
 
+def test_tri_device_dedicated_agent_and_iphone_companion_relay(isolated_db):
+    from fleet.agents.tri_device.agent import TriDeviceConnectionAgent
+    from fleet.core.registry import AgentRegistry
+    from fleet.web.builder import get_dashboard_html
+
+    agent = TriDeviceConnectionAgent(db=isolated_db)
+    assert agent.id == "tri_device"
+    manifest = agent.get_ui_manifest()
+    assert manifest["category"] == "Connection Agents"
+    task_res = agent.execute_task("verify_and_sync")
+    assert task_res["status"] == "success"
+    assert "Apple Watch pairs exclusively with a compatible iPhone" in task_res["architecture_rule"]
+
+    reg = AgentRegistry(config={}, db=isolated_db)
+    reg.discover_and_load()
+    assert "tri_device" in reg.agents
+
+    html = get_dashboard_html(standalone=False)
+    assert 'id="tabBtnTriDevice"' in html
+    assert 'id="viewTriDevice"' in html
+    idx_view_tri = html.index('id="viewTriDevice"')
+    idx_hub_card = html.index('id="triDeviceHealthHubCard"')
+    assert idx_hub_card > idx_view_tri
+
+
+

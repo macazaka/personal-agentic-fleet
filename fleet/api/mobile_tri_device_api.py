@@ -589,33 +589,30 @@ def post_verify_and_sync_apple_watch_endpoint(handler: Any, body: Dict[str, Any]
 
     steps: List[Dict[str, Any]] = []
 
-    # Step 1: Bluetooth Hardware Scan
+    # Step 1: iPhone Companion Relay & Bluetooth Hardware Scan
+    # (Apple Watch pairs exclusively with a compatible iPhone and never pairs directly to Windows)
     bt_devs = hw_info["apple_bt_devices"]
-    if hw_info["watch_bt_found"]:
-        steps.append({
-            "step": 1,
-            "title": "Windows Bluetooth Hardware Scan (Apple VID_004C)",
-            "status": "pass",
-            "detail": f"Detected Apple Watch on Bluetooth: {', '.join(d['name'] for d in bt_devs)}.",
-        })
-    elif hw_info["iphone_bt_found"]:
+    if hw_info["iphone_bt_found"] or hw_info["watch_bt_found"]:
         dev_names = ", ".join(f"{d['name']} ({d['role']})" for d in bt_devs)
         steps.append({
             "step": 1,
-            "title": "Windows Bluetooth Hardware Scan (Apple VID_004C)",
-            "status": "warn",
+            "title": "iPhone Companion Relay Check (Apple Watch → iPhone → Windows Hub)",
+            "status": "pass",
             "detail": (
-                f"Detected paired Apple iPhone on Windows Bluetooth: {dev_names}. "
-                "Note: Apple watchOS locks HealthKit sensor databases to the paired iPhone and does not expose HealthKit over Windows Bluetooth GATT directly; "
-                "your iPhone acts as the encrypted HealthKit bridge to this laptop over Wi-Fi."
+                f"Detected your paired iPhone Companion Bridge ({dev_names}) in Windows Bluetooth Registry. "
+                "Architectural Rule: Apple Watch cannot pair directly to a Windows laptop (Apple only supports pairing an Apple Watch with a compatible iPhone). "
+                "Your iPhone aggregates Apple Watch sensors in HealthKit and relays them over Wi-Fi to this laptop."
             ),
         })
     else:
         steps.append({
             "step": 1,
-            "title": "Windows Bluetooth Hardware Scan",
+            "title": "iPhone Companion Relay Check (Apple Watch → iPhone → Windows Hub)",
             "status": "warn",
-            "detail": "No Apple Watch is directly paired to Windows Bluetooth. Apple Watch syncs biometrics via your paired iPhone over Wi-Fi / Tailscale.",
+            "detail": (
+                "Apple Watch never pairs directly to a Windows laptop (it pairs exclusively with your iPhone). "
+                "No paired iPhone was found in Windows Bluetooth Registry yet; your iPhone can still relay Apple Watch HealthKit data over Wi-Fi / Tailscale."
+            ),
         })
 
     # Step 2: Wi-Fi LAN & Tailscale Mesh Listener Check
