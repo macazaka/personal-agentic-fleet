@@ -277,6 +277,8 @@ personal-agentic-fleet/
 │
 ├── INSTALL.md                  # Step-by-step installation & configuration guide
 ├── CONTRIBUTING.md             # Contributor workflow & security requirements
+├── NOTICE                      # Apache-2.0 Section 4(d) attribution notices
+├── THIRD_PARTY_NOTICES.md      # Full Open-Source SBOM, license texts & scientific credits
 └── LICENSE                     # Apache 2.0 Commercial-Friendly Open-Source License
 ```
 
@@ -314,7 +316,11 @@ python -m fleet.tools.preflight_gate
 
 ---
 
-## 📜 License
+## 📜 License & Open-Source Attributions
 
-Distributed under the **Apache License 2.0** (permissive commercial and open-source use with patent protection). See [`LICENSE`](LICENSE) for details.
+Distributed under the **Apache License 2.0** (permissive commercial and open-source use with patent protection).
+- **Project License**: [`LICENSE`](LICENSE)
+- **Apache-2.0 Attribution Notice**: [`NOTICE`](NOTICE)
+- **Third-Party Open-Source SBOM & Scientific Credits**: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
+
 Created and maintained by [**macazaka**](https://github.com/macazaka).

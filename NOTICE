@@ -1,0 +1,86 @@
+Personal Agentic Fleet — Agentic Fleet Control Center (AFCC)
+Copyright 2026 macazaka
+
+This product is licensed under the Apache License, Version 2.0.
+A copy of the License is provided in the LICENSE file in the root directory.
+
+========================================================================
+THIRD-PARTY OPEN-SOURCE SOFTWARE & SCIENTIFIC ATTRIBUTIONS
+========================================================================
+
+1. Core Runtime Foundation (Zero Mandatory Third-Party Dependencies)
+   - Python Standard Library (http.server, sqlite3, ssl, hashlib, hmac,
+     secrets, urllib, wave, math, etc.)
+     Copyright (c) 2001-2026 Python Software Foundation.
+     Licensed under the Python Software Foundation License Version 2 (PSF-2.0).
+
+2. Optional Production & Security Python Libraries
+   - cryptography (https://github.com/pyca/cryptography)
+     Copyright (c) Individual Contributors / Python Cryptographic Authority (PyCA).
+     Dual-licensed under the Apache License, Version 2.0 and the 3-Clause BSD License.
+     Used in fleet/core/crypto_vault.py (AES-256-GCM at-rest vault encryption)
+     and fleet/core/local_tls.py (local X.509 Root CA & SAN TLS generation).
+
+   - keyring (https://github.com/jaraco/keyring)
+     Copyright (c) Kang Zhang, Jason R. Coombs.
+     Licensed under the MIT License.
+
+   - PyYAML (https://github.com/yaml/pyyaml)
+     Copyright (c) 2017-2026 Ingy döt Net, Copyright (c) 2006-2016 Kirill Simonov.
+     Licensed under the MIT License.
+
+   - google-api-python-client, google-auth-httplib2, google-auth-oauthlib
+     (https://github.com/googleapis/google-api-python-client)
+     Copyright (c) Google LLC.
+     Licensed under the Apache License, Version 2.0.
+
+   - pypdf (https://github.com/py-pdf/pypdf)
+     Copyright (c) 2006-2008 Mathieu Fenniak; (c) 2022-2026 Martin Thoma & contributors.
+     Licensed under the 3-Clause BSD License.
+
+   - mcp — Model Context Protocol Python SDK (https://github.com/modelcontextprotocol/python-sdk)
+     Copyright (c) Anthropic, PBC.
+     Licensed under the MIT License.
+
+3. Development, Testing, Static Analysis & Standalone Demo Libraries
+   - pytest (https://github.com/pytest-dev/pytest)
+     Copyright (c) 2004-2026 Holger Krekel and others.
+     Licensed under the MIT License.
+
+   - coverage.py (https://github.com/nedbat/coveragepy)
+     Copyright (c) 2004-2026 Ned Batchelder and contributors.
+     Licensed under the Apache License, Version 2.0.
+
+   - Pyright (https://github.com/microsoft/pyright)
+     Copyright (c) Microsoft Corporation.
+     Licensed under the MIT License.
+
+   - Ruff (https://github.com/astral-sh/ruff)
+     Copyright (c) 2022-2026 Charles Marsh / Astral Software Inc.
+     Licensed under the MIT License.
+
+   - setuptools (https://github.com/pypa/setuptools)
+     Copyright (c) Python Packaging Authority (PyPA).
+     Licensed under the MIT License.
+
+   - pygame-ce — Pygame Community Edition (https://github.com/pygame-community/pygame-ce)
+     Copyright (c) Pygame Community Edition Developers.
+     Licensed under the GNU Lesser General Public License v2.1 or later (LGPL-2.1-or-later).
+     Used exclusively as an optional dynamic import in the standalone pong.py demo script.
+
+4. Typography & Web Standards
+   - Inter Font Family (https://rsms.me/inter/)
+     Copyright (c) 2016-2026 The Inter Project Authors (Rasmus Andersson).
+     Licensed under the SIL Open Font License, Version 1.1 (OFL-1.1).
+
+5. Published Acoustic & DSP Literature Implemented in First-Party Code
+   - McLeod Pitch Method (NSDF): Phillip McLeod & Geoff Wyvill (2005),
+     "A Smarter Way to Find Pitch", Proc. International Computer Music Conference (ICMC).
+   - YIN Fundamental Frequency Estimator: Alain de Cheveigné & Hideki Kawahara (2002),
+     "YIN, a fundamental frequency estimator for speech and music", JASA 111(4), 1917-1930.
+   - Vocal Tract Resonance & Vocal Tract Length (VTL) Model: Gunnar Fant (1960),
+     "Acoustic Theory of Speech Production", Mouton & Co.
+   - Bark Critical-Band Scale: Eberhard Zwicker (1961),
+     "Subdivision of the Audible Frequency Range into Critical Bands (Frequenzgruppen)", JASA 33(2).
+
+See THIRD_PARTY_NOTICES.md for full license texts and detailed usage scope.
