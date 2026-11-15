@@ -121,7 +121,7 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
 <!-- AUTO-LATEST-RELEASE:START -->
 ### 🆕 What's New in Release `v2.18.0` (Auto-Synchronized)
 
-> **Live Telemetry**: `11` Core Agents • `193` REST API Endpoints • `36` Microkernel Engines • `22` Automation Tools • `523` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
+> **Live Telemetry**: `11` Core Agents • `193` REST API Endpoints • `36` Microkernel Engines • `22` Automation Tools • `524` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
 
 ### Added
 - **Tri Device**: Enhance architecture and backlog with 10 real-world environmental constraints (EC-01..EC-10) and local-only encrypted hardware registry.

@@ -40,7 +40,6 @@ dev = [
     "cryptography>=50.0.0",
     "pytest>=9.0.3",
     "coverage>=7.3.0",
-    "pygame-ce>=2.5.0",
 ]
 
 [project.scripts]

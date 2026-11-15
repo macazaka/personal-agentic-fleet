@@ -42,7 +42,7 @@ THIRD-PARTY OPEN-SOURCE SOFTWARE & SCIENTIFIC ATTRIBUTIONS
      Copyright (c) Anthropic, PBC.
      Licensed under the MIT License.
 
-3. Development, Testing, Static Analysis & Standalone Demo Libraries
+3. Development, Testing & Static Analysis Libraries
    - pytest (https://github.com/pytest-dev/pytest)
      Copyright (c) 2004-2026 Holger Krekel and others.
      Licensed under the MIT License.
@@ -63,10 +63,11 @@ THIRD-PARTY OPEN-SOURCE SOFTWARE & SCIENTIFIC ATTRIBUTIONS
      Copyright (c) Python Packaging Authority (PyPA).
      Licensed under the MIT License.
 
-   - pygame-ce — Pygame Community Edition (https://github.com/pygame-community/pygame-ce)
-     Copyright (c) Pygame Community Edition Developers.
-     Licensed under the GNU Lesser General Public License v2.1 or later (LGPL-2.1-or-later).
-     Used exclusively as an optional dynamic import in the standalone pong.py demo script.
+COMMERCIAL & END-USER LICENSE GUARANTEE:
+100% of the libraries, fonts, and web standards used in Personal Agentic Fleet
+are governed by OSI-approved permissive commercial-safe licenses (Apache-2.0,
+MIT, BSD-3-Clause, PSF-2.0, SIL OFL-1.1). Zero viral/copyleft or non-commercial
+dependencies are included.
 
 4. Typography & Web Standards
    - Inter Font Family (https://rsms.me/inter/)

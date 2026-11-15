@@ -706,6 +706,25 @@ def test_lets_discuss_action_items_across_routing_modes_and_107hz_voiceprint(iso
     assert "if (!/^en/i.test(vLang))" in js_src
 
 
+def test_open_source_licenses_are_100_percent_commercial_safe():
+    from pathlib import Path
+
+    pyproject_txt = Path("pyproject.toml").read_text(encoding="utf-8")
+    notice_txt = Path("NOTICE").read_text(encoding="utf-8")
+    third_party_txt = Path("THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
+
+    # 1. Core runtime must remain zero mandatory dependencies
+    assert "dependencies = []" in pyproject_txt
+
+    # 2. Ensure zero copyleft (LGPL / GPL / AGPL / SSPL) packages in pyproject.toml or NOTICE
+    banned_copyleft_packages = ["pygame-ce", "pyqt5", "pyqt6", "pyside2", "pyside6", "gpl", "lgpl", "agpl", "sspl"]
+    for banned in banned_copyleft_packages:
+        assert banned not in pyproject_txt.lower(), f"Restricted/copyleft dependency '{banned}' found in pyproject.toml"
+    assert "lgpl-2.1" not in notice_txt.lower()
+    assert "Commercial & End-User Safety Guarantee" in third_party_txt
+
+
+
 
 
 

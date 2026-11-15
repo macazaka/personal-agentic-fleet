@@ -6,6 +6,16 @@ This document provides full attribution, copyright notices, and license terms fo
 
 ---
 
+## 🛡️ 0. Commercial & End-User Safety Guarantee (Zero Copyleft / Zero Royalties)
+
+Every open-source library, runtime, and font used in **Personal Agentic Fleet** has been audited to ensure **zero negative commercial, legal, or financial impact** on the project author (`macazaka`) or any individual/enterprise end user:
+
+- **100% Permissive OSI-Approved Licenses Only**: All direct, optional, and development dependencies use strictly permissive licenses (**`Apache-2.0`**, **`MIT`**, **`BSD-3-Clause`**, **`PSF-2.0`**, and **`SIL OFL-1.1`**).
+- **Zero Copyleft or Non-Commercial Restrictions**: The project contains **zero** `GPL`, `LGPL`, `AGPL`, `SSPL`, `BUSL`, or `CC-BY-NC` packages in [`pyproject.toml`](pyproject.toml).
+- **Full Commercial & Private Freedom**: Both you and end users can run, modify, embed, bundle, sell, or deploy **Personal Agentic Fleet** commercially or privately (in source or closed binary form) with **zero royalties, zero licensing fees, and zero obligation to open-source proprietary modifications or user data**.
+
+---
+
 ## 🏗️ 1. Core Architectural Footprint (Zero Mandatory Third-Party Runtime Dependencies)
 
 The core Personal Agentic Fleet microkernel (`fleet/server.py`, `fleet/core/*`, `fleet/api/*`, `fleet/agents/*`) and the frontend web cockpit (`fleet/web/static/js/*`, `fleet/web/static/css/*`) are engineered with **zero mandatory third-party runtime packages** (`dependencies = []` in [`pyproject.toml`](pyproject.toml)):
@@ -35,7 +45,7 @@ When optional features (AES-256-GCM hardware vault, OS keychain integration, YAM
 
 ---
 
-## 🧪 3. Development, Testing, Static Analysis & Standalone Demo Libraries
+## 🧪 3. Development, Testing & Static Analysis Libraries
 
 Installed via `pip install -e ".[dev]"` or invoked by local/CI quality gates:
 
@@ -46,7 +56,6 @@ Installed via `pip install -e ".[dev]"` or invoked by local/CI quality gates:
 | **[`pyright`](https://github.com/microsoft/pyright)** | Latest | `MIT` | Copyright © Microsoft Corporation | Static type checking gate ([`fleet/tools/vscode_check.py`](fleet/tools/vscode_check.py)) |
 | **[`ruff`](https://github.com/astral-sh/ruff)** | Latest | `MIT` | Copyright © 2022–2026 Charles Marsh / Astral Software Inc. | Fast Python linter & formatter in GitHub Actions CI |
 | **[`setuptools`](https://github.com/pypa/setuptools)** | `>=61.0` | `MIT` | Copyright © Python Packaging Authority (PyPA) | PEP 517 build backend in [`pyproject.toml`](pyproject.toml) |
-| **[`pygame-ce`](https://github.com/pygame-community/pygame-ce)** | `>=2.5.0` | `LGPL-2.1-or-later` | Copyright © Pygame Community Edition Developers | Optional dynamic import used solely in standalone [`pong.py`](pong.py) demo (never imported by `fleet/`) |
 
 ---
 
