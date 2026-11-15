@@ -180,11 +180,12 @@ class HealthAgent(FleetAgent):
             glasses = int(m.group(1)) if m and int(m.group(1)) <= 20 else 1
             if self.db and hasattr(self.db, "log_water_intake"):
                 hyd = self.db.log_water_intake(glasses_delta=glasses, amount_delta_ml=glasses * 250)
+                hyd_dict = hyd if isinstance(hyd, dict) else {"glasses": glasses, "amount_ml": glasses * 250}
                 return {
                     "status": "success",
                     "title": f"💧 Hydration Recorded (+{glasses} glasses)",
-                    "message": f"Logged +{glasses} glass(es) of water. Today's total: {hyd.get('glasses', glasses)} glasses ({hyd.get('amount_ml', glasses * 250)} ml).",
-                    "hydration": hyd
+                    "message": f"Logged +{glasses} glass(es) of water. Today's total: {hyd_dict.get('glasses', glasses)} glasses ({hyd_dict.get('amount_ml', glasses * 250)} ml).",
+                    "hydration": hyd_dict
                 }
 
         if "routine" in t_low:
