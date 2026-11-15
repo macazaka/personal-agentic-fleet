@@ -1220,3 +1220,315 @@ def get_pwa_service_worker_endpoint(handler: Any, parsed_url: urllib.parse.Parse
         handler.wfile.write(raw)
     else:
         handler._send_json({"status": "ok", "script": PWA_SERVICE_WORKER_JS})
+
+
+ENVIRONMENTAL_CONSTRAINTS_MATRIX: List[Dict[str, str]] = [
+    {
+        "id": "EC-01",
+        "title": "Apple Watch Exclusive iPhone Pairing Rule",
+        "layer": "Apple Watch ↔ Windows Laptop",
+        "constraint": "Apple Watch (watchOS) cannot pair or connect directly to a Windows laptop over Bluetooth for HealthKit, notifications, or control (Apple only allows Watch-to-iPhone pairing).",
+        "practical_architecture": "Mandatory 3-Tier iPhone Companion Relay: Apple Watch syncs to iPhone 15 HealthKit via WatchConnectivity; iPhone 15 relays payloads over Wi-Fi LAN (0.0.0.0:7890) to Windows.",
+        "practical_solution": "Mandatory 3-Tier iPhone Companion Relay: Apple Watch syncs to iPhone 15 HealthKit via WatchConnectivity; iPhone 15 relays payloads over Wi-Fi LAN (0.0.0.0:7890) to Windows.",
+        "status": "Active & Enforced",
+    },
+    {
+        "id": "EC-02",
+        "title": "Windows 10 Home Phone Link Absence",
+        "layer": "Windows 10 Home (Build 19045) OS",
+        "constraint": "Microsoft 'Phone Link for iPhone' (Bluetooth ANCS notifications / HFP calls / MAP SMS) officially requires Windows 11 and is unavailable on Windows 10 Home.",
+        "practical_architecture": "Bypass Windows 11 Phone Link completely: use AFCC's Native HTTP/HTTPS Wi-Fi LAN Bridge (/mobile-pair), iOS 26.3.1 Share Sheet / Shortcuts Webhooks, and Telegram/WhatsApp Bot Bridge (remote_chat).",
+        "practical_solution": "Bypass Windows 11 Phone Link completely: use AFCC's Native HTTP/HTTPS Wi-Fi LAN Bridge (/mobile-pair), iOS 26.3.1 Share Sheet / Shortcuts Webhooks, and Telegram/WhatsApp Bot Bridge (remote_chat).",
+        "status": "Active & Enforced",
+    },
+    {
+        "id": "EC-03",
+        "title": "Zero-Xcode & Zero-$99 Developer Account",
+        "layer": "No macOS Xcode / No $99/yr Apple Dev Account",
+        "constraint": "Compiling custom Swift/watchOS apps requires macOS Xcode + a $99/yr Apple Developer account (free sideloaded profiles expire in 7 days and lack the paid HealthKit entitlement).",
+        "practical_architecture": "100% Zero-Xcode / Zero-App-Store Stack: iOS 26.3.1 Safari Standalone PWA + Native iOS Shortcuts ('Find Health Samples' + 'Get Contents of URL') + Native watchOS Shortcuts ('Show on Apple Watch' Complication).",
+        "practical_solution": "100% Zero-Xcode / Zero-App-Store Stack: iOS 26.3.1 Safari Standalone PWA + Native iOS Shortcuts ('Find Health Samples' + 'Get Contents of URL') + Native watchOS Shortcuts ('Show on Apple Watch' Complication).",
+        "status": "Active & Enforced",
+    },
+    {
+        "id": "EC-04",
+        "title": "iOS 26.3.1 HealthKit Lock-Screen Encryption",
+        "layer": "iOS 26.3.1 Secure Enclave HealthKit Lock",
+        "constraint": "iOS 26.3.1 encrypts HealthKit (HKHealthStore) with Secure Enclave Class-B/A keys that block 'Find Health Samples' while the iPhone 15 screen is locked.",
+        "practical_architecture": "FaceID-Unlocked Event Triggers: bind iOS Personal Automations to 'When Wake-Up Alarm Is Stopped', 'When Apple Watch Workout Ends', 'When Opening Safari/Health', or 1-Tap Back-Tap / Control Center.",
+        "practical_solution": "FaceID-Unlocked Event Triggers: bind iOS Personal Automations to 'When Wake-Up Alarm Is Stopped', 'When Apple Watch Workout Ends', 'When Opening Safari/Health', or 1-Tap Back-Tap / Control Center.",
+        "status": "Active & Enforced",
+    },
+    {
+        "id": "EC-05",
+        "title": "Dual-Core 1.70 GHz ULV CPU Budget",
+        "layer": "Laptop CPU Budget (Dual-Core ULV, No Discrete GPU)",
+        "constraint": "Dual-core 1.70 GHz ULV processor with integrated HD Graphics cannot afford heavy background PowerShell spawns (4-7s CPU spikes) or continuous local LLM/Whisper polling.",
+        "practical_architecture": "Sub-2ms Zero-Subprocess Engine: direct Python winreg BTHENUM Bluetooth lookup (<2ms), hardware WebAudio FFT 6D voiceprint (<3% CPU), and $0.00 Tier-0 deterministic regex routing.",
+        "practical_solution": "Sub-2ms Zero-Subprocess Engine: direct Python winreg BTHENUM Bluetooth lookup (<2ms), hardware WebAudio FFT 6D voiceprint (<3% CPU), and $0.00 Tier-0 deterministic regex routing.",
+        "status": "Active & Enforced",
+    },
+    {
+        "id": "EC-06",
+        "title": "iOS 26.3.1 Safari UPI Deep-Link Sandboxing",
+        "layer": "iOS 26.3.1 Safari UPI Deep-Link Sandboxing",
+        "constraint": "iOS Safari blocks silent JS redirects to upi://pay, hides installed app detection (canOpenURL), and shows an invalid-address error if an uninstalled scheme is invoked.",
+        "practical_architecture": "Dual-Mode UPI Open Payment Bridge: (A) Render NPCI upi://pay QR Code on laptop screen for 2-second iPhone BHIM/ICICI/GPay scan; (B) Explicit user-gesture buttons (bhim://, imobileapp://, tez://, phonepe://) + 1-Tap Copy VPA.",
+        "practical_solution": "Dual-Mode UPI Open Payment Bridge: (A) Render NPCI upi://pay QR Code on laptop screen for 2-second iPhone BHIM/ICICI/GPay scan; (B) Explicit user-gesture buttons (bhim://, imobileapp://, tez://, phonepe://) + 1-Tap Copy VPA.",
+        "status": "Active & Enforced",
+    },
+    {
+        "id": "EC-07",
+        "title": "WebKit Mic Policy on Plain LAN HTTP",
+        "layer": "iOS 26.3.1 Safari WebAudio Mic over Plain LAN HTTP",
+        "constraint": "iOS Safari blocks navigator.mediaDevices.getUserMedia on plain http://192.168.1.x unless a trusted Root CA TLS cert is installed.",
+        "practical_architecture": "Provide Zero-Cert Native iOS Dictation / Siri Voice Input on /mobile-pair (works over plain HTTP immediately) alongside optional downloadable AFCC Root CA (.crt) for HTTPS.",
+        "practical_solution": "Provide Zero-Cert Native iOS Dictation / Siri Voice Input on /mobile-pair (works over plain HTTP immediately) alongside optional downloadable AFCC Root CA (.crt) for HTTPS.",
+        "status": "Active & Enforced",
+    },
+    {
+        "id": "EC-08",
+        "title": "Zero-Config Home Wi-Fi LAN Primary Transport",
+        "layer": "Network Transport (Local Wi-Fi Active, Tailscale Optional)",
+        "constraint": "Tailscale is not pre-installed by default on the Windows 10 laptop, whereas local Wi-Fi LAN (192.168.1.x:7890) is immediately active.",
+        "practical_architecture": "Primary Zero-Config Transport over Local Wi-Fi LAN (0.0.0.0:7890) + Offline Outbox Spooler (TD-05), with Tailscale supported automatically whenever installed.",
+        "practical_solution": "Primary Zero-Config Transport over Local Wi-Fi LAN (0.0.0.0:7890) + Offline Outbox Spooler (TD-05), with Tailscale supported automatically whenever installed.",
+        "status": "Active & Enforced",
+    },
+    {
+        "id": "EC-09",
+        "title": "Multi-Peripheral Bluetooth Audio Routing",
+        "layer": "Multi-Peripheral Bluetooth Audio Routing",
+        "constraint": "Multiple paired Bluetooth audio endpoints (Headset Mic vs. High-Power Workout Speakers) can contend with voice biometric capture or workout video playback.",
+        "practical_architecture": "Context-Aware Audio Profile Routing: route Mahadev Biometric Voice Cockpit via headset mic (85-3800 Hz DSP) and route 6-Day Akhada Workout Playlists to room/portable Bluetooth speakers.",
+        "practical_solution": "Context-Aware Audio Profile Routing: route Mahadev Biometric Voice Cockpit via headset mic (85-3800 Hz DSP) and route 6-Day Akhada Workout Playlists to room/portable Bluetooth speakers.",
+        "status": "Active & Enforced",
+    },
+    {
+        "id": "EC-10",
+        "title": "Zero-Cloud Personal Hardware & PII Sovereignty",
+        "layer": "Zero-Cloud Personal Hardware & Biometric Privacy",
+        "constraint": "Personal laptop specs, iPhone/Watch identifiers, Bluetooth instance IDs, LAN IPs, and health/UPI data must never be sent to GitHub or external clouds.",
+        "practical_architecture": "Store all hardware details exclusively in gitignored fleet/data/user/personal_hardware_inventory.md and AES-256-GCM encrypted fleet/data/user/hardware_inventory_vault.json.",
+        "practical_solution": "Store all hardware details exclusively in gitignored fleet/data/user/personal_hardware_inventory.md and AES-256-GCM encrypted fleet/data/user/hardware_inventory_vault.json.",
+        "status": "Active & Enforced",
+    },
+]
+
+
+def _get_hardware_inventory_vault_path() -> Path:
+    folder = "test_user" if is_test_environment() else "user"
+    path = DATA_DIR / folder / "hardware_inventory_vault.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _discover_local_hardware_inventory_snapshot() -> Dict[str, Any]:
+    """
+    Builds or loads the user's personal hardware & peripheral inventory strictly from
+    the local encrypted vault (`fleet/data/user/hardware_inventory_vault.json`) and
+    live local OS/Bluetooth introspection — never exposing personal identifiers in Git.
+    """
+    import platform
+
+    vault_path = _get_hardware_inventory_vault_path()
+    saved_raw = read_encrypted_json_file(vault_path, default={})
+    saved: Dict[str, Any] = saved_raw if isinstance(saved_raw, dict) else {}
+
+    net_info = _discover_network_endpoints(port=7890)
+    bt_scan = _scan_windows_bluetooth_and_lan_apple_devices()
+    lan_ip = net_info["lan_ips"][0] if net_info.get("lan_ips") else "127.0.0.1"
+
+    default_devices: List[Dict[str, Any]] = [
+        {
+            "id": "hw_laptop_hub",
+            "tier": "Tier 3 — Core Compute Hub",
+            "category": "Workstation / Compute",
+            "name": "Windows 10 Laptop AFCC Hub",
+            "model": saved.get("laptop_model") or f"{platform.system()} {platform.release()} ({platform.machine()})",
+            "os_version": f"Windows {platform.version()} (Local Hub 0.0.0.0:7890)",
+            "os_or_firmware": f"Windows {platform.version()} (Local Hub 0.0.0.0:7890)",
+            "connection_protocol": f"Wi-Fi LAN ({lan_ip}:7890) + Bluetooth 4.0/LE",
+            "transport": f"Wi-Fi LAN ({lan_ip}:7890) + Bluetooth 4.0/LE",
+            "role": "Primary AFCC Server, Local SQLite + AES-256-GCM Vault, Biometric Voice Cockpit",
+            "status": "Online (Local Host)",
+        },
+        {
+            "id": "hw_iphone_bridge",
+            "tier": "Tier 2 — Mandatory Companion Bridge",
+            "category": "Smartphone / Tablet",
+            "name": "Apple iPhone 15 Companion Bridge",
+            "model": "iPhone 15 (USB-C, A16 Bionic, Secure Enclave)",
+            "os_version": "iOS 26.3.1",
+            "os_or_firmware": "iOS 26.3.1",
+            "connection_protocol": f"Wi-Fi LAN (http://{lan_ip}:7890/mobile-pair) + Windows Bluetooth Registry",
+            "transport": f"Wi-Fi LAN (http://{lan_ip}:7890/mobile-pair) + Windows Bluetooth Registry",
+            "role": "Mandatory Apple Watch HealthKit Relay, iOS Shortcuts Bridge, Safari Standalone PWA, 1-Tap UPI Executor (BHIM / ICICI / GPay)",
+            "status": "Paired & Ready" if bt_scan.get("iphone_bt_found") else "Wi-Fi LAN Bridge Ready",
+        },
+        {
+            "id": "hw_apple_watch",
+            "tier": "Tier 1 — Wearable Sensor Edge",
+            "category": "Wearable / Health Sensor",
+            "name": "Apple Watch (via iPhone 15 Relay)",
+            "model": "Apple Watch (watchOS Sensor & Taptic Node)",
+            "os_version": "watchOS (Paired Exclusively to iPhone 15)",
+            "os_or_firmware": "watchOS (Paired Exclusively to iPhone 15)",
+            "connection_protocol": "Apple WatchConnectivity & HKHealthStore → iPhone 15 → Wi-Fi LAN",
+            "transport": "Apple WatchConnectivity & HKHealthStore → iPhone 15 → Wi-Fi LAN",
+            "role": "HRV (SDNN), Resting HR, SpO2, Sleep Stages, Steps, Active Calories & Native Watch Shortcuts Complication",
+            "status": "Relayed via iPhone 15",
+        },
+        {
+            "id": "hw_bt_audio_headset",
+            "tier": "Peripheral — Biometric Voice Audio",
+            "category": "Bluetooth Audio / Mic",
+            "name": "Bluetooth ANC Headphones & Mic",
+            "model": "Bluetooth Headset & Microphone (BTHENUM)",
+            "os_version": "Bluetooth A2DP / HFP",
+            "os_or_firmware": "Bluetooth A2DP / HFP",
+            "connection_protocol": "Windows Bluetooth Stack",
+            "transport": "Windows Bluetooth Stack",
+            "role": "Primary private headset for 'Mahadev' Wake-Word & 12s 3-Phase Speaker Voiceprint Lock",
+            "status": "Paired in Windows BT",
+        },
+        {
+            "id": "hw_bt_speakers",
+            "tier": "Peripheral — Workout & Briefing Speakers",
+            "category": "Bluetooth Audio / Mic",
+            "name": "Bluetooth Workout & Room Speakers",
+            "model": "Bluetooth A2DP Audio Output (BTHENUM)",
+            "os_version": "Bluetooth A2DP",
+            "os_or_firmware": "Bluetooth A2DP",
+            "connection_protocol": "Windows Bluetooth Stack",
+            "transport": "Windows Bluetooth Stack",
+            "role": "Audio output for 6-Day Akhada Workout Playlists (Mudgal, Samtola, Bhim Gadha) & Spoken Morning Briefings",
+            "status": "Paired in Windows BT",
+        },
+        {
+            "id": "hw_bt_mouse",
+            "tier": "Peripheral — Precision Input",
+            "category": "Input / Peripheral",
+            "name": "Bluetooth Low Energy Mouse",
+            "model": "BLE HID Input (BTHLE)",
+            "os_version": "Bluetooth LE GATT",
+            "os_or_firmware": "Bluetooth LE GATT",
+            "connection_protocol": "Windows Bluetooth LE",
+            "transport": "Windows Bluetooth LE",
+            "role": "Ergonomic workstation navigation",
+            "status": "Paired in Windows BT",
+        },
+        {
+            "id": "hw_future_health_sensors",
+            "tier": "Future Expansion Slot",
+            "category": "Wearable / Health Sensor",
+            "name": "CGM Glucometer / Smart BP Cuff / Smart Scale",
+            "model": "HealthKit-Compatible Bluetooth Medical Peripherals",
+            "os_version": "BLE → iPhone 15 HealthKit → AFCC Hub",
+            "os_or_firmware": "BLE → iPhone 15 HealthKit → AFCC Hub",
+            "connection_protocol": "iPhone 15 HealthKit Relay Bridge",
+            "transport": "iPhone 15 HealthKit Relay Bridge",
+            "role": "Future auto-ingestion of Fasting/PPBS Glucose, Blood Pressure & Body Mass into FFD Protocol",
+            "status": "Pre-Configured Slot",
+        },
+    ]
+
+    custom_devices = saved.get("devices")
+    devices_list: List[Dict[str, Any]] = (
+        list(custom_devices)
+        if isinstance(custom_devices, list) and len(custom_devices) > 0
+        else default_devices
+    )
+
+    payload = {
+        "updated_at": saved.get("updated_at") or datetime.now().isoformat(),
+        "zero_cloud_guaranteed": True,
+        "privacy_classification": "STRICTLY_LOCAL_USER_DATA_NEVER_IN_GITHUB",
+        "markdown_doc_path": "fleet/data/user/personal_hardware_inventory.md",
+        "encrypted_vault_path": f"fleet/data/{'test_user' if is_test_environment() else 'user'}/hardware_inventory_vault.json",
+        "devices": devices_list,
+        "inventory": {"devices": devices_list},
+        "environmental_constraints": ENVIRONMENTAL_CONSTRAINTS_MATRIX,
+    }
+    if not saved:
+        write_encrypted_json_file(vault_path, payload)
+    return payload
+
+
+@router.get("/api/mobile/hardware/inventory")
+def get_mobile_hardware_inventory_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """
+    Returns the local-only Personal Hardware & Peripheral Inventory and the 10
+    Environmental Constraints Matrix (`EC-01`..`EC-10`). Stored strictly in
+    gitignored `fleet/data/user/` and encrypted with AES-256-GCM + DPAPI.
+    """
+    data = _discover_local_hardware_inventory_snapshot()
+    handler._send_json({"status": "ok", **data})
+
+
+get_local_hardware_inventory_endpoint = get_mobile_hardware_inventory_endpoint
+
+
+@router.post("/api/mobile/hardware/inventory")
+def post_mobile_hardware_inventory_endpoint(handler: Any, body: Dict[str, Any]):
+    """
+    Adds or updates a hardware device in the user's local-only encrypted hardware
+    inventory vault (`fleet/data/user/hardware_inventory_vault.json`) without ever
+    touching Git-tracked files.
+    """
+    payload: Dict[str, Any] = body if isinstance(body, dict) else {}
+    current = _discover_local_hardware_inventory_snapshot()
+    devices: List[Dict[str, Any]] = list(current.get("devices") or [])
+
+    raw_dev = payload.get("device")
+    new_dev: Dict[str, Any] = raw_dev if isinstance(raw_dev, dict) else payload
+    name = str(new_dev.get("name") or "").strip()
+    if not name:
+        handler._send_json({"status": "error", "message": "Device 'name' is required."}, status=400)
+        return
+
+    dev_id = str(new_dev.get("id") or f"hw_{int(datetime.now().timestamp())}").strip()
+    os_ver = str(new_dev.get("os_or_firmware") or new_dev.get("os_version") or "N/A").strip()
+    transp = str(new_dev.get("transport") or new_dev.get("connection_protocol") or "Wi-Fi LAN / Bluetooth / iPhone Relay").strip()
+    entry = {
+        "id": dev_id,
+        "tier": str(new_dev.get("tier") or "Peripheral / Future Expansion").strip(),
+        "category": str(new_dev.get("category") or "Peripheral").strip(),
+        "name": name,
+        "model": str(new_dev.get("model") or name).strip(),
+        "os_version": os_ver,
+        "os_or_firmware": os_ver,
+        "connection_protocol": transp,
+        "transport": transp,
+        "role": str(new_dev.get("role") or new_dev.get("notes") or "Connected via Tri-Device & Connections Agent").strip(),
+        "status": str(new_dev.get("status") or "Registered Locally").strip(),
+    }
+
+    replaced = False
+    for idx, existing in enumerate(devices):
+        if isinstance(existing, dict) and (existing.get("id") == dev_id or existing.get("name") == name):
+            devices[idx] = entry
+            replaced = True
+            break
+    if not replaced:
+        devices.append(entry)
+
+    current["devices"] = devices
+    current["inventory"] = {"devices": devices}
+    current["updated_at"] = datetime.now().isoformat()
+    write_encrypted_json_file(_get_hardware_inventory_vault_path(), current)
+
+    handler._send_json({
+        "status": "ok",
+        "action": "updated" if replaced else "added",
+        "device": entry,
+        "devices_count": len(devices),
+        "inventory": {"devices": devices},
+        "zero_cloud_guaranteed": True,
+        "encrypted_at_rest": True,
+        "privacy_classification": "STRICTLY_LOCAL_USER_DATA_NEVER_IN_GITHUB",
+    })
+
+
+post_local_hardware_inventory_endpoint = post_mobile_hardware_inventory_endpoint
+

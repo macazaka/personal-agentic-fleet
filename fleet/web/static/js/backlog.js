@@ -481,8 +481,121 @@ async function refreshTriDeviceHealthHub() {
         gwEl.textContent = `http://${lanIp}:7890/mobile-pair`;
       }
     }
+    loadTriDeviceHardwareInventoryAndConstraints(false);
   } catch (e) {
     // non-fatal
+  }
+}
+
+function toggleAddHardwareDeviceForm() {
+  const form = document.getElementById('triDeviceAddHardwareForm');
+  if (!form) return;
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+async function loadTriDeviceHardwareInventoryAndConstraints(forceRefresh) {
+  const hwGrid = document.getElementById('triDeviceHardwareInventoryGrid');
+  const ecGrid = document.getElementById('triDeviceConstraintsMatrixGrid');
+  const countBadge = document.getElementById('triDeviceHwCountBadge');
+  if (!hwGrid && !ecGrid) return;
+  try {
+    const res = await fetch('/api/mobile/hardware/inventory');
+    if (!res.ok) return;
+    const data = await res.json();
+    const inv = data.inventory || {};
+    const devices = inv.devices || [];
+    const constraints = data.environmental_constraints || [];
+
+    if (countBadge) {
+      countBadge.textContent = `${devices.length} Local Devices`;
+    }
+
+    if (hwGrid) {
+      if (!devices.length) {
+        hwGrid.innerHTML = `<div style="padding: 12px; color: var(--text-muted); font-size: 12px;">No local hardware devices registered yet.</div>`;
+      } else {
+        hwGrid.innerHTML = devices.map(dev => {
+          const st = String(dev.status || 'Configured');
+          const isOnline = /online|active|ready|paired/i.test(st);
+          const badgeCol = isOnline ? '#34d399' : '#38bdf8';
+          const badgeBg = isOnline ? 'rgba(16, 185, 129, 0.16)' : 'rgba(56, 189, 248, 0.16)';
+          return `
+            <div style="background: rgba(15, 23, 42, 0.82); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 12px 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; margin-bottom: 5px;">
+                <strong style="font-size: 12.5px; color: #fff;">${escapeHtml(dev.name || dev.id || 'Device')}</strong>
+                <span class="badge" style="background: ${badgeBg}; color: ${badgeCol}; font-size: 9.5px; white-space: nowrap;">${escapeHtml(st)}</span>
+              </div>
+              <div style="font-size: 11px; color: var(--accent-cyan); margin-bottom: 4px;">
+                ${escapeHtml(dev.category || 'Hardware')} • ${escapeHtml(dev.os_or_firmware || 'Standard')}
+              </div>
+              <div style="font-size: 11px; color: #cbd5e1; margin-bottom: 4px;">
+                <strong>Transport:</strong> ${escapeHtml(dev.transport || 'Local')}
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+                ${escapeHtml(dev.role || dev.notes || '')}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    if (ecGrid && constraints.length) {
+      ecGrid.innerHTML = constraints.map(ec => `
+        <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.24); border-left: 3px solid #38bdf8; border-radius: 8px; padding: 11px 13px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 4px;">
+            <strong style="font-size: 12px; color: #38bdf8;">[${escapeHtml(ec.id)}] ${escapeHtml(ec.title)}</strong>
+            <span class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; font-size: 9.5px;">${escapeHtml(ec.layer || 'Tri-Device')}</span>
+          </div>
+          <div style="font-size: 11px; color: #fbbf24; margin-bottom: 5px; line-height: 1.4;">
+            <strong>Constraint:</strong> ${escapeHtml(ec.constraint)}
+          </div>
+          <div style="font-size: 11px; color: #cbd5e1; line-height: 1.4;">
+            <strong style="color: #34d399;">Practical Architecture:</strong> ${escapeHtml(ec.practical_solution)}
+          </div>
+        </div>
+      `).join('');
+    }
+  } catch (e) {
+    // non-fatal
+  }
+}
+
+async function submitNewLocalHardwareDevice() {
+  const nameEl = document.getElementById('hwFormName');
+  const catEl = document.getElementById('hwFormCategory');
+  const osEl = document.getElementById('hwFormOsVersion');
+  const trEl = document.getElementById('hwFormTransport');
+  const notesEl = document.getElementById('hwFormNotes');
+  const name = (nameEl && nameEl.value || '').trim();
+  if (!name) {
+    alert('Please enter a device name or model.');
+    return;
+  }
+  try {
+    const res = await fetch('/api/mobile/hardware/inventory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: name,
+        category: catEl ? catEl.value : 'Peripheral',
+        os_or_firmware: osEl ? osEl.value.trim() : '',
+        transport: trEl ? trEl.value.trim() : 'Local Bridge',
+        role: notesEl ? notesEl.value.trim() : '',
+        notes: notesEl ? notesEl.value.trim() : '',
+        status: 'Configured (Local Vault)'
+      })
+    });
+    if (res.ok) {
+      if (nameEl) nameEl.value = '';
+      if (osEl) osEl.value = '';
+      if (trEl) trEl.value = '';
+      if (notesEl) notesEl.value = '';
+      toggleAddHardwareDeviceForm();
+      await loadTriDeviceHardwareInventoryAndConstraints(true);
+    }
+  } catch (e) {
+    alert('Error saving device to local hardware vault: ' + e.message);
   }
 }
 
@@ -672,6 +785,9 @@ window.triggerAppleWatchDemoSync = triggerAppleWatchDemoSync;
 window.closeTriDeviceSyncConsole = closeTriDeviceSyncConsole;
 window.uploadAppleHealthExportFile = uploadAppleHealthExportFile;
 window.copyTriDeviceShortcutRecipe = copyTriDeviceShortcutRecipe;
+window.toggleAddHardwareDeviceForm = toggleAddHardwareDeviceForm;
+window.loadTriDeviceHardwareInventoryAndConstraints = loadTriDeviceHardwareInventoryAndConstraints;
+window.submitNewLocalHardwareDevice = submitNewLocalHardwareDevice;
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(refreshTriDeviceHealthHub, 600);
 });

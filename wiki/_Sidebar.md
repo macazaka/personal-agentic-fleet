@@ -31,7 +31,7 @@
 - **Palette:** `Ctrl+K` or `/`
 - **Cost:** `$0.00 / Zero-Token`
 - **Security:** `100/100 Grade A+`
-- **Tests:** `520/520 Passing`
+- **Tests:** `521/521 Passing`
 
 ---
 [Personal Agentic Fleet GitHub](https://github.com/macazaka/personal-agentic-fleet)

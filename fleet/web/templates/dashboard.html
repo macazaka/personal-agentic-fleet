@@ -1415,6 +1415,88 @@
         </div>
       </div>
     </div>
+
+    <!-- Local-Only Personal Hardware & Peripherals Inventory Card (NEVER Sent to Cloud / GitHub) -->
+    <div class="card" id="triDeviceLocalHardwareInventoryCard" style="border: 1px solid rgba(16, 185, 129, 0.38); background: linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(15, 23, 42, 0.94) 100%);">
+      <div class="card-title" style="flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span>🔒 Local-Only Personal Hardware &amp; Peripherals Registry</span>
+          <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.45); font-size: 10.5px;">🛡️ ZERO-CLOUD • Gitignored (fleet/data/user/)</span>
+          <span class="badge" id="triDeviceHwCountBadge" style="background: rgba(56, 189, 248, 0.16); color: #38bdf8; font-size: 10.5px;">-- Devices</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <button type="button" class="btn" onclick="toggleAddHardwareDeviceForm()" style="font-size: 11.5px; padding: 5px 11px; border-color: rgba(16, 185, 129, 0.45); color: #34d399;" title="Add or update a personal hardware device or Bluetooth peripheral in your local-only encrypted vault">
+            + Add / Update Hardware Device
+          </button>
+          <button type="button" class="btn" onclick="loadTriDeviceHardwareInventoryAndConstraints(true)" style="font-size: 11.5px; padding: 5px 11px; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" title="Refresh local hardware &amp; environmental constraints matrix">
+            🔄 Refresh Registry
+          </button>
+        </div>
+      </div>
+
+      <div style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
+        Maintains your workstation, iPhone, Apple Watch, Bluetooth audio/input peripherals, and future hardware connections strictly on local disk (<code style="color: #34d399;">fleet/data/user/personal_hardware_inventory.md</code> &amp; AES-256-GCM encrypted <code style="color: #34d399;">fleet/data/user/hardware_inventory_vault.json</code>). <strong>Never transmitted to GitHub or any external cloud.</strong>
+      </div>
+
+      <!-- Collapsible Add/Update Hardware Form -->
+      <div id="triDeviceAddHardwareForm" style="display: none; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 10px; padding: 14px; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <strong style="font-size: 12.5px; color: #34d399;">➕ Register or Update Local Hardware / Peripheral (Encrypted Local Vault Only)</strong>
+          <button type="button" class="btn" onclick="toggleAddHardwareDeviceForm()" style="font-size: 11px; padding: 2px 8px;" title="Close form">✕</button>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 10px;">
+          <div>
+            <label style="font-size: 10.5px; color: var(--text-muted); display: block; margin-bottom: 3px;">DEVICE NAME / MODEL *</label>
+            <input type="text" id="hwFormName" placeholder="e.g. Omron Evolv BP Monitor" style="width: 100%; box-sizing: border-box; padding: 6px 9px; background: rgba(0,0,0,0.45); border: 1px solid var(--card-border); border-radius: 6px; color: #fff; font-size: 12px;">
+          </div>
+          <div>
+            <label style="font-size: 10.5px; color: var(--text-muted); display: block; margin-bottom: 3px;">CATEGORY</label>
+            <select id="hwFormCategory" style="width: 100%; box-sizing: border-box; padding: 6px 9px; background: rgba(0,0,0,0.45); border: 1px solid var(--card-border); border-radius: 6px; color: #fff; font-size: 12px;">
+              <option value="Wearable / Health Sensor">⌚ Wearable / Health Sensor</option>
+              <option value="Smartphone / Tablet">📱 Smartphone / Tablet</option>
+              <option value="Bluetooth Audio / Mic">🎧 Bluetooth Audio / Mic</option>
+              <option value="Input / Peripheral">🖱️ Input / Peripheral</option>
+              <option value="Smart Home / IoT">🏠 Smart Home / IoT</option>
+              <option value="Workstation / Compute">💻 Workstation / Compute</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 10.5px; color: var(--text-muted); display: block; margin-bottom: 3px;">OS / FIRMWARE VERSION</label>
+            <input type="text" id="hwFormOsVersion" placeholder="e.g. iOS 26.3.1 / watchOS / BLE 5.3" style="width: 100%; box-sizing: border-box; padding: 6px 9px; background: rgba(0,0,0,0.45); border: 1px solid var(--card-border); border-radius: 6px; color: #fff; font-size: 12px;">
+          </div>
+          <div>
+            <label style="font-size: 10.5px; color: var(--text-muted); display: block; margin-bottom: 3px;">CONNECTION TRANSPORT</label>
+            <input type="text" id="hwFormTransport" placeholder="e.g. Paired to iPhone 15 -> Wi-Fi LAN" style="width: 100%; box-sizing: border-box; padding: 6px 9px; background: rgba(0,0,0,0.45); border: 1px solid var(--card-border); border-radius: 6px; color: #fff; font-size: 12px;">
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+          <input type="text" id="hwFormNotes" placeholder="Role / constraints / notes (stored locally in encrypted vault only)..." style="flex: 1; min-width: 220px; padding: 6px 9px; background: rgba(0,0,0,0.45); border: 1px solid var(--card-border); border-radius: 6px; color: #fff; font-size: 12px;">
+          <button type="button" class="btn btn-primary" onclick="submitNewLocalHardwareDevice()" style="font-size: 11.5px; padding: 6px 14px;" title="Save device to local encrypted hardware inventory">✓ Save to Local Vault</button>
+        </div>
+      </div>
+
+      <!-- Hardware Inventory Grid (Populated via JS from /api/mobile/hardware/inventory) -->
+      <div id="triDeviceHardwareInventoryGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(265px, 1fr)); gap: 10px;">
+        <div style="padding: 14px; color: var(--text-muted); font-size: 12px;">Loading local-only hardware registry...</div>
+      </div>
+    </div>
+
+    <!-- Environmental Constraints & Practical Architecture Matrix (EC-01 .. EC-10) -->
+    <div class="card" id="triDeviceConstraintsMatrixCard" style="border: 1px solid rgba(56, 189, 248, 0.35); background: rgba(15, 23, 42, 0.78);">
+      <div class="card-title" style="flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span>⚙️ Real-World Environmental Constraints &amp; Practical Architecture Matrix (EC-01 – EC-10)</span>
+          <span class="badge" style="background: rgba(56, 189, 248, 0.16); color: #38bdf8; font-size: 10.5px;">10 Verified Hardware/OS Realities</span>
+        </div>
+        <span style="font-size: 11.5px; color: var(--accent-green);">✓ 100% Practical Zero-Xcode Execution</span>
+      </div>
+      <div style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
+        Every Tri-Device deliverable (<code>TD-01</code>..<code>TD-12</code>) is engineered around the actual physical constraints of your environment (Apple Watch iPhone-only pairing rule, Windows 10 Home Build 19045 Phone Link absence, iOS 26.3.1 lock-screen HealthKit encryption, dual-core 1.70 GHz CPU budget, and Safari UPI deep-link sandboxing).
+      </div>
+      <div id="triDeviceConstraintsMatrixGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 10px;">
+        <div style="padding: 14px; color: var(--text-muted); font-size: 12px;">Loading environmental constraints matrix (EC-01..EC-10)...</div>
+      </div>
+    </div>
   </div>
 
     <!-- View 4: Feature Backlog Management Panel -->

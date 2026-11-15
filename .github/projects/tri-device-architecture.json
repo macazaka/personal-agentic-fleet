@@ -104,16 +104,16 @@
       "priority": "P0",
       "device": "All Devices (Watch • iPhone • Laptop)",
       "labels": ["project:tri-device-architecture", "phase:1-health-bridge", "security:e2ee-mtls"],
-      "summary": "Author the comprehensive Tri-Device Architecture blueprint covering Apple Watch sensor ingestion, iPhone Pocket Cockpit & UPI deep-link orchestration, and Windows Laptop sovereign AFCC storage.",
+      "summary": "Author the comprehensive Tri-Device Architecture blueprint grounded in the 10 Real-World Environmental Constraints (EC-01..EC-10: Apple Watch iPhone-only pairing rule, Windows 10 Home Phone Link absence, Zero-Xcode/Zero-$99 Dev Account, iOS 26.3.1 HealthKit lock-screen encryption, low-CPU budget, Safari UPI sandboxing, and Zero-Cloud local hardware privacy).",
       "deliverable_files": [
         "docs/APPLE_ECOSYSTEM_IPHONE_WATCH_AFCC_ARCHITECTURE.md",
         "docs/PROJECTS_TRI_DEVICE_ROADMAP.md",
         "wiki/Tri-Device-Architecture-Project.md"
       ],
       "acceptance_criteria": [
-        "Document complete tri-device topology with Mermaid architecture & sequence diagrams",
-        "Specify zero-cloud security boundaries (Tailscale WireGuard + AFCC Local Root CA mTLS + AES-256-GCM)",
-        "Define problem statements solved across Health, Monthly Payments, and Hands-Free Voice"
+        "Document complete tri-device topology (Apple Watch -> iPhone 15 iOS 26.3.1 Relay -> Windows Laptop Hub) with Mermaid diagrams",
+        "Specify the 10 Real-World Environmental Constraints (EC-01..EC-10) and practical zero-Xcode engineering solutions",
+        "Specify zero-cloud security boundaries (Wi-Fi LAN + optional Tailscale + AFCC Local Root CA + AES-256-GCM + gitignored hardware inventory vault)"
       ]
     },
     {
@@ -124,32 +124,32 @@
       "priority": "P0",
       "device": "Laptop Hub + iPhone Bridge",
       "labels": ["project:tri-device-architecture", "phase:1-health-bridge", "device:laptop-hub", "device:iphone", "security:e2ee-mtls"],
-      "summary": "Implement the local REST API endpoint `/api/mobile/health/ingest` to receive Apple Watch & HealthKit metrics (Steps, Active Energy, Resting HR, HRV SDNN, Sleep, SpO2, Glucose, Hydration), persist them into SQLite and AES-256-GCM encrypted vault storage, and compute an automatic FFD Workout Readiness Score.",
+      "summary": "Implement `/api/mobile/health/ingest` and `/api/mobile/hardware/inventory` to receive Apple Watch & iPhone HealthKit metrics via the iPhone Companion Relay, persist them in SQLite and AES-256-GCM encrypted vault storage, and compute a deterministic FFD Workout Readiness Score.",
       "deliverable_files": [
         "fleet/api/mobile_tri_device_api.py",
         "tests/test_tri_device_project_and_apis.py"
       ],
       "acceptance_criteria": [
         "Support batch ingestion of steps, resting_hr_bpm, hrv_sdnn_ms, sleep_hours, spo2_pct, active_kcal, fasting_glucose, and water_ml",
-        "Encrypt raw Apple Health payloads at rest in `fleet/data/user/apple_health_sync_vault.json` using AES-256-GCM + HKDF-SHA256",
+        "Encrypt raw Apple Health and local hardware inventory payloads at rest in `fleet/data/user/` using AES-256-GCM + HKDF-SHA256 (never sent to GitHub)",
         "Compute deterministic 0-100 FFD Workout Readiness Score and recommend Mudgal/Samtola/Bhim Gadha intensity adjustments"
       ]
     },
     {
       "id": "TD-03",
-      "title": "[TD-03] iOS Shortcuts & Health Auto Export Automated Background Sync Recipe",
+      "title": "[TD-03] iOS 26.3.1 FaceID-Unlocked Shortcuts & Health Auto Export Sync Recipe",
       "milestone_id": "phase-1-health-bridge",
-      "status": "in_progress",
+      "status": "completed",
       "priority": "P1",
       "device": "iPhone",
       "labels": ["project:tri-device-architecture", "phase:1-health-bridge", "device:iphone"],
-      "summary": "Provide a 1-click importable iOS Shortcut definition and `/api/mobile/shortcuts/template` endpoint so iPhone automatically pushes HealthKit & Watch metrics to the Laptop Hub when charging or joining Wi-Fi/Tailscale.",
+      "summary": "Provide a 1-click importable iOS 26.3.1 Shortcut recipe (`/api/mobile/shortcuts/template`) bound to FaceID-unlocked triggers (Wake-Up Alarm Stopped, Apple Watch Workout Ends, App Open, or Back-Tap) to bypass iOS lock-screen HealthKit encryption (`EC-04`) without requiring Xcode or a $99/yr developer account (`EC-03`).",
       "deliverable_files": [
         "fleet/api/mobile_tri_device_api.py",
         "docs/APPLE_ECOSYSTEM_IPHONE_WATCH_AFCC_ARCHITECTURE.md"
       ],
       "acceptance_criteria": [
-        "Expose `GET /api/mobile/shortcuts/template` returning ready-to-import iOS Shortcut JSON configuration",
+        "Expose `GET /api/mobile/shortcuts/template` returning ready-to-import iOS 26.3.1 Shortcut JSON configuration with FaceID-unlocked automation triggers",
         "Support X-AFCC-Device-Token header validation with constant-time comparison"
       ]
     },

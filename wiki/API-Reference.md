@@ -404,7 +404,7 @@ Lists all `@agent` slash commands across active agents or executes a Unified `Ct
 ```
 
 <!-- AUTO-API-ROUTES:START -->
-## 🔄 Complete Live REST API Route Inventory (`188` Endpoints — `v2.17.0`)
+## 🔄 Complete Live REST API Route Inventory (`190` Endpoints — `v2.17.0`)
 
 This table is **automatically introspected from `fleet/api/*.py` AST decorators** on every release by `fleet.tools.doc_wiki_enhancer`:
 
@@ -491,6 +491,8 @@ This table is **automatically introspected from `fleet/api/*.py` AST decorators*
 | `POST` | `/api/github/projects/tri-device/sync` | `post_github_tri_device_project_sync_endpoint` ([`fleet/api/mobile_tri_device_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/mobile_tri_device_api.py)) | TD-12: Synchronizes Labels, Milestones, Master Epic, Issues TD-01..TD-12, and Docs/Wiki with GitHub. |
 | `GET` | `/manifest.json` | `get_pwa_manifest_endpoint` ([`fleet/api/mobile_tri_device_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/mobile_tri_device_api.py)) | TD-03: Serves the W3C Progressive Web App manifest for iPhone 'Add to Home Screen'. |
 | `GET` | `/sw.js` | `get_pwa_service_worker_endpoint` ([`fleet/api/mobile_tri_device_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/mobile_tri_device_api.py)) | TD-03: Serves the local-first Service Worker script (`/sw.js`). |
+| `GET` | `/api/mobile/hardware/inventory` | `get_mobile_hardware_inventory_endpoint` ([`fleet/api/mobile_tri_device_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/mobile_tri_device_api.py)) | Returns the local-only Personal Hardware & Peripheral Inventory and the 10 |
+| `POST` | `/api/mobile/hardware/inventory` | `post_mobile_hardware_inventory_endpoint` ([`fleet/api/mobile_tri_device_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/mobile_tri_device_api.py)) | Adds or updates a hardware device in the user's local-only encrypted hardware |
 | `GET` | `/api/optimizer/diagnostics` | `get_diagnostics` ([`fleet/api/optimizer_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/optimizer_api.py)) | Handler `get_diagnostics` in `fleet/api/optimizer_api.py`. |
 | `POST` | `/api/optimizer/clean_temp` | `post_clean_temp` ([`fleet/api/optimizer_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/optimizer_api.py)) | Handler `post_clean_temp` in `fleet/api/optimizer_api.py`. |
 | `POST` | `/api/optimizer/flush_dns` | `post_flush_dns` ([`fleet/api/optimizer_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/optimizer_api.py)) | Handler `post_flush_dns` in `fleet/api/optimizer_api.py`. |

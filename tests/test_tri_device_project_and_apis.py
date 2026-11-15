@@ -339,6 +339,59 @@ def test_tri_device_dedicated_agent_and_iphone_companion_relay(isolated_db):
     idx_view_tri = html.index('id="viewTriDevice"')
     idx_hub_card = html.index('id="triDeviceHealthHubCard"')
     assert idx_hub_card > idx_view_tri
+    assert 'id="triDeviceLocalHardwareInventoryCard"' in html
+    assert 'id="triDeviceConstraintsMatrixCard"' in html
+
+
+def test_environmental_constraints_and_local_hardware_inventory(isolated_db, monkeypatch, tmp_path):
+    import fleet.api.mobile_tri_device_api as mapi
+    from fleet.api.mobile_tri_device_api import (
+        ENVIRONMENTAL_CONSTRAINTS_MATRIX,
+        get_local_hardware_inventory_endpoint,
+        post_local_hardware_inventory_endpoint,
+    )
+    from fleet.core.db.backlog import TRI_DEVICE_BACKLOG_ITEMS
+
+    monkeypatch.setattr(mapi, "_get_hardware_inventory_vault_path", lambda: tmp_path / "test_hw_vault.json")
+
+    # 1. Verify all 10 environmental constraints (EC-01 .. EC-10) are defined
+    assert len(ENVIRONMENTAL_CONSTRAINTS_MATRIX) == 10
+    ec_ids = [c["id"] for c in ENVIRONMENTAL_CONSTRAINTS_MATRIX]
+    assert ec_ids == [f"EC-{i:02d}" for i in range(1, 11)]
+
+    # 2. Verify GET /api/mobile/hardware/inventory returns local-only encrypted inventory & constraints
+    h_get = MagicMock()
+    get_local_hardware_inventory_endpoint(h_get, urllib.parse.urlparse("/api/mobile/hardware/inventory"))
+    get_res = h_get._send_json.call_args[0][0]
+    assert get_res["status"] == "ok"
+    assert get_res["zero_cloud_guaranteed"] is True
+    assert len(get_res["environmental_constraints"]) == 10
+    assert len(get_res["inventory"]["devices"]) >= 3
+
+    # 3. Verify POST /api/mobile/hardware/inventory adds a new future hardware device into the local encrypted vault
+    h_post = MagicMock()
+    post_local_hardware_inventory_endpoint(
+        h_post,
+        {
+            "name": "Omron Evolv BLE Blood Pressure Monitor",
+            "category": "Wearable / Health Sensor",
+            "os_or_firmware": "BLE 5.0",
+            "transport": "Paired to iPhone 15 (Apple Health) -> Wi-Fi LAN",
+            "role": "Automated BP & Pulse ingestion via iOS 26.3.1 HealthKit",
+        },
+    )
+    post_res = h_post._send_json.call_args[0][0]
+    assert post_res["status"] == "ok"
+    assert post_res["zero_cloud_guaranteed"] is True
+    names = [d["name"] for d in post_res["inventory"]["devices"]]
+    assert "Omron Evolv BLE Blood Pressure Monitor" in names
+
+    # 4. Verify TD-01..TD-12 backlog items reference the practical environmental constraints
+    isolated_db.sync_ux_roadmap_backlog()
+    assert len(TRI_DEVICE_BACKLOG_ITEMS) == 12
+    for item in TRI_DEVICE_BACKLOG_ITEMS:
+        assert "EC-" in item["description"], f"Missing EC constraint reference in {item['title']}"
+
 
 
 
