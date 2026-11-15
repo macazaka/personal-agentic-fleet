@@ -605,5 +605,107 @@ def test_fine_12d_voiceprint_child_rejection_auto_refine_and_sandbox(isolated_db
     assert tightened["pitchStdHz"] < owner_profile["pitchStdHz"]
 
 
+def test_lets_discuss_action_items_across_routing_modes_and_107hz_voiceprint(isolated_db):
+    from pathlib import Path
+    from fleet.api.settings_api import evaluate_speaker_biometric_match
+    from fleet.core.omnibar_dispatcher import execute_voice_conversation_turn
+
+    # Seed realistic open action items
+    t1 = isolated_db.add_task(
+        title="Monthly — Pay Electricity Bill",
+        description="Pay MSEB bill before due date.",
+        priority="P1",
+        source="Monthly",
+    )
+    t2 = isolated_db.add_task(
+        title="Review Quarterly Investment Portfolio",
+        description="Rebalance equity and debt allocation.",
+        priority="P2",
+        source="Manual",
+    )
+    assert t1 > 0 and t2 > 0
+
+    # 1. Exact user phrase "Let's discuss action items" (without wake word) when Brain Target is "antigravity"
+    # MUST execute the Action Items review conversation and speak back the items aloud (NOT hijack to @antigravity)
+    res_discuss = execute_voice_conversation_turn(
+        "Let's discuss action items",
+        db=isolated_db,
+        language="en",
+        gender="female",
+        accent="IN",
+        routing_mode="antigravity",
+    )
+    assert res_discuss["status"] == "ok"
+    assert res_discuss["mode"] == "voice_action_items_open_review"
+    assert res_discuss["pending_count"] >= 2
+    assert res_discuss["active_action_item"] is not None
+    assert "open action items" in res_discuss["spoken_reply"].lower()
+
+    # 2. Follow-up conversational turns ("Next action item", "Close it") in routing_mode="antigravity"
+    res_next = execute_voice_conversation_turn(
+        "Next action item",
+        db=isolated_db,
+        routing_mode="antigravity",
+    )
+    assert res_next["mode"] == "voice_action_item_step"
+    assert "action item" in res_next["spoken_reply"].lower()
+
+    res_close = execute_voice_conversation_turn(
+        "Close it",
+        db=isolated_db,
+        routing_mode="antigravity",
+    )
+    assert res_close["mode"] == "voice_task_completed"
+    assert "closed" in res_close["spoken_reply"].lower()
+
+    # 3. Explicit "Ask Antigravity to ..." still routes to Antigravity Live Console
+    res_ag = execute_voice_conversation_turn(
+        "Ask Antigravity to analyze my system architecture",
+        db=isolated_db,
+        routing_mode="antigravity",
+    )
+    assert res_ag["mode"] == "antigravity_direct"
+
+    # 4. 107 Hz / 18.81 cm Adult Male Voiceprint speaking "Let's discuss action items" with natural 148 Hz inflection
+    profile_107hz = {
+        "pitchMeanHz": 107,
+        "pitchStdHz": 15,
+        "pitchMinHz": 88,
+        "pitchMaxHz": 135,
+        "centroidMeanHz": 1180,
+        "f1MeanHz": 465,
+        "f2MeanHz": 1410,
+        "f3MeanHz": 2480,
+        "vtlCm": 18.81,
+        "chestResonanceRatio": 1.42,
+        "rolloffMeanHz": 2250,
+        "subBandVector": [0.44, 0.48, 0.39, 0.34, 0.30, 0.26, 0.21, 0.15],
+        "strictnessThreshold": 78,
+    }
+    inflected_owner_utt = {
+        "pitchMeanHz": 148,
+        "centroidMeanHz": 1245,
+        "f1MeanHz": 480,
+        "f2MeanHz": 1440,
+        "f3MeanHz": 2510,
+        "vtlCm": 18.35,
+        "chestResonanceRatio": 1.31,
+        "rolloffMeanHz": 2340,
+        "subBandVector": [0.42, 0.47, 0.40, 0.35, 0.31, 0.27, 0.22, 0.16],
+    }
+    eval_inflected = evaluate_speaker_biometric_match(profile_107hz, inflected_owner_utt, strictness_threshold=78)
+    assert eval_inflected["allowed"] is True
+    assert eval_inflected["verdict"] == "AUTHORIZED_OWNER"
+    assert eval_inflected["is_child_or_octave_impostor"] is False
+
+    # 5. Verify JS client guards in antigravity.js (isExplicitJarvisCommandPhrase, lastInterimTranscript, TTS watchdog)
+    js_src = Path("fleet/web/static/js/antigravity.js").read_text(encoding="utf-8")
+    assert "function isExplicitJarvisCommandPhrase(" in js_src
+    assert "lastInterimTranscript" in js_src
+    assert "sameVocalTractOwner" in js_src
+    assert "if (!/^en/i.test(vLang))" in js_src
+
+
+
 
 

@@ -1468,14 +1468,16 @@ def _dispatch_voice_command_core(
             "cost_usd": "$0.00",
         })
 
-    # 0B. Direct Antigravity Live Console Bridge ("Ask Antigravity to ...", "Antigravity, ...", or routing_mode == "antigravity")
+    # 0B. Direct Antigravity Live Console Bridge (Explicit "Ask Antigravity to ...", "Tell Antigravity ...")
+    # Note: General routing_mode == "antigravity" fallback runs at Step 10C AFTER built-in deterministic Jarvis
+    # voice conversations (Action Items review, Health, Optimizer, Email, etc.) so built-in voice commands always speak back!
     ag_direct_match = re.match(
         r"^(?:please\s+)?(?:ask\s+antigravity(?:\s+to)?|tell\s+antigravity(?:\s+to)?|send\s+to\s+antigravity|antigravity)\b[\s,.:;-]*(.+)$",
         spoken,
         flags=re.I,
     )
-    if ag_direct_match or (routing_mode == "antigravity" and len(cleaned_alpha.split()) >= 2):
-        ag_prompt = (ag_direct_match.group(1) if ag_direct_match else spoken).strip()
+    if ag_direct_match:
+        ag_prompt = ag_direct_match.group(1).strip()
         ui_actions = [
             {"type": "switch_agent", "agent_id": "antigravity"},
             {"type": "send_to_antigravity", "command": ag_prompt},
@@ -1865,11 +1867,16 @@ def _dispatch_voice_command_core(
             "cost_usd": "$0.00",
         })
 
-    # 2C. Daily Conversation on Open / Pending Action Items ("Let's talk about my action items", "Review my action items", "What are my open action items?")
+    # 2C. Daily Conversation on Open / Pending Action Items ("Let's talk about my action items", "Let's discuss action items", "Review my action items", "What are my open action items?")
     is_open_action_review = (
-        re.search(r"\b(?:talk\s+about|chat\s+about|conversation\s+on|discuss|review|go\s+through|walk\s+through|read\s+out|read\s+my)\b.*\b(?:action\s+items?|tasks?)\b", lower)
+        re.search(r"\b(?:talk(?:\s+about)?|chat(?:\s+about)?|conversation\s+on|discuss|discussing|review|go\s+through|walk\s+through|read\s+out|read\s+my)\b.*\b(?:action\s+items?|actions|tasks?)\b", lower)
         or re.search(r"\b(?:what\s+are|show|list|view|open)\s+(?:my\s+|the\s+)?(?:open\s+|pending\s+|current\s+|today'?s?\s+|daily\s+)?(?:action\s+items?|pending\s+tasks?)\b", lower)
-        or lower in ("action items", "my action items", "open action items", "pending action items", "pending tasks", "review action items", "review tasks")
+        or cleaned_alpha in (
+            "action items", "my action items", "open action items", "pending action items",
+            "pending tasks", "review action items", "review tasks", "discuss action items",
+            "lets discuss action items", "let us discuss action items", "discuss my action items",
+            "action items chat", "action item chat",
+        )
     )
     if is_open_action_review:
         all_tasks = db.list_tasks(limit=200, exclude_tests=True) if (db and hasattr(db, "list_tasks")) else []
@@ -2843,6 +2850,35 @@ def _dispatch_voice_command_core(
             "tokens_used": 0,
             "cost_usd": "$0.00",
         }
+
+    # 10C. Direct Antigravity Console Routing Mode Fallback (only for non-built-in open-ended prompts)
+    is_local_briefing_or_status = bool(
+        re.search(r"\b(?:daily\s+briefing|morning\s+briefing|briefing|workout|smoothie|fasting|diet|hydration|how\s+much\s+water)\b", lower)
+    )
+    if routing_mode == "antigravity" and len(cleaned_alpha.split()) >= 2 and not is_local_briefing_or_status:
+        ag_prompt = spoken.strip()
+        ui_actions = [
+            {"type": "switch_agent", "agent_id": "antigravity"},
+            {"type": "send_to_antigravity", "command": ag_prompt},
+        ]
+        executed_activities = [
+            "🧭 Switched to Antigravity Live Console",
+            f"🚀 Dispatched Prompt to Antigravity: \"{ag_prompt[:60]}\"",
+        ]
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "antigravity_direct",
+            "agent_id": "antigravity",
+            "voice_transcript": spoken,
+            "normalized_command": f"@antigravity {ag_prompt}",
+            "title": "🚀 Dispatched Directly to Antigravity Live",
+            "message": f"Sent your voice directive directly to **Antigravity Live**: **\"{ag_prompt}\"**",
+            "spoken_reply": f"Dispatching your directive directly to Antigravity now: {_clean_for_speech(ag_prompt)}",
+            "ui_actions": ui_actions,
+            "executed_activities": executed_activities,
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
 
     # 11. General Conversational Omnibar Dispatch + Auto-Linked UI Actions
     res = dispatch_omnibar_query(normalized, agent_registry=agent_registry, db=db)

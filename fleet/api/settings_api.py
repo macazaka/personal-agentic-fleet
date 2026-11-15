@@ -2334,17 +2334,20 @@ def evaluate_speaker_biometric_match(
 
     # 1. Pitch F0 Gaussian Z-score & tight dynamic envelope (30% weight)
     f0_diff = abs(cand_f0 - base_f0)
-    z_f0 = f0_diff / base_std
-    in_tight_envelope = (base_min - 10.0) <= cand_f0 <= (base_max + 12.0)
+    vtl_diff_cm = abs(cand_vtl - base_vtl)
+    # If vocal tract length (<1.4cm diff) and adult chest resonance match the owner, allow natural conversational pitch inflection
+    same_vocal_tract_owner = (vtl_diff_cm <= 1.4 and cand_f0 < 195.0 and cand_chest >= 0.80)
+    effective_std = max(base_std, 22.0) if same_vocal_tract_owner else base_std
+    z_f0 = f0_diff / effective_std
+    in_tight_envelope = (base_min - 12.0) <= cand_f0 <= (base_max + (24.0 if same_vocal_tract_owner else 12.0))
     f0_score = 100.0 * math.exp(-0.32 * (z_f0 ** 1.65))
     if not in_tight_envelope:
-        f0_score = max(0.0, f0_score - 22.0)
+        f0_score = max(0.0, f0_score - (10.0 if same_vocal_tract_owner else 22.0))
 
     # 2. Formant Triad (F1, F2, F3) & Vocal Tract Length (VTL cm) Score (25% weight)
     f1_rel = abs(cand_f1 - base_f1) / max(120.0, base_f1 * 0.22)
     f2_rel = abs(cand_f2 - base_f2) / max(220.0, base_f2 * 0.20)
     f3_rel = abs(cand_f3 - base_f3) / max(320.0, base_f3 * 0.18)
-    vtl_diff_cm = abs(cand_vtl - base_vtl)
     formant_dist = 0.35 * f1_rel + 0.40 * f2_rel + 0.25 * f3_rel
     formant_score = max(0.0, min(100.0, 100.0 * math.exp(-0.55 * (formant_dist ** 1.5)) - max(0.0, (vtl_diff_cm - 0.8) * 14.0)))
 
@@ -2379,7 +2382,7 @@ def evaluate_speaker_biometric_match(
     # Explicit Child / High-Pitch / Short Vocal-Tract Impostor Guard
     impostor_flags: List[str] = []
     penalty = 0.0
-    if base_f0 < 185.0 and cand_f0 >= max(205.0, base_max + 22.0, base_f0 * 1.42):
+    if base_f0 < 185.0 and cand_f0 >= max(205.0, base_max + 22.0):
         penalty += 42.0
         impostor_flags.append(f"High/Child F0 Pitch ({int(round(cand_f0))}Hz vs {int(round(base_f0))}Hz adult baseline)")
     if vtl_diff_cm >= 2.1:
@@ -2388,9 +2391,10 @@ def evaluate_speaker_biometric_match(
     if base_chest >= 0.95 and cand_chest < 0.62:
         penalty += 18.0
         impostor_flags.append(f"Low adult chest resonance ({cand_chest:.2f} vs {base_chest:.2f})")
-    if f0_diff > max(32.0, base_std * 2.1):
+    max_f0_dev = max(52.0, base_std * 2.9) if same_vocal_tract_owner else max(32.0, base_std * 2.1)
+    if f0_diff > max_f0_dev:
         penalty += 22.0
-        impostor_flags.append(f"F0 deviation {int(round(f0_diff))}Hz exceeds tight ±{int(round(max(24.0, base_std * 1.8)))}Hz lock")
+        impostor_flags.append(f"F0 deviation {int(round(f0_diff))}Hz exceeds tight ±{int(round(max_f0_dev))}Hz lock")
 
     match_pct = int(round(max(1.0, min(99.0, raw_composite - penalty))))
     allowed = bool(match_pct >= threshold and len(impostor_flags) == 0)

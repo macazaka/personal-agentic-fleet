@@ -2332,14 +2332,18 @@ function evaluateClientBiometricMatch(vp, cand, strictnessThreshold) {
 
   // 1. F0 Gaussian + Dynamic Envelope (30%)
   const f0Diff = Math.abs(candF0 - baseF0);
-  const zF0 = f0Diff / Math.max(11, baseStd * 1.15);
+  const vtlDiff = Math.abs(candVtl - baseVtl);
+  // If vocal tract length (<1.4cm diff) and adult chest resonance match the owner, allow natural conversational pitch inflection
+  const sameVocalTractOwner = Boolean(vtlDiff <= 1.4 && candF0 < 195 && candChest >= 0.80);
+  const effectiveStd = sameVocalTractOwner ? Math.max(22, baseStd * 1.45) : Math.max(11, baseStd * 1.15);
+  const zF0 = f0Diff / effectiveStd;
   let f0Score = 100 * Math.exp(-0.5 * Math.pow(zF0 / 1.35, 2));
-  if (candF0 < baseMin - 12 || candF0 > baseMax + 14) {
-    f0Score = Math.max(0, f0Score - 28);
+  const maxEnvMargin = sameVocalTractOwner ? 26 : 14;
+  if (candF0 < baseMin - 12 || candF0 > baseMax + maxEnvMargin) {
+    f0Score = Math.max(0, f0Score - (sameVocalTractOwner ? 10 : 28));
   }
 
   // 2. Vocal Tract Length & Formant Geometry (25%)
-  const vtlDiff = Math.abs(candVtl - baseVtl);
   const f1Rel = Math.abs(candF1 - baseF1) / Math.max(baseF1, 250);
   const f2Rel = Math.abs(candF2 - baseF2) / Math.max(baseF2, 800);
   const f3Rel = Math.abs(candF3 - baseF3) / Math.max(baseF3, 1500);
@@ -2372,13 +2376,15 @@ function evaluateClientBiometricMatch(vp, cand, strictnessThreshold) {
   const timbreScore = Math.max(0, 100 - (cDiff / 9.5) - (rDiff / 22));
 
   // Child / Octave-Harmonic / Short Vocal-Tract Impostor Guard
+  // Note: pitchRatio >= 1.42 only flags a child/octave impostor when candF0 >= 200Hz or VTL is short,
+  // so an adult with a 107Hz baseline speaking at 152Hz (152/107 = 1.42) is never misflagged as a child.
   const pitchRatio = candF0 / Math.max(65, baseF0);
   const isChildOrImpostor = Boolean(
-    (baseF0 < 195 && candF0 > 215) ||
-    (pitchRatio >= 1.42 && pitchRatio <= 2.45) ||
-    (baseVtl >= 15.0 && candVtl <= 13.6) ||
+    (baseF0 < 195 && candF0 > 205) ||
+    (candF0 >= 200 && pitchRatio >= 1.42 && pitchRatio <= 2.45) ||
+    (baseVtl >= 15.0 && candVtl <= 13.8) ||
     (baseChest >= 1.05 && candChest <= 0.68) ||
-    (cDiff > 420 && f0Diff > 35)
+    (!sameVocalTractOwner && cDiff > 420 && f0Diff > 35)
   );
 
   let rawMatch = (
@@ -2456,6 +2462,12 @@ async function autoRefineJarvisVoiceprint(observation, matchPct) {
   } catch (e) {}
 }
 
+function isExplicitJarvisCommandPhrase(text) {
+  const s = String(text || '').trim().toLowerCase();
+  if (!s) return false;
+  return /\b(action\s+items?|discuss\s+action|talk\s+about\s+.*action|close\s+it|close\s+that|already\s+closed|closed\s+action|reopen\s+it|edit\s+it|next\s+action|next\s+item|can\s+you\s+hear\s+me|what\s+agents\s+do\s+i\s+have|daily\s+briefing|log\s+a?\s*glass\s+of\s+water|workout\s+today|play\s+my\s+workout|check\s+my\s+emails|auto\s*tune\s+my\s+pc|run\s+security\s+scan|unapproved\s+backlog)\b/i.test(s);
+}
+
 function verifySpeakerBiometrics(transcript, alternatives) {
   const clean = String(transcript || '').trim();
   if (!clean) return { allowed: false, reason: 'Empty transcript' };
@@ -2463,17 +2475,8 @@ function verifySpeakerBiometrics(transcript, alternatives) {
   const activeWakeLabel = String(window.AFCCVoice.wakeWordPhrase || 'Mahadev').trim() || 'Mahadev';
   const hasWakeWord = matchesConfiguredWakeWord(clean) ||
     (Array.isArray(alternatives) && alternatives.some(a => matchesConfiguredWakeWord(a)));
-
-  if (window.AFCCVoice.wakeWordRequired && !hasWakeWord) {
-    return {
-      allowed: false,
-      reason: `Wake Word Lock is ON — say "${activeWakeLabel} ..." to issue a command.`
-    };
-  }
-
-  if (!window.AFCCVoice.speakerLockEnabled) {
-    return { allowed: true, matchPct: 100 };
-  }
+  const isKnownCommand = isExplicitJarvisCommandPhrase(clean) ||
+    (Array.isArray(alternatives) && alternatives.some(a => isExplicitJarvisCommandPhrase(a)));
 
   const vp = window.AFCCVoice.voiceprint;
   const pitches = window.AFCCVoice.utterancePitchSamples || [];
@@ -2481,15 +2484,20 @@ function verifySpeakerBiometrics(transcript, alternatives) {
   const fineFrames = window.AFCCVoice.utteranceFineFrameSamples || [];
   const peakSnr = window.AFCCVoice.utterancePeakSnrDb || 0;
 
+  // 1. Evaluate 12-D Speaker Biometric Match FIRST so we always know if it's the enrolled owner speaking
   // IMPORTANT: Speaker biometric verification is NEVER bypassed by saying the wake word!
   // Even if a child or impostor says "Mahadev", their 12-D vocal signature must match the owner's voiceprint.
-  if (vp && vp.pitchMeanHz && pitches.length >= 2) {
+  let biometricVerifiedOwner = !window.AFCCVoice.speakerLockEnabled;
+  let lastMatchPct = vp ? 96 : 100;
+
+  if (window.AFCCVoice.speakerLockEnabled && vp && vp.pitchMeanHz && pitches.length >= 2) {
     const uttSample = summarizeUtteranceBiometricVector(pitches, centroids, fineFrames, peakSnr);
     window.AFCCVoice.lastUtteranceSample = uttSample;
 
     const threshold = window.AFCCVoice.strictnessThreshold || vp.strictnessThreshold || 78;
     const check = evaluateClientBiometricMatch(vp, uttSample, threshold);
     window.AFCCVoice.lastVerificationResult = check;
+    lastMatchPct = check.matchPct;
 
     const bioBadge = document.getElementById('voiceBiometricMatchBadge');
     if (bioBadge) {
@@ -2507,24 +2515,34 @@ function verifySpeakerBiometrics(transcript, alternatives) {
       };
     }
 
+    biometricVerifiedOwner = true;
+
     // Continuous Adaptive EMA Auto-Refinement on high-confidence verified owner utterances (>= 82%)
     if (window.AFCCVoice.autoRefineEnabled && check.matchPct >= Math.max(82, threshold) && pitches.length >= 5) {
       autoRefineJarvisVoiceprint(uttSample, check.matchPct);
     }
-
-    return { allowed: true, matchPct: check.matchPct };
   }
 
-  // Low-SNR single-word background chatter check
+  // 2. Wake Word Gate: if Wake Word Lock is ON, require the wake word UNLESS the verified owner
+  // is speaking a direct, unambiguous built-in Jarvis command (e.g. "Let's discuss action items", "Close it", "Next action item")
+  if (window.AFCCVoice.wakeWordRequired && !hasWakeWord && !(biometricVerifiedOwner && isKnownCommand)) {
+    return {
+      allowed: false,
+      matchPct: lastMatchPct,
+      reason: `Wake Word Lock is ON — say "${activeWakeLabel} ..." (or toggle Wake Word to Optional).`
+    };
+  }
+
+  // 3. Low-SNR single-word background chatter check
   const words = clean.split(/\s+/).filter(Boolean);
-  if (words.length === 1 && peakSnr > 0 && peakSnr < 9 && !hasWakeWord) {
+  if (words.length === 1 && peakSnr > 0 && peakSnr < 9 && !hasWakeWord && !isKnownCommand) {
     return {
       allowed: false,
       reason: `Filtered faint background noise (${peakSnr} dB).`
     };
   }
 
-  return { allowed: true, matchPct: vp ? 96 : 100 };
+  return { allowed: true, matchPct: lastMatchPct };
 }
 
 function openVoiceprintAccuracySandbox() {
@@ -2940,7 +2958,7 @@ function selectBestJarvisClientAlternative(alternatives) {
   if (cleaned.length === 0) return '';
   if (cleaned.length === 1) return cleaned[0];
 
-  const highValueRegex = /\b(mahadev|can you hear|hear me|jarvis|are you there|mic check|audible|action item|action items|close it|close that|already closed|closed action|reopen|edit it|edit action|next action|next item|what agents|list agents|my agents|about .* agent|health agent|optimizer agent|email agent|backlog agent|overview agent|antigravity|daily briefing|water|workout|playlist|video|optimize|security scan|emails|tasks|smoothie|weight|fasting)\b/i;
+  const highValueRegex = /\b(mahadev|can you hear|hear me|jarvis|are you there|mic check|audible|action item|action items|discuss action|talk about|close it|close that|already closed|closed action|reopen|edit it|edit action|next action|next item|what agents|list agents|my agents|about .* agent|health agent|optimizer agent|email agent|backlog agent|overview agent|antigravity|daily briefing|water|workout|playlist|video|optimize|security scan|emails|tasks|smoothie|weight|fasting)\b/i;
   const noiseWords = new Set(['crisis', 'crying', 'christ', 'prices', 'places', 'the', 'a', 'uh', 'um', 'hmm']);
 
   let best = cleaned[0];
@@ -3160,18 +3178,17 @@ function resolveBestSpeechVoice(voices, langCode, gender, accent) {
       }
     } else {
       // English ('en') with Accent ('IN', 'US', 'GB')
-      if (acc === 'IN') {
+      // IMPORTANT: Never select a non-English (hi-IN/te-IN/mr-IN) voice when speaking English ('en'),
+      // because Chrome's remote Google हिन्दी voice silently stalls on multi-sentence English responses at >1.25x speed.
+      if (!/^en/i.test(vLang)) {
+        score -= 250;
+      } else if (acc === 'IN') {
         if (/^en-IN/i.test(vLang) || /Heera|Neerja|Ravi|Prabhat|India/i.test(vName)) {
           score += 220;
-        } else if (gen === 'female' && (/Google हिन्दी/i.test(vName) || indianFemaleRegex.test(vName))) {
-          // Chrome's built-in Google हिन्दी (hi-IN) is a genuine Indian Lady neural voice that speaks English with an authentic Indian accent
-          score += 175;
-        } else if (gen === 'male' && indianMaleRegex.test(vName)) {
-          score += 165;
-        } else if (/^en-GB/i.test(vLang) || /Hazel|UK English/i.test(vName)) {
-          score += 95;
+        } else if (/^en-GB/i.test(vLang) || /Hazel|Sonia|Libby|UK English/i.test(vName)) {
+          score += 120;
         } else if (/^en/i.test(vLang)) {
-          score += 70;
+          score += 95;
         }
       } else if (acc === 'GB') {
         if (/^en-GB/i.test(vLang) || /UK English|Great Britain|Hazel|Sonia|Ryan|George/i.test(vName)) {
@@ -3189,8 +3206,11 @@ function resolveBestSpeechVoice(voices, langCode, gender, accent) {
       }
     }
 
-    if (/Natural|Online|Google/i.test(vName)) {
-      score += 15;
+    // Prefer native offline OS voices (localService: true) so speech works 100% offline & never stalls
+    if (v.localService) {
+      score += 30;
+    } else if (/Natural|Online|Google/i.test(vName)) {
+      score += 10;
     }
 
     if (score > bestScore) {
@@ -3459,6 +3479,9 @@ function speakAfccVoiceText(text, onDoneCallback, altPhoneticText) {
 
   try {
     window.speechSynthesis.cancel();
+    if (window.speechSynthesis.paused && typeof window.speechSynthesis.resume === 'function') {
+      try { window.speechSynthesis.resume(); } catch (e) {}
+    }
     const langCode = String(window.AFCCVoice.voiceLanguage || 'en').toLowerCase();
     const gender = String(window.AFCCVoice.voiceGender || 'female').toLowerCase();
     const accent = String(window.AFCCVoice.voiceAccent || 'IN').toUpperCase();
@@ -3497,22 +3520,71 @@ function speakAfccVoiceText(text, onDoneCallback, altPhoneticText) {
       utter.pitch = gender === 'female' ? 1.06 : 0.92;
     }
 
-    utter.onstart = () => {
-      window.AFCCVoice.isSpeaking = true;
-      updateVoiceCopilotUI(`🔊 Speaking (${getVoiceProfileDisplayLabel()})...`, 'speaking');
-    };
-    utter.onend = () => {
-      window.AFCCVoice.isSpeaking = false;
-      updateVoiceCopilotUI();
-      if (typeof onDoneCallback === 'function') onDoneCallback();
-    };
-    utter.onerror = () => {
+    let started = false;
+    let finished = false;
+    const finishOnce = () => {
+      if (finished) return;
+      finished = true;
       window.AFCCVoice.isSpeaking = false;
       updateVoiceCopilotUI();
       if (typeof onDoneCallback === 'function') onDoneCallback();
     };
 
+    utter.onstart = () => {
+      started = true;
+      window.AFCCVoice.isSpeaking = true;
+      updateVoiceCopilotUI(`🔊 Speaking (${getVoiceProfileDisplayLabel()})...`, 'speaking');
+    };
+    utter.onend = () => {
+      finishOnce();
+    };
+    utter.onerror = () => {
+      if (!started && !finished) {
+        // Fallback to default local system voice if a remote browser voice errored
+        try {
+          window.speechSynthesis.cancel();
+          const fallbackUtter = new SpeechSynthesisUtterance(spokenPayload);
+          const localEn = voices.find(v => v.localService && /^en/i.test(String(v.lang || ''))) || voices.find(v => v.localService);
+          if (localEn) fallbackUtter.voice = localEn;
+          fallbackUtter.rate = Math.min(1.5, window.AFCCVoice.speechRate || 1.15);
+          fallbackUtter.onend = finishOnce;
+          fallbackUtter.onerror = finishOnce;
+          window.speechSynthesis.speak(fallbackUtter);
+          return;
+        } catch (err) {}
+      }
+      finishOnce();
+    };
+
     window.speechSynthesis.speak(utter);
+
+    // Watchdog: if Chromium speechSynthesis silently drops or stalls a remote voice for >650ms without firing onstart,
+    // automatically re-speak with a guaranteed local OS voice so the user always hears the reply.
+    setTimeout(() => {
+      if (!started && !finished && 'speechSynthesis' in window) {
+        try {
+          window.speechSynthesis.cancel();
+          if (typeof window.speechSynthesis.resume === 'function') window.speechSynthesis.resume();
+          const fallbackUtter = new SpeechSynthesisUtterance(spokenPayload);
+          const localEn = voices.find(v => v.localService && /^en/i.test(String(v.lang || ''))) || voices.find(v => v.localService);
+          if (localEn) {
+            fallbackUtter.voice = localEn;
+            fallbackUtter.lang = localEn.lang || 'en-US';
+          }
+          fallbackUtter.rate = Math.min(1.5, window.AFCCVoice.speechRate || 1.15);
+          fallbackUtter.onstart = () => {
+            started = true;
+            window.AFCCVoice.isSpeaking = true;
+            updateVoiceCopilotUI(`🔊 Speaking (${getVoiceProfileDisplayLabel()})...`, 'speaking');
+          };
+          fallbackUtter.onend = finishOnce;
+          fallbackUtter.onerror = finishOnce;
+          window.speechSynthesis.speak(fallbackUtter);
+        } catch (err) {
+          finishOnce();
+        }
+      }
+    }, 650);
   } catch (e) {
     window.AFCCVoice.isSpeaking = false;
     updateVoiceCopilotUI();
@@ -3838,6 +3910,7 @@ async function startBrowserSpeechRecognition() {
     rec.continuous = false;
 
     let finalTranscript = '';
+    let lastInterimTranscript = '';
     let collectedAlternatives = [];
 
     rec.onstart = () => {
@@ -3864,9 +3937,15 @@ async function startBrowserSpeechRecognition() {
           collectedAlternatives = alts.length > 0 ? alts : [bestChunk];
         } else {
           interim += bestChunk;
+          if (alts.length > 0 && collectedAlternatives.length === 0) {
+            collectedAlternatives = alts;
+          }
         }
       }
-      const preview = (finalTranscript || interim || '').trim();
+      if (interim.trim()) {
+        lastInterimTranscript = interim.trim();
+      }
+      const preview = (finalTranscript || lastInterimTranscript || '').trim();
       if (preview && transcriptEl) {
         transcriptEl.innerHTML = `<span style="color: #e2e8f0;">"${escapeHtml(preview)}"</span>`;
       }
@@ -3893,17 +3972,24 @@ async function startBrowserSpeechRecognition() {
     rec.onend = () => {
       window.AFCCVoice.isListening = false;
       updateVoiceCopilotUI();
-      const captured = finalTranscript.trim();
+      const captured = (finalTranscript || lastInterimTranscript).trim();
       if (captured) {
         // Biometric Speaker Verification & Background Noise Gate
         const bioCheck = verifySpeakerBiometrics(captured, collectedAlternatives);
         if (!bioCheck.allowed) {
+          const rejectMsg = `🛡️ ${bioCheck.reason || 'Background audio ignored'} ("${captured}")`;
           if (transcriptEl) {
-            transcriptEl.innerHTML = `<span style="color: #fbbf24;">🛡️ ${escapeHtml(bioCheck.reason || 'Background audio ignored')} ("${escapeHtml(captured)}")</span>`;
+            transcriptEl.innerHTML = `<span style="color: #fbbf24;">${escapeHtml(rejectMsg)}</span>`;
           }
-          updateVoiceCopilotUI('🛡️ Speaker Lock: Filtered Background Audio', 'ready');
+          const replyLineEl = document.getElementById('voiceAssistantReplyLine');
+          const replyTextEl = document.getElementById('voiceSpokenReplyText');
+          if (replyLineEl && replyTextEl) {
+            replyLineEl.style.display = 'block';
+            replyTextEl.textContent = rejectMsg;
+          }
+          updateVoiceCopilotUI('🛡️ Speaker Lock: Filtered Audio', 'ready');
           if (window.AFCCVoice.userWantsListening && window.AFCCVoice.continuousMode && !window.AFCCVoice.isSpeaking) {
-            setTimeout(() => startBrowserSpeechRecognition(), 120);
+            setTimeout(() => startBrowserSpeechRecognition(), 1500);
           }
           return;
         }
