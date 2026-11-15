@@ -121,7 +121,7 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
 <!-- AUTO-LATEST-RELEASE:START -->
 ### 🆕 What's New in Release `v2.17.0` (Auto-Synchronized)
 
-> **Live Telemetry**: `10` Core Agents • `185` REST API Endpoints • `36` Microkernel Engines • `22` Automation Tools • `519` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
+> **Live Telemetry**: `10` Core Agents • `188` REST API Endpoints • `36` Microkernel Engines • `22` Automation Tools • `519` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
 
 ### Added
 - **J.A.R.V.I.S. 5-Layer Voice Command & Biometric Speaker Cockpit**:

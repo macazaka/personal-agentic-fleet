@@ -81,7 +81,12 @@ def verify_mobile_bearer_token(headers: Any) -> bool:
 
 
 def _is_tailscale_or_loopback_host(host_only: str) -> bool:
-    """Returns True for loopback (`127.0.0.1`, `localhost`, `[::1]`) or Tailscale WireGuard (`100.64.0.0/10`, `*.ts.net`)."""
+    """
+    Returns True for loopback (`127.0.0.1`, `localhost`, `[::1]`), Tailscale WireGuard (`100.64.0.0/10`, `*.ts.net`),
+    or literal RFC-1918 private LAN IPv4 addresses (`192.168.x.x`, `10.x.x.x`, `172.16-31.x.x`).
+    Literal IP addresses never trigger DNS resolution and are therefore immune to DNS-rebinding attacks,
+    while untrusted domain names (`evil.com`) are strictly rejected.
+    """
     if host_only in ("127.0.0.1", "localhost", "[::1]"):
         return True
     if host_only.endswith(".ts.net"):
@@ -89,7 +94,7 @@ def _is_tailscale_or_loopback_host(host_only: str) -> bool:
     try:
         ip_obj = ipaddress.ip_address(host_only.strip("[]"))
         tailscale_net = ipaddress.ip_network("100.64.0.0/10")
-        return ip_obj in tailscale_net
+        return bool(ip_obj.is_loopback or ip_obj.is_private or (ip_obj in tailscale_net))
     except ValueError:
         return False
 

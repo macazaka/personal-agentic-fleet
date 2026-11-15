@@ -62,7 +62,7 @@ Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operat
 <!-- AUTO-LATEST-RELEASE:START -->
 ## 🆕 Latest Release Highlights (`v2.17.0`)
 
-> **Live Codebase Inventory**: `10` Built-In Agents • `185` REST API Endpoints • `36` Core Microkernel Modules • `22` Automation Tools • `519` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
+> **Live Codebase Inventory**: `10` Built-In Agents • `188` REST API Endpoints • `36` Core Microkernel Modules • `22` Automation Tools • `519` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
 
 ### Added
 - **J.A.R.V.I.S. 5-Layer Voice Command & Biometric Speaker Cockpit**:

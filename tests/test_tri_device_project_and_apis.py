@@ -84,7 +84,8 @@ def test_tri_device_github_api_sync_provisioning():
         assert "https://github.com/macazaka/personal-agentic-fleet/issues/112" == res["epic_issue_url"]
 
 
-def test_mobile_health_ingest_and_watch_complication_endpoints(isolated_db, monkeypatch):
+def test_mobile_health_ingest_and_watch_complication_endpoints(isolated_db, monkeypatch, tmp_path):
+    import fleet.api.mobile_tri_device_api as mapi
     import fleet.server as srv
     from fleet.api.mobile_tri_device_api import (
         get_github_tri_device_project_endpoint,
@@ -96,6 +97,7 @@ def test_mobile_health_ingest_and_watch_complication_endpoints(isolated_db, monk
     )
 
     monkeypatch.setattr(srv, "db", isolated_db)
+    monkeypatch.setattr(mapi, "_get_apple_health_vault_path", lambda: tmp_path / "test_vault2.json")
 
     # 1. Seed a Monthly Action Item
     tid = isolated_db.add_task(
@@ -112,6 +114,7 @@ def test_mobile_health_ingest_and_watch_complication_endpoints(isolated_db, monk
         h_ingest,
         {
             "device": "Apple Watch Ultra + iPhone 16 Pro",
+            "source_type": "apple_health_export",
             "metrics": {
                 "steps": 9250,
                 "active_kcal": 540,
@@ -172,21 +175,26 @@ def test_mobile_health_ingest_and_watch_complication_endpoints(isolated_db, monk
     assert h_proj._send_json.call_args[0][0]["project_id"] == "tri-device-architecture"
 
 
-def test_tri_device_backlog_sync_and_phase1_gateway_pwa_endpoints(isolated_db, monkeypatch):
+def test_tri_device_backlog_sync_and_phase1_gateway_pwa_endpoints(isolated_db, monkeypatch, tmp_path):
+    import fleet.api.mobile_tri_device_api as mapi
     import fleet.server as srv
     from fleet.api.mobile_tri_device_api import (
         get_local_root_ca_certificate_endpoint,
         get_mobile_gateway_status_endpoint,
         get_mobile_health_status_endpoint,
+        get_mobile_pair_bridge_page_endpoint,
         get_pwa_manifest_endpoint,
         get_pwa_service_worker_endpoint,
+        post_import_apple_health_export_endpoint,
         post_mobile_gateway_token_endpoint,
         post_mobile_payment_deeplink_endpoint,
+        post_verify_and_sync_apple_watch_endpoint,
     )
     from fleet.core.db.backlog import TRI_DEVICE_BACKLOG_ITEMS
     from fleet.core.session_auth import validate_request_security
 
     monkeypatch.setattr(srv, "db", isolated_db)
+    monkeypatch.setattr(mapi, "_get_apple_health_vault_path", lambda: tmp_path / "test_vault2.json")
 
     # 1. Verify all 12 Tri-Device Architecture items (TD-01..TD-12) are in feature_backlog
     #    and Phase 1 (TD-01, TD-02, TD-03) are marked Completed
@@ -198,7 +206,7 @@ def test_tri_device_backlog_sync_and_phase1_gateway_pwa_endpoints(isolated_db, m
     assert len(phase1_items) == 3
     assert all(i["status"] == "Completed" for i in phase1_items)
 
-    # 2. Test TD-01: Mobile Gateway Status, Bearer Token & Tailscale / Token Auth
+    # 2. Test TD-01: Mobile Gateway Status, Bearer Token & Tailscale / Private LAN / Token Auth
     h_gw = MagicMock()
     get_mobile_gateway_status_endpoint(h_gw, urllib.parse.urlparse("/api/mobile/gateway/status"))
     gw_res = h_gw._send_json.call_args[0][0]
@@ -213,9 +221,11 @@ def test_tri_device_backlog_sync_and_phase1_gateway_pwa_endpoints(isolated_db, m
     bearer = tok_res["bearer_token"]
     assert bearer.startswith("afcc_mob_")
 
-    # Verify validate_request_security accepts Tailscale CGNAT host and Bearer Token while blocking evil.com
+    # Verify validate_request_security accepts Tailscale CGNAT host, Private RFC-1918 LAN IP, and Bearer Token while blocking evil.com
     ok_ts, _ = validate_request_security({"Host": "100.101.102.103:7890", "Origin": "https://100.101.102.103:7890"}, "POST", {"http://127.0.0.1:7890"})
     assert ok_ts is True
+    ok_lan, _ = validate_request_security({"Host": "192.168.1.35:7890", "Origin": "http://192.168.1.35:7890"}, "POST", {"http://127.0.0.1:7890"})
+    assert ok_lan is True
     ok_tok, _ = validate_request_security({"Host": "192.168.1.50:7890", "X-AFCC-Mobile-Token": bearer}, "POST", {"http://127.0.0.1:7890"})
     assert ok_tok is True
     ok_evil, _ = validate_request_security({"Host": "evil.com"}, "GET", {"http://127.0.0.1:7890"})
@@ -228,15 +238,57 @@ def test_tri_device_backlog_sync_and_phase1_gateway_pwa_endpoints(isolated_db, m
     assert ca_res["status"] == "ok"
     assert "BEGIN CERTIFICATE" in ca_res["pem"]
 
-    # 4. Test TD-02: GET /api/mobile/health/status
+    # 4. Test TD-02: GET /api/mobile/health/status before any real sync -> synced == False
     h_hstat = MagicMock()
     get_mobile_health_status_endpoint(h_hstat, urllib.parse.urlparse("/api/mobile/health/status"))
     hstat_res = h_hstat._send_json.call_args[0][0]
     assert hstat_res["status"] == "ok"
     assert hstat_res["deliverable_id"] == "TD-02"
-    assert "readiness_score" in hstat_res["readiness"]
+    assert hstat_res["synced"] is False
+    assert hstat_res["readiness"]["readiness_tier"] == "AWAITING_WATCH_SYNC"
 
-    # 5. Test TD-03: GET /manifest.json & GET /sw.js
+    # 5. Test Step-by-Step Apple Watch Hardware & Network Verification before real sync
+    h_ver = MagicMock()
+    post_verify_and_sync_apple_watch_endpoint(h_ver, {})
+    ver_res = h_ver._send_json.call_args[0][0]
+    assert ver_res["status"] == "ok"
+    assert ver_res["real_sync_verified"] is False
+    assert len(ver_res["steps"]) == 5
+    assert ver_res["steps"][0]["step"] == 1
+    assert ver_res["steps"][4]["step"] == 5
+
+    # 6. Test importing a real Apple Health export.xml snippet -> real_sync_verified becomes True!
+    sample_xml = """<?xml version="1.0" encoding="UTF-8"?>
+    <HealthData>
+      <Record type="HKQuantityTypeIdentifierHeartRateVariabilitySDNN" unit="ms" value="61.5" />
+      <Record type="HKQuantityTypeIdentifierRestingHeartRate" unit="count/min" value="55" />
+      <Record type="HKQuantityTypeIdentifierOxygenSaturation" unit="%" value="0.985" />
+      <Record type="HKQuantityTypeIdentifierStepCount" unit="count" value="8420" />
+      <Record type="HKQuantityTypeIdentifierActiveEnergyBurned" unit="kcal" value="490" />
+    </HealthData>
+    """
+    h_imp = MagicMock()
+    post_import_apple_health_export_endpoint(h_imp, {"filename": "export.xml", "content": sample_xml})
+    imp_res = h_imp._send_json.call_args[0][0]
+    assert imp_res["status"] == "ok"
+    assert imp_res["is_real_device_sync"] is True
+    assert imp_res["readiness"]["readiness_score"] >= 85
+
+    # Re-run Step-by-Step Verification -> now real_sync_verified is True!
+    h_ver2 = MagicMock()
+    post_verify_and_sync_apple_watch_endpoint(h_ver2, {})
+    ver_res2 = h_ver2._send_json.call_args[0][0]
+    assert ver_res2["real_sync_verified"] is True
+    assert ver_res2["steps"][4]["status"] == "pass"
+
+    # 7. Test GET /mobile-pair bridge page
+    h_pair = MagicMock(spec=["_send_json"])
+    get_mobile_pair_bridge_page_endpoint(h_pair, urllib.parse.urlparse("/mobile-pair"))
+    pair_res = h_pair._send_json.call_args[0][0]
+    assert pair_res["status"] == "ok"
+    assert pair_res["html_length"] > 500
+
+    # 8. Test TD-03: GET /manifest.json & GET /sw.js
     h_man = MagicMock()
     get_pwa_manifest_endpoint(h_man, urllib.parse.urlparse("/manifest.json"))
     man_res = h_man._send_json.call_args[0][0]
@@ -249,7 +301,7 @@ def test_tri_device_backlog_sync_and_phase1_gateway_pwa_endpoints(isolated_db, m
     assert sw_res["status"] == "ok"
     assert "afcc-tri-device-shell" in sw_res["script"]
 
-    # 6. Test Payment Guardrail (> max_single_payment_inr without 2FA confirmation)
+    # 9. Test Payment Guardrail (> max_single_payment_inr without 2FA confirmation)
     h_guard = MagicMock()
     post_mobile_payment_deeplink_endpoint(
         h_guard,
@@ -262,4 +314,5 @@ def test_tri_device_backlog_sync_and_phase1_gateway_pwa_endpoints(isolated_db, m
     )
     guard_res = h_guard._send_json.call_args[0][0]
     assert guard_res["status"] == "requires_2fa_approval"
+
 

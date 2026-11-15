@@ -968,11 +968,12 @@ def start_server(port: int = PORT):
     db = FleetDatabase(db_path=get_effective_db_path(DB_PATH))
     briefing_engine = BriefingEngine(db)
     agent_registry.startup_all()
-    server = RobustThreadingHTTPServer(("127.0.0.1", port), FleetDashboardHandler)
+    bind_host = "127.0.0.1" if in_test else os.environ.get("FLEET_BIND_HOST", "0.0.0.0")
+    server = RobustThreadingHTTPServer((bind_host, port), FleetDashboardHandler)
     ssl_ctx = build_local_ssl_context()
     if ssl_ctx is not None:
         server.ssl_context = ssl_ctx
-    server_logger.info("Personal Agentic Fleet Dashboard listening at: https://127.0.0.1:%s (and http://127.0.0.1:%s)", port, port)
+    server_logger.info("Personal Agentic Fleet Dashboard listening at: https://127.0.0.1:%s (and http://127.0.0.1:%s, bind=%s)", port, port, bind_host)
     print(f"🔒 Personal Agentic Fleet Dashboard (HTTPS Secure): https://127.0.0.1:{port}/")
     print(f"🚀 Personal Agentic Fleet Dashboard (HTTP):         http://127.0.0.1:{port}/")
     try:

@@ -423,6 +423,8 @@ async function syncTriDeviceGitHubProjectFromUI() {
   }
 }
 
+let _triDeviceLivePollTimer = null;
+
 async function refreshTriDeviceHealthHub() {
   try {
     const [healthRes, gwRes] = await Promise.all([
@@ -431,34 +433,52 @@ async function refreshTriDeviceHealthHub() {
     ]);
     if (healthRes.ok) {
       const hData = await healthRes.json();
+      const isReal = Boolean(hData.is_real_device_sync);
       const readiness = hData.readiness || {};
       const metrics = hData.metrics || {};
       const badgeEl = document.getElementById('triDeviceReadinessBadge');
-      if (badgeEl && readiness.readiness_score) {
-        badgeEl.textContent = `Readiness: ${readiness.readiness_score}/100 (${readiness.readiness_tier || 'PEAK_STRENGTH'})`;
-      }
       const recEl = document.getElementById('triDeviceRecommendationText');
-      if (recEl && readiness.recommendation) {
-        recEl.textContent = readiness.recommendation;
-      }
       const hrvEl = document.getElementById('triDeviceHrvRhrVal');
-      if (hrvEl && (metrics.hrv_sdnn_ms || metrics.resting_hr_bpm)) {
-        hrvEl.textContent = `${metrics.hrv_sdnn_ms || 52} ms • ${metrics.resting_hr_bpm || 58} bpm`;
-      }
       const sleepEl = document.getElementById('triDeviceSleepSpo2Val');
-      if (sleepEl && (metrics.sleep_hours || metrics.spo2_pct)) {
-        sleepEl.textContent = `${metrics.sleep_hours || 7.4} hrs • ${metrics.spo2_pct || 98}% SpO2`;
-      }
       const planEl = document.getElementById('triDeviceWorkoutPlanVal');
+
       if (planEl && hData.today_schedule) {
         planEl.textContent = hData.today_schedule;
+      }
+
+      if (isReal && readiness.readiness_score) {
+        if (badgeEl) {
+          badgeEl.style.background = 'rgba(16, 185, 129, 0.2)';
+          badgeEl.style.color = '#34d399';
+          badgeEl.style.borderColor = 'rgba(16, 185, 129, 0.45)';
+          badgeEl.textContent = `✅ Connected • Readiness: ${readiness.readiness_score}/100 (${readiness.readiness_tier || 'PEAK_STRENGTH'})`;
+        }
+        if (recEl && readiness.recommendation) {
+          recEl.textContent = `${readiness.recommendation} (Synced from ${hData.device_source || 'Apple Watch'})`;
+        }
+        if (hrvEl) {
+          hrvEl.textContent = `${metrics.hrv_sdnn_ms != null ? metrics.hrv_sdnn_ms + ' ms' : '-- ms'} • ${metrics.resting_hr_bpm != null ? metrics.resting_hr_bpm + ' bpm' : '-- bpm'}`;
+        }
+        if (sleepEl) {
+          sleepEl.textContent = `${metrics.sleep_hours != null ? metrics.sleep_hours + ' hrs' : '-- hrs'} • ${metrics.spo2_pct != null ? metrics.spo2_pct + '% SpO2' : '--% SpO2'}`;
+        }
+      } else {
+        if (badgeEl) {
+          badgeEl.style.background = 'rgba(245, 158, 11, 0.2)';
+          badgeEl.style.color = '#fbbf24';
+          badgeEl.style.borderColor = 'rgba(245, 158, 11, 0.45)';
+          badgeEl.textContent = '⏳ Awaiting Real Watch / iPhone Sync';
+        }
+        if (hrvEl) hrvEl.textContent = '-- ms • -- bpm (Not Synced)';
+        if (sleepEl) sleepEl.textContent = '-- hrs • --% SpO2 (Not Synced)';
       }
     }
     if (gwRes.ok) {
       const gData = await gwRes.json();
       const gwEl = document.getElementById('triDeviceGatewayUrlVal');
-      if (gwEl && gData.network && gData.network.recommended_mobile_base_url) {
-        gwEl.textContent = gData.network.recommended_mobile_base_url;
+      const lanIp = (gData.network && gData.network.lan_ips && gData.network.lan_ips[0]) || '127.0.0.1';
+      if (gwEl) {
+        gwEl.textContent = `http://${lanIp}:7890/mobile-pair`;
       }
     }
   } catch (e) {
@@ -466,31 +486,157 @@ async function refreshTriDeviceHealthHub() {
   }
 }
 
+function closeTriDeviceSyncConsole() {
+  const panel = document.getElementById('triDeviceSyncStepsPanel');
+  if (panel) panel.style.display = 'none';
+  if (_triDeviceLivePollTimer) {
+    clearInterval(_triDeviceLivePollTimer);
+    _triDeviceLivePollTimer = null;
+  }
+}
+
+function _renderStepRow(stepObj) {
+  const icons = {
+    'running': '🔄',
+    'pass': '✅',
+    'warn': '⚠️',
+    'info': 'ℹ️',
+    'waiting': '⏳',
+    'action_required': '📲'
+  };
+  const colors = {
+    'running': '#38bdf8',
+    'pass': '#34d399',
+    'warn': '#fbbf24',
+    'info': '#94a3b8',
+    'waiting': '#fb7185',
+    'action_required': '#00f2fe'
+  };
+  const ic = icons[stepObj.status] || '•';
+  const col = colors[stepObj.status] || '#cbd5e1';
+  return `
+    <div style="background: rgba(15, 23, 42, 0.85); border-left: 3px solid ${col}; border-radius: 6px; padding: 8px 12px;">
+      <div style="font-weight: 700; color: ${col};">${ic} Step ${stepObj.step}/5 — ${escapeHtml(stepObj.title)}</div>
+      <div style="color: #cbd5e1; margin-top: 3px; line-height: 1.45;">${escapeHtml(stepObj.detail)}</div>
+    </div>
+  `;
+}
+
 async function triggerAppleWatchDemoSync() {
+  const panel = document.getElementById('triDeviceSyncStepsPanel');
+  const listEl = document.getElementById('triDeviceSyncStepsList');
+  const footerEl = document.getElementById('triDeviceLiveBridgeFooter');
+  const btn = document.getElementById('btnSyncAppleWatchNow');
+  if (panel) panel.style.display = 'block';
+  if (footerEl) footerEl.style.display = 'none';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '🔍 Checking Apple Watch Connection...';
+  }
+
+  const pendingSteps = [
+    { step: 1, title: 'Scanning Windows Bluetooth Stack (Apple VID_004C)...', status: 'running', detail: 'Querying Windows PnP Bluetooth devices for Apple Watch and paired iPhone...' },
+    { step: 2, title: 'Verifying Laptop Wi-Fi LAN & Tailscale Listener (Port 7890)...', status: 'running', detail: 'Checking 0.0.0.0:7890 binding and active 192.168.1.x Wi-Fi neighbors...' },
+    { step: 3, title: 'Scanning Local Apple Health Inbox (fleet/data/user/apple_health_inbox/)...', status: 'running', detail: 'Looking for Apple Health export.xml / .json files...' },
+    { step: 4, title: 'Verifying Real Incoming Apple Watch / iPhone Telemetry...', status: 'running', detail: 'Checking apple_health_sync_vault.json for authenticated real-device packets...' },
+    { step: 5, title: 'Computing Final Connection Verdict...', status: 'running', detail: 'Waiting for hardware & network probe results...' }
+  ];
+  if (listEl) {
+    listEl.innerHTML = _renderStepRow(pendingSteps[0]);
+  }
+
   try {
-    const res = await fetch('/api/mobile/health/ingest', {
+    const res = await fetch('/api/mobile/watch/verify_and_sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    const data = await res.json();
+    const steps = data.steps || [];
+
+    // Reveal each step sequentially so the user sees the exact hardware & network checks
+    const revealed = [];
+    for (let i = 0; i < steps.length; i++) {
+      revealed.push(steps[i]);
+      if (listEl) {
+        listEl.innerHTML = revealed.map(_renderStepRow).join('');
+      }
+      await new Promise(r => setTimeout(r, 280));
+    }
+
+    await refreshTriDeviceHealthHub();
+    if (typeof fetchHealthDashboard === 'function') fetchHealthDashboard();
+
+    if (footerEl) {
+      footerEl.style.display = 'block';
+      const pairUrl = data.mobile_pair_http_url || 'http://192.168.1.35:7890/mobile-pair';
+      if (data.real_sync_verified) {
+        footerEl.innerHTML = `<span style="color: #34d399; font-weight: 700;">✅ Real Apple Watch / iPhone sync verified and encrypted at rest!</span>`;
+        if (_triDeviceLivePollTimer) {
+          clearInterval(_triDeviceLivePollTimer);
+          _triDeviceLivePollTimer = null;
+        }
+      } else {
+        footerEl.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <strong style="color: #fbbf24;">📡 Live Listener Active (Polling every 2s for your iPhone):</strong><br>
+              <span>1. Open <a href="${pairUrl}" target="_blank" style="color: #00f2fe; font-weight: 700;">${pairUrl}</a> in Safari on your iPhone (same Wi-Fi) and tap <strong>Push Live to Laptop AFCC Hub</strong>.</span><br>
+              <span>2. Or click <strong>📂 Upload Health Export</strong> above to import an Apple Health <code>export.xml</code> / <code>.json</code> file.</span>
+            </div>
+          </div>
+        `;
+        if (_triDeviceLivePollTimer) clearInterval(_triDeviceLivePollTimer);
+        _triDeviceLivePollTimer = setInterval(async () => {
+          try {
+            const stRes = await fetch('/api/mobile/health/status');
+            if (stRes.ok) {
+              const stData = await stRes.json();
+              if (stData.is_real_device_sync) {
+                clearInterval(_triDeviceLivePollTimer);
+                _triDeviceLivePollTimer = null;
+                await triggerAppleWatchDemoSync();
+              }
+            }
+          } catch (e) {}
+        }, 2000);
+      }
+    }
+  } catch (e) {
+    if (listEl) {
+      listEl.innerHTML = `<div style="color: #fb7185;">❌ Error verifying Apple Watch connection: ${escapeHtml(e.message || String(e))}</div>`;
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '⌚ Sync Apple Watch Now';
+    }
+  }
+}
+
+async function uploadAppleHealthExportFile(inputEl) {
+  if (!inputEl || !inputEl.files || !inputEl.files[0]) return;
+  const file = inputEl.files[0];
+  try {
+    const text = await file.text();
+    const res = await fetch('/api/mobile/health/import_export', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        device: 'Apple Watch Ultra + iPhone HealthKit',
-        metrics: {
-          steps: 9140,
-          active_kcal: 495,
-          resting_hr_bpm: 57,
-          hrv_sdnn_ms: 56,
-          sleep_hours: 7.6,
-          spo2_pct: 98.5,
-          water_ml: 250
-        }
+        filename: file.name,
+        content: text.slice(0, 2000000)
       })
     });
     const data = await res.json();
     if (res.ok && data.status === 'ok') {
-      await refreshTriDeviceHealthHub();
-      if (typeof fetchHealthDashboard === 'function') fetchHealthDashboard();
+      await triggerAppleWatchDemoSync();
+    } else {
+      alert(data.message || 'Could not parse Apple Health export file.');
     }
   } catch (e) {
-    console.error('Error syncing Apple Watch telemetry:', e);
+    alert('Error reading Apple Health file: ' + e.message);
+  } finally {
+    inputEl.value = '';
   }
 }
 
@@ -523,6 +669,8 @@ window.filterBacklogToTriDevice = filterBacklogToTriDevice;
 window.syncTriDeviceGitHubProjectFromUI = syncTriDeviceGitHubProjectFromUI;
 window.refreshTriDeviceHealthHub = refreshTriDeviceHealthHub;
 window.triggerAppleWatchDemoSync = triggerAppleWatchDemoSync;
+window.closeTriDeviceSyncConsole = closeTriDeviceSyncConsole;
+window.uploadAppleHealthExportFile = uploadAppleHealthExportFile;
 window.copyTriDeviceShortcutRecipe = copyTriDeviceShortcutRecipe;
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(refreshTriDeviceHealthHub, 600);

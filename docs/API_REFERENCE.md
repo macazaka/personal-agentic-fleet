@@ -235,7 +235,7 @@ The Personal Agentic Fleet provides a comprehensive terminal interface accessibl
 | `fleet version` | None | Displays version, Python interpreter details, and operating system platform. |
 
 <!-- AUTO-API-ROUTES:START -->
-## 🔄 Complete Live REST API Route Inventory (`185` Endpoints — `v2.17.0`)
+## 🔄 Complete Live REST API Route Inventory (`188` Endpoints — `v2.17.0`)
 
 This table is **automatically introspected from `fleet/api/*.py` AST decorators** on every release by `fleet.tools.doc_wiki_enhancer`:
 
@@ -311,6 +311,9 @@ This table is **automatically introspected from `fleet/api/*.py` AST decorators*
 | `GET` | `/api/security/ca.crt` | `get_local_root_ca_certificate_endpoint` ([`fleet/api/mobile_tri_device_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/mobile_tri_device_api.py)) | TD-01: Serves `afcc_root_ca.crt` so iPhone/iPad Safari or Chrome can install the AFCC Root CA in 1 tap. |
 | `POST` | `/api/mobile/health/ingest` | `post_mobile_health_ingest_endpoint` ([`fleet/api/mobile_tri_device_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/mobile_tri_device_api.py)) | TD-02: Receives Apple Watch & iPhone HealthKit telemetry, logs metrics to SQLite, |
 | `GET` | `/api/mobile/health/status` | `get_mobile_health_status_endpoint` ([`fleet/api/mobile_tri_device_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/mobile_tri_device_api.py)) | TD-02: Returns the latest Apple Watch & iPhone HealthKit sync snapshot from the |
+| `POST` | `/api/mobile/watch/verify_and_sync` | `post_verify_and_sync_apple_watch_endpoint` ([`fleet/api/mobile_tri_device_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/mobile_tri_device_api.py)) | Executes a transparent 5-step Apple Watch & iPhone connection verification and sync check: |
+| `POST` | `/api/mobile/health/import_export` | `post_import_apple_health_export_endpoint` ([`fleet/api/mobile_tri_device_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/mobile_tri_device_api.py)) | Imports a real Apple Health `export.xml` or `.json` file uploaded from the browser or iPhone. |
+| `GET` | `/mobile-pair` | `get_mobile_pair_bridge_page_endpoint` ([`fleet/api/mobile_tri_device_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/mobile_tri_device_api.py)) | Serves a zero-install iPhone & Apple Watch Web Bridge page at `http://<LAN_IP>:7890/mobile-pair`. |
 | `GET` | `/api/mobile/watch/complication` | `get_watch_complication_snapshot_endpoint` ([`fleet/api/mobile_tri_device_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/mobile_tri_device_api.py)) | TD-10: Ultra-compact (<2 KB, <5ms) watchOS Smart Stack Complication & iOS Lock Screen Widget snapshot. |
 | `POST` | `/api/mobile/watch/complication` | `post_watch_complication_quick_action_endpoint` ([`fleet/api/mobile_tri_device_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/mobile_tri_device_api.py)) | TD-10: Executes a 1-tap Apple Watch complication quick action (+250ml Water or Close Top Action Item). |
 | `POST` | `/api/mobile/payments/deeplink` | `post_mobile_payment_deeplink_endpoint` ([`fleet/api/mobile_tri_device_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/mobile_tri_device_api.py)) | TD-08 & TD-09: Generates RFC-compliant 1-Tap Open Payment Deep Links for iPhone |
