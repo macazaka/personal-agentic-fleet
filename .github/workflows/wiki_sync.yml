@@ -26,14 +26,14 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Enhance Wiki Pages from Live Codebase
         run: |
           python3 -m fleet.tools.doc_wiki_enhancer
 
       - name: Checkout Wiki Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         continue-on-error: true
         id: checkout_wiki
         with:

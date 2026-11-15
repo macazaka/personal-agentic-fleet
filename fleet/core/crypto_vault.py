@@ -350,21 +350,22 @@ def encrypt_binary_bytes_at_rest(data: bytes, aad: bytes = b"afcc-binary-vault-v
     """
     Encrypts binary files (such as biometric voiceprint .wav / .webm samples) at rest
     using AES-256-GCM with an HKDF-SHA256 derived binary-vault subkey.
+    Falls back to PBKDF2-HMAC-SHA256 stream AEAD if cryptography is unavailable.
     Idempotent if already prefixed with BINARY_AESGCM_PREFIX.
     """
     if not data or data.startswith(BINARY_AESGCM_PREFIX):
         return data
+    subkey = derive_domain_subkey(b"afcc-binary-vault-v1", 32)
     try:
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-        subkey = derive_domain_subkey(b"afcc-binary-vault-v1", 32)
         nonce = secrets.token_bytes(12)
         ct = AESGCM(subkey).encrypt(nonce, data, aad)
         return BINARY_AESGCM_PREFIX + nonce + ct
     except Exception:
-        dpapi_ct = _dpapi_encrypt_bytes(data)
-        if dpapi_ct:
-            return b"ENCBIN:dpapi:" + dpapi_ct
-        return data
+        nonce = secrets.token_bytes(16)
+        ct = _stream_xor_crypt(data, subkey, nonce)
+        mac = hmac.new(_derive_auth_key(subkey, nonce), aad + nonce + ct, hashlib.sha256).digest()
+        return BINARY_AESGCM_PREFIX + b"S1:" + nonce + mac + ct
 
 
 def decrypt_binary_bytes_at_rest(data: bytes, aad: bytes = b"afcc-binary-vault-v1") -> bytes:
@@ -375,13 +376,24 @@ def decrypt_binary_bytes_at_rest(data: bytes, aad: bytes = b"afcc-binary-vault-v
     if not data:
         return data
     if data.startswith(BINARY_AESGCM_PREFIX):
-        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
         body = data[len(BINARY_AESGCM_PREFIX):]
+        subkey = derive_domain_subkey(b"afcc-binary-vault-v1", 32)
+        if body.startswith(b"S1:"):
+            s_body = body[3:]
+            if len(s_body) < 48:
+                raise ValueError("Corrupted ENCBIN:aes256gcm stream payload")
+            nonce = s_body[:16]
+            mac = s_body[16:48]
+            ct = s_body[48:]
+            expected_mac = hmac.new(_derive_auth_key(subkey, nonce), aad + nonce + ct, hashlib.sha256).digest()
+            if not hmac.compare_digest(mac, expected_mac):
+                raise ValueError("Binary stream HMAC verification failed")
+            return _stream_xor_crypt(ct, subkey, nonce)
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
         if len(body) < 28:
             raise ValueError("Corrupted ENCBIN:aes256gcm binary payload")
         nonce = body[:12]
         ct = body[12:]
-        subkey = derive_domain_subkey(b"afcc-binary-vault-v1", 32)
         try:
             return AESGCM(subkey).decrypt(nonce, ct, aad)
         except Exception:

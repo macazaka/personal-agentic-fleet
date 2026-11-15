@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.18.0] - 2026-11-15
+
+### Added
+- **Tri Device**: Enhance architecture and backlog with 10 real-world environmental constraints (EC-01..EC-10) and local-only encrypted hardware registry.
+- **Tri Device**: Extract Tri-Device Hub into dedicated Connection Agent & enforce iPhone Companion Relay topology.
+- **Voice**: Upgrade voiceprint enrollment to 10s/12s/15s guided 3-phase multi-variation teleprompter.
+- **Tri Device**: Add 5-step Apple Watch & iPhone hardware/LAN connection verification and live sync bridge.
+- **Tri Device**: Add Tri-Device Architecture (TD-01..TD-12) to backlog and implement Phase 1 end-to-end.
+- **Tri Device**: Add Tri-Device Architecture GitHub Project, Milestones, Epics, Issues & Mobile APIs.
+
+### Fixed
+- **IDE**: Sync mobile_tri_device_api.py and user/workspace VS Code saveConflictResolution settings.
+- **Vscode**: Prevent dashboard.html save conflict by enforcing LF eol, autoSave, and overwriteFileOnDisk in VS Code settings.
+- **Tri Device**: Detect Windows Firewall Public profile block on port 7890 and add 1-click firewall unblock + Wi-Fi settings launcher.
+- **UI**: Render Tri-Device HealthKit Hub and Backlog Banner in main dashboard template.
+- **Tests**: Align encrypted vault readers and voice completion reply for full test suite.
+
+### Documentation & Maintenance
+- **Deps**: Bump docker/login-action from 3 to 4.
+
+---
+
 ## [2.17.0] - 2026-11-14
 
 ### Added

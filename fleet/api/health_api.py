@@ -439,6 +439,7 @@ def stream_video(handler: Any, parsed_url: urllib.parse.ParseResult):
 @router.post("/api/health/video/open_folder")
 def open_video_vault_folder(handler: Any, body: Dict[str, Any]):
     folder_path = FFD_VIDEOS_DIR.resolve()
+    folder_path.mkdir(parents=True, exist_ok=True)
     if not folder_path.exists():
         handler._send_json({"error": f"Video folder not found: {folder_path}"}, 404)
         return

@@ -3,6 +3,6 @@ Personal Agentic Fleet.
 Autonomous personal assistant and local fleet management system.
 """
 
-__version__ = "2.17.0"
+__version__ = "2.18.0"
 __author__ = "macazaka & Fleet Open Source Contributors"
 
