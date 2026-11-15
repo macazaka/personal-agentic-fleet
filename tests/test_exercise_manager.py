@@ -220,7 +220,17 @@ def test_custom_video_playlists_crud_and_sequential_playback(tmp_path, monkeypat
     from pathlib import Path
     import urllib.parse
     from unittest.mock import MagicMock
+    import fleet.core.exercise_manager as em_mod
     import fleet.api.health_api as health_api
+
+    if not em_mod.FFD_VIDEOS_DIR.exists() or not list(em_mod.FFD_VIDEOS_DIR.glob("*.mp4")):
+        vid_dir = tmp_path / "videos"
+        vid_dir.mkdir(parents=True, exist_ok=True)
+        mp4_header = b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom" + (b"\x00" * 1024)
+        (vid_dir / "03 - Super Brain Yoga for Diabetes.mp4").write_bytes(mp4_header)
+        (vid_dir / "03 - Get your whole body warmed up in just 10 mins.mp4").write_bytes(mp4_header)
+        monkeypatch.setattr(em_mod, "FFD_VIDEOS_DIR", vid_dir)
+        monkeypatch.setattr(health_api, "FFD_VIDEOS_DIR", vid_dir)
 
     playlist_file = tmp_path / "video_playlists.json"
     monkeypatch.setenv("FLEET_VIDEO_PLAYLISTS_PATH", str(playlist_file))
@@ -332,7 +342,16 @@ def test_video_thumbnails_youtube_crud_and_oauth_sync(tmp_path, monkeypatch):
     import urllib.parse
     from pathlib import Path
     from unittest.mock import MagicMock
+    import fleet.core.exercise_manager as em_mod
     from fleet.api import health_api
+
+    if not em_mod.FFD_VIDEOS_DIR.exists() or not list(em_mod.FFD_VIDEOS_DIR.glob("*.mp4")):
+        vid_dir = tmp_path / "videos"
+        vid_dir.mkdir(parents=True, exist_ok=True)
+        mp4_header = b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom" + (b"\x00" * 1024)
+        (vid_dir / "03 - Super Brain Yoga for Diabetes.mp4").write_bytes(mp4_header)
+        monkeypatch.setattr(em_mod, "FFD_VIDEOS_DIR", vid_dir)
+        monkeypatch.setattr(health_api, "FFD_VIDEOS_DIR", vid_dir)
 
     monkeypatch.setenv("FLEET_VIDEO_THUMBNAILS_DIR", str(tmp_path / "video_thumbnails"))
     monkeypatch.setenv("FLEET_YOUTUBE_VIDEOS_PATH", str(tmp_path / "youtube_videos.json"))

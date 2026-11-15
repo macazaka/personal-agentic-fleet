@@ -1,6 +1,6 @@
 # ⚡ Personal Agentic Fleet
 
-[![Release: v2.17.0](https://img.shields.io/badge/Release-v2.17.0-00b4d8.svg?logo=github&logoColor=white)](CHANGELOG.md)
+[![Release: v2.18.0](https://img.shields.io/badge/Release-v2.18.0-00b4d8.svg?logo=github&logoColor=white)](CHANGELOG.md)
 [![GitHub Wiki: 17 Deep-Dive Guides](https://img.shields.io/badge/GitHub%20Wiki-17%20Deep--Dive%20Guides-0284c7.svg?logo=github&logoColor=white)](https://github.com/macazaka/personal-agentic-fleet/wiki)
 [![Python: 3.10 | 3.11 | 3.12 | 3.13 | 3.14](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-10b981.svg?logo=apache&logoColor=white)](https://opensource.org/licenses/Apache-2.0)
@@ -119,24 +119,27 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
 ## 🌟 Key Highlights
 
 <!-- AUTO-LATEST-RELEASE:START -->
-### 🆕 What's New in Release `v2.17.0` (Auto-Synchronized)
+### 🆕 What's New in Release `v2.18.0` (Auto-Synchronized)
 
 > **Live Telemetry**: `11` Core Agents • `192` REST API Endpoints • `36` Microkernel Engines • `22` Automation Tools • `521` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
 
 ### Added
-- **J.A.R.V.I.S. 5-Layer Voice Command & Biometric Speaker Cockpit**:
-  - **Layer 1 — Persistent WebAudio DSP Bandpass (`85 Hz` High-Pass → `3800 Hz` Low-Pass)**: Strips fan rumble, AC hum, and high-frequency clatter while keeping the microphone stream open so Windows WASAPI never clips the first syllable of speech.
-  - **Layer 2 — Biometric Speaker Voiceprint Lock (`🧬 Calibrate My Voice (3s)`, `GET/POST /api/voice/voiceprint`)**: Extracts real-time 2048-FFT autocorrelation fundamental vocal pitch ($F_0$ in Hz, `75–360 Hz`), spectral formant centroid, and RMS SNR (`dB`) to verify speaker identity (`🛡️ My Voice Only: ON`) and reject background voices or low-SNR room chatter at `$0.00`.
-  - **Layer 3 — 5-Alternative N-Best `SpeechRecognition` Candidate Scoring**: Scores all 5 recognition alternatives (`rec.maxAlternatives = 5`) against Jarvis grammar and phonetic mic-check patterns (`_select_best_voice_candidate`).
-  - **Layer 4 — Dual-Mode Brain Router (`⚡ $0.00 Zero-Token Jarvis` ⇄ `🤖 Direct Antigravity Live Bridge`)**: Supports `$0.00` local execution across all 10 Fleet agents, full agent roster & per-agent capability/telemetry queries (*"What agents do I have?"*, *"Tell me about the Health agent"*), recent agent activity queries (*"What did my agents do recently?"*), voice video/playlist playback (*"Play my workout playlist"*), 4-stage PC auto-tuning (*"Auto tune my PC"*), and direct bridging to Antigravity Live (*"Ask Antigravity to ..."*).
-  - **Layer 5 — Neural Speech Sanitizer**: Hardened `_clean_for_speech()` and `HyperscalerGateway._call_antigravity_cli()` so raw JSON telemetry envelopes (`{"conversation_id":...}`) are never returned or spoken aloud.
-- **Dual-Stack Local HTTPS (`https://127.0.0.1:7890`) & Root CA Generator (`fleet/core/local_tls.py`)**:
-  - Generates a 10-year local Root CA (`afcc_root_ca.crt`) and 365-day SAN leaf server certificate (`localhost_fullchain.crt` covering `IP:127.0.0.1`, `DNS:localhost`, `IP:::1`) in gitignored `fleet/data/certs/`.
-  - Upgraded `RobustThreadingHTTPServer` in `fleet/server.py` with first-byte TLS `ClientHello` (`0x16`) auto-detection so `https://127.0.0.1:7890` and `http://127.0.0.1:7890` work simultaneously on port `7890`.
-- **Video Frame Thumbnails, YouTube Video/Playlist Import & Browser-Driven Google OAuth Sync**:
-  - Added FFmpeg automatic JPEG thumbnail extraction (`GET /api/health/video/thumbnail`) for local `.mp4` workout videos.
-  - Added YouTube video & playlist import (`POST /api/health/videos/youtube/add`, `POST /api/health/videos/youtube/delete`) with embedded YouTube player modal support.
-  - Added non-blocking browser popup Google OAuth2 flow (`POST /api/health/youtube/oauth/sync`, `GET /api/health/youtube/oauth/callback`, `GET /api/health/youtube/oauth/status`) to sync personal/private YouTube playlists via `youtube.readonly`.
+- **Tri Device**: Enhance architecture and backlog with 10 real-world environmental constraints (EC-01..EC-10) and local-only encrypted hardware registry.
+- **Tri Device**: Extract Tri-Device Hub into dedicated Connection Agent & enforce iPhone Companion Relay topology.
+- **Voice**: Upgrade voiceprint enrollment to 10s/12s/15s guided 3-phase multi-variation teleprompter.
+- **Tri Device**: Add 5-step Apple Watch & iPhone hardware/LAN connection verification and live sync bridge.
+- **Tri Device**: Add Tri-Device Architecture (TD-01..TD-12) to backlog and implement Phase 1 end-to-end.
+- **Tri Device**: Add Tri-Device Architecture GitHub Project, Milestones, Epics, Issues & Mobile APIs.
+
+### Fixed
+- **IDE**: Sync mobile_tri_device_api.py and user/workspace VS Code saveConflictResolution settings.
+- **Vscode**: Prevent dashboard.html save conflict by enforcing LF eol, autoSave, and overwriteFileOnDisk in VS Code settings.
+- **Tri Device**: Detect Windows Firewall Public profile block on port 7890 and add 1-click firewall unblock + Wi-Fi settings launcher.
+- **UI**: Render Tri-Device HealthKit Hub and Backlog Banner in main dashboard template.
+- **Tests**: Align encrypted vault readers and voice completion reply for full test suite.
+
+### Documentation & Maintenance
+- **Deps**: Bump docker/login-action from 3 to 4.
 <!-- AUTO-LATEST-RELEASE:END -->
 
 - **🔌 Modular Plug-and-Play Agents**: Every dashboard view is a standalone, self-contained agent package inside `fleet/agents/` with least-privilege capability manifests (`manifest.json`) enforced by `ScopedDatabaseProxy`. See **[Wiki: 7 Built-in Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents)** and **[Wiki: Customizing Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Customizing-Agents)**.

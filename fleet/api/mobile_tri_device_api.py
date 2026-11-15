@@ -151,9 +151,9 @@ def get_local_root_ca_certificate_endpoint(handler: Any, parsed_url: urllib.pars
     ca_path = DATA_DIR / "certs" / "afcc_root_ca.crt"
     if not ca_path.is_file():
         try:
-            from fleet.core.tls_manager import ensure_local_https_certificates
+            from fleet.core.local_tls import ensure_local_tls_certificates
 
-            ensure_local_https_certificates(DATA_DIR / "certs")
+            ensure_local_tls_certificates()
         except Exception:
             pass
 
@@ -817,10 +817,6 @@ def post_fix_windows_firewall_for_mobile_bridge_endpoint(handler: Any, body: Dic
     import sys
 
     fw_before = _check_windows_firewall_lan_status()
-    if os.name != "nt":
-        handler._send_json({"status": "ok", "message": "Non-Windows OS; no Windows Firewall rule needed.", "firewall": fw_before})
-        return
-
     ps_cmds = [
         f"Get-NetFirewallApplicationFilter -Program '{sys.executable}' -ErrorAction SilentlyContinue | Get-NetFirewallRule -ErrorAction SilentlyContinue | Where-Object {{ $_.Action -eq 'Block' }} | Remove-NetFirewallRule -ErrorAction SilentlyContinue",
         "Remove-NetFirewallRule -DisplayName 'AFCC Tri-Device iPhone Bridge (Port 7890)' -ErrorAction SilentlyContinue",
@@ -829,6 +825,17 @@ def post_fix_windows_firewall_for_mobile_bridge_endpoint(handler: Any, body: Dic
         "Get-NetConnectionProfile -ErrorAction SilentlyContinue | Where-Object { $_.NetworkCategory -eq 'Public' } | Set-NetConnectionProfile -NetworkCategory Private -ErrorAction SilentlyContinue",
     ]
     joined_ps = "; ".join(ps_cmds)
+    if os.name != "nt":
+        handler._send_json({
+            "status": "ok",
+            "uac_prompt_triggered": False,
+            "message": "Non-Windows OS; no Windows Firewall rule needed.",
+            "powershell_command": joined_ps,
+            "firewall": fw_before,
+            "firewall_before": fw_before,
+        })
+        return
+
     uac_triggered = False
     if not is_test_environment():
         try:
