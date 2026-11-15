@@ -392,6 +392,28 @@ def test_environmental_constraints_and_local_hardware_inventory(isolated_db, mon
     for item in TRI_DEVICE_BACKLOG_ITEMS:
         assert "EC-" in item["description"], f"Missing EC constraint reference in {item['title']}"
 
+    # 5. Verify Windows Firewall LAN status detection & 1-click fix endpoint
+    from fleet.api.mobile_tri_device_api import (
+        _check_windows_firewall_lan_status,
+        post_fix_windows_firewall_for_mobile_bridge_endpoint,
+        post_open_windows_wifi_or_firewall_settings_endpoint,
+    )
+
+    fw_st = _check_windows_firewall_lan_status()
+    assert "blocked_on_public_wifi" in fw_st
+    assert "python_exe" in fw_st
+
+    h_fw = MagicMock()
+    post_fix_windows_firewall_for_mobile_bridge_endpoint(h_fw, {})
+    fw_res = h_fw._send_json.call_args[0][0]
+    assert fw_res["status"] == "ok"
+    assert "New-NetFirewallRule" in fw_res["powershell_command"]
+
+    h_wifi = MagicMock()
+    post_open_windows_wifi_or_firewall_settings_endpoint(h_wifi, {"target": "wifi"})
+    assert h_wifi._send_json.call_args[0][0]["status"] == "ok"
+
+
 
 
 

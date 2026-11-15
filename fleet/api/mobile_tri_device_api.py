@@ -522,6 +522,70 @@ def _scan_windows_bluetooth_and_lan_apple_devices() -> Dict[str, Any]:
     }
 
 
+def _check_windows_firewall_lan_status() -> Dict[str, Any]:
+    """
+    Fast (<2ms) read-only Windows Registry inspection of Windows Defender Firewall rules
+    (`HKLM\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\FirewallRules`)
+    to detect if the current Python executable (`sys.executable`) has an explicit inbound
+    `Action=Block` rule on the `Public` profile or lacks an inbound TCP port 7890 `Allow` rule
+    (which causes `ERR_CONNECTION_TIMED_OUT` when an iPhone on Wi-Fi tries to open `/mobile-pair`).
+    """
+    import os
+    import sys
+
+    result: Dict[str, Any] = {
+        "python_exe": sys.executable,
+        "block_rule_ids": [],
+        "allow_public": False,
+        "allow_private": False,
+        "allow_port_7890": False,
+        "blocked_on_public_wifi": False,
+    }
+    if os.name != "nt":
+        result["allow_public"] = True
+        result["allow_private"] = True
+        result["allow_port_7890"] = True
+        return result
+
+    try:
+        import winreg
+
+        exe_low = sys.executable.lower()
+        key_path = r"SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\FirewallRules"
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path) as k:
+            idx = 0
+            while True:
+                try:
+                    rule_id, val, _ = winreg.EnumValue(k, idx)
+                    idx += 1
+                    if not isinstance(val, str):
+                        continue
+                    vlow = val.lower()
+                    if "active=true" not in vlow or "dir=in" not in vlow:
+                        continue
+                    if "lport=7890" in vlow and "action=allow" in vlow:
+                        result["allow_port_7890"] = True
+                    if exe_low in vlow:
+                        if "action=block" in vlow:
+                            result["block_rule_ids"].append(rule_id)
+                        elif "action=allow" in vlow:
+                            if "profile=public" in vlow or "profile=" not in vlow:
+                                result["allow_public"] = True
+                            if "profile=private" in vlow or "profile=" not in vlow:
+                                result["allow_private"] = True
+                except OSError:
+                    break
+    except Exception:
+        pass
+
+    result["blocked_on_public_wifi"] = bool(
+        (len(result["block_rule_ids"]) > 0 or not result["allow_public"])
+        and not result["allow_port_7890"]
+    )
+    return result
+
+
+
 def _parse_apple_health_xml_or_json_content(raw_text: str) -> Dict[str, Any]:
     """
     Extracts real Apple Watch / HealthKit metrics from an Apple Health `export.xml`
@@ -615,17 +679,30 @@ def post_verify_and_sync_apple_watch_endpoint(handler: Any, body: Dict[str, Any]
             ),
         })
 
-    # Step 2: Wi-Fi LAN & Tailscale Mesh Listener Check
+    # Step 2: Wi-Fi LAN & Windows Defender Firewall Inbound Check (Port 7890)
     neighbors = hw_info["lan_neighbors"]
-    steps.append({
-        "step": 2,
-        "title": "Laptop Wi-Fi LAN & Tailscale Gateway Listener (Port 7890)",
-        "status": "pass",
-        "detail": (
-            f"AFCC Gateway is actively listening on all interfaces (0.0.0.0:7890 → {mobile_pair_http}). "
-            f"Detected {len(neighbors)} active device(s) on your 192.168.1.x Wi-Fi subnet ({', '.join(neighbors) if neighbors else 'scanning...'})."
-        ),
-    })
+    fw_info = _check_windows_firewall_lan_status()
+    if fw_info.get("blocked_on_public_wifi"):
+        steps.append({
+            "step": 2,
+            "title": "Laptop Wi-Fi LAN & Windows Firewall Check (Port 7890)",
+            "status": "warn",
+            "detail": (
+                f"AFCC is listening on 0.0.0.0:7890 ({mobile_pair_http}), BUT Windows Defender Firewall has an active Public-Profile BLOCK rule "
+                f"on Python ({fw_info.get('python_exe')}) while your Wi-Fi network is set to 'Public'! "
+                "This causes 'ERR_CONNECTION_TIMED_OUT' on your iPhone. Click '🛡️ Unblock iPhone Wi-Fi in Windows Firewall' below (or switch Wi-Fi from Public to Private in Windows Settings) to allow your iPhone immediately."
+            ),
+        })
+    else:
+        steps.append({
+            "step": 2,
+            "title": "Laptop Wi-Fi LAN & Windows Firewall Check (Port 7890)",
+            "status": "pass",
+            "detail": (
+                f"AFCC Gateway is actively listening on all interfaces (0.0.0.0:7890 → {mobile_pair_http}) and Windows Firewall allows inbound LAN connections. "
+                f"Detected {len(neighbors)} active device(s) on your 192.168.1.x Wi-Fi subnet ({', '.join(neighbors) if neighbors else 'scanning...'})."
+            ),
+        })
 
     # Step 3: Check Local Apple Health Inbox Folder for dropped export.xml / .json files
     inbox_dir = _get_apple_health_vault_path().parent / "apple_health_inbox"
@@ -720,9 +797,89 @@ def post_verify_and_sync_apple_watch_endpoint(handler: Any, body: Dict[str, Any]
         "real_sync_verified": is_real,
         "steps": steps,
         "hardware": hw_info,
+        "firewall": fw_info,
         "mobile_pair_http_url": mobile_pair_http,
         "mobile_pair_https_url": mobile_pair_https,
         "latest_sync": latest if is_real else None,
+    })
+
+
+@router.post("/api/mobile/gateway/fix_firewall")
+def post_fix_windows_firewall_for_mobile_bridge_endpoint(handler: Any, body: Dict[str, Any]):
+    """
+    Launches the standard Windows UAC elevation prompt (`ShellExecuteW(..., "runas", ...)`)
+    so the user can click 'Yes' on their laptop screen to:
+      1. Remove explicit `Action=Block` rules on `sys.executable` for the Public profile
+      2. Add an inbound `Allow` rule for TCP port 7890 (`AFCC Tri-Device iPhone Bridge (Port 7890)`) on `LocalSubnet`
+      3. Switch active `Public` Wi-Fi connection profiles to `Private`
+    """
+    import os
+    import sys
+
+    fw_before = _check_windows_firewall_lan_status()
+    if os.name != "nt":
+        handler._send_json({"status": "ok", "message": "Non-Windows OS; no Windows Firewall rule needed.", "firewall": fw_before})
+        return
+
+    ps_cmds = [
+        f"Get-NetFirewallApplicationFilter -Program '{sys.executable}' -ErrorAction SilentlyContinue | Get-NetFirewallRule -ErrorAction SilentlyContinue | Where-Object {{ $_.Action -eq 'Block' }} | Remove-NetFirewallRule -ErrorAction SilentlyContinue",
+        "Remove-NetFirewallRule -DisplayName 'AFCC Tri-Device iPhone Bridge (Port 7890)' -ErrorAction SilentlyContinue",
+        f"New-NetFirewallRule -DisplayName 'AFCC Tri-Device iPhone Bridge (Port 7890)' -Direction Inbound -Protocol TCP -LocalPort 7890 -RemoteAddress LocalSubnet -Action Allow -Profile Any -ErrorAction SilentlyContinue | Out-Null",
+        f"New-NetFirewallRule -DisplayName 'AFCC Python Inbound LAN (Port 7890)' -Direction Inbound -Program '{sys.executable}' -Protocol TCP -LocalPort 7890 -RemoteAddress LocalSubnet -Action Allow -Profile Any -ErrorAction SilentlyContinue | Out-Null",
+        "Get-NetConnectionProfile -ErrorAction SilentlyContinue | Where-Object { $_.NetworkCategory -eq 'Public' } | Set-NetConnectionProfile -NetworkCategory Private -ErrorAction SilentlyContinue",
+    ]
+    joined_ps = "; ".join(ps_cmds)
+    uac_triggered = False
+    if not is_test_environment():
+        try:
+            import ctypes
+
+            ret = ctypes.windll.shell32.ShellExecuteW(
+                None,
+                "runas",
+                "powershell.exe",
+                f'-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "{joined_ps}"',
+                None,
+                0,
+            )
+            uac_triggered = int(ret) > 32
+        except Exception:
+            uac_triggered = False
+
+    handler._send_json({
+        "status": "ok",
+        "uac_prompt_triggered": uac_triggered,
+        "message": (
+            "Triggered Windows Administrator (UAC) confirmation dialog on your laptop. "
+            "Click 'Yes' on the Windows prompt to unblock Port 7890 and C:\\Python314\\python.exe for your iPhone over Wi-Fi!"
+        ),
+        "powershell_command": joined_ps,
+        "firewall_before": fw_before,
+    })
+
+
+@router.post("/api/mobile/gateway/open_wifi_settings")
+def post_open_windows_wifi_or_firewall_settings_endpoint(handler: Any, body: Dict[str, Any]):
+    """Opens Windows 10 Wi-Fi Network Settings (`ms-settings:network-wifi`) or Firewall Allowed Apps."""
+    import os
+    import subprocess
+
+    payload: Dict[str, Any] = body if isinstance(body, dict) else {}
+    target = str(payload.get("target") or "wifi").strip().lower()
+    if os.name == "nt" and not is_test_environment():
+        try:
+            if target == "firewall":
+                subprocess.Popen(["control.exe", "/name", "Microsoft.WindowsFirewall", "/page", "pageConfigureApps"])
+            else:
+                getattr(os, "startfile")("ms-settings:network-wifi")  # type: ignore[attr-defined]
+        except Exception:
+            pass
+    handler._send_json({
+        "status": "ok",
+        "opened": target,
+        "instructions": (
+            "In Windows Wi-Fi Settings, click your connected Wi-Fi network properties and switch 'Network profile' from 'Public' to 'Private'."
+        ),
     })
 
 

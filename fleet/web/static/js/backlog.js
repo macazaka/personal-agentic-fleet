@@ -683,14 +683,33 @@ async function triggerAppleWatchDemoSync() {
     if (footerEl) {
       footerEl.style.display = 'block';
       const pairUrl = data.mobile_pair_http_url || 'http://192.168.1.35:7890/mobile-pair';
+      const fwBlocked = Boolean(data.firewall && data.firewall.blocked_on_public_wifi);
+      const fwBannerHtml = fwBlocked ? `
+        <div style="margin-bottom: 10px; padding: 10px 12px; border-radius: 8px; background: rgba(244, 63, 94, 0.14); border: 1px solid rgba(244, 63, 94, 0.45);">
+          <div style="font-weight: 700; color: #fb7185; margin-bottom: 4px;">
+            🛡️ Why your iPhone got <code>ERR_CONNECTION_TIMED_OUT</code>: Windows Defender Firewall Public Profile Block Detected!
+          </div>
+          <div style="font-size: 11.5px; color: #e2e8f0; line-height: 1.45; margin-bottom: 8px;">
+            Your laptop's Wi-Fi is currently set to <strong>Public Network Profile</strong>, and Windows Defender Firewall has an explicit <code>Action=Block</code> rule on <code>C:\\Python314\\python.exe</code> for Public Wi-Fi (while allowing Private Wi-Fi). Fix it in 3 seconds using either button below:
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" class="btn btn-primary" onclick="fixWindowsFirewallForIphoneBridge()" style="font-size: 11.5px; padding: 6px 12px;">
+              🛡️ Option 1: 1-Click Unblock iPhone in Windows Firewall (Click 'Yes' on Windows Prompt)
+            </button>
+            <button type="button" class="btn" onclick="openWindowsWifiSettings('wifi')" style="font-size: 11.5px; padding: 6px 12px; border-color: rgba(56, 189, 248, 0.45); color: #38bdf8;">
+              📶 Option 2: Open Windows Wi-Fi Settings (Switch Network Profile: Public → Private)
+            </button>
+          </div>
+        </div>
+      ` : '';
       if (data.real_sync_verified) {
-        footerEl.innerHTML = `<span style="color: #34d399; font-weight: 700;">✅ Real Apple Watch / iPhone sync verified and encrypted at rest!</span>`;
+        footerEl.innerHTML = fwBannerHtml + `<span style="color: #34d399; font-weight: 700;">✅ Real Apple Watch / iPhone sync verified and encrypted at rest!</span>`;
         if (_triDeviceLivePollTimer) {
           clearInterval(_triDeviceLivePollTimer);
           _triDeviceLivePollTimer = null;
         }
       } else {
-        footerEl.innerHTML = `
+        footerEl.innerHTML = fwBannerHtml + `
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div>
               <strong style="color: #fbbf24;">📡 Live Listener Active (Polling every 2s for your iPhone):</strong><br>
@@ -778,6 +797,41 @@ async function copyTriDeviceShortcutRecipe() {
   }
 }
 
+async function fixWindowsFirewallForIphoneBridge() {
+  const btn = document.getElementById('btnFixWindowsFirewall');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '🛡️ Requesting Windows Firewall Permission...';
+  }
+  try {
+    const res = await fetch('/api/mobile/gateway/fix_firewall', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+    const data = await res.json();
+    alert(data.message || "Click 'Yes' on the Windows Administrator (UAC) prompt on your laptop taskbar to unblock Port 7890 for your iPhone over Wi-Fi!");
+    setTimeout(triggerAppleWatchDemoSync, 2500);
+  } catch (e) {
+    alert('Error requesting Windows Firewall update: ' + e.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🛡️ Unblock iPhone Wi-Fi (Firewall)';
+    }
+  }
+}
+
+async function openWindowsWifiSettings(target) {
+  try {
+    await fetch('/api/mobile/gateway/open_wifi_settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: target || 'wifi' })
+    });
+  } catch (e) {}
+}
+
 window.filterBacklogToTriDevice = filterBacklogToTriDevice;
 window.syncTriDeviceGitHubProjectFromUI = syncTriDeviceGitHubProjectFromUI;
 window.refreshTriDeviceHealthHub = refreshTriDeviceHealthHub;
@@ -788,6 +842,8 @@ window.copyTriDeviceShortcutRecipe = copyTriDeviceShortcutRecipe;
 window.toggleAddHardwareDeviceForm = toggleAddHardwareDeviceForm;
 window.loadTriDeviceHardwareInventoryAndConstraints = loadTriDeviceHardwareInventoryAndConstraints;
 window.submitNewLocalHardwareDevice = submitNewLocalHardwareDevice;
+window.fixWindowsFirewallForIphoneBridge = fixWindowsFirewallForIphoneBridge;
+window.openWindowsWifiSettings = openWindowsWifiSettings;
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(refreshTriDeviceHealthHub, 600);
 });

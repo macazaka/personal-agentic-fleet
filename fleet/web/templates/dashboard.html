@@ -1237,7 +1237,7 @@
         <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 10.5px;">✓ Addressed by Design</span>
       </div>
       <div style="font-size: 12px; color: #e2e8f0; line-height: 1.55; margin-bottom: 12px;">
-        <strong>Why Apple Watch never pairs directly to Windows:</strong> Apple restricts <code>watchOS</code> so an Apple Watch cannot pair or connect directly to a Windows laptop for normal use, notifications, HealthKit sync, or Bluetooth control — <strong>Apple only supports pairing an Apple Watch with a compatible iPhone</strong>. Therefore, AFCC uses your <strong>iPhone (<code>ChandavaneMaCaZaKa</code>) as the Mandatory Encrypted Companion Relay Bridge</strong>:
+        <strong>Why Apple Watch never pairs directly to Windows:</strong> Apple restricts <code>watchOS</code> so an Apple Watch cannot pair or connect directly to a Windows laptop for normal use, notifications, HealthKit sync, or Bluetooth control — <strong>Apple only supports pairing an Apple Watch with a compatible iPhone</strong>. Therefore, AFCC uses your <strong>iPhone 15 as the Mandatory Encrypted Companion Relay Bridge</strong>:
       </div>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; font-size: 11.5px;">
         <div style="background: rgba(15, 23, 42, 0.78); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 8px; padding: 10px 14px;">
@@ -1247,7 +1247,7 @@
           </div>
         </div>
         <div style="background: rgba(15, 23, 42, 0.78); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 8px; padding: 10px 14px;">
-          <div style="font-weight: 700; color: #d8b4fe; margin-bottom: 4px;">2️⃣ Tier 2: 📱 iPhone Companion Bridge (<code>ChandavaneMaCaZaKa</code>)</div>
+          <div style="font-weight: 700; color: #d8b4fe; margin-bottom: 4px;">2️⃣ Tier 2: 📱 iPhone 15 Companion Bridge (iOS 26.3.1)</div>
           <div style="color: #cbd5e1; line-height: 1.45;">
             Aggregates Apple Watch sensors in iOS <strong>Apple Health</strong>, runs <strong>iOS Shortcuts / Safari Bridge</strong>, and executes <strong>1-Tap UPI Open Payments</strong> (BHIM, ICICI iMobile, GPay). Relays data over Wi-Fi LAN (<code>192.168.1.35:7890</code>) to Windows.
           </div>
@@ -1272,12 +1272,15 @@
             <span id="triDeviceConnStatusBadge" class="badge" style="background: rgba(0, 242, 254, 0.14); color: var(--accent-cyan); font-size: 10.5px;">🔒 Watch ➔ iPhone Relay ➔ Windows Hub</span>
           </div>
           <div id="triDeviceRecommendationText" style="font-size: 12px; color: #cbd5e1; margin-top: 4px;">
-            Click &ldquo;⌚ Sync Apple Watch Now&rdquo; to verify your iPhone Companion Relay Bridge (<code>ChandavaneMaCaZaKa</code>) and run the 5-step Apple Watch &rarr; iPhone &rarr; Windows sync check.
+            Click &ldquo;⌚ Sync Apple Watch Now&rdquo; to verify your iPhone Companion Relay Bridge and run the 5-step Apple Watch &rarr; iPhone &rarr; Windows sync check.
           </div>
         </div>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
           <button id="btnSyncAppleWatchNow" title="Verify iPhone Companion Relay Bridge and Execute Live 5-Step Apple Watch Sync" class="btn btn-primary" onclick="triggerAppleWatchDemoSync()" style="font-size: 11.5px; padding: 6px 12px;">
             ⌚ Sync Apple Watch Now
+          </button>
+          <button id="btnFixWindowsFirewall" title="Unblock Port 7890 &amp; Python in Windows Defender Firewall so your iPhone can connect over Wi-Fi without ERR_CONNECTION_TIMED_OUT" class="btn" onclick="fixWindowsFirewallForIphoneBridge()" style="font-size: 11.5px; padding: 6px 12px; border-color: rgba(245, 158, 11, 0.55); color: #fbbf24; background: rgba(245, 158, 11, 0.12);">
+            🛡️ Unblock iPhone Wi-Fi (Firewall)
           </button>
           <button title="Upload Apple Health export.xml or .json file from your iPhone" class="btn" onclick="document.getElementById('appleHealthFileInput').click()" style="font-size: 11.5px; padding: 6px 12px; border-color: rgba(16, 185, 129, 0.45); color: #34d399;">
             📂 Upload Health Export
