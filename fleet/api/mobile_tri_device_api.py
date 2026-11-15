@@ -1685,11 +1685,16 @@ def get_mobile_workout_adaptation_endpoint(handler: Any, parsed_url: urllib.pars
         "readiness_tier": "PEAK_STRENGTH",
         "recommendation": "Full 6-Day Traditional Strength Split approved (Mandatory World's Best Warm-up first).",
     }
-    sleep_hrs = float(metrics.get("sleep_hours") if metrics.get("sleep_hours") is not None else 7.5)
-    hrv_ms = float(metrics.get("hrv_sdnn_ms") if metrics.get("hrv_sdnn_ms") is not None else 50.0)
-    rhr_bpm = float(metrics.get("resting_hr_bpm") if metrics.get("resting_hr_bpm") is not None else 60.0)
+    raw_sleep = metrics.get("sleep_hours")
+    raw_hrv = metrics.get("hrv_sdnn_ms")
+    raw_rhr = metrics.get("resting_hr_bpm")
+    sleep_hrs = float(raw_sleep) if raw_sleep is not None else 7.5
+    hrv_ms = float(raw_hrv) if raw_hrv is not None else 50.0
+    rhr_bpm = float(raw_rhr) if raw_rhr is not None else 60.0
 
-    recovery_mode = bool(sleep_hrs < 6.0 or hrv_ms < 30.0 or readiness.get("readiness_score", 85) < 60)
+    raw_score = readiness.get("readiness_score")
+    readiness_score_val = float(raw_score) if isinstance(raw_score, (int, float)) else 85.0
+    recovery_mode = bool(sleep_hrs < 6.0 or hrv_ms < 30.0 or readiness_score_val < 60.0)
     day_schedule = [
         {"day": "Monday", "focus": "Mudgal (Indian Clubbells) — Shoulder & Grip Rotational Strength", "peak_sets": "4 sets x 15 swings/side", "recovery_sets": "2 light mobility sets x 8 reps + Pranayama"},
         {"day": "Tuesday", "focus": "Core Conditioning, Dand-Baithak Mobility & Post-Meal Stair Siphon", "peak_sets": "3 rounds x 12 reps", "recovery_sets": "15-min gentle walk + Nitric Oxide Dump"},
@@ -1832,7 +1837,8 @@ def post_mobile_outbox_sync_endpoint(handler: Any, body: Dict[str, Any]):
             continue
 
         mtype = str(mut.get("type") or mut.get("operation") or "").strip().lower()
-        mpayload: Dict[str, Any] = mut.get("payload") if isinstance(mut.get("payload"), dict) else mut
+        raw_mpayload = mut.get("payload")
+        mpayload: Dict[str, Any] = raw_mpayload if isinstance(raw_mpayload, dict) else mut
         outcome = "applied"
 
         if mtype in ("log_water", "water"):
@@ -1912,9 +1918,10 @@ def get_mobile_scriptable_widget_endpoint(handler: Any, parsed_url: urllib.parse
     lan_ip = net["lan_ips"][0] if net.get("lan_ips") else "192.168.1.35"
     base_url = f"http://{lan_ip}:7890"
 
-    mock_comp = type("_CompCapture", (), {"data": {}, "_send_json": lambda self, d, **kw: setattr(self, "data", d)})()
+    captured_comp: Dict[str, Any] = {}
+    mock_comp = type("_CompCapture", (), {"_send_json": lambda self, d, **kw: captured_comp.update(d if isinstance(d, dict) else {})})()
     get_watch_complication_snapshot_endpoint(mock_comp, parsed_url)
-    comp = (mock_comp.data or {}).get("complication", {})
+    comp = captured_comp.get("complication", {})
 
     scriptable_js = f"""// AFCC Tri-Device iOS 26.3.1 Home & Lock Screen Widget (TD-07 • Zero-Xcode)
 // Paste into the free 'Scriptable' iOS app to display FFD Readiness, Hydration & Top P1 Action Item

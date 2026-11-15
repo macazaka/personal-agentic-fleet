@@ -1,4 +1,4 @@
-# Release Notes & Version History (Current: `v2.18.0`)
+# Release Notes & Version History (Current: `v2.19.0`)
 
 This page is **automatically synchronized** from [`CHANGELOG.md`](https://github.com/macazaka/personal-agentic-fleet/blob/main/CHANGELOG.md) by `fleet.tools.doc_wiki_enhancer` whenever release versions or release notes are updated.
 

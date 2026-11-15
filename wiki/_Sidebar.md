@@ -26,7 +26,7 @@
 - [[Release-Notes|Release Notes]]
 
 ### Quick Reference
-- **Release:** `v2.18.0`
+- **Release:** `v2.19.0`
 - **Port:** `7890`
 - **Palette:** `Ctrl+K` or `/`
 - **Cost:** `$0.00 / Zero-Token`
@@ -35,3 +35,4 @@
 
 ---
 [Personal Agentic Fleet GitHub](https://github.com/macazaka/personal-agentic-fleet)
+* [⌚📱💻 Tri-Device Architecture Project](Tri-Device-Architecture-Project)

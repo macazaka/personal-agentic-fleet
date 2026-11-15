@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.19.0] - 2026-11-15
+
+### Added
+- **Backlog**: Complete all P3 backlog items (Local Ollama LoRA fine-tuning & UX-10 System Tray Companion).
+- **QA**: Implement all P2 open QA-04/07/08/09/10 unit test suites and playbook trigger normalization.
+- **QA**: Implement all P1 open QA-01..QA-10 unit test suites and complete all open backlog items.
+- **Tri Device**: Complete all 12 Tri-Device Ecosystem & Hardware Hub backlog items (TD-01..TD-12).
+
+### Fixed
+- **Voice**: Ensure 'Let's discuss action items' speaks back across all routing modes, 107Hz voiceprints, and English TTS.
+- **Settings,Voice**: Prevent flexbox clipping of Settings tabs, add Voice & Biometric Sandbox tab, and enforce 12-D child-voice rejection & EMA auto-refinement.
+
+### Documentation & Maintenance
+- **License**: Remove LGPL pygame-ce from pyproject.toml and enforce 100% permissive commercial-safe licenses.
+- **License**: Add NOTICE, THIRD_PARTY_NOTICES.md, and in-app open-source & scientific attributions.
+
+---
+
 ## [2.18.0] - 2026-11-15
 
 ### Added
