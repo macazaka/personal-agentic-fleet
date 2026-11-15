@@ -441,72 +441,465 @@ def test_qa06_custom_video_playlists_persistence_and_card_themes(tmp_path, monke
 
     # 6. Verify sequential auto-advance & zero-stream card theme helpers in health.js
     health_js = (BASE_DIR / "web" / "static" / "js" / "health.js").read_text(encoding="utf-8")
-    for fn_name in ("playPlaylistAtIndex", "playNextInPlaylist", "_getVideoCardTheme"):
+    for fn_name in (
+        "playPlaylistAtIndex",
+        "playNextInPlaylist",
+        "playCustomPlaylistFromIndex",
+        "playNextInCustomPlaylist",
+        "_getVideoCardTheme",
+    ):
         assert fn_name in health_js, f"Missing {fn_name} in health.js"
 
 
 # =========================================================================
-# [QA-04, QA-07, QA-08, QA-09, QA-10] Complete Remaining QA Backlog Suites
+# [QA-04] (P2) Omnibar Voice Router, Tray Companion & Playbook/Onboarding APIs
 # =========================================================================
-def test_qa04_qa07_qa08_qa09_qa10_remaining_suites_and_zero_open_p1(isolated_db, monkeypatch):
+def test_qa04_omnibar_voice_router_tray_companion_and_playbook_onboarding_apis(
+    isolated_db, tmp_path, monkeypatch
+):
+    import fleet.core.playbook_engine as pbe
     import fleet.server as srv
     from fleet.api.settings_api import (
+        get_playbooks_endpoint,
         post_omnibar_voice_endpoint,
         post_onboarding_apply_endpoint,
         post_tray_action_endpoint,
+        run_playbook_endpoint,
+        save_playbook_endpoint,
     )
-    from fleet.core.agent_studio import (
-        get_agent_improvement_context,
-        improvise_agent_improvement_prompt,
+    from fleet.core.omnibar_dispatcher import (
+        dispatch_omnibar_query,
+        get_omnibar_chat_history,
+        get_voice_activities_catalog,
+        transcribe_and_dispatch_voice_command,
     )
-    from fleet.core.db.backlog import ALL_CANONICAL_BACKLOG_ITEMS, UX_ROADMAP_BACKLOG_ITEMS
-    from fleet.core.omnibar_dispatcher import get_omnibar_chat_history, get_voice_activities_catalog
-    from fleet.core.playbook_engine import sync_custom_agent_event_playbooks
+    from fleet.tools.tray_companion import (
+        execute_tray_action,
+        get_tray_companion_status,
+        launch_tray_companion_background,
+    )
 
     monkeypatch.setattr(srv, "db", isolated_db)
+    monkeypatch.setattr(pbe, "PLAYBOOKS_PATH", tmp_path / "playbooks_qa04.json")
 
-    # QA-04: Omnibar voice, Tray actions, Onboarding apply
+    # 1. POST /api/omnibar/voice -> transcribe_and_dispatch_voice_command + dispatch_omnibar_query + catalog
     h_voice = MagicMock()
     post_omnibar_voice_endpoint(h_voice, {"transcript": "Jarvis log water"})
-    assert h_voice._send_json.call_args[0][0]["status"] == "ok"
+    voice_res = h_voice._send_json.call_args[0][0]
+    assert voice_res["status"] == "ok"
 
+    direct_cmd = dispatch_omnibar_query("Check fleet status", db=isolated_db)
+    assert isinstance(direct_cmd, dict) and direct_cmd.get("status") == "ok"
+    voice_turn = transcribe_and_dispatch_voice_command("Can you hear me", db=isolated_db)
+    assert voice_turn["status"] == "ok" and len(voice_turn.get("spoken_reply", "")) > 0
+
+    catalog = get_voice_activities_catalog()
+    assert isinstance(catalog, list) and len(catalog) >= 5
+    history = get_omnibar_chat_history()
+    assert isinstance(history, list) and len(history) >= 1
+
+    # 2. POST /api/tray/action & tray_companion helpers
     h_tray = MagicMock()
     post_tray_action_endpoint(h_tray, {"action_id": "log_water"})
     assert h_tray._send_json.call_args[0][0]["status"] == "ok"
 
+    tray_direct = execute_tray_action("log_water", db=isolated_db)
+    assert tray_direct["status"] == "ok"
+    tray_status = get_tray_companion_status(db=isolated_db)
+    assert tray_status["status"] == "ok"
+    assert len(tray_status["menu_actions"]) >= 4
+    tray_bg = launch_tray_companion_background()
+    assert tray_bg["launched"] is True
+
+    # 3. POST /api/playbooks & POST /api/playbooks/run
+    h_pb_save = MagicMock()
+    save_playbook_endpoint(
+        h_pb_save,
+        {
+            "id": "pb_qa04_hydration",
+            "name": "QA04 Hydration Boost",
+            "trigger": "manual",
+            "enabled": True,
+            "steps": [{"agent_id": "health", "task": "log_water", "label": "Log +1 Water"}],
+        },
+    )
+    assert h_pb_save._send_json.call_args[0][0]["status"] in ("ok", "saved", "success")
+
+    h_pb_get = MagicMock()
+    get_playbooks_endpoint(h_pb_get, urllib.parse.urlparse("/api/playbooks"))
+    pb_list = h_pb_get._send_json.call_args[0][0]["playbooks"]
+    assert any(p["id"] == "pb_qa04_hydration" for p in pb_list)
+
+    h_pb_run = MagicMock()
+    run_playbook_endpoint(h_pb_run, {"id": "pb_qa04_hydration", "dry_run": True})
+    pb_run_res = h_pb_run._send_json.call_args[0][0]
+    assert pb_run_res["status"] in ("ok", "success")
+
+    # 4. POST /api/onboarding/apply
     h_onb = MagicMock()
-    post_onboarding_apply_endpoint(h_onb, {"personas": ["ffd_athlete"]})
-    assert h_onb._send_json.call_args[0][0]["status"] == "ok"
+    post_onboarding_apply_endpoint(h_onb, {"personas": ["ffd_athlete", "pc_gamer"]})
+    onb_res = h_onb._send_json.call_args[0][0]
+    assert onb_res["status"] == "ok"
 
-    assert isinstance(get_voice_activities_catalog(), list)
-    assert isinstance(get_omnibar_chat_history(), list)
 
-    # QA-07: Agent Studio prompt improviser & context
+# =========================================================================
+# [QA-07] (P2) Agent Studio Phase 6 Runtime, Batch Document Extraction & Improviser
+# =========================================================================
+def test_qa07_agent_studio_phase6_runtime_batch_extraction_and_improviser(
+    isolated_db, tmp_path, monkeypatch
+):
+    from types import SimpleNamespace
+    from fleet.core.agent_studio import (
+        execute_studio_agent_runtime,
+        generate_custom_agent_code,
+        get_agent_improvement_context,
+        improvise_agent_improvement_prompt,
+        prune_expired_completed_improvements,
+        undertake_agent_self_improvements,
+    )
+    from fleet.core.document_extractor import analyze_multiple_documents_for_studio_creation
+    from fleet.core.studio_phase6 import (
+        answer_custom_agent_chat,
+        execute_outbound_action_hooks,
+        infer_recurrence_cycle,
+        roll_forward_custom_agent_record,
+        scan_and_ingest_agent_inbox,
+    )
+
+    # 1. Generate custom agent code & execute_studio_agent_runtime
+    spec = {
+        "id": "qa07_warranty_vault",
+        "agent_id": "qa07_warranty_vault",
+        "name": "QA07 Warranty Vault",
+        "icon": "🛡️",
+        "category": "Finance",
+        "description": "Tracks appliance warranties and renewal dates.",
+        "archetype": "tracker",
+        "intelligence_mode": "deterministic",
+        "permissions": ["db:read", "db:write", "ui:render"],
+        "outbound_actions": ["auto_create_task", "markdown_report"],
+        "routine_task": "run_check",
+        "fields": [
+            {"key": "title", "label": "Item Name", "type": "text"},
+            {"key": "numeric_value", "label": "Coverage ($)", "type": "number"},
+            {"key": "due_date", "label": "Expiry Date", "type": "date"},
+        ],
+    }
+    code_str = generate_custom_agent_code(
+        agent_id="qa07_warranty_vault",
+        name="QA07 Warranty Vault",
+        icon="🛡️",
+        description="Tracks appliance warranties and renewal dates.",
+        routine_task="run_check",
+    )
+    assert "class Qa07WarrantyVaultAgent" in code_str or "AgentBase" in code_str
+
+    mock_agent = SimpleNamespace(
+        id="qa07_warranty_vault",
+        display_name="QA07 Warranty Vault",
+        display_icon="🛡️",
+        category="Finance",
+        permissions=["db:read", "db:write", "ui:render"],
+        manifest_meta=spec,
+        db=isolated_db,
+        _raw_db=isolated_db,
+        event_bus=None,
+        get_ui_manifest=lambda: spec,
+        get_setting=lambda k, default=None: default,
+    )
+    rt_res = execute_studio_agent_runtime(mock_agent, task="run_check")
+    assert isinstance(rt_res, dict) and rt_res.get("status") in ("ok", "success", "completed", "healthy", "warning")
+
+    # 2. Studio Phase 6: recurrence inference, roll-forward record, outbound hooks, inbox scan, chat
+    assert infer_recurrence_cycle({"title": "Monthly Broadband Bill", "data": {}}, "none") == "monthly"
+    assert infer_recurrence_cycle({"title": "Annual Car Insurance Policy", "data": {}}, "none") == "annual"
+
+    rec_id = isolated_db.add_custom_agent_record(
+        agent_id="qa07_warranty_vault",
+        title="Annual Home Insurance Renewal",
+        record_type="entry",
+        data={"recurrence": "annual"},
+        status="ok",
+        due_date="2026-05-01",
+        numeric_value=1200.0,
+    )
+    rolled = roll_forward_custom_agent_record(
+        isolated_db, "qa07_warranty_vault", record_id=rec_id, cycle="annual"
+    )
+    assert rolled["cycle"] == "annual"
+    assert rolled["next_due_date"].startswith("2027-")
+
+    hooks_res = execute_outbound_action_hooks(
+        agent=mock_agent,
+        db=isolated_db,
+        run_status="warning",
+        summary_message="1 warranty overdue",
+        entries=[{"title": "Boiler Warranty", "due_date": "2026-01-01", "numeric_value": 300.0}],
+        overdue_items=["Boiler Warranty (overdue)"],
+        due_soon_items=[],
+    )
+    assert isinstance(hooks_res, dict) and "executed" in hooks_res
+
+    scan_res = scan_and_ingest_agent_inbox(
+        agent=mock_agent,
+        db=isolated_db,
+        payload={
+            "subject": "Dishwasher Extended Warranty Invoice",
+            "body": "Dishwasher Warranty renewal due 2027-12-01 for $250.00",
+        },
+        provider_override="deterministic",
+    )
+    assert scan_res["status"] == "ok"
+
+    chat_res = answer_custom_agent_chat(
+        agent=mock_agent, db=isolated_db, message="How many records are tracked?"
+    )
+    assert chat_res["status"] == "success" and len(chat_res.get("answer", "")) > 0
+
+    # 3. Multi-document batch extraction
+    batch_res = analyze_multiple_documents_for_studio_creation(
+        documents=[
+            {"filename": "appliances.csv", "text_content": "Title,Cost,Expiry\nFridge Warranty,1400,2027-01-15\n"},
+            {"filename": "notes.txt", "text_content": "Extended warranty for washer expires 2027-06-30 ($199).\n"},
+        ],
+        user_prompt="Create an appliance warranty tracker",
+        provider="deterministic",
+    )
+    assert batch_res["status"] == "ok"
+    assert batch_res["attachments_count"] == 2
+    assert len(batch_res["extraction"]["items"]) >= 1
+
+    # 4. Context-grounded prompt improviser & self-improvements
     ctx = get_agent_improvement_context({"id": "health", "name": "Health & Wellness"})
     assert ctx["agent_id"] == "health"
-    imp = improvise_agent_improvement_prompt({"id": "health", "name": "Health & Wellness"}, "Add fasting tracker", provider="deterministic")
-    assert "improvised_text" in imp and len(imp["improvised_text"]) > 10
+    imp = improvise_agent_improvement_prompt(
+        {"id": "health", "name": "Health & Wellness"},
+        "Add post-meal walk reminder",
+        provider="deterministic",
+    )
+    assert "improvised_text" in imp and len(imp["improvised_text"]) > 15
 
-    # QA-09: Event playbook sync
-    pbs = sync_custom_agent_event_playbooks(
-        agent_id="test_custom_pb",
-        name="Test Custom PB",
-        icon="⚡",
+    undertake_res = undertake_agent_self_improvements(
+        agent=mock_agent,
+        improvements=[{"id": "imp_qa07", "title": "Add 30-day warranty escalation", "description": "Escalate 30d prior"}],
+        db=isolated_db,
+        provider="deterministic",
+    )
+    assert undertake_res["status"] in ("ok", "completed", "success")
+    kept, was_pruned = prune_expired_completed_improvements(
+        undertake_res.get("improvements", []), max_age_hours=24.0, db=isolated_db
+    )
+    assert isinstance(kept, list) and was_pruned is False
+
+
+# =========================================================================
+# [QA-08] (P2) Unified Fleet CLI Subcommands & Release/Auto-Fixer Tooling
+# =========================================================================
+def test_qa08_unified_fleet_cli_subcommands_and_release_autofixer_tooling(tmp_path, monkeypatch):
+    import argparse
+    import fleet.cli as cli_mod
+    from fleet.tools.auto_fixer import fix_codeql_and_security_issues, resolve_pyright_command
+    from fleet.tools.release_manager import (
+        bump_semver,
+        determine_bump_level,
+        ensure_workstation_version_parity,
+        parse_semver,
+        run_proactive_release_check,
+    )
+
+    # 1. Verify parser construction for all subcommands
+    parser = cli_mod.build_parser()
+    for sub_args in (
+        ["start", "--port", "7899"],
+        ["stop"],
+        ["status"],
+        ["doctor"],
+        ["mind"],
+        ["agents"],
+        ["security"],
+        ["heal"],
+        ["test"],
+        ["wiki"],
+        ["autofix"],
+        ["release", "--bump", "auto"],
+        ["docs"],
+        ["lifecycle"],
+        ["version"],
+    ):
+        parsed = parser.parse_args(sub_args)
+        assert parsed.command == sub_args[0]
+
+    # 2. Verify CLI handlers execute cleanly with mocked external calls
+    assert cli_mod.cmd_version(argparse.Namespace()) == 0
+    monkeypatch.setattr(
+        cli_mod,
+        "_api_get",
+        lambda path, timeout=3: {
+            "status": "online",
+            "version": "5.25.0",
+            "agents": [{"id": "health", "name": "Health", "enabled": True}],
+            "summary": "All systems nominal",
+        },
+        raising=False,
+    )
+    assert cli_mod.cmd_status(argparse.Namespace(port=7890, json=False)) in (0, 1)
+    assert cli_mod.cmd_mind(argparse.Namespace(port=7890, json=False, dream=False)) in (0, 1)
+    assert cli_mod.cmd_agents(argparse.Namespace(port=7890, json=False, run=None)) in (0, 1)
+
+    # 3. Verify release_manager semver & version parity helpers
+    assert parse_semver("v5.25.0") == (5, 25, 0)
+    assert bump_semver("5.25.0", "minor") == "5.26.0"
+    assert bump_semver("5.25.0", "patch") == "5.25.1"
+    assert (
+        determine_bump_level(
+            [
+                {"sha": "a1b2c3d", "subject": "feat(voice): add sandbox"},
+                {"sha": "e4f5g6h", "subject": "fix(ui): modal scroll"},
+            ]
+        )
+        == "minor"
+    )
+    parity = ensure_workstation_version_parity()
+    assert isinstance(parity, (bool, dict))
+    rel_check = run_proactive_release_check()
+    assert isinstance(rel_check, dict) and rel_check["status"] == "PASS"
+
+    # 4. Verify auto_fixer helpers on isolated temporary directory
+    pyright_cmd = resolve_pyright_command()
+    assert isinstance(pyright_cmd, list) and len(pyright_cmd) >= 1
+    sample_py = tmp_path / "sample_mod.py"
+    sample_py.write_text("import os\n\ndef hello() -> str:\n    return 'ok'\n", encoding="utf-8")
+    fixes = fix_codeql_and_security_issues(tmp_path)
+    assert isinstance(fixes, (int, list))
+
+
+# =========================================================================
+# [QA-09] (P2) SQLite Schema Forward Migrations v1-v5 & Event Playbook Engine
+# =========================================================================
+def test_qa09_sqlite_schema_forward_migrations_and_event_playbook_engine(
+    isolated_db, tmp_path, monkeypatch
+):
+    import sqlite3
+    import fleet.core.playbook_engine as pbe
+    from fleet.core.db.migrations import (
+        MIGRATIONS,
+        apply_migrations,
+        get_current_schema_version,
+    )
+    from fleet.core.playbook_engine import (
+        dispatch_event_trigger,
+        list_playbooks,
+        remove_custom_agent_playbooks,
+        save_playbooks,
+        sync_custom_agent_event_playbooks,
+    )
+
+    # 1. Test forward migrations v1..v5 on a brand-new raw SQLite database file with baseline tables
+    raw_db_path = tmp_path / "migrations_v1_v5.db"
+    conn = sqlite3.connect(str(raw_db_path))
+    conn.execute("CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY, status TEXT, priority TEXT)")
+    conn.execute("CREATE TABLE IF NOT EXISTS activity_logs (id INTEGER PRIMARY KEY, created_at TEXT)")
+    conn.commit()
+    assert get_current_schema_version(conn) == 0
+    conn.close()
+
+    mig_res = apply_migrations(raw_db_path)
+    assert mig_res["status"] == "success"
+    assert mig_res["applied_count"] == len(MIGRATIONS)
+    assert mig_res["current_version"] == MIGRATIONS[-1][0]
+
+    # Idempotent re-run applies 0 migrations
+    mig_res_2 = apply_migrations(raw_db_path)
+    assert mig_res_2["status"] == "success"
+    assert mig_res_2["applied_count"] == 0
+
+    # 2. Test Event Playbook Engine: save, sync custom agent event playbooks, dispatch trigger, remove
+    monkeypatch.setattr(pbe, "PLAYBOOKS_PATH", tmp_path / "playbooks_qa09.json")
+    assert isinstance(list_playbooks(), list)
+
+    synced = sync_custom_agent_event_playbooks(
+        agent_id="qa09_morning_agent",
+        name="QA09 Morning Agent",
+        icon="🌅",
         routine_task="run_check",
         event_triggers=["overview.morning_briefing"],
     )
-    assert isinstance(pbs, list)
+    assert any(str(p.get("id", "")).startswith("auto_evt_qa09_morning_agent") for p in synced)
 
-    # QA-10: Frontend JS self-improvement & SemVer sorting checks
+    dispatched = dispatch_event_trigger(
+        "overview.morning_briefing", payload={"source": "qa09_test"}, db=isolated_db
+    )
+    assert isinstance(dispatched, dict) and dispatched["status"] == "ok"
+    assert dispatched["playbooks_triggered"] >= 1
+
+    removed_cnt = remove_custom_agent_playbooks("qa09_morning_agent")
+    assert removed_cnt >= 1
+
+
+# =========================================================================
+# [QA-10] (P2) Self-Improvement Header Popover, 24h Expiry & Frontend JS
+# =========================================================================
+def test_qa10_self_improvement_header_popover_24h_expiry_and_frontend_js(isolated_db):
+    from datetime import datetime, timedelta
+    from fleet.core.agent_studio import prune_expired_completed_improvements
+    from fleet.core.db.backlog import ALL_CANONICAL_BACKLOG_ITEMS, UX_ROADMAP_BACKLOG_ITEMS
+
+    # 1. Verify 24-hour auto-expiry of completed self-improvement undertakings
+    old_ts = (datetime.now() - timedelta(hours=26)).strftime("%Y-%m-%d %H:%M:%S")
+    fresh_ts = (datetime.now() - timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S")
+    sample_improvements = [
+        {
+            "id": "imp_old_26h",
+            "title": "Expired 26h Completed Item",
+            "description": "Should auto-expire after 24 hours and ensure backlog persistence",
+            "status": "completed",
+            "progress": 100,
+            "completed_at": old_ts,
+        },
+        {
+            "id": "imp_fresh_1h",
+            "title": "Fresh 1h Completed Item",
+            "description": "Should remain visible in header popover",
+            "status": "completed",
+            "progress": 100,
+            "completed_at": fresh_ts,
+        },
+    ]
+    kept, was_pruned = prune_expired_completed_improvements(
+        sample_improvements,
+        max_age_hours=24.0,
+        db=isolated_db,
+        agent_name="PC Optimizer",
+        backlog_category="Core",
+    )
+    assert was_pruned is True
+    assert len(kept) == 1
+    assert kept[0]["title"] == "Fresh 1h Completed Item"
+
+    # 2. Verify frontend JS functions in create_agent.js, backlog.js, and settings.js
     create_agent_js = (BASE_DIR / "web" / "static" / "js" / "create_agent.js").read_text(encoding="utf-8")
-    assert "improviseCustomEvolvePrompt" in create_agent_js
-    assert "fetchStudioEvolveSuggestions" in create_agent_js
-    backlog_js = (BASE_DIR / "web" / "static" / "js" / "backlog.js").read_text(encoding="utf-8")
-    assert "compareBacklogSemver" in backlog_js and "parseBacklogSemver" in backlog_js
+    for fn_name in (
+        "toggleEvolveHeaderPopover",
+        "closeEvolveHeaderPopover",
+        "_pruneExpiredCompletedUndertakings",
+        "improviseCustomEvolvePrompt",
+        "fetchStudioEvolveSuggestions",
+    ):
+        assert fn_name in create_agent_js, f"Missing {fn_name} in create_agent.js"
 
-    # Verify all QA-01..QA-10 items in UX_ROADMAP_BACKLOG_ITEMS & ALL_CANONICAL_BACKLOG_ITEMS are Completed
+    backlog_js = (BASE_DIR / "web" / "static" / "js" / "backlog.js").read_text(encoding="utf-8")
+    for fn_name in ("parseBacklogSemver", "compareBacklogSemver"):
+        assert fn_name in backlog_js, f"Missing {fn_name} in backlog.js"
+
+    settings_js = (BASE_DIR / "web" / "static" / "js" / "settings.js").read_text(encoding="utf-8")
+    for fn_name in ("openSettingsModal", "closeSettingsModal", "switchSettingsModalTab", "renderSettingsAgents"):
+        assert fn_name in settings_js, f"Missing {fn_name} in settings.js"
+
+    # 3. Verify zero open P1 or P2 items remain in UX_ROADMAP_BACKLOG_ITEMS & ALL_CANONICAL_BACKLOG_ITEMS
     qa_items = [i for i in UX_ROADMAP_BACKLOG_ITEMS if i["title"].startswith("[QA-")]
     assert len(qa_items) == 10
     assert all(i["status"] == "Completed" for i in qa_items)
-    p1_canonical_open = [i for i in ALL_CANONICAL_BACKLOG_ITEMS if i["priority"] == "P1" and i["status"] != "Completed"]
-    assert len(p1_canonical_open) == 0
+    open_p1 = [i for i in ALL_CANONICAL_BACKLOG_ITEMS if i["priority"] == "P1" and i["status"] != "Completed"]
+    open_p2 = [i for i in ALL_CANONICAL_BACKLOG_ITEMS if i["priority"] == "P2" and i["status"] != "Completed"]
+    assert len(open_p1) == 0
+    assert len(open_p2) == 0

@@ -1081,6 +1081,14 @@ function playNextInPlaylist() {
   }
 }
 
+function playCustomPlaylistFromIndex(index) {
+  playPlaylistAtIndex(index);
+}
+
+function playNextInCustomPlaylist() {
+  playNextInPlaylist();
+}
+
 function playPrevInPlaylist() {
   if (!activePlaybackPlaylist || !Array.isArray(activePlaybackPlaylist.videos)) return;
   if (activePlaybackIndex - 1 >= 0) {
@@ -1839,6 +1847,8 @@ window.playSelectedPlaylist = playSelectedPlaylist;
 window.playDraftPlaylistFromIndex = playDraftPlaylistFromIndex;
 window.playPlaylistAtIndex = playPlaylistAtIndex;
 window.playNextInPlaylist = playNextInPlaylist;
+window.playCustomPlaylistFromIndex = playCustomPlaylistFromIndex;
+window.playNextInCustomPlaylist = playNextInCustomPlaylist;
 window.playPrevInPlaylist = playPrevInPlaylist;
 window.togglePlaylistAutoAdvance = togglePlaylistAutoAdvance;
 window.renderVideoCategoryFilters = renderVideoCategoryFilters;

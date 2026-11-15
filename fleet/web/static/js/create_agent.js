@@ -4776,7 +4776,47 @@ const CustomAgentRuntime = {
   },
 };
 
+function _pruneExpiredCompletedUndertakings(items, maxAgeHours = 24) {
+  if (!Array.isArray(items)) return [];
+  const cutoffMs = Date.now() - Math.max(1, Number(maxAgeHours) || 24) * 3600 * 1000;
+  return items.filter((item) => {
+    if (!item || typeof item !== 'object') return false;
+    const status = String(item.status || '').toLowerCase();
+    if (status !== 'completed' && status !== 'done') return true;
+    const rawTs = item.completed_at || item.updated_at || item.created_at || '';
+    const parsedMs = rawTs ? Date.parse(String(rawTs)) : NaN;
+    if (Number.isNaN(parsedMs)) return true;
+    return parsedMs >= cutoffMs;
+  });
+}
+
+function toggleEvolveHeaderPopover(agentId, event) {
+  if (event && typeof event.stopPropagation === 'function') {
+    event.stopPropagation();
+  }
+  const popId = agentId ? `${agentId}_evolve_header_popover` : 'studioEvolveHeaderPopover';
+  const popEl = document.getElementById(popId) || document.getElementById('studioEvolveHeaderPopover');
+  if (!popEl) {
+    if (agentId) openEvolveAgentModal(agentId);
+    return false;
+  }
+  const isOpen = popEl.style.display === 'block' || popEl.style.display === 'flex';
+  popEl.style.display = isOpen ? 'none' : 'block';
+  return !isOpen;
+}
+
+function closeEvolveHeaderPopover(agentId) {
+  const popId = agentId ? `${agentId}_evolve_header_popover` : 'studioEvolveHeaderPopover';
+  const popEl = document.getElementById(popId) || document.getElementById('studioEvolveHeaderPopover');
+  if (popEl) {
+    popEl.style.display = 'none';
+  }
+}
+
 window.CustomAgentRuntime = CustomAgentRuntime;
+window._pruneExpiredCompletedUndertakings = _pruneExpiredCompletedUndertakings;
+window.toggleEvolveHeaderPopover = toggleEvolveHeaderPopover;
+window.closeEvolveHeaderPopover = closeEvolveHeaderPopover;
 window.deployStudioSquad = deployStudioSquad;
 window.openEvolveAgentModal = openEvolveAgentModal;
 window.rollbackCurrentAgentRevision = rollbackCurrentAgentRevision;

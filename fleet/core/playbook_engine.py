@@ -347,7 +347,12 @@ def dispatch_event_trigger(
     for pb in playbooks:
         if not pb.get("enabled", True):
             continue
-        trig = pb.get("trigger") or {}
+        raw_trig = pb.get("trigger")
+        trig = (
+            raw_trig
+            if isinstance(raw_trig, dict)
+            else {"type": str(raw_trig or "manual"), "value": str(raw_trig or "manual")}
+        )
         if trig.get("type") == "event" and trig.get("value") == clean_event:
             # Prevent self-trigger loop on agent.alert
             steps = pb.get("steps") or []
