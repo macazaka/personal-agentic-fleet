@@ -98,7 +98,7 @@ Patterns with $\mathcal{A}_p \ge 75.0$ are promoted to **High-Confidence Agent R
 ---
 
 ## 5. Acceptance Criteria & Verification Plan
-- [ ] `fleet/core/process_miner.py` mines `activity_logs`, `tasks`, and in-process PSAPI telemetry snapshots to produce ranked `AgentRecommendation` objects with $\mathcal{A}_p$ scores.
-- [ ] Clicking **`[🚀 Create Agent in 1 Click]`** on any recommendation calls `UX-01` (`AgentStudio`) to scaffold, schedule, and hot-load the new agent immediately.
-- [ ] Integrated with `SubconsciousMind.dream()` so multi-day patterns are consolidated nightly.
+- [x] `fleet/core/process_miner.py` mines `activity_logs`, `tasks`, and in-process PSAPI telemetry snapshots to produce ranked `AgentRecommendation` objects with $\mathcal{A}_p$ scores.
+- [x] Clicking **`[🚀 Create Agent in 1 Click]`** on any recommendation calls `UX-01` (`AgentStudio`) to scaffold, schedule, and hot-load the new agent immediately.
+- [x] Integrated with `SubconsciousMind.dream()` so multi-day patterns are consolidated nightly.
 

@@ -46,6 +46,6 @@ class FleetAgent:
 ---
 
 ## 3. Acceptance Criteria & Verification Plan
-- [ ] `GET /api/overview/widgets` aggregates `get_micro_widget()` payloads for all user-pinned agents in `< 15ms`.
-- [ ] Every agent tab header includes a `📌 Pin to Cockpit` toggle button.
+- [x] `GET /api/overview/widgets` aggregates `get_micro_widget()` payloads for all user-pinned agents in `< 15ms`.
+- [x] Every agent tab header includes a `📌 Pin to Cockpit` toggle button.
 

@@ -34,6 +34,6 @@ Deliver a **60-Second Interactive Persona & Goal Onboarding Experience** (access
 ---
 
 ## 2. Acceptance Criteria & Verification Plan
-- [ ] `POST /api/settings/onboarding` applies a complete persona bundle atomically to `fleet.yaml`, `schedules.yaml`, and SQLite `routines`.
-- [ ] Zero network or cloud token usage (`$0.00`); completable in under 60 seconds.
+- [x] `POST /api/settings/onboarding` applies a complete persona bundle atomically to `fleet.yaml`, `schedules.yaml`, and SQLite `routines`.
+- [x] Zero network or cloud token usage (`$0.00`); completable in under 60 seconds.
 

@@ -51,6 +51,6 @@ sequenceDiagram
 ---
 
 ## 3. Acceptance Criteria & Verification Plan
-- [ ] `ScopedDatabaseProxy` supports `dry_run=True` context mode that records all attempted writes without persisting them to disk.
-- [ ] `POST /api/agents/undo` restores the exact pre-action state for the specified `journal_id`.
+- [x] `ScopedDatabaseProxy` supports `dry_run=True` context mode that records all attempted writes without persisting them to disk.
+- [x] `POST /api/agents/undo` restores the exact pre-action state for the specified `journal_id`.
 

@@ -71,7 +71,7 @@ flowchart LR
 ---
 
 ## 4. Acceptance Criteria & Verification Plan
-- [ ] `POST /api/studio/synthesize` accepts a natural-language description and returns a complete, previewable agent specification (`manifest.json`, `agent.py`, `ui/panel.html`, `schedules.yaml` diff, and `tests/test_<id>.py`).
-- [ ] The `+` Create Agent Wizard in AFCC includes a **"✨ Describe in Plain English"** mode at the top of Step 1 that auto-populates all 4 wizard steps.
-- [ ] Every synthesized agent passes `verify_agent_package_isolation()` and the 12-Layer Security Scanner (`100/100`) before activation.
+- [x] `POST /api/studio/synthesize` accepts a natural-language description and returns a complete, previewable agent specification (`manifest.json`, `agent.py`, `ui/panel.html`, `schedules.yaml` diff, and `tests/test_<id>.py`).
+- [x] The `+` Create Agent Wizard in AFCC includes a **"✨ Describe in Plain English"** mode at the top of Step 1 that auto-populates all 4 wizard steps.
+- [x] Every synthesized agent passes `verify_agent_package_isolation()` and the 12-Layer Security Scanner (`100/100`) before activation.
 

@@ -82,7 +82,7 @@ playbooks:
 ---
 
 ## 4. Acceptance Criteria & Verification Plan
-- [ ] `PlaybookEngine` subscribes to `EventBus` topics and executes multi-agent step chains with per-step timeout and circuit-breaker protection.
-- [ ] `GET /api/playbooks`, `POST /api/playbooks`, and `POST /api/playbooks/run` expose full CRUD and instant test execution.
-- [ ] 100% deterministic local execution (`$0.00` token spend).
+- [x] `PlaybookEngine` subscribes to `EventBus` topics and executes multi-agent step chains with per-step timeout and circuit-breaker protection.
+- [x] `GET /api/playbooks`, `POST /api/playbooks`, and `POST /api/playbooks/run` expose full CRUD and instant test execution.
+- [x] 100% deterministic local execution (`$0.00` token spend).
 

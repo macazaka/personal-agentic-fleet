@@ -56,6 +56,6 @@ sequenceDiagram
 ---
 
 ## 4. Acceptance Criteria & Verification Plan
-- [ ] Users can browse and instantiate any of the 15+ Blueprint Templates in 1 click without network dependency.
-- [ ] `GET /api/agents/<id>/export` downloads a signed `.fleetagent` package; `POST /api/agents/import` validates it through `security_scanner.py` before installation.
+- [x] Users can browse and instantiate any of the 15+ Blueprint Templates in 1 click without network dependency.
+- [x] `GET /api/agents/<id>/export` downloads a signed `.fleetagent` package; `POST /api/agents/import` validates it through `security_scanner.py` before installation.
 

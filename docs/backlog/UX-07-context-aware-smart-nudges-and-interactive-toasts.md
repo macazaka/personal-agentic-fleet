@@ -29,6 +29,6 @@ Scheduled agent notifications (hydration reminders, RAM alerts, inbox sweeps, ha
 ---
 
 ## 2. Acceptance Criteria & Verification Plan
-- [ ] `FleetAgent.execute_task()` return payloads support an `actions: List[Dict]` array that renders interactive 1-click buttons in AFCC toast alerts.
-- [ ] Quiet Hours and Focus Mode automatically batch non-urgent notifications into an expandable badge counter in the AFCC header.
+- [x] `FleetAgent.execute_task()` return payloads support an `actions: List[Dict]` array that renders interactive 1-click buttons in AFCC toast alerts.
+- [x] Quiet Hours and Focus Mode automatically batch non-urgent notifications into an expandable badge counter in the AFCC header.
 

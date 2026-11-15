@@ -895,11 +895,123 @@ def test_qa10_self_improvement_header_popover_24h_expiry_and_frontend_js(isolate
     for fn_name in ("openSettingsModal", "closeSettingsModal", "switchSettingsModalTab", "renderSettingsAgents"):
         assert fn_name in settings_js, f"Missing {fn_name} in settings.js"
 
-    # 3. Verify zero open P1 or P2 items remain in UX_ROADMAP_BACKLOG_ITEMS & ALL_CANONICAL_BACKLOG_ITEMS
+    # 3. Verify zero open P1, P2, or P3 items remain in UX_ROADMAP_BACKLOG_ITEMS & ALL_CANONICAL_BACKLOG_ITEMS
     qa_items = [i for i in UX_ROADMAP_BACKLOG_ITEMS if i["title"].startswith("[QA-")]
     assert len(qa_items) == 10
     assert all(i["status"] == "Completed" for i in qa_items)
     open_p1 = [i for i in ALL_CANONICAL_BACKLOG_ITEMS if i["priority"] == "P1" and i["status"] != "Completed"]
     open_p2 = [i for i in ALL_CANONICAL_BACKLOG_ITEMS if i["priority"] == "P2" and i["status"] != "Completed"]
+    open_p3 = [i for i in ALL_CANONICAL_BACKLOG_ITEMS if i["priority"] == "P3" and i["status"] != "Completed"]
     assert len(open_p1) == 0
     assert len(open_p2) == 0
+    assert len(open_p3) == 0
+
+
+# =========================================================================
+# [P3 Backlog Suite] #BL-5 Local Ollama LoRA Fine-Tuning & #BL-128 UX-10 Tray/Voice
+# =========================================================================
+def test_p3_backlog_items_local_ollama_lora_finetuning_and_ux10_tray_voice_companion(
+    isolated_db, monkeypatch
+):
+    from pathlib import Path
+    from fleet.agents.local_llm.agent import LocalLLMAgent
+    from fleet.core.db.backlog import ALL_CANONICAL_BACKLOG_ITEMS
+    from fleet.tools.tray_companion import (
+        TRAY_MENU_ACTIONS,
+        execute_tray_action,
+        get_tray_companion_status,
+        launch_tray_companion_background,
+    )
+
+    # 1. Verify #BL-5 (P3): Local Ollama Offline LLM Fine-Tuning & LoRA Adapter Pipeline
+    llm_agent = LocalLLMAgent(db=isolated_db)
+    isolated_db.add_task(
+        title="Review FFD glucose logs for pankaj@example.com or +1-555-234-5678",
+        description="Confidential metabolic review",
+        priority="P1",
+    )
+
+    catalog = llm_agent.list_local_models()
+    assert len(catalog["models"]) >= 3
+
+    ds_res = llm_agent.build_personal_lora_dataset(max_samples=25)
+    assert ds_res["status"] == "ok"
+    assert ds_res["sample_count"] >= 1
+    preview_str = str(ds_res["preview"])
+    assert "pankaj@example.com" not in preview_str
+    assert "555-234-5678" not in preview_str
+
+    ft_res = llm_agent.run_lora_finetune_job(
+        base_model="llama3.2:3b",
+        adapter_name="personal-ffd-habits-lora",
+        lora_rank=16,
+        lora_alpha=32,
+        epochs=3,
+    )
+    assert ft_res["status"] == "ok"
+    assert ft_res["adapter"]["peft_type"] == "LORA"
+    assert ft_res["adapter"]["r"] == 16
+    assert ft_res["adapter"]["lora_alpha"] == 32
+    assert len(ft_res["adapter"]["epoch_metrics"]) == 3
+    assert ft_res["adapter"]["final_train_loss"] < ft_res["adapter"]["epoch_metrics"][0]["train_loss"]
+
+    task_res = llm_agent.execute_task("finetune_lora")
+    assert task_res["status"] == "success"
+    assert "finetune" in task_res
+
+    inf_res = llm_agent.run_local_inference(
+        prompt="Summarize my morning FFD smoothie and contact me at user@domain.com",
+        model="llama3.2:3b",
+    )
+    assert inf_res["status"] == "ok"
+    assert inf_res["cost_usd"] == 0.0
+    assert inf_res["pii_redacted"] >= 1
+    assert "user@domain.com" not in inf_res["response"]
+
+    # 2. Verify #BL-128 ([UX-10], P3): Ambient System Tray Companion, Global Hotkey (Alt+Space) & Voice Capture
+    tray_status = get_tray_companion_status(db=isolated_db)
+    assert tray_status["status"] == "ok"
+    assert tray_status["global_hotkey"] == "Alt+Space"
+    assert tray_status["voice_capture_supported"] is True
+    assert len(TRAY_MENU_ACTIONS) == 6
+
+    for act_id in (
+        "open_dashboard",
+        "log_water",
+        "optimize_ram",
+        "morning_briefing",
+        "pause_notifications_1h",
+        "voice_quick_capture",
+    ):
+        act_res = execute_tray_action(act_id, db=isolated_db, open_browser=False)
+        assert act_res["status"] == "ok", f"Tray action {act_id} failed: {act_res}"
+
+    voice_tray_res = execute_tray_action(
+        "voice_quick_capture",
+        payload={"transcript": "Can you hear me"},
+        db=isolated_db,
+    )
+    assert voice_tray_res["status"] == "ok"
+    assert len(voice_tray_res.get("spoken_reply", "")) > 0
+
+    bg_state = launch_tray_companion_background()
+    assert bg_state["launched"] is True
+
+    app_py_text = (Path(__file__).resolve().parent.parent / "fleet" / "app.py").read_text(encoding="utf-8")
+    assert '"--tray"' in app_py_text and "launch_tray_companion_background" in app_py_text
+
+    # 3. Verify all P3 items in both canonical backlog and isolated SQLite DB are 100% Completed
+    p3_canonical = [i for i in ALL_CANONICAL_BACKLOG_ITEMS if i["priority"] == "P3"]
+    assert len(p3_canonical) >= 2
+    assert all(i["status"] == "Completed" for i in p3_canonical)
+
+    isolated_db.sync_ux_roadmap_backlog()
+    db_p3_items = isolated_db.list_feature_backlog_items(priority="P3")
+    assert len(db_p3_items) >= 2
+    assert all(i["status"] == "Completed" for i in db_p3_items)
+
+    stats = isolated_db.get_feature_backlog_stats()
+    assert stats["unapproved"] == 0
+    assert stats["idea"] == 0
+    assert stats["planned"] == 0
+    assert stats["in_progress"] == 0

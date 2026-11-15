@@ -57,7 +57,7 @@ Whenever a new custom agent is installed, its commands are **automatically index
 ---
 
 ## 3. Acceptance Criteria & Verification Plan
-- [ ] Pressing `Ctrl+K` or `/` opens the unified Omnibar supporting fuzzy tab navigation, `@agent` command autocomplete, and natural-language Tier-0 execution (`$0.00` tokens).
-- [ ] Executing an action renders an instant inline result preview card inside the Omnibar within `< 30ms`.
-- [ ] Custom agents automatically appear in `@agent` autocomplete upon registration.
+- [x] Pressing `Ctrl+K` or `/` opens the unified Omnibar supporting fuzzy tab navigation, `@agent` command autocomplete, and natural-language Tier-0 execution (`$0.00` tokens).
+- [x] Executing an action renders an instant inline result preview card inside the Omnibar within `< 30ms`.
+- [x] Custom agents automatically appear in `@agent` autocomplete upon registration.
 

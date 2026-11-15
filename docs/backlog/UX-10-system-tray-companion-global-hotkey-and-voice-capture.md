@@ -27,6 +27,6 @@ Even when the AFCC background daemon is running silently via `pythonw.exe` on po
 ---
 
 ## 2. Acceptance Criteria & Verification Plan
-- [ ] Optional `--tray` flag on `python -m fleet.app` launches the native OS tray icon without spawning any console window.
-- [ ] Voice microphone button in the AFCC Omnibar (`UX-05`) transcribes spoken commands directly into the Tier-0 intent router at `$0.00` token cost.
+- [x] Optional `--tray` flag on `python -m fleet.app` launches the native OS tray icon without spawning any console window.
+- [x] Voice microphone button in the AFCC Omnibar (`UX-05`) transcribes spoken commands directly into the Tier-0 intent router at `$0.00` token cost.
 
