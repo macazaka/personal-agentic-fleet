@@ -374,6 +374,10 @@ def fix_vscode_pyright_problems(
                     json.dumps(
                         {
                             "python.autoComplete.extraPaths": ["./0001 - Test", "."],
+                            "files.eol": "\n",
+                            "files.autoSave": "afterDelay",
+                            "files.autoSaveDelay": 500,
+                            "files.saveConflictResolution": "overwriteFileOnDisk",
                         },
                         indent=2,
                     )
@@ -383,8 +387,20 @@ def fix_vscode_pyright_problems(
                 )
             else:
                 p_cfg = json.loads(parent_settings.read_text(encoding="utf-8"))
+                p_changed = False
                 if "python.analysis.extraPaths" in p_cfg:
                     p_cfg.pop("python.analysis.extraPaths", None)
+                    p_changed = True
+                for k_vs, v_vs in (
+                    ("files.eol", "\n"),
+                    ("files.autoSave", "afterDelay"),
+                    ("files.autoSaveDelay", 500),
+                    ("files.saveConflictResolution", "overwriteFileOnDisk"),
+                ):
+                    if p_cfg.get(k_vs) != v_vs:
+                        p_cfg[k_vs] = v_vs
+                        p_changed = True
+                if p_changed:
                     parent_settings.write_text(
                         json.dumps(p_cfg, indent=2) + "\n",
                         encoding="utf-8",

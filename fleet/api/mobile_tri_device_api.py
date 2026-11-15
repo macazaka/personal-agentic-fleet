@@ -834,7 +834,7 @@ def post_fix_windows_firewall_for_mobile_bridge_endpoint(handler: Any, body: Dic
         try:
             import ctypes
 
-            ret = ctypes.windll.shell32.ShellExecuteW(
+            ret = getattr(ctypes, "windll").shell32.ShellExecuteW(
                 None,
                 "runas",
                 "powershell.exe",
