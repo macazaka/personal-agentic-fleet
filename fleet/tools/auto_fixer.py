@@ -319,14 +319,26 @@ def fix_vscode_pyright_problems(
         pass
 
     # 1a. Ensure .vscode/settings.json does not set python.analysis.extraPaths when pyrightconfig.json is present
-    # (prevents Pylance 'settingsNotOverridden' warning in VS Code Problems panel)
+    # and enforces conflict-free file saving (files.saveConflictResolution = overwriteFileOnDisk, files.eol = \n)
     vscode_dir = repo_root / ".vscode"
     vscode_settings_path = vscode_dir / "settings.json"
     try:
         if vscode_settings_path.is_file():
             vs_cfg = json.loads(vscode_settings_path.read_text(encoding="utf-8"))
+            vs_changed = False
             if "python.analysis.extraPaths" in vs_cfg:
                 vs_cfg.pop("python.analysis.extraPaths", None)
+                vs_changed = True
+            for k_vs, v_vs in (
+                ("files.eol", "\n"),
+                ("files.autoSave", "afterDelay"),
+                ("files.autoSaveDelay", 500),
+                ("files.saveConflictResolution", "overwriteFileOnDisk"),
+            ):
+                if vs_cfg.get(k_vs) != v_vs:
+                    vs_cfg[k_vs] = v_vs
+                    vs_changed = True
+            if vs_changed:
                 vscode_settings_path.write_text(
                     json.dumps(vs_cfg, indent=2) + "\n",
                     encoding="utf-8",
@@ -335,7 +347,7 @@ def fix_vscode_pyright_problems(
                 fixes_applied.append({
                     "category": "VS Code Settings Hygiene",
                     "file": ".vscode/settings.json",
-                    "detail": "Removed 'python.analysis.extraPaths' to prevent Pylance settingsNotOverridden warning with pyrightconfig.json.",
+                    "detail": "Synchronized VS Code conflict-free save settings (overwriteFileOnDisk, autoSave, LF eol) and Pylance config.",
                 })
     except Exception:
         pass

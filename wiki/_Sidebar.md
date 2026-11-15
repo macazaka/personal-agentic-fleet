@@ -35,3 +35,4 @@
 
 ---
 [Personal Agentic Fleet GitHub](https://github.com/macazaka/personal-agentic-fleet)
+* [⌚📱💻 Tri-Device Architecture Project](Tri-Device-Architecture-Project)
