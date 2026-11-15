@@ -62,7 +62,7 @@ Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operat
 <!-- AUTO-LATEST-RELEASE:START -->
 ## 🆕 Latest Release Highlights (`v2.18.0`)
 
-> **Live Codebase Inventory**: `11` Built-In Agents • `193` REST API Endpoints • `36` Core Microkernel Modules • `22` Automation Tools • `524` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
+> **Live Codebase Inventory**: `11` Built-In Agents • `203` REST API Endpoints • `36` Core Microkernel Modules • `22` Automation Tools • `525` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
 
 ### Added
 - **Tri Device**: Enhance architecture and backlog with 10 real-world environmental constraints (EC-01..EC-10) and local-only encrypted hardware registry.

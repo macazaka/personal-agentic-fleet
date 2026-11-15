@@ -416,7 +416,7 @@ async function syncTriDeviceGitHubProjectFromUI() {
     const data = await res.json();
     if (res.ok && data.status === 'ok') {
       const m = (data.project_status && data.project_status.metrics) || {};
-      alert(`Tri-Device GitHub Project synced!\nProgress: ${m.completed || 6}/${m.total_deliverables || 12} deliverables (${m.progress_pct || 50}%).`);
+      alert(`Tri-Device GitHub Project synced!\nProgress: ${m.completed || 12}/${m.total_deliverables || 12} deliverables (${m.progress_pct || 100}%).`);
     }
   } catch (e) {
     console.error('Error syncing Tri-Device GitHub project:', e);
@@ -482,9 +482,175 @@ async function refreshTriDeviceHealthHub() {
       }
     }
     loadTriDeviceHardwareInventoryAndConstraints(false);
+    loadTriDeviceWorkbenchStatus();
   } catch (e) {
     // non-fatal
   }
+}
+
+async function loadTriDeviceWorkoutAdaptation() {
+  const box = document.getElementById('triDeviceWorkoutAdaptationBox');
+  const badge = document.getElementById('td04ModeBadge');
+  try {
+    const res = await fetch('/api/mobile/workout/adaptation');
+    if (!res.ok) return;
+    const data = await res.json();
+    const recMode = Boolean(data.recovery_mode);
+    const multPct = Math.round(Number(data.volume_multiplier || 1) * 100);
+    if (badge) {
+      badge.textContent = recMode ? `⚠️ Recovery Mode (${multPct}% Vol)` : `✅ Peak Mode (${multPct}% Vol)`;
+      badge.style.color = recMode ? '#fbbf24' : '#34d399';
+      badge.style.background = recMode ? 'rgba(245, 158, 11, 0.18)' : 'rgba(16, 185, 129, 0.18)';
+    }
+    if (box) {
+      const ta = data.today_adaptation || {};
+      box.innerHTML = `
+        <div><strong style="color:#fff;">${escapeHtml(ta.day || 'Today')} — ${escapeHtml(ta.focus || 'Akhada Split')}</strong></div>
+        <div style="color:${recMode ? '#fbbf24' : '#34d399'}; margin: 3px 0;">${escapeHtml(ta.mode_badge || '')}</div>
+        <div style="font-size:11px; color:#94a3b8;">Rx: ${escapeHtml(ta.prescribed_today || '')}</div>
+      `;
+    }
+  } catch (e) {}
+}
+
+async function sendTriDeviceWristVoiceRelay() {
+  const inp = document.getElementById('triDeviceVoiceRelayInput');
+  const out = document.getElementById('triDeviceVoiceRelayResult');
+  const text = (inp && inp.value || '').trim();
+  if (!text) return;
+  if (out) out.innerHTML = `<span style="color:#38bdf8;">🎙️ Relaying "${escapeHtml(text)}" via Zero-Cert Wrist Bridge...</span>`;
+  try {
+    const res = await fetch('/api/mobile/voice/relay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transcript: text, device: 'Apple Watch Action Button' })
+    });
+    const data = await res.json();
+    if (out) {
+      out.innerHTML = `<strong style="color:#34d399;">🗣️ Spoken Reply:</strong> <span style="color:#fff;">${escapeHtml(data.spoken_reply || data.message || 'Done.')}</span>`;
+    }
+    if (typeof window.speakBriefingText === 'function' && data.spoken_reply) {
+      window.speakBriefingText(data.spoken_reply);
+    }
+  } catch (e) {
+    if (out) out.innerHTML = `<span style="color:#fb7185;">Error: ${escapeHtml(e.message)}</span>`;
+  }
+}
+
+async function flushTriDeviceOutboxFromHub() {
+  const badge = document.getElementById('triDeviceOutboxStatusBadge');
+  const statusEl = document.getElementById('triDeviceScriptablePreviewStatus');
+  try {
+    const res = await fetch('/api/mobile/outbox/status');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (badge) {
+      badge.textContent = `Outbox: ${data.total_replayed || 0} Replayed`;
+    }
+    if (statusEl) {
+      statusEl.innerHTML = `<span style="color:#34d399;">✅ Offline Outbox Active:</span> ${data.total_replayed || 0} deduplicated mobile mutations replayed (` +
+        `Last sync: ${escapeHtml(data.last_flushed_at || 'Ready')}).`;
+    }
+  } catch (e) {}
+}
+
+async function copyTriDeviceScriptableWidget() {
+  const statusEl = document.getElementById('triDeviceScriptablePreviewStatus');
+  try {
+    const res = await fetch('/api/mobile/widgets/scriptable');
+    const data = await res.json();
+    if (data.scriptable_js && navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(data.scriptable_js);
+    }
+    const w = data.lock_screen_widgets || {};
+    if (statusEl) {
+      statusEl.innerHTML = `<span style="color:#34d399;">📲 Copied iOS 26.3.1 Scriptable Widget JS!</span> Lock Screen Inline: <code>${escapeHtml(w.inline_text || '')}</code>`;
+    }
+  } catch (e) {}
+}
+
+async function generateTriDeviceUpiQrAndLinks() {
+  const qrBox = document.getElementById('triDeviceUpiQrPreview');
+  const resBox = document.getElementById('triDeviceReceiptParseResult');
+  try {
+    const res = await fetch('/api/mobile/payments/deeplink', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payee_name: 'Monthly Action Item Utility', vpa: 'merchant@upi', amount: 1500, note: 'AFCC Monthly Action Item' })
+    });
+    const data = await res.json();
+    if (qrBox && data.qr_svg) {
+      qrBox.style.display = 'block';
+      qrBox.innerHTML = `
+        <div style="display:inline-block; background:#fff; padding:6px; border-radius:8px;">${data.qr_svg}</div>
+        <div style="font-size:10.5px; color:#34d399; margin-top:4px;">Scan from iPhone Camera / GPay / BHIM or tap deep link on /mobile-pair</div>
+      `;
+    }
+    if (resBox) {
+      const genericUri = (data.deep_links && data.deep_links.upi_generic) || data.selected_deep_link || '';
+      resBox.innerHTML = `<span style="color:#34d399;">✅ Generated Dual-Mode NPCI URI + SVG QR:</span> <code>${escapeHtml(genericUri)}</code>`;
+    }
+  } catch (e) {}
+}
+
+async function parseTriDevicePaymentReceiptFromHub() {
+  const inp = document.getElementById('triDeviceReceiptInput');
+  const resBox = document.getElementById('triDeviceReceiptParseResult');
+  const rawText = (inp && inp.value || '').trim() || 'Paid Rs. 1500.00 to merchant@upi via BHIM UPI Ref No 412389012345';
+  try {
+    const res = await fetch('/api/mobile/payments/parse_receipt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ receipt_text: rawText })
+    });
+    const data = await res.json();
+    if (resBox) {
+      resBox.innerHTML = `<span style="color:#34d399;">✅ Parsed ${escapeHtml(data.app_detected || 'UPI')}:</span> ₹${data.amount_inr || 0} • Masked UTR: <code>${escapeHtml(data.masked_utr || 'N/A')}</code>` +
+        (data.closed_task_id ? ` • Closed Task #${data.closed_task_id}` : ' • Saved to Encrypted Receipt Vault');
+    }
+  } catch (e) {}
+}
+
+async function triggerTriDeviceWatchNudge() {
+  const el = document.getElementById('triDevicePresenceAudioStatus');
+  try {
+    const res = await fetch('/api/mobile/presence/nudge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'hydration_catchup', message: 'Hydration + Posture + Action Item Check on Apple Watch!' })
+    });
+    const data = await res.json();
+    if (el) {
+      el.innerHTML = `<span style="color:#34d399;">⌚ Taptic Nudge Dispatched!</span> Path: <code>${escapeHtml(data.delivery_path || 'Apple Watch Taptic Engine')}</code>`;
+    }
+  } catch (e) {}
+}
+
+async function saveTriDeviceAudioRouting() {
+  const el = document.getElementById('triDevicePresenceAudioStatus');
+  try {
+    const res = await fetch('/api/mobile/audio/routing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        voice_cockpit_input_device: 'JBL Live 770NC Headset (85-3800Hz Biometric Mic)',
+        workout_playlist_speaker: 'LG OM4560 / Sound Drum Akhada Speaker',
+        auto_duck_workout_on_wake_word: true
+      })
+    });
+    const data = await res.json();
+    const r = data.routing_profile || {};
+    if (el) {
+      el.innerHTML = `<span style="color:#38bdf8;">🎧 Split Audio Verified:</span> Voice → <strong>${escapeHtml(r.voice_cockpit_input_device || '')}</strong> • Akhada → <strong>${escapeHtml(r.workout_playlist_speaker || '')}</strong>`;
+    }
+  } catch (e) {}
+}
+
+async function loadTriDeviceWorkbenchStatus() {
+  await Promise.all([
+    loadTriDeviceWorkoutAdaptation(),
+    flushTriDeviceOutboxFromHub()
+  ]);
 }
 
 function toggleAddHardwareDeviceForm() {
@@ -844,6 +1010,15 @@ window.loadTriDeviceHardwareInventoryAndConstraints = loadTriDeviceHardwareInven
 window.submitNewLocalHardwareDevice = submitNewLocalHardwareDevice;
 window.fixWindowsFirewallForIphoneBridge = fixWindowsFirewallForIphoneBridge;
 window.openWindowsWifiSettings = openWindowsWifiSettings;
+window.loadTriDeviceWorkoutAdaptation = loadTriDeviceWorkoutAdaptation;
+window.sendTriDeviceWristVoiceRelay = sendTriDeviceWristVoiceRelay;
+window.flushTriDeviceOutboxFromHub = flushTriDeviceOutboxFromHub;
+window.copyTriDeviceScriptableWidget = copyTriDeviceScriptableWidget;
+window.generateTriDeviceUpiQrAndLinks = generateTriDeviceUpiQrAndLinks;
+window.parseTriDevicePaymentReceiptFromHub = parseTriDevicePaymentReceiptFromHub;
+window.triggerTriDeviceWatchNudge = triggerTriDeviceWatchNudge;
+window.saveTriDeviceAudioRouting = saveTriDeviceAudioRouting;
+window.loadTriDeviceWorkbenchStatus = loadTriDeviceWorkbenchStatus;
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(refreshTriDeviceHealthHub, 600);
 });

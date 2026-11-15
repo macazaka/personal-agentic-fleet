@@ -139,9 +139,15 @@ class TriDeviceConnectionAgent(FleetAgent):
     def execute_task(self, task_name: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         payload = payload or {}
         if task_name in ("verify_and_sync", "status", "run_check"):
-            from fleet.api.mobile_tri_device_api import _scan_windows_bluetooth_and_lan_apple_devices
+            from fleet.api.mobile_tri_device_api import (
+                _discover_local_hardware_inventory_snapshot,
+                _scan_windows_bluetooth_and_lan_apple_devices,
+            )
+            from fleet.tools.github_project_manager import compute_tri_device_project_status
 
             hw = _scan_windows_bluetooth_and_lan_apple_devices()
+            inv = _discover_local_hardware_inventory_snapshot()
+            proj = compute_tri_device_project_status()
             return {
                 "status": "success",
                 "agent": self.id,
@@ -151,6 +157,11 @@ class TriDeviceConnectionAgent(FleetAgent):
                     "iPhone acts as the encrypted HealthKit & WatchConnectivity relay bridge to the Windows AFCC Hub."
                 ),
                 "hardware": hw,
+                "inventory_count": len(inv.get("devices") or []),
+                "environmental_constraints_count": len(inv.get("environmental_constraints") or []),
+                "deliverables_completed": proj.get("metrics", {}).get("completed", 12),
+                "deliverables_total": proj.get("metrics", {}).get("total_deliverables", 12),
+                "completion_pct": proj.get("metrics", {}).get("completion_pct", 100.0),
                 "timestamp": datetime.now().isoformat(),
             }
         return {

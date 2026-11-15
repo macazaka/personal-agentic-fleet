@@ -157,13 +157,14 @@
       "id": "TD-04",
       "title": "[TD-04] Watch HRV, Sleep & Resting HR Auto-Adaptation for 6-Day Mudgal/Samtola/Bhim Gadha Split",
       "milestone_id": "phase-1-health-bridge",
-      "status": "planned",
+      "status": "completed",
       "priority": "P1",
       "device": "Apple Watch + Laptop Hub",
       "labels": ["project:tri-device-architecture", "phase:1-health-bridge", "device:apple-watch", "device:laptop-hub"],
-      "summary": "Automatically correlate Apple Watch overnight HRV (SDNN) and sleep duration with the Health & Wellness 6-day traditional strength split to dynamically suggest recovery vs. peak volume sets.",
+      "summary": "Automatically correlate Apple Watch overnight HRV (SDNN) and sleep duration with the Health & Wellness 6-day traditional strength split (`/api/mobile/workout/adaptation`) to dynamically suggest recovery vs. peak volume sets.",
       "deliverable_files": [
-        "fleet/api/mobile_tri_device_api.py"
+        "fleet/api/mobile_tri_device_api.py",
+        "tests/test_tri_device_project_and_apis.py"
       ],
       "acceptance_criteria": [
         "Flag recovery mode when sleep_hours < 6.0 or hrv_sdnn_ms < 30",
@@ -174,13 +175,14 @@
       "id": "TD-05",
       "title": "[TD-05] Mobile-Responsive AFCC Pocket Cockpit PWA & Home Screen Web App Manifest",
       "milestone_id": "phase-2-pwa-cockpit",
-      "status": "planned",
+      "status": "completed",
       "priority": "P1",
       "device": "iPhone",
       "labels": ["project:tri-device-architecture", "phase:2-pwa-cockpit", "device:iphone"],
-      "summary": "Add iOS Safari Progressive Web App (PWA) support (`apple-mobile-web-app-capable`, `manifest.webmanifest`) so AFCC runs as a full-screen native-feel app on iPhone.",
+      "summary": "Add iOS Safari Progressive Web App (PWA) support (`apple-mobile-web-app-capable`, `/manifest.json`, `/sw.js`, and 4-tab `/mobile-pair` Pocket Cockpit) so AFCC runs as a full-screen native-feel app on iPhone.",
       "deliverable_files": [
-        "fleet/web/templates/dashboard.html"
+        "fleet/web/templates/dashboard.html",
+        "fleet/api/mobile_tri_device_api.py"
       ],
       "acceptance_criteria": [
         "Serve PWA manifest and iOS standalone meta tags",
@@ -195,7 +197,7 @@
       "priority": "P0",
       "device": "Laptop Hub + iPhone + Watch",
       "labels": ["project:tri-device-architecture", "phase:2-pwa-cockpit", "device:laptop-hub", "device:iphone"],
-      "summary": "Enable 1.5x, 1.75x, 2x, 2.5x, and 3x speech playback speeds, configurable wake word defaulting to 'Mahadev', and a zero-latency (<5ms, $0.00) stateful conversational engine to review, close, edit, reprioritize, and reopen action items verbally.",
+      "summary": "Enable 1.5x, 1.75x, 2x, 2.5x, and 3x speech playback speeds, configurable wake word defaulting to 'Mahadev', offline outbox replay (`/api/mobile/outbox/sync`), and a zero-latency (<5ms, $0.00) stateful conversational engine to review, close, edit, reprioritize, and reopen action items verbally.",
       "deliverable_files": [
         "fleet/core/omnibar_dispatcher.py",
         "fleet/core/db/tasks.py",
@@ -211,37 +213,38 @@
     },
     {
       "id": "TD-07",
-      "title": "[TD-07] Tailscale WireGuard Mesh & iOS Local Root CA (afcc_root_ca.crt) Trust Onboarding",
+      "title": "[TD-07] Tailscale WireGuard Mesh, iOS Scriptable Widgets & Local Root CA (afcc_root_ca.crt) Trust Onboarding",
       "milestone_id": "phase-2-pwa-cockpit",
-      "status": "planned",
+      "status": "completed",
       "priority": "P2",
       "device": "iPhone + Laptop Hub",
       "labels": ["project:tri-device-architecture", "phase:2-pwa-cockpit", "security:e2ee-mtls"],
-      "summary": "Provide seamless onboarding for trusting `afcc_root_ca.crt` on iOS (`Settings -> Profile Downloaded -> Certificate Trust Settings`) over local Wi-Fi and Tailscale mesh.",
+      "summary": "Provide seamless onboarding for trusting `afcc_root_ca.crt` on iOS (`Settings -> Profile Downloaded -> Certificate Trust Settings`) over local Wi-Fi and Tailscale mesh plus zero-Xcode iOS 26.3.1 Scriptable Home/Lock Screen widgets (`/api/mobile/widgets/scriptable`).",
       "deliverable_files": [
         "fleet/core/local_tls.py",
+        "fleet/api/mobile_tri_device_api.py",
         "docs/APPLE_ECOSYSTEM_IPHONE_WATCH_AFCC_ARCHITECTURE.md"
       ],
       "acceptance_criteria": [
-        "Provide downloadable root certificate endpoint for iOS profile installation",
+        "Provide downloadable root certificate endpoint and Scriptable widget kit for iOS installation",
         "Verify TLS 1.3 / 1.2 SAN coverage for localhost, 127.0.0.1, and LAN/Tailscale IPs"
       ]
     },
     {
       "id": "TD-08",
-      "title": "[TD-08] 1-Tap Open Payment Deep-Link Engine (BHIM UPI, ICICI iMobile, GPay, PhonePe)",
+      "title": "[TD-08] 1-Tap Open Payment Deep-Link Engine (BHIM UPI, ICICI iMobile, GPay, PhonePe) & SVG QR Matrix",
       "milestone_id": "phase-3-upi-deeplinks",
       "status": "completed",
       "priority": "P0",
       "device": "iPhone + Laptop Hub",
       "labels": ["project:tri-device-architecture", "phase:3-upi-deeplinks", "device:iphone", "payments:upi-bhim-icici"],
-      "summary": "Implement `/api/mobile/payments/deeplink` to generate pre-filled NPCI UPI & Bank deep links (`bhim://pay`, `imobileapp://`, `tez://upi/pay`, `phonepe://pay`, `upi://pay`) for Monthly Action Items so the user only taps 'Pay' on iPhone and approves via FaceID/UPI PIN.",
+      "summary": "Implement `/api/mobile/payments/deeplink` to generate pre-filled NPCI UPI & Bank deep links (`bhim://pay`, `imobileapp://`, `tez://upi/pay`, `phonepe://pay`, `upi://pay`) plus a scannable SVG QR Code Matrix for Monthly Action Items so the user only taps 'Pay' or scans on iPhone and approves via FaceID/UPI PIN.",
       "deliverable_files": [
         "fleet/api/mobile_tri_device_api.py",
         "tests/test_tri_device_project_and_apis.py"
       ],
       "acceptance_criteria": [
-        "Generate RFC-compliant UPI deep links for BHIM, ICICI iMobile, Google Pay, PhonePe, and generic UPI",
+        "Generate RFC-compliant UPI deep links and SVG QR codes for BHIM, ICICI iMobile, Google Pay, PhonePe, and generic UPI",
         "Support `confirm_paid: true` callback to immediately close the corresponding Monthly Action Item in SQLite and encrypted vault"
       ]
     },
@@ -249,18 +252,19 @@
       "id": "TD-09",
       "title": "[TD-09] Automated Post-Payment Action-Item Closure & Receipt Reference Audit Log",
       "milestone_id": "phase-3-upi-deeplinks",
-      "status": "in_progress",
+      "status": "completed",
       "priority": "P1",
       "device": "iPhone + Laptop Hub",
       "labels": ["project:tri-device-architecture", "phase:3-upi-deeplinks", "payments:upi-bhim-icici"],
-      "summary": "Allow 1-tap iOS Shortcut callback or voice confirmation ('Mahadev, I already paid the electricity bill') to attach a payment timestamp/UTR note and mark the monthly task completed.",
+      "summary": "Allow 1-tap iOS Share Sheet / Bank SMS receipt parsing (`/api/mobile/payments/parse_receipt`) or voice confirmation ('Mahadev, I already paid the electricity bill') to mask UTR/VPA via Voltage-style FF1 FPE, attach a payment timestamp/UTR note, and mark the monthly task completed in SQLite and `personal_tasks_vault.json`.",
       "deliverable_files": [
         "fleet/api/mobile_tri_device_api.py",
-        "fleet/core/omnibar_dispatcher.py"
+        "fleet/core/omnibar_dispatcher.py",
+        "tests/test_tri_device_project_and_apis.py"
       ],
       "acceptance_criteria": [
-        "Record payment completion timestamp and app used in task description/activity log",
-        "Sync closed status to encrypted `personal_tasks_vault.json`"
+        "Record payment completion timestamp, masked UTR, and app used in task description/activity log",
+        "Sync closed status to encrypted `personal_tasks_vault.json` and `payment_receipts_vault.json`"
       ]
     },
     {
@@ -286,17 +290,18 @@
       "id": "TD-11",
       "title": "[TD-11] Apple Watch Action Button & Siri AppIntents Voice Bridge ('Ask Mahadev')",
       "milestone_id": "phase-4-watch-complications",
-      "status": "planned",
+      "status": "completed",
       "priority": "P2",
       "device": "Apple Watch + iPhone",
       "labels": ["project:tri-device-architecture", "phase:4-watch-complications", "device:apple-watch", "device:iphone"],
-      "summary": "Connect Apple Watch Action Button and Siri Shortcuts to `/api/voice/converse` so raising your wrist and speaking 'Log a glass of water' or 'What are my open action items?' speaks the response directly on Apple Watch.",
+      "summary": "Connect Apple Watch Action Button and Siri Shortcuts to `/api/mobile/voice/relay` and `/api/voice/converse` so raising your wrist and speaking 'Log a glass of water' or 'Let's discuss action items' speaks the response directly on Apple Watch.",
       "deliverable_files": [
         "docs/APPLE_ECOSYSTEM_IPHONE_WATCH_AFCC_ARCHITECTURE.md",
-        "fleet/api/mobile_tri_device_api.py"
+        "fleet/api/mobile_tri_device_api.py",
+        "tests/test_tri_device_project_and_apis.py"
       ],
       "acceptance_criteria": [
-        "Document and expose Siri Shortcut voice relay recipe targeting `/api/voice/converse`",
+        "Document and expose Siri Shortcut voice relay recipe targeting `/api/mobile/voice/relay` and `/api/voice/converse`",
         "Return clean plain-text `spoken_reply` optimized for watchOS Speak Text action"
       ]
     },

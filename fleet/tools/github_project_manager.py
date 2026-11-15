@@ -295,11 +295,18 @@ This project tracks, monitors, communicates, and delivers the **Tri-Device Ecosy
 | Endpoint | Method | Device Tier | Description |
 | :--- | :---: | :---: | :--- |
 | `/api/mobile/health/ingest` | `POST` | 📱 iPhone / ⌚ Watch → 💻 Laptop | Ingests Apple Health & Watch biometrics into SQLite + AES-256-GCM vault and computes 0–100 FFD Workout Readiness Score |
-| `/api/mobile/watch/complication` | `GET` / `POST` | ⌚ Apple Watch ↔ 💻 Laptop | Ultra-compact (`< 2 KB`) Smart Stack Complication snapshot + 1-tap `+250ml Water` and `Close Top Action Item` actions |
-| `/api/mobile/payments/deeplink` | `POST` | 💻 Laptop → 📱 iPhone UPI | Generates 1-Tap `bhim://pay`, `imobileapp://`, `tez://upi/pay`, `phonepe://pay`, and `upi://pay` deep links and auto-closes paid Monthly Action Items |
-| `/api/mobile/shortcuts/template` | `GET` | 📱 iPhone / ⌚ Watch | Returns ready-to-import iOS Shortcuts & Apple Watch Action Button JSON recipes |
-| `/api/github/projects/tri-device` | `GET` | 💻 Laptop / 🌐 GitHub | Returns live Tri-Device GitHub Project telemetry, milestone progress, and deliverable verification |
-| `/api/github/projects/tri-device/sync` | `POST` | 💻 Laptop → 🌐 GitHub | Triggers idempotent synchronization of Labels, Milestones, Master Epic, and Issues `TD-01`..`TD-12` to GitHub |
+| `/api/mobile/workout/adaptation` | `GET` | ⌚ Watch → 💻 Laptop | Correlates Apple Watch HRV (SDNN), Sleep & RHR with the 6-Day Mudgal/Samtola/Bhim Gadha split (`TD-04`) |
+| `/api/mobile/voice/relay` | `POST` | ⌚ Watch / 📱 iPhone → 💻 Laptop | Zero-Cert Siri & Apple Watch Action Button Voice Relay (`'Ask Mahadev'`) returning plain-text `spoken_reply` (`TD-05`, `TD-11`) |
+| `/api/mobile/outbox/sync` | `POST` | 📱 iPhone → 💻 Laptop | Flushes & deduplicates offline mobile mutations queued while away from home Wi-Fi into SQLite & encrypted vaults (`TD-06`) |
+| `/api/mobile/widgets/scriptable` | `GET` | 📱 iPhone ↔ 💻 Laptop | Serves Zero-Xcode iOS 26.3.1 Scriptable Home/Lock Screen widget code & Root CA onboarding steps (`TD-07`) |
+| `/api/mobile/watch/complication` | `GET` / `POST` | ⌚ Apple Watch ↔ 💻 Laptop | Ultra-compact (`< 2 KB`) Smart Stack Complication snapshot + 1-tap `+250ml Water` and `Close Top Action Item` actions (`TD-10`) |
+| `/api/mobile/payments/deeplink` | `POST` | 💻 Laptop → 📱 iPhone UPI | Generates 1-Tap `bhim://pay`, `imobileapp://`, `tez://upi/pay`, `phonepe://pay`, and `upi://pay` deep links + NPCI SVG QR Matrix (`TD-08`) |
+| `/api/mobile/payments/parse_receipt` | `POST` | 📱 iPhone → 💻 Laptop | Parses iOS Share Sheet / Bank SMS UPI receipts, masks UTR/VPA with FF1 FPE, and auto-closes paid Monthly Action Items (`TD-09`) |
+| `/api/mobile/presence/nudge` | `GET` / `POST` | 💻 Laptop → ⌚ Apple Watch | Workstation lock/idle presence detector & Apple Watch Taptic nudge dispatcher (`TD-12`) |
+| `/api/mobile/audio/routing` | `GET` / `POST` | 💻 Laptop ↔ 🎧 Bluetooth | Context-aware split Bluetooth audio routing (Headset Mic 85–3800 Hz Voiceprint vs. Workout Speakers, `EC-09`) |
+| `/api/mobile/shortcuts/template` | `GET` | 📱 iPhone / ⌚ Watch | Returns ready-to-import iOS Shortcuts & Apple Watch Action Button JSON recipes (`TD-03`, `TD-11`) |
+| `/api/github/projects/tri-device` | `GET` | 💻 Laptop / 🌐 GitHub | Returns live Tri-Device GitHub Project telemetry, milestone progress, and deliverable verification (`TD-12`) |
+| `/api/github/projects/tri-device/sync` | `POST` | 💻 Laptop → 🌐 GitHub | Triggers idempotent synchronization of Labels, Milestones, Master Epic, and Issues `TD-01`..`TD-12` to GitHub (`TD-12`) |
 """
     enforce_zero_cloud_data_leak_guard(md)
     return md

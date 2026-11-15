@@ -414,6 +414,178 @@ def test_environmental_constraints_and_local_hardware_inventory(isolated_db, mon
     assert h_wifi._send_json.call_args[0][0]["status"] == "ok"
 
 
+def test_all_tri_device_backlog_items_td01_to_td12_completed_and_endpoints(isolated_db, monkeypatch, tmp_path):
+    import fleet.api.mobile_tri_device_api as mapi
+    import fleet.server as srv
+    from fleet.api.mobile_tri_device_api import (
+        get_mobile_audio_routing_endpoint,
+        get_mobile_outbox_status_endpoint,
+        get_mobile_presence_nudge_endpoint,
+        get_mobile_scriptable_widget_endpoint,
+        get_mobile_workout_adaptation_endpoint,
+        post_mobile_audio_routing_endpoint,
+        post_mobile_health_ingest_endpoint,
+        post_mobile_outbox_sync_endpoint,
+        post_mobile_parse_payment_receipt_endpoint,
+        post_mobile_payment_deeplink_endpoint,
+        post_mobile_presence_nudge_endpoint,
+        post_mobile_voice_relay_endpoint,
+    )
+    from fleet.core.agent_studio import generate_agent_evolution_suggestions
+    from fleet.core.db.backlog import TRI_DEVICE_BACKLOG_ITEMS
+    from fleet.tools.github_project_manager import compute_tri_device_project_status
+
+    monkeypatch.setattr(srv, "db", isolated_db)
+    monkeypatch.setattr(mapi, "_get_apple_health_vault_path", lambda: tmp_path / "test_health_vault.json")
+    monkeypatch.setattr(mapi, "_get_mobile_outbox_vault_path", lambda: tmp_path / "test_outbox_vault.json")
+    monkeypatch.setattr(mapi, "_get_payment_receipts_vault_path", lambda: tmp_path / "test_receipts_vault.json")
+    monkeypatch.setattr(mapi, "_get_personal_tasks_vault_path", lambda: tmp_path / "test_tasks_vault.json")
+    monkeypatch.setattr(mapi, "_get_hardware_inventory_vault_path", lambda: tmp_path / "test_hw_vault2.json")
+
+    # 1. Verify all 12 backlog items (TD-01..TD-12) are Completed (100%)
+    assert len(TRI_DEVICE_BACKLOG_ITEMS) == 12
+    assert all(item["status"] == "Completed" for item in TRI_DEVICE_BACKLOG_ITEMS)
+    isolated_db.sync_ux_roadmap_backlog()
+    v218_items = isolated_db.list_feature_backlog_items(target_version="v2.18.0")
+    assert len(v218_items) == 12
+    assert all(i["status"] == "Completed" for i in v218_items)
+
+    proj_status = compute_tri_device_project_status()
+    assert proj_status["metrics"]["completed"] == 12
+    assert proj_status["metrics"]["completion_pct"] == 100.0
+
+    # 2. TD-04: 6-Day Akhada HRV/Sleep Workout Adaptation (Peak vs Recovery Mode)
+    h_ing_peak = MagicMock()
+    post_mobile_health_ingest_endpoint(
+        h_ing_peak,
+        {"device": "Apple Watch", "metrics": {"hrv_sdnn_ms": 58, "sleep_hours": 7.5, "resting_hr_bpm": 54}},
+    )
+    h_adapt1 = MagicMock()
+    get_mobile_workout_adaptation_endpoint(h_adapt1, urllib.parse.urlparse("/api/mobile/workout/adaptation"))
+    adapt1 = h_adapt1._send_json.call_args[0][0]
+    assert adapt1["status"] == "ok"
+    assert adapt1["deliverable_id"] == "TD-04"
+    assert adapt1["recovery_mode"] is False
+    assert adapt1["volume_multiplier"] == 1.0
+
+    # Simulate low sleep (< 6.0 hrs) and low HRV (< 30 ms) -> auto-switches to 50% Recovery Mode
+    h_ing_low = MagicMock()
+    post_mobile_health_ingest_endpoint(
+        h_ing_low,
+        {"device": "Apple Watch", "metrics": {"hrv_sdnn_ms": 24, "sleep_hours": 5.2, "resting_hr_bpm": 68}},
+    )
+    h_adapt2 = MagicMock()
+    get_mobile_workout_adaptation_endpoint(h_adapt2, urllib.parse.urlparse("/api/mobile/workout/adaptation"))
+    adapt2 = h_adapt2._send_json.call_args[0][0]
+    assert adapt2["recovery_mode"] is True
+    assert adapt2["volume_multiplier"] == 0.5
+    assert "RECOVERY" in adapt2["today_adaptation"]["mode_badge"]
+    assert adapt2["today_adaptation"]["prescribed_today"] == adapt2["today_adaptation"]["recovery_sets"]
+
+    # 3. TD-05 & TD-11: Zero-Cert Mobile & Watch Action Button Voice Relay
+    h_voice = MagicMock()
+    post_mobile_voice_relay_endpoint(
+        h_voice,
+        {"transcript": "Mahadev let's discuss action items", "device": "watch_action_button"},
+    )
+    voice_res = h_voice._send_json.call_args[0][0]
+    assert voice_res["status"] == "ok"
+    assert voice_res["deliverable_ids"] == ["TD-05", "TD-11"]
+    assert len(voice_res["spoken_reply"]) > 5
+
+    # 4. TD-06: Offline Mobile Outbox Sync & Idempotent Deduplication
+    h_out_sync = MagicMock()
+    mutations = [
+        {"id": "mut-001", "type": "log_water", "payload": {"amount_ml": 250}},
+        {"id": "mut-002", "type": "add_task", "payload": {"title": "Mobile Offline Task", "priority": "P1"}},
+    ]
+    post_mobile_outbox_sync_endpoint(h_out_sync, {"mutations": mutations})
+    sync1 = h_out_sync._send_json.call_args[0][0]
+    assert sync1["status"] == "ok"
+    assert sync1["applied_count"] == 2
+    assert sync1["skipped_duplicates"] == 0
+
+    # Replay the exact same mutation IDs -> 100% deduplicated!
+    h_out_sync2 = MagicMock()
+    post_mobile_outbox_sync_endpoint(h_out_sync2, {"mutations": mutations})
+    sync2 = h_out_sync2._send_json.call_args[0][0]
+    assert sync2["applied_count"] == 0
+    assert sync2["skipped_duplicates"] == 2
+
+    h_out_stat = MagicMock()
+    get_mobile_outbox_status_endpoint(h_out_stat, urllib.parse.urlparse("/api/mobile/outbox/status"))
+    assert h_out_stat._send_json.call_args[0][0]["total_replayed"] >= 2
+
+    # 5. TD-07: iOS 26.3.1 Scriptable Widget Generator
+    h_wid = MagicMock()
+    get_mobile_scriptable_widget_endpoint(h_wid, urllib.parse.urlparse("/api/mobile/widgets/scriptable"))
+    wid_res = h_wid._send_json.call_args[0][0]
+    assert wid_res["status"] == "ok"
+    assert wid_res["deliverable_id"] == "TD-07"
+    assert "ListWidget" in wid_res["scriptable_js"]
+    assert "inline_text" in wid_res["lock_screen_widgets"]
+
+    # 6. TD-08 & TD-09: Dual-Mode UPI SVG QR & Share-Sheet / SMS Receipt Parser with FPE Masking
+    bill_tid = isolated_db.add_task(
+        title="Monthly — BESCOM Electricity Utility",
+        description="Monthly power bill",
+        priority="P1",
+        source="Monthly",
+    )
+    h_qr = MagicMock()
+    post_mobile_payment_deeplink_endpoint(
+        h_qr,
+        {"task_id": bill_tid, "vpa": "bescom@upi", "amount": 2450.0, "confirm_paid": False},
+    )
+    qr_res = h_qr._send_json.call_args[0][0]
+    assert "<svg" in qr_res["qr_svg"]
+    assert qr_res["qr_svg_data_uri"].startswith("data:image/svg+xml;utf8,")
+
+    h_rcpt = MagicMock()
+    post_mobile_parse_payment_receipt_endpoint(
+        h_rcpt,
+        {
+            "receipt_text": "Paid Rs. 2,450.00 to bescom@upi via BHIM UPI. UTR: 412398765432",
+            "task_id": bill_tid,
+        },
+    )
+    rcpt_res = h_rcpt._send_json.call_args[0][0]
+    assert rcpt_res["status"] == "ok"
+    assert rcpt_res["deliverable_id"] == "TD-09"
+    assert rcpt_res["amount_inr"] == 2450.0
+    assert rcpt_res["masked_utr"].startswith("FPE:")
+    assert rcpt_res["closed_task_id"] == bill_tid
+
+    # 7. TD-12 & EC-09: Workstation Presence / Taptic Nudge & Split Bluetooth Audio Routing
+    h_pres_get = MagicMock()
+    get_mobile_presence_nudge_endpoint(h_pres_get, urllib.parse.urlparse("/api/mobile/presence/nudge"))
+    assert h_pres_get._send_json.call_args[0][0]["deliverable_id"] == "TD-12"
+
+    h_pres_post = MagicMock()
+    post_mobile_presence_nudge_endpoint(h_pres_post, {"type": "hydration_catchup", "message": "Time for water!"})
+    assert h_pres_post._send_json.call_args[0][0]["status"] == "ok"
+
+    h_aud_post = MagicMock()
+    post_mobile_audio_routing_endpoint(
+        h_aud_post,
+        {
+            "voice_cockpit_input_device": "JBL Live 770NC Headset",
+            "workout_playlist_speaker": "LG OM4560 Akhada Speaker",
+            "auto_duck_workout_on_wake_word": True,
+        },
+    )
+    assert h_aud_post._send_json.call_args[0][0]["routing_profile"]["voice_cockpit_input_device"] == "JBL Live 770NC Headset"
+
+    h_aud_get = MagicMock()
+    get_mobile_audio_routing_endpoint(h_aud_get, urllib.parse.urlparse("/api/mobile/audio/routing"))
+    assert h_aud_get._send_json.call_args[0][0]["routing_profile"]["workout_playlist_speaker"] == "LG OM4560 Akhada Speaker"
+
+    # 8. Agent Studio 10-Way Evolution Suggestions for tri_device
+    evo = generate_agent_evolution_suggestions({"id": "tri_device", "name": "Tri-Device Ecosystem & Hardware Hub"})
+    assert len(evo["suggestions"]) == 10
+
+
+
 
 
 

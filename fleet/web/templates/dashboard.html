@@ -1419,6 +1419,97 @@
       </div>
     </div>
 
+    <!-- Delivered Tri-Device Capabilities & Live Action Workbench (TD-01..TD-12 — 100% Complete) -->
+    <div class="card" id="triDeviceCapabilitiesWorkbenchCard" style="border: 1px solid rgba(0, 242, 254, 0.38); background: linear-gradient(135deg, rgba(0, 242, 254, 0.06) 0%, rgba(15, 23, 42, 0.94) 100%);">
+      <div class="card-title" style="flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span>⚡ Delivered Tri-Device Capabilities &amp; Live Action Workbench (TD-01 – TD-12)</span>
+          <span class="badge" style="background: rgba(16, 185, 129, 0.22); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.5); font-size: 10.5px; font-weight: 700;">✓ 12 / 12 Backlog Items Delivered (100%)</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <button type="button" class="btn" onclick="loadTriDeviceWorkbenchStatus()" style="font-size: 11.5px; padding: 5px 11px; border-color: rgba(0, 242, 254, 0.45); color: var(--accent-cyan);" title="Refresh all TD-04..TD-12 live telemetry">
+            🔄 Refresh All Capabilities
+          </button>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 12px;">
+        <!-- TD-04: 6-Day Akhada HRV/Sleep Workout Adaptation -->
+        <div style="background: rgba(15, 23, 42, 0.82); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 10px; padding: 13px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="font-size: 12.5px; color: #34d399;">🏋️ [TD-04] 6-Day Akhada HRV/Sleep Workout Adaptation</strong>
+            <span class="badge" id="td04ModeBadge" style="background: rgba(16, 185, 129, 0.18); color: #34d399; font-size: 10px;">100% Volume</span>
+          </div>
+          <div id="triDeviceWorkoutAdaptationBox" style="font-size: 11.5px; color: #cbd5e1; line-height: 1.45; margin-bottom: 8px;">
+            Correlates Apple Watch overnight HRV &amp; sleep duration with your 6-day Mudgal / Samtola / Bhim Gadha Akhada split (auto-halves volume when sleep &lt; 6h or HRV &lt; 30ms).
+          </div>
+          <button type="button" class="btn" onclick="loadTriDeviceWorkoutAdaptation()" style="font-size: 11px; padding: 4px 10px; border-color: rgba(16, 185, 129, 0.45); color: #34d399;" title="Compute today's HRV/Sleep adapted Akhada prescription">⚡ Compute Today's Akhada Prescription</button>
+        </div>
+
+        <!-- TD-05 & TD-11: Zero-Cert Mobile & Watch Action Button Voice Relay -->
+        <div style="background: rgba(15, 23, 42, 0.82); border: 1px solid rgba(168, 85, 247, 0.35); border-radius: 10px; padding: 13px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="font-size: 12.5px; color: #d8b4fe;">🎙️ [TD-05 &amp; TD-11] Zero-Cert Wrist &amp; Siri Voice Relay</strong>
+            <span class="badge" style="background: rgba(168, 85, 247, 0.18); color: #d8b4fe; font-size: 10px;">EC-07 Native Dictation</span>
+          </div>
+          <div style="display: flex; gap: 6px; margin-bottom: 7px;">
+            <input type="text" id="triDeviceVoiceRelayInput" value="Mahadev let's discuss action items" placeholder="Say or type wrist command..." style="flex: 1; padding: 6px 9px; background: rgba(0,0,0,0.45); border: 1px solid var(--card-border); border-radius: 6px; color: #fff; font-size: 11.5px;">
+            <button type="button" class="btn btn-primary" onclick="sendTriDeviceWristVoiceRelay()" style="font-size: 11px; padding: 5px 10px;" title="Relay command through /api/mobile/voice/relay">🗣️ Relay</button>
+          </div>
+          <div id="triDeviceVoiceRelayResult" style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+            Bypasses iOS Safari self-signed TLS WebAudio block via native iOS Dictation &amp; watchOS Action Button (`POST /api/mobile/voice/relay`).
+          </div>
+        </div>
+
+        <!-- TD-06 & TD-07: Offline Outbox Auto-Replay & iOS Scriptable Lock/Home Widgets -->
+        <div style="background: rgba(15, 23, 42, 0.82); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 10px; padding: 13px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="font-size: 12.5px; color: #38bdf8;">📦 [TD-06 &amp; TD-07] Offline Outbox &amp; Scriptable Widgets</strong>
+            <span class="badge" id="triDeviceOutboxStatusBadge" style="background: rgba(56, 189, 248, 0.18); color: #38bdf8; font-size: 10px;">Outbox Synced</span>
+          </div>
+          <div id="triDeviceScriptablePreviewStatus" style="font-size: 11.5px; color: #cbd5e1; line-height: 1.45; margin-bottom: 8px;">
+            Idempotent offline mutation replay (`mobile_outbox_vault.json`) + zero-Xcode iOS 26.3.1 Scriptable Lock/Home Screen widget generator (`EC-03`).
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button type="button" class="btn" onclick="flushTriDeviceOutboxFromHub()" style="font-size: 11px; padding: 4px 10px; border-color: rgba(56, 189, 248, 0.45); color: #38bdf8;" title="Check and replay mobile offline outbox">🔄 Check / Replay Outbox</button>
+            <button type="button" class="btn" onclick="copyTriDeviceScriptableWidget()" style="font-size: 11px; padding: 4px 10px; border-color: rgba(16, 185, 129, 0.45); color: #34d399;" title="Copy iOS 26.3.1 Scriptable Widget JS to clipboard">📱 Copy Scriptable Widget JS</button>
+          </div>
+        </div>
+
+        <!-- TD-08 & TD-09: Dual-Mode NPCI UPI QR & Share-Sheet / SMS Receipt Parser -->
+        <div style="background: rgba(15, 23, 42, 0.82); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 10px; padding: 13px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="font-size: 12.5px; color: #fbbf24;">💳 [TD-08 &amp; TD-09] Dual-Mode UPI QR &amp; Receipt Auto-Closer</strong>
+            <span class="badge" style="background: rgba(245, 158, 11, 0.18); color: #fbbf24; font-size: 10px;">FPE-Masked UTR</span>
+          </div>
+          <div style="display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap;">
+            <input type="text" id="triDeviceReceiptInput" placeholder="Paste UPI SMS / Share Sheet receipt (e.g. Paid Rs. 2500 to BESCOM Ref 412345678901)" style="flex: 1; min-width: 180px; padding: 6px 9px; background: rgba(0,0,0,0.45); border: 1px solid var(--card-border); border-radius: 6px; color: #fff; font-size: 11px;">
+            <button type="button" class="btn" onclick="parseTriDevicePaymentReceiptFromHub()" style="font-size: 11px; padding: 4px 9px; border-color: rgba(245, 158, 11, 0.45); color: #fbbf24;" title="Parse receipt, FPE-mask UTR, and auto-close Monthly Action Item">🧾 Parse Receipt</button>
+            <button type="button" class="btn" onclick="generateTriDeviceUpiQrAndLinks()" style="font-size: 11px; padding: 4px 9px; border-color: rgba(16, 185, 129, 0.45); color: #34d399;" title="Generate deterministic NPCI UPI SVG QR code + deep links">🔳 UPI QR</button>
+          </div>
+          <div id="triDeviceReceiptParseResult" style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+            Generates deterministic SVG QR (`EC-06`) &amp; parses BHIM / iMobile / GPay receipts with FPE UTR masking.
+          </div>
+          <div id="triDeviceUpiQrPreview" style="display: none; margin-top: 8px; text-align: center; background: rgba(0,0,0,0.35); padding: 8px; border-radius: 8px;"></div>
+        </div>
+
+        <!-- TD-12 & EC-09: Workstation Presence / Taptic Nudge & Split Bluetooth Audio Routing -->
+        <div style="background: rgba(15, 23, 42, 0.82); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 10px; padding: 13px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="font-size: 12.5px; color: #f472b6;">⌚🎧 [TD-12 &amp; EC-09] Presence Nudge &amp; Split Audio Router</strong>
+            <span class="badge" style="background: rgba(236, 72, 153, 0.18); color: #f472b6; font-size: 10px;">&lt;1ms Zero-CPU</span>
+          </div>
+          <div id="triDevicePresenceAudioStatus" style="font-size: 11.5px; color: #cbd5e1; line-height: 1.45; margin-bottom: 8px;">
+            Zero-CPU Windows `GetLastInputInfo` + `BTHENUM` presence check &amp; dedicated audio routing (`JBL Live 770NC` Voice vs `LG OM4560` / `Sound Drum` Akhada).
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button type="button" class="btn" onclick="triggerTriDeviceWatchNudge()" style="font-size: 11px; padding: 4px 10px; border-color: rgba(236, 72, 153, 0.45); color: #f472b6;" title="Check workstation idle/presence and queue Apple Watch Taptic nudge">⌚ Test Watch Taptic Nudge</button>
+            <button type="button" class="btn" onclick="saveTriDeviceAudioRouting()" style="font-size: 11px; padding: 4px 10px; border-color: rgba(56, 189, 248, 0.45); color: #38bdf8;" title="Verify &amp; persist split Bluetooth audio routing">🎧 Verify Split Audio Routing</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Local-Only Personal Hardware & Peripherals Inventory Card (NEVER Sent to Cloud / GitHub) -->
     <div class="card" id="triDeviceLocalHardwareInventoryCard" style="border: 1px solid rgba(16, 185, 129, 0.38); background: linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(15, 23, 42, 0.94) 100%);">
       <div class="card-title" style="flex-wrap: wrap; gap: 10px;">
@@ -1561,11 +1652,11 @@
         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
           <span style="font-size: 16px;">⌚📱💻</span>
           <strong style="font-size: 13.5px; color: #fff;">Tri-Device Architecture Roadmap (Apple Watch • iPhone • Windows Laptop Hub)</strong>
-          <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.45); font-size: 10.5px; font-weight: 700;">✓ Phase 1: 100% Delivered (TD-01..TD-03)</span>
-          <span class="badge" style="background: rgba(0, 242, 254, 0.14); color: var(--accent-cyan); font-size: 10.5px;">v2.18.0</span>
+          <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.45); font-size: 10.5px; font-weight: 700;">✓ Phases 1–4: 100% Delivered (TD-01..TD-12)</span>
+          <span class="badge" style="background: rgba(0, 242, 254, 0.14); color: var(--accent-cyan); font-size: 10.5px;">v2.19.0</span>
         </div>
         <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">
-          Phase 1 (Tailscale Mesh Gateway, HealthKit Ingestion + FFD Readiness, iOS Shortcut &amp; Standalone PWA) is active. Track TD-01 through TD-12 below.
+          All 12 deliverables across Phases 1–4 (Tailscale Mesh Gateway, HealthKit + FFD Readiness, 6-Day Akhada HRV Adaptation, Zero-Cert Siri/Watch Voice Relay, Offline Outbox Replay, Scriptable Widgets, Dual-Mode UPI QR &amp; FPE Receipt Auto-Closer, and Zero-CPU Presence/Split Audio) are 100% delivered.
         </div>
       </div>
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">

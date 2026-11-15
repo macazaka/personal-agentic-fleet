@@ -3301,6 +3301,126 @@ BUILTIN_AGENT_10_IMPROVEMENTS: Dict[str, List[Dict[str, Any]]] = {
             },
         },
     ],
+    "tri_device": [
+        {
+            "id": "td_watch_hrv_akhada_adaptation",
+            "title": "Apple Watch HRV & Sleep Auto-Adaptation for 6-Day Akhada Split",
+            "description": "Correlate overnight Apple Watch HRV (SDNN) and sleep duration with Monday Mudgal, Wednesday Samtola, and Friday Bhim Gadha volume.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "⌚",
+            "patch": {
+                "system_prompt_directive": "Flag parasympathetic recovery mode when sleep_hours < 6.0 or hrv_sdnn_ms < 30 and scale Akhada strength volume to 50%.",
+                "code_enhancement_brief": "Compute workout volume adaptation from Apple Watch HRV SDNN and sleep hours in /api/mobile/workout/adaptation.",
+            },
+        },
+        {
+            "id": "td_upi_svg_qr_and_deeplink_bridge",
+            "title": "Dual-Mode NPCI UPI SVG QR Matrix & 1-Tap iPhone Deep-Link Bridge",
+            "description": "Render scannable NPCI `upi://pay` SVG QR codes on the Laptop Hub alongside `bhim://`, `imobileapp://`, `tez://`, and `phonepe://` links.",
+            "category": "UI & Analytics",
+            "impact": "high",
+            "icon": "💳",
+            "patch": {
+                "system_prompt_directive": "Provide both scannable NPCI UPI QR matrices and explicit user-gesture deep links with Voltage-FPE VPA masking.",
+                "code_enhancement_brief": "Generate deterministic SVG QR matrices and masked VPA tokens in /api/mobile/payments/deeplink.",
+            },
+        },
+        {
+            "id": "td_ios_share_sheet_receipt_parser",
+            "title": "iOS Share Sheet & Bank SMS Receipt Parser for Auto-Closing Bills",
+            "description": "Parse UTR/RRN references and INR amounts from BHIM, ICICI iMobile, or GPay receipts to auto-close matching Monthly Action Items.",
+            "category": "Schema & Extraction",
+            "impact": "high",
+            "icon": "🧾",
+            "patch": {
+                "system_prompt_directive": "Mask extracted UTR and VPA identifiers with FF1 FPE before persisting receipt audit logs and auto-closing monthly tasks.",
+                "code_enhancement_brief": "Parse bank/UPI confirmation text and auto-close matching monthly tasks in /api/mobile/payments/parse_receipt.",
+            },
+        },
+        {
+            "id": "td_watch_action_button_mahadev_relay",
+            "title": "Apple Watch Action Button & Zero-Cert Siri 'Mahadev' Voice Relay",
+            "description": "Route spoken directives from Apple Watch Action Button and iPhone Keyboard Dictation through `/api/mobile/voice/relay` at $0.00.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "🎙️",
+            "patch": {
+                "system_prompt_directive": "Return clean markdown-free spoken_reply strings optimized for watchOS Speak Text and iOS Indian English TTS.",
+                "code_enhancement_brief": "Expose /api/mobile/voice/relay stripping wake words and returning plain-text spoken_reply.",
+            },
+        },
+        {
+            "id": "td_offline_outbox_spool_and_replay",
+            "title": "iPhone Offline Outbox Spooler & Idempotent Replay Engine",
+            "description": "Buffer water logs, task closures, voice notes, and HealthKit snapshots in localStorage when away from home Wi-Fi and auto-flush on reconnect.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "📦",
+            "patch": {
+                "system_prompt_directive": "Deduplicate replayed offline mobile mutations by mutation ID inside AES-256-GCM encrypted mobile_outbox_vault.json.",
+                "code_enhancement_brief": "Implement idempotent offline mutation replay in /api/mobile/outbox/sync.",
+            },
+        },
+        {
+            "id": "td_ios_scriptable_lock_screen_widgets",
+            "title": "Zero-Xcode iOS 26.3.1 Scriptable Home & Lock Screen Widget Kit",
+            "description": "Generate ready-to-paste Scriptable widget code and Lock Screen circular/rectangular snapshots backed by `/api/mobile/watch/complication`.",
+            "category": "UI & Analytics",
+            "impact": "medium",
+            "icon": "📲",
+            "patch": {
+                "code_enhancement_brief": "Serve Scriptable widget JS and Lock Screen complication payloads at /api/mobile/widgets/scriptable.",
+            },
+        },
+        {
+            "id": "td_split_bluetooth_acoustic_router",
+            "title": "Context-Aware Split Bluetooth Audio Router (Headset Mic vs. Speakers)",
+            "description": "Route Mahadev 6D Voiceprint Cockpit via Bluetooth ANC Headset Mic (85–3800 Hz) while routing Akhada Workout Playlists to room speakers.",
+            "category": "Domain Intelligence",
+            "impact": "medium",
+            "icon": "🎧",
+            "patch": {
+                "system_prompt_directive": "Separate headset biometric mic input from high-power A2DP workout speaker output (EC-09).",
+                "code_enhancement_brief": "Manage split Bluetooth audio routing profiles via /api/mobile/audio/routing.",
+            },
+        },
+        {
+            "id": "td_workstation_lock_watch_taptic_nudger",
+            "title": "Windows Workstation Lock/Idle Presence & Watch Taptic Nudger",
+            "description": "Detect workstation idle/lock state in <1ms and route hydration, posture, and P1 bill nudges to Apple Watch Taptic Engine.",
+            "category": "EventBus & Schedule",
+            "impact": "medium",
+            "icon": "🔔",
+            "patch": {
+                "add_outbound_actions": ["desktop_toast"],
+                "code_enhancement_brief": "Evaluate workstation idle seconds and Bluetooth presence in /api/mobile/presence/nudge.",
+            },
+        },
+        {
+            "id": "td_windows_firewall_public_wifi_autohealer",
+            "title": "1-Click Windows Defender Firewall Public Wi-Fi LAN Unblocker",
+            "description": "Detect Public Wi-Fi firewall blocks on Port 7890 that cause iPhone `ERR_CONNECTION_TIMED_OUT` and remediate via UAC PowerShell rule.",
+            "category": "Automation & Hooks",
+            "impact": "high",
+            "icon": "🛡️",
+            "patch": {
+                "code_enhancement_brief": "Detect and remediate Windows Firewall Public profile blocks in /api/mobile/gateway/fix_firewall.",
+            },
+        },
+        {
+            "id": "td_zero_cloud_hardware_vault_auditor",
+            "title": "Zero-Cloud Personal Hardware & Peripheral Vault Privacy Guard",
+            "description": "Ensure all personal workstation, iPhone, Apple Watch, and Bluetooth peripheral specs remain strictly in gitignored `fleet/data/user/`.",
+            "category": "Domain Intelligence",
+            "impact": "high",
+            "icon": "🔒",
+            "patch": {
+                "system_prompt_directive": "Never transmit personal hardware identifiers, MAC addresses, or LAN IPs to GitHub or external clouds (EC-10).",
+                "code_enhancement_brief": "Persist hardware inventory exclusively in AES-256-GCM encrypted hardware_inventory_vault.json.",
+            },
+        },
+    ],
 }
 
 
@@ -3446,6 +3566,22 @@ _AGENT_DOMAIN_CONTEXT_PROFILES: Dict[str, Dict[str, Any]] = {
         ],
         "domain_guidance": (
             "Focus on local Ollama model management, tokens/sec benchmarking, context window tuning, and 100% private $0.00 offline inference."
+        ),
+    },
+    "tri_device": {
+        "domain_title": "Tri-Device Ecosystem & Hardware Connections Hub (Apple Watch • iPhone 15 Relay • Windows 10 Hub)",
+        "backlog_category": "Integration",
+        "key_metrics": [
+            "Apple Watch (watchOS) Sensor Edge via Mandatory iPhone 15 Companion Relay (`EC-01`)",
+            "Encrypted HealthKit Ingestion (`/api/mobile/health/ingest`) & 6-Day Akhada HRV/Sleep Adaptation (`/api/mobile/workout/adaptation`)",
+            "Dual-Mode 1-Tap UPI Open Payment Deep-Link & NPCI SVG QR Bridge (`/api/mobile/payments/deeplink`, `/api/mobile/payments/parse_receipt`)",
+            "Zero-Cert Siri & Watch Action Button Voice Relay (`/api/mobile/voice/relay`) & Offline Outbox Spooler (`/api/mobile/outbox/sync`)",
+            "Local-Only Encrypted Personal Hardware Registry (`hardware_inventory_vault.json`, `EC-01`..`EC-10`)",
+        ],
+        "domain_guidance": (
+            "Focus on the 3-tier Apple Watch -> iPhone 15 (iOS 26.3.1) -> Windows 10 Hub architecture, zero-Xcode PWA/Shortcuts/Scriptable "
+            "workflows, 1-tap BHIM/ICICI/GPay UPI deep links + SVG QR generation, offline outbox replay, split Bluetooth audio routing, "
+            "and strict zero-cloud hardware privacy."
         ),
     },
 }
