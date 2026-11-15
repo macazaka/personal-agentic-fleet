@@ -1782,8 +1782,8 @@
                 <button id="btnVoiceSpeakerLock" type="button" title="Toggle Biometric Speaker Isolation &amp; Background Noise Shield (85-3800Hz DSP + Vocal Pitch Lock)" class="btn" onclick="toggleVoiceSpeakerLock()" style="font-size: 10px; padding: 3px 8px; border-color: rgba(16, 185, 129, 0.45); color: #34d399; background: rgba(16, 185, 129, 0.14);">
                   🛡️ My Voice Only: ON
                 </button>
-                <button id="btnEnrollVoiceprint" type="button" title="Record a 3-second voice sample, replay it, and confirm before processing your biometric voiceprint" class="btn" onclick="calibrateJarvisVoiceprint()" style="font-size: 10px; padding: 3px 8px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.14);">
-                  🧬 Calibrate My Voice (3s)
+                <button id="btnEnrollVoiceprint" type="button" title="Open the 12-Second Guided Voiceprint Teleprompter &amp; Biometric Calibration Studio (10s / 12s / 15s)" class="btn" onclick="openVoiceprintGuidedTeleprompter(true)" style="font-size: 10px; padding: 3px 8px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.14);">
+                  🧬 Calibrate My Voice (12s)
                 </button>
                 <button id="btnReplayVoiceprint" type="button" title="Replay your saved biometric voiceprint audio recording" class="btn" onclick="replayJarvisVoiceprintAudio()" style="display: none; font-size: 10px; padding: 3px 8px; border-color: rgba(56, 189, 248, 0.45); color: #38bdf8; background: rgba(56, 189, 248, 0.14);">
                   ▶️ Replay Voiceprint
@@ -1809,20 +1809,94 @@
               </div>
             </div>
 
-            <!-- Voiceprint Replay & Confirmation Gate (Shown after 3s capture before processing/locking) -->
+            <!-- Guided 3-Phase Biometric Voiceprint Teleprompter & Live 10s/12s/15s Acoustic Calibration Panel -->
+            <div id="voiceprintGuidedPromptPanel" style="display: none; margin-bottom: 8px; padding: 11px 13px; border-radius: 10px; background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 27, 75, 0.92)); border: 1px solid rgba(56, 189, 248, 0.5); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <strong style="font-size: 11.5px; color: #38bdf8;">🧬 Guided Biometric Voiceprint Teleprompter (Multi-Variation Standard)</strong>
+                  <span id="voiceprintCountdownBadge" class="badge" style="background: rgba(244, 63, 94, 0.2); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.45); font-family: monospace; font-size: 10px;">Ready • 12.0s</span>
+                  <span id="voiceprintLiveFramesBadge" class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); font-family: monospace; font-size: 9.5px;">0 voiced frames</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+                  <span style="font-size: 10px; color: var(--text-muted);">Duration:</span>
+                  <button type="button" id="btnVpDur10" title="Set voiceprint calibration timeframe to 10 seconds" class="btn" onclick="setVoiceprintCalibrationDuration(10)" style="font-size: 9.5px; padding: 2px 7px;">10s</button>
+                  <button type="button" id="btnVpDur12" title="Set voiceprint calibration timeframe to 12 seconds (Best-Practice Recommended)" class="btn" onclick="setVoiceprintCalibrationDuration(12)" style="font-size: 9.5px; padding: 2px 7px; border-color: var(--accent-cyan); color: var(--accent-cyan); background: rgba(0, 242, 254, 0.15);">12s ★</button>
+                  <button type="button" id="btnVpDur15" title="Set voiceprint calibration timeframe to 15 seconds (Extended Multi-Tone)" class="btn" onclick="setVoiceprintCalibrationDuration(15)" style="font-size: 9.5px; padding: 2px 7px;">15s</button>
+                  <button type="button" title="Close teleprompter" class="btn" onclick="closeVoiceprintGuidedTeleprompter()" style="font-size: 9.5px; padding: 2px 7px;">✕</button>
+                </div>
+              </div>
+
+              <!-- Live Progress Bar -->
+              <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; margin-bottom: 9px;">
+                <div id="voiceprintProgressFill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #00f2fe, #a855f7, #10b981); transition: width 0.12s linear;"></div>
+              </div>
+
+              <div style="font-size: 10.5px; color: #cbd5e1; margin-bottom: 8px;">
+                📖 <strong>Read the 3 short lines below aloud at your natural pace</strong> as each box lights up (covers wake-word attack, rising question pitch, vowel triangle, sibilants, and numerals):
+              </div>
+
+              <!-- 3-Phase Reading Script Cards -->
+              <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 9px;">
+                <div id="vpPhaseCard1" style="padding: 7px 10px; border-radius: 7px; background: rgba(0, 242, 254, 0.1); border: 1px solid rgba(0, 242, 254, 0.45); transition: all 0.2s ease;">
+                  <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: var(--accent-cyan); font-weight: 700; margin-bottom: 2px;">
+                    <span>PHASE 1 (0s – 4s) • WAKE WORD &amp; FIRM COMMAND ATTACK (Nasals &amp; Plosives)</span>
+                    <span id="vpPhaseStatus1">▶ Speak First</span>
+                  </div>
+                  <div style="font-size: 12px; font-weight: 700; color: #ffffff; line-height: 1.4;">
+                    "<span class="vp-wake-word-token">Mahadev</span>, lock my personal biometric voiceprint and activate my daily command cockpit."
+                  </div>
+                </div>
+
+                <div id="vpPhaseCard2" style="padding: 7px 10px; border-radius: 7px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255, 255, 255, 0.1); transition: all 0.2s ease;">
+                  <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: #c084fc; font-weight: 700; margin-bottom: 2px;">
+                    <span>PHASE 2 (4s – 8s) • RISING QUESTION INFLECTION &amp; VOWEL FORMANT TRIANGLE (High F0 &amp; Sibilants)</span>
+                    <span id="vpPhaseStatus2">⏳ Up Next</span>
+                  </div>
+                  <div style="font-size: 12px; font-weight: 700; color: #f1f5f9; line-height: 1.4;">
+                    "Can you hear my voice clearly today? Check my open action items, health readiness, and morning briefing."
+                  </div>
+                </div>
+
+                <div id="vpPhaseCard3" style="padding: 7px 10px; border-radius: 7px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255, 255, 255, 0.1); transition: all 0.2s ease;">
+                  <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: #34d399; font-weight: 700; margin-bottom: 2px;">
+                    <span>PHASE 3 (8s – 12s) • NUMERALS &amp; FALLING DECLARATIVE CLOSURE (Chest Resonance Floor)</span>
+                    <span id="vpPhaseStatus3">⏳ Final Line</span>
+                  </div>
+                  <div style="font-size: 12px; font-weight: 700; color: #f1f5f9; line-height: 1.4;">
+                    "Close item number one, log two glasses of water at seven thirty, and keep zero cloud privacy active."
+                  </div>
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div style="font-size: 10px; color: var(--text-muted);">
+                  💡 <em>Tip: Keep 15–25 cm from laptop mic; raise pitch slightly on "clearly today?" in Phase 2.</em>
+                </div>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                  <button type="button" id="btnStartGuidedVoiceprintRec" title="Start or restart recording the 3-phase voiceprint script" class="btn btn-primary" onclick="calibrateJarvisVoiceprint()" style="font-size: 10.5px; padding: 4px 11px; background: linear-gradient(135deg, #a855f7, #06b6d4); border: none; font-weight: 700;">
+                    🎙️ Start 12s Recording
+                  </button>
+                  <button type="button" id="btnFinishGuidedVoiceprintEarly" title="Stop recording now and process captured frames" class="btn" onclick="finishJarvisVoiceprintCalibrationNow()" style="display: none; font-size: 10px; padding: 4px 10px; border-color: rgba(16, 185, 129, 0.5); color: #34d399;">
+                    ✅ Finish &amp; Analyze Now
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Voiceprint Replay & Confirmation Gate (Shown after 10s-15s capture before processing/locking) -->
             <div id="voiceprintConfirmPanel" style="display: none; margin-bottom: 8px; padding: 9px 12px; border-radius: 9px; background: linear-gradient(135deg, rgba(245, 158, 11, 0.14), rgba(15, 23, 42, 0.92)); border: 1px solid rgba(251, 191, 36, 0.5); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);">
               <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
                 <div style="font-size: 11px; color: #fde68a; font-weight: 700;">
-                  🧬 Confirm Recorded Voiceprint Before Processing
+                  🧬 Confirm Recorded Multi-Variation Voiceprint Before Processing
                 </div>
                 <span id="voiceprintSavedFileBadge" class="badge" style="background: rgba(56, 189, 248, 0.14); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); font-size: 9.5px; font-family: monospace;">Saved: fleet/data/user/voiceprint_sample.wav</span>
               </div>
               <div id="voiceprintConfirmSummary" style="font-size: 11px; color: #e2e8f0; margin-bottom: 8px; line-height: 1.4;">
-                Recorded 3-second voice sample. Please replay your recording below and confirm to process &amp; lock your biometric voiceprint.
+                Recorded 12-second multi-variation voice sample. Please replay your recording below and confirm to process &amp; lock your biometric voiceprint.
               </div>
               <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
                 <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                  <button id="btnReplayStagedVoiceprint" title="Replay your recorded 3-second voiceprint audio sample before confirming" type="button" class="btn" onclick="replayJarvisVoiceprintAudio()" style="font-size: 10.5px; padding: 4px 10px; border-color: rgba(56, 189, 248, 0.55); color: #38bdf8; background: rgba(56, 189, 248, 0.16); font-weight: 700;">
+                  <button id="btnReplayStagedVoiceprint" title="Replay your recorded voiceprint audio sample before confirming" type="button" class="btn" onclick="replayJarvisVoiceprintAudio()" style="font-size: 10.5px; padding: 4px 10px; border-color: rgba(56, 189, 248, 0.55); color: #38bdf8; background: rgba(56, 189, 248, 0.16); font-weight: 700;">
                     ▶️ Replay Recording
                   </button>
                   <audio id="voiceprintPreviewPlayer" controls preload="metadata" style="height: 26px; max-width: 195px; border-radius: 6px;"></audio>
@@ -1831,7 +1905,7 @@
                   <button id="btnConfirmVoiceprintSave" title="Confirm and process your recorded voiceprint to lock speaker biometrics" type="button" class="btn btn-primary" onclick="confirmJarvisVoiceprintSave()" style="font-size: 10.5px; padding: 4px 11px; background: linear-gradient(135deg, #10b981, #059669); border: none; color: #fff; font-weight: 700;">
                     ✅ Confirm &amp; Process Voiceprint
                   </button>
-                  <button id="btnRerecordVoiceprint" title="Discard this sample and record a new 3-second voiceprint" type="button" class="btn" onclick="calibrateJarvisVoiceprint()" style="font-size: 10px; padding: 4px 9px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.14);">
+                  <button id="btnRerecordVoiceprint" title="Discard this sample and record a new multi-variation voiceprint" type="button" class="btn" onclick="openVoiceprintGuidedTeleprompter(true)" style="font-size: 10px; padding: 4px 9px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.14);">
                     🔄 Re-Record
                   </button>
                   <button id="btnCancelVoiceprintSave" title="Cancel voiceprint processing and keep your existing speaker settings" type="button" class="btn" onclick="cancelJarvisVoiceprintSave()" style="font-size: 10px; padding: 4px 8px; border-color: rgba(244, 63, 94, 0.4); color: #fb7185; background: rgba(244, 63, 94, 0.1);">
@@ -2612,8 +2686,11 @@
             <div class="form-group" style="padding: 14px; background: rgba(168, 85, 247, 0.06); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 10px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
                 <label style="font-size: 13.5px; font-weight: 700; color: #d8b4fe;">🎙️ Voice Profile, Speed (up to 3x) &amp; Wake Word Configuration</label>
-                <div style="display: flex; align-items: center; gap: 6px;">
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                   <span class="badge" style="background: rgba(245, 158, 11, 0.16); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); font-size: 10.5px;">🔱 Active Wake Word: <strong id="settingsWakeWordBadgeText">Mahadev</strong></span>
+                  <button type="button" title="Open the 12-Second Guided Voiceprint Teleprompter &amp; Biometric Calibration Studio" class="btn btn-sm" onclick="closeSettingsModal(); openVoiceprintGuidedTeleprompter(true);" style="font-size: 11px; padding: 3px 9px; border-color: rgba(56, 189, 248, 0.5); color: #38bdf8; background: rgba(56, 189, 248, 0.16);">
+                    🧬 Record 12s Voiceprint
+                  </button>
                   <button type="button" title="Test your selected voice profile, language, accent, and playback speed aloud" class="btn btn-sm" onclick="testAfccSelectedVoice()" style="font-size: 11px; padding: 3px 9px; border-color: rgba(168, 85, 247, 0.45); color: #e9d5ff; background: rgba(168, 85, 247, 0.18);">
                     🔊 Test Voice &amp; Speed
                   </button>

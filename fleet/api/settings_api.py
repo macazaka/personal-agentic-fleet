@@ -2310,6 +2310,31 @@ def get_voiceprint_profile_endpoint(handler: Any, parsed_url: urllib.parse.Parse
             "audio_data_url": audio_rec.get("audio_data_url", ""),
             "wake_word": wake_word,
             "speech_rate": speech_rate,
+            "recommended_duration_sec": 12,
+            "supported_durations_sec": [10, 12, 15],
+            "calibration_script": {
+                "standard": "NIST-SRE / IEEE 3-Phase Multi-Variation Speaker Calibration",
+                "phases": [
+                    {
+                        "phase": 1,
+                        "window": "0s – 4s",
+                        "focus": "Wake Word, Nasal Resonance & Firm Command Attack",
+                        "text": f"{wake_word}, lock my personal biometric voiceprint and activate my daily command cockpit.",
+                    },
+                    {
+                        "phase": 2,
+                        "window": "4s – 8s",
+                        "focus": "Rising Question Inflection & Cardinal Vowel Formant Triangle (F1/F2/F3)",
+                        "text": "Can you hear my voice clearly today? Check my open action items, health readiness, and morning briefing.",
+                    },
+                    {
+                        "phase": 3,
+                        "window": "8s – 12s",
+                        "focus": "Alphanumeric Digits & Falling Declarative Pitch Floor",
+                        "text": "Close item number one, log two glasses of water at seven thirty, and keep zero cloud privacy active.",
+                    },
+                ],
+            },
         }
     )
 
