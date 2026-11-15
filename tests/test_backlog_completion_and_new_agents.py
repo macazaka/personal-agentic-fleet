@@ -482,4 +482,128 @@ def test_voice_action_items_conversational_engine(isolated_db):
     assert r_reopen["active_action_item"]["status"] == "pending"
 
 
+def test_fine_12d_voiceprint_child_rejection_auto_refine_and_sandbox(isolated_db, monkeypatch):
+    import urllib.parse
+    import fleet.server as srv
+    from fleet.api.settings_api import (
+        auto_refine_voiceprint_profile,
+        evaluate_speaker_biometric_match,
+        get_voiceprint_profile_endpoint,
+        post_verify_voiceprint_sandbox_endpoint,
+        save_voiceprint_profile_endpoint,
+    )
+
+    monkeypatch.setattr(srv, "db", isolated_db)
+
+    class _DummyHandler:
+        def __init__(self):
+            self.last_json: dict = {}
+            self.last_status = 200
+
+        def _send_json(self, data: dict, status: int = 200):
+            self.last_json = data
+            self.last_status = status
+
+    # 1. Verify GET /api/voice/voiceprint returns 20s default, [10,12,15,20,25,30] durations, and 5-Phase Script
+    h = _DummyHandler()
+    get_voiceprint_profile_endpoint(h, urllib.parse.urlparse("/api/voice/voiceprint"))
+    assert h.last_json["recommended_duration_sec"] == 20
+    assert h.last_json["supported_durations_sec"] == [10, 12, 15, 20, 25, 30]
+    assert len(h.last_json["calibration_script"]["phases"]) == 5
+
+    # 2. Enroll a 12-D adult owner voiceprint profile
+    owner_profile = {
+        "pitchMeanHz": 134,
+        "pitchStdHz": 14,
+        "pitchMinHz": 112,
+        "pitchMaxHz": 165,
+        "centroidMeanHz": 1240,
+        "f1MeanHz": 485,
+        "f2MeanHz": 1475,
+        "f3MeanHz": 2560,
+        "vtlCm": 17.1,
+        "chestResonanceRatio": 1.42,
+        "rolloffMeanHz": 2320,
+        "subBandVector": [0.42, 0.48, 0.39, 0.35, 0.31, 0.28, 0.22, 0.16],
+        "strictnessThreshold": 78,
+        "autoRefineEnabled": True,
+        "autoRefinementCount": 0,
+        "durationSec": 20,
+    }
+    save_voiceprint_profile_endpoint(h, {"profile": owner_profile, "confirmed": True})
+    assert h.last_json["enrolled"] is True
+
+    # 3. Direct 12-D evaluation: Owner voice sample MUST be ACCEPTED (>= 85%)
+    owner_sample = {
+        "pitchMeanHz": 136,
+        "centroidMeanHz": 1225,
+        "f1MeanHz": 492,
+        "f2MeanHz": 1460,
+        "f3MeanHz": 2580,
+        "vtlCm": 17.0,
+        "chestResonanceRatio": 1.38,
+        "rolloffMeanHz": 2345,
+        "subBandVector": [0.41, 0.47, 0.40, 0.35, 0.31, 0.28, 0.23, 0.16],
+    }
+    owner_eval = evaluate_speaker_biometric_match(owner_profile, owner_sample, strictness_threshold=78)
+    assert owner_eval["allowed"] is True
+    assert owner_eval["verdict"] == "AUTHORIZED_OWNER"
+    assert owner_eval["match_pct"] >= 85
+    assert owner_eval["is_child_or_octave_impostor"] is False
+
+    # 4. Direct 12-D evaluation: Child voice sample (268 Hz, VTL 12.1 cm, Chest 0.42x) MUST be REJECTED (< 45%)
+    child_sample = {
+        "pitchMeanHz": 268,
+        "centroidMeanHz": 1940,
+        "f1MeanHz": 710,
+        "f2MeanHz": 2120,
+        "f3MeanHz": 3340,
+        "vtlCm": 12.1,
+        "chestResonanceRatio": 0.42,
+        "rolloffMeanHz": 3180,
+        "subBandVector": [0.14, 0.21, 0.34, 0.46, 0.49, 0.42, 0.33, 0.28],
+    }
+    child_eval = evaluate_speaker_biometric_match(owner_profile, child_sample, strictness_threshold=78)
+    assert child_eval["allowed"] is False
+    assert child_eval["is_child_or_octave_impostor"] is True
+    assert child_eval["verdict"] == "REJECTED_IMPOSTOR_OR_CHILD"
+    assert child_eval["match_pct"] <= 42
+
+    # 5. Sandbox endpoint POST /api/voice/voiceprint/verify tracks accuracy & auto-refines on owner match
+    post_verify_voiceprint_sandbox_endpoint(
+        h,
+        {
+            "candidate": owner_sample,
+            "expected_role": "owner",
+            "label": "Owner Live Test",
+            "auto_refine_if_matched": True,
+        },
+    )
+    assert h.last_json["verification"]["allowed"] is True
+    assert h.last_json["auto_refined"] is True
+    assert h.last_json["profile"]["autoRefinementCount"] == 1
+
+    post_verify_voiceprint_sandbox_endpoint(
+        h,
+        {
+            "candidate": child_sample,
+            "expected_role": "child",
+            "label": "Child Impostor Test",
+            "auto_refine_if_matched": False,
+        },
+    )
+    assert h.last_json["verification"]["allowed"] is False
+    metrics = h.last_json["sandbox_metrics"]
+    assert metrics["total_tests"] == 2
+    assert metrics["owner_acceptance_rate_pct"] == 100
+    assert metrics["impostor_rejection_rate_pct"] == 100
+    assert metrics["overall_accuracy_pct"] == 100
+
+    # 6. Negative feedback ("Not Me") tightens boundary threshold and narrows pitchStdHz
+    tightened = auto_refine_voiceprint_profile(owner_profile, child_sample, negative_feedback=True)
+    assert tightened["strictnessThreshold"] == 80
+    assert tightened["pitchStdHz"] < owner_profile["pitchStdHz"]
+
+
+
 

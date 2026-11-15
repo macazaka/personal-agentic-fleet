@@ -18,11 +18,14 @@ let fleetSettingsState = {
 
 // --- Modal Lifecycle ---
 
-async function openSettingsModal() {
+async function openSettingsModal(initialTab) {
   const modal = document.getElementById('fleetSettingsModal');
   if (!modal) return;
   modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
+  if (initialTab && typeof initialTab === 'string') {
+    fleetSettingsState.activeTab = initialTab;
+  }
   await refreshSettingsData();
   switchSettingsModalTab(fleetSettingsState.activeTab || 'agents');
 }
@@ -36,27 +39,49 @@ function closeSettingsModal() {
 }
 
 function switchSettingsModalTab(tab) {
-  fleetSettingsState.activeTab = tab;
-  ['agents', 'catalog', 'updates', 'general', 'ai', 'backups', 'autoheal', 'mind'].forEach(t => {
+  const cleanTab = tab || 'agents';
+  fleetSettingsState.activeTab = cleanTab;
+  const viewKey = cleanTab === 'voice_sandbox' ? 'general' : cleanTab;
+
+  ['agents', 'catalog', 'updates', 'general', 'voice_sandbox', 'ai', 'backups', 'autoheal', 'mind'].forEach(t => {
     const btn = document.getElementById(`settingsNavBtn_${t}`);
-    const view = document.getElementById(`settingsView_${t}`);
-    if (btn) btn.classList.toggle('active', t === tab);
-    if (view) view.style.display = (t === tab) ? 'block' : 'none';
+    if (btn) btn.classList.toggle('active', t === cleanTab);
   });
 
-  if (tab === 'agents') {
+  ['agents', 'catalog', 'updates', 'general', 'ai', 'backups', 'autoheal', 'mind'].forEach(v => {
+    const view = document.getElementById(`settingsView_${v}`);
+    if (view) view.style.display = (v === viewKey) ? 'block' : 'none';
+  });
+
+  const modalBody = document.getElementById('fleetSettingsModalBody') || document.querySelector('#fleetSettingsModal .settings-modal-body');
+  if (modalBody && cleanTab !== 'voice_sandbox') {
+    modalBody.scrollTop = 0;
+  }
+
+  if (cleanTab === 'agents') {
     renderSettingsAgents();
-  } else if (tab === 'catalog') {
+  } else if (cleanTab === 'catalog') {
     loadAgentCatalog();
-  } else if (tab === 'updates') {
+  } else if (cleanTab === 'updates') {
     loadVersionStatus();
-  } else if (tab === 'general') {
+  } else if (cleanTab === 'general' || cleanTab === 'voice_sandbox') {
     populateGeneralSettingsForm();
-  } else if (tab === 'ai') {
+    if (typeof renderVoiceprintSandboxPanel === 'function') {
+      renderVoiceprintSandboxPanel();
+    }
+    if (cleanTab === 'voice_sandbox') {
+      setTimeout(() => {
+        const card = document.getElementById('voiceprintSettingsSandboxCard');
+        if (card && typeof card.scrollIntoView === 'function') {
+          card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 80);
+    }
+  } else if (cleanTab === 'ai') {
     populateAISettingsForm();
-  } else if (tab === 'autoheal') {
+  } else if (cleanTab === 'autoheal') {
     loadAutoHealStatus();
-  } else if (tab === 'mind') {
+  } else if (cleanTab === 'mind') {
     loadFleetMindStatus();
   }
 }

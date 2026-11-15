@@ -1103,9 +1103,9 @@
       transform: rotate(30deg);
     }
     .settings-modal-box {
-      width: 820px;
-      max-width: 95vw;
-      max-height: 88vh;
+      width: 980px;
+      max-width: 96vw;
+      max-height: 90vh;
       display: flex;
       flex-direction: column;
       padding: 0;
@@ -1113,7 +1113,8 @@
       overflow-x: hidden;
     }
     .settings-modal-header {
-      padding: 16px 20px;
+      flex-shrink: 0;
+      padding: 14px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -1121,29 +1122,22 @@
       background: rgba(255, 255, 255, 0.02);
     }
     .settings-nav-tabs {
+      flex-shrink: 0;
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
-      padding: 10px 20px;
-      background: rgba(0, 0, 0, 0.2);
+      padding: 10px 18px;
+      background: rgba(0, 0, 0, 0.25);
       border-bottom: 1px solid var(--card-border);
-      overflow-x: hidden;
-      overflow-y: hidden;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-    }
-    .settings-nav-tabs::-webkit-scrollbar {
-      display: none !important;
-      width: 0 !important;
-      height: 0 !important;
+      overflow: visible;
     }
     .settings-nav-tab {
-      background: transparent;
-      border: 1px solid transparent;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       color: var(--text-muted);
-      font-size: 12.5px;
+      font-size: 12px;
       font-weight: 600;
-      padding: 6px 14px;
+      padding: 6px 12px;
       border-radius: 6px;
       cursor: pointer;
       transition: all 0.2s ease;
@@ -1152,18 +1146,20 @@
     }
     .settings-nav-tab:hover {
       color: var(--text);
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
     }
     .settings-nav-tab.active {
       background: rgba(0, 242, 254, 0.15);
-      border-color: rgba(0, 242, 254, 0.4);
+      border-color: rgba(0, 242, 254, 0.45);
       color: var(--accent-cyan);
     }
     .settings-modal-body {
-      padding: 20px;
+      flex: 1 1 auto;
+      min-height: 0;
+      padding: 18px 20px;
       overflow-y: auto;
       overflow-x: hidden;
-      max-height: calc(88vh - 120px);
     }
     .agent-setting-card {
       background: rgba(255, 255, 255, 0.03);

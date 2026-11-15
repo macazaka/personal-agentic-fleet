@@ -2037,8 +2037,11 @@
                 <button id="btnVoiceSpeakerLock" type="button" title="Toggle Biometric Speaker Isolation &amp; Background Noise Shield (85-3800Hz DSP + Vocal Pitch Lock)" class="btn" onclick="toggleVoiceSpeakerLock()" style="font-size: 10px; padding: 3px 8px; border-color: rgba(16, 185, 129, 0.45); color: #34d399; background: rgba(16, 185, 129, 0.14);">
                   🛡️ My Voice Only: ON
                 </button>
-                <button id="btnEnrollVoiceprint" type="button" title="Open the 12-Second Guided Voiceprint Teleprompter &amp; Biometric Calibration Studio (10s / 12s / 15s)" class="btn" onclick="openVoiceprintGuidedTeleprompter(true)" style="font-size: 10px; padding: 3px 8px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.14);">
-                  🧬 Calibrate My Voice (12s)
+                <button id="btnEnrollVoiceprint" type="button" title="Open the 20-Second 5-Phase Guided Voiceprint Teleprompter &amp; 12-D Biometric Calibration Studio (10s / 12s / 15s / 20s / 25s / 30s)" class="btn" onclick="openVoiceprintGuidedTeleprompter(true)" style="font-size: 10px; padding: 3px 8px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; background: rgba(168, 85, 247, 0.14);">
+                  🧬 Calibrate My Voice (20s)
+                </button>
+                <button id="btnOpenVoiceprintSandbox" type="button" title="Open the Voiceprint Accuracy &amp; Child/Impostor Rejection Sandbox in Settings" class="btn" onclick="openVoiceprintAccuracySandbox()" style="font-size: 10px; padding: 3px 8px; border-color: rgba(56, 189, 248, 0.45); color: #38bdf8; background: rgba(56, 189, 248, 0.14);">
+                  🧪 Accuracy Sandbox
                 </button>
                 <button id="btnReplayVoiceprint" type="button" title="Replay your saved biometric voiceprint audio recording" class="btn" onclick="replayJarvisVoiceprintAudio()" style="display: none; font-size: 10px; padding: 3px 8px; border-color: rgba(56, 189, 248, 0.45); color: #38bdf8; background: rgba(56, 189, 248, 0.14);">
                   ▶️ Replay Voiceprint
@@ -2064,72 +2067,95 @@
               </div>
             </div>
 
-            <!-- Guided 3-Phase Biometric Voiceprint Teleprompter & Live 10s/12s/15s Acoustic Calibration Panel -->
+            <!-- Guided 5-Phase Biometric Voiceprint Teleprompter & Live 15s/20s/25s/30s 12-D Acoustic Calibration Panel -->
             <div id="voiceprintGuidedPromptPanel" style="display: none; margin-bottom: 8px; padding: 11px 13px; border-radius: 10px; background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 27, 75, 0.92)); border: 1px solid rgba(56, 189, 248, 0.5); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);">
               <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
                 <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                  <strong style="font-size: 11.5px; color: #38bdf8;">🧬 Guided Biometric Voiceprint Teleprompter (Multi-Variation Standard)</strong>
-                  <span id="voiceprintCountdownBadge" class="badge" style="background: rgba(244, 63, 94, 0.2); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.45); font-family: monospace; font-size: 10px;">Ready • 12.0s</span>
+                  <strong style="font-size: 11.5px; color: #38bdf8;">🧬 Guided 5-Phase Fine Biometric Voiceprint Teleprompter (12-D Vocal Tract &amp; Formant Standard)</strong>
+                  <span id="voiceprintCountdownBadge" class="badge" style="background: rgba(244, 63, 94, 0.2); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.45); font-family: monospace; font-size: 10px;">Ready • 20.0s</span>
                   <span id="voiceprintLiveFramesBadge" class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); font-family: monospace; font-size: 9.5px;">0 voiced frames</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
                   <span style="font-size: 10px; color: var(--text-muted);">Duration:</span>
-                  <button type="button" id="btnVpDur10" title="Set voiceprint calibration timeframe to 10 seconds" class="btn" onclick="setVoiceprintCalibrationDuration(10)" style="font-size: 9.5px; padding: 2px 7px;">10s</button>
-                  <button type="button" id="btnVpDur12" title="Set voiceprint calibration timeframe to 12 seconds (Best-Practice Recommended)" class="btn" onclick="setVoiceprintCalibrationDuration(12)" style="font-size: 9.5px; padding: 2px 7px; border-color: var(--accent-cyan); color: var(--accent-cyan); background: rgba(0, 242, 254, 0.15);">12s ★</button>
-                  <button type="button" id="btnVpDur15" title="Set voiceprint calibration timeframe to 15 seconds (Extended Multi-Tone)" class="btn" onclick="setVoiceprintCalibrationDuration(15)" style="font-size: 9.5px; padding: 2px 7px;">15s</button>
+                  <button type="button" id="btnVpDur10" title="Set voiceprint calibration timeframe to 10 seconds" class="btn" onclick="setVoiceprintCalibrationDuration(10)" style="font-size: 9.5px; padding: 2px 6px;">10s</button>
+                  <button type="button" id="btnVpDur12" title="Set voiceprint calibration timeframe to 12 seconds" class="btn" onclick="setVoiceprintCalibrationDuration(12)" style="font-size: 9.5px; padding: 2px 6px;">12s</button>
+                  <button type="button" id="btnVpDur15" title="Set voiceprint calibration timeframe to 15 seconds" class="btn" onclick="setVoiceprintCalibrationDuration(15)" style="font-size: 9.5px; padding: 2px 6px;">15s</button>
+                  <button type="button" id="btnVpDur20" title="Set voiceprint calibration timeframe to 20 seconds (Recommended 5-Phase High-Precision Standard)" class="btn" onclick="setVoiceprintCalibrationDuration(20)" style="font-size: 9.5px; padding: 2px 7px; border-color: var(--accent-cyan); color: var(--accent-cyan); background: rgba(0, 242, 254, 0.15);">20s ★</button>
+                  <button type="button" id="btnVpDur25" title="Set voiceprint calibration timeframe to 25 seconds (Extended Deep Variation)" class="btn" onclick="setVoiceprintCalibrationDuration(25)" style="font-size: 9.5px; padding: 2px 6px;">25s</button>
+                  <button type="button" id="btnVpDur30" title="Set voiceprint calibration timeframe to 30 seconds (Maximum Studio Precision)" class="btn" onclick="setVoiceprintCalibrationDuration(30)" style="font-size: 9.5px; padding: 2px 6px;">30s</button>
                   <button type="button" title="Close teleprompter" class="btn" onclick="closeVoiceprintGuidedTeleprompter()" style="font-size: 9.5px; padding: 2px 7px;">✕</button>
                 </div>
               </div>
 
               <!-- Live Progress Bar -->
               <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; margin-bottom: 9px;">
-                <div id="voiceprintProgressFill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #00f2fe, #a855f7, #10b981); transition: width 0.12s linear;"></div>
+                <div id="voiceprintProgressFill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #00f2fe, #a855f7, #10b981, #fbbf24, #ec4899); transition: width 0.12s linear;"></div>
               </div>
 
               <div style="font-size: 10.5px; color: #cbd5e1; margin-bottom: 8px;">
-                📖 <strong>Read the 3 short lines below aloud at your natural pace</strong> as each box lights up (covers wake-word attack, rising question pitch, vowel triangle, sibilants, and numerals):
+                📖 <strong>Read the 5 multi-variation lines below aloud at your natural pace</strong> as each box lights up (captures your deep chest resonance, rising question pitch, full $F_1/F_2/F_3$ vowel triangle, rapid numerals, and soft-to-firm projection so child &amp; secondary voices are strictly rejected):
               </div>
 
-              <!-- 3-Phase Reading Script Cards -->
-              <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 9px;">
-                <div id="vpPhaseCard1" style="padding: 7px 10px; border-radius: 7px; background: rgba(0, 242, 254, 0.1); border: 1px solid rgba(0, 242, 254, 0.45); transition: all 0.2s ease;">
+              <!-- 5-Phase Reading Script Cards -->
+              <div style="display: flex; flex-direction: column; gap: 5px; margin-bottom: 9px;">
+                <div id="vpPhaseCard1" style="padding: 6px 10px; border-radius: 7px; background: rgba(0, 242, 254, 0.1); border: 1px solid rgba(0, 242, 254, 0.45); transition: all 0.2s ease;">
                   <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: var(--accent-cyan); font-weight: 700; margin-bottom: 2px;">
-                    <span>PHASE 1 (0s – 4s) • WAKE WORD &amp; FIRM COMMAND ATTACK (Nasals &amp; Plosives)</span>
+                    <span>PHASE 1 (0s – 4s) • WAKE WORD, DEEP CHEST RESONANCE &amp; NASAL ATTACK (85–180 Hz)</span>
                     <span id="vpPhaseStatus1">▶ Speak First</span>
                   </div>
-                  <div style="font-size: 12px; font-weight: 700; color: #ffffff; line-height: 1.4;">
-                    "<span class="vp-wake-word-token">Mahadev</span>, lock my personal biometric voiceprint and activate my daily command cockpit."
+                  <div style="font-size: 11.5px; font-weight: 700; color: #ffffff; line-height: 1.35;">
+                    "<span class="vp-wake-word-token">Mahadev</span>, lock my personal biometric voiceprint and verify my deep chest resonance."
                   </div>
                 </div>
 
-                <div id="vpPhaseCard2" style="padding: 7px 10px; border-radius: 7px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255, 255, 255, 0.1); transition: all 0.2s ease;">
+                <div id="vpPhaseCard2" style="padding: 6px 10px; border-radius: 7px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255, 255, 255, 0.1); transition: all 0.2s ease;">
                   <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: #c084fc; font-weight: 700; margin-bottom: 2px;">
-                    <span>PHASE 2 (4s – 8s) • RISING QUESTION INFLECTION &amp; VOWEL FORMANT TRIANGLE (High F0 &amp; Sibilants)</span>
+                    <span>PHASE 2 (4s – 8s) • RISING QUESTION INFLECTION &amp; UPPER PITCH CEILING (F0 Dynamic Envelope)</span>
                     <span id="vpPhaseStatus2">⏳ Up Next</span>
                   </div>
-                  <div style="font-size: 12px; font-weight: 700; color: #f1f5f9; line-height: 1.4;">
-                    "Can you hear my voice clearly today? Check my open action items, health readiness, and morning briefing."
+                  <div style="font-size: 11.5px; font-weight: 700; color: #f1f5f9; line-height: 1.35;">
+                    "Can you hear my voice clearly right now? What are my top priority action items and readiness score today?"
                   </div>
                 </div>
 
-                <div id="vpPhaseCard3" style="padding: 7px 10px; border-radius: 7px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255, 255, 255, 0.1); transition: all 0.2s ease;">
+                <div id="vpPhaseCard3" style="padding: 6px 10px; border-radius: 7px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255, 255, 255, 0.1); transition: all 0.2s ease;">
                   <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: #34d399; font-weight: 700; margin-bottom: 2px;">
-                    <span>PHASE 3 (8s – 12s) • NUMERALS &amp; FALLING DECLARATIVE CLOSURE (Chest Resonance Floor)</span>
-                    <span id="vpPhaseStatus3">⏳ Final Line</span>
+                    <span>PHASE 3 (8s – 12s) • FULL CARDINAL VOWEL TRIANGLE &amp; SIBILANTS (F1/F2/F3 &amp; Vocal Tract Length)</span>
+                    <span id="vpPhaseStatus3">⏳ Up Next</span>
                   </div>
-                  <div style="font-size: 12px; font-weight: 700; color: #f1f5f9; line-height: 1.4;">
-                    "Close item number one, log two glasses of water at seven thirty, and keep zero cloud privacy active."
+                  <div style="font-size: 11.5px; font-weight: 700; color: #f1f5f9; line-height: 1.35;">
+                    "Blue ocean, bright morning sun, fresh green smoothie, warm golden light, and zero cloud data."
+                  </div>
+                </div>
+
+                <div id="vpPhaseCard4" style="padding: 6px 10px; border-radius: 7px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255, 255, 255, 0.1); transition: all 0.2s ease;">
+                  <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: #fbbf24; font-weight: 700; margin-bottom: 2px;">
+                    <span>PHASE 4 (12s – 16s) • RAPID NUMERALS, PLOSIVES &amp; CADENCE VARIATION (Dynamic Articulation)</span>
+                    <span id="vpPhaseStatus4">⏳ Up Next</span>
+                  </div>
+                  <div style="font-size: 11.5px; font-weight: 700; color: #f1f5f9; line-height: 1.35;">
+                    "Count one, two, three, five, seven, nine, zero — close item number four and log two fifty milliliters of water."
+                  </div>
+                </div>
+
+                <div id="vpPhaseCard5" style="padding: 6px 10px; border-radius: 7px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255, 255, 255, 0.1); transition: all 0.2s ease;">
+                  <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: #f472b6; font-weight: 700; margin-bottom: 2px;">
+                    <span>PHASE 5 (16s – 20s+) • SOFT-TO-FIRM PROJECTION &amp; GLOTTAL CLOSURE (SNR Floor &amp; Timbre Lock)</span>
+                    <span id="vpPhaseStatus5">⏳ Final Line</span>
+                  </div>
+                  <div style="font-size: 11.5px; font-weight: 700; color: #f1f5f9; line-height: 1.35;">
+                    "Speaking softly first, then firm and clear: only my voice commands this fleet. Har Har <span class="vp-wake-word-token">Mahadev</span>."
                   </div>
                 </div>
               </div>
 
               <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                 <div style="font-size: 10px; color: var(--text-muted);">
-                  💡 <em>Tip: Keep 15–25 cm from laptop mic; raise pitch slightly on "clearly today?" in Phase 2.</em>
+                  💡 <em>Tip: Keep 15–25 cm from mic; raise pitch on Phase 2 questions; speak softly then firmly on Phase 5.</em>
                 </div>
                 <div style="display: flex; gap: 6px; align-items: center;">
-                  <button type="button" id="btnStartGuidedVoiceprintRec" title="Start or restart recording the 3-phase voiceprint script" class="btn btn-primary" onclick="calibrateJarvisVoiceprint()" style="font-size: 10.5px; padding: 4px 11px; background: linear-gradient(135deg, #a855f7, #06b6d4); border: none; font-weight: 700;">
-                    🎙️ Start 12s Recording
+                  <button type="button" id="btnStartGuidedVoiceprintRec" title="Start or restart recording the 5-phase voiceprint script" class="btn btn-primary" onclick="calibrateJarvisVoiceprint()" style="font-size: 10.5px; padding: 4px 11px; background: linear-gradient(135deg, #a855f7, #06b6d4); border: none; font-weight: 700;">
+                    🎙️ Start 20s Recording
                   </button>
                   <button type="button" id="btnFinishGuidedVoiceprintEarly" title="Stop recording now and process captured frames" class="btn" onclick="finishJarvisVoiceprintCalibrationNow()" style="display: none; font-size: 10px; padding: 4px 10px; border-color: rgba(16, 185, 129, 0.5); color: #34d399;">
                     ✅ Finish &amp; Analyze Now
@@ -2717,20 +2743,21 @@
         <button title="Close Settings modal" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeSettingsModal()">✕</button>
       </div>
 
-      <!-- Navigation Tabs -->
-      <div class="settings-nav-tabs">
-        <button title="🤖 Agents & Activation" class="settings-nav-tab active" id="settingsNavBtn_agents" onclick="switchSettingsModalTab('agents')">🤖 Agents & Activation</button>
-        <button title="🛒 Discover & Download" class="settings-nav-tab" id="settingsNavBtn_catalog" onclick="switchSettingsModalTab('catalog')">🛒 Discover & Download</button>
+      <!-- Navigation Tabs (flex-shrink: 0 ensures all 9 tabs across both rows are always 100% visible) -->
+      <div class="settings-nav-tabs" style="flex-shrink: 0; overflow: visible;">
+        <button title="🤖 Agents & Activation" class="settings-nav-tab active" id="settingsNavBtn_agents" onclick="switchSettingsModalTab('agents')">🤖 Agents &amp; Activation</button>
+        <button title="🛒 Discover & Download" class="settings-nav-tab" id="settingsNavBtn_catalog" onclick="switchSettingsModalTab('catalog')">🛒 Discover &amp; Download</button>
         <button title="🚀 GitHub Updates" class="settings-nav-tab" id="settingsNavBtn_updates" onclick="switchSettingsModalTab('updates')">🚀 GitHub Updates</button>
-        <button title="🌐 General & Automations" class="settings-nav-tab" id="settingsNavBtn_general" onclick="switchSettingsModalTab('general')">🌐 General & Automations</button>
-        <button title="🧠 AI & Providers" class="settings-nav-tab" id="settingsNavBtn_ai" onclick="switchSettingsModalTab('ai')">🧠 AI & Providers</button>
-        <button title="💾 Backups & Maintenance" class="settings-nav-tab" id="settingsNavBtn_backups" onclick="switchSettingsModalTab('backups')">💾 Backups & Maintenance</button>
-        <button title="🛠️ Auto-Healer & Logs" class="settings-nav-tab" id="settingsNavBtn_autoheal" onclick="switchSettingsModalTab('autoheal')">🛠️ Auto-Healer & Logs</button>
+        <button title="🌐 General & Automations" class="settings-nav-tab" id="settingsNavBtn_general" onclick="switchSettingsModalTab('general')">🌐 General &amp; Automations</button>
+        <button title="🧬 Voice & Biometric Sandbox" class="settings-nav-tab" id="settingsNavBtn_voice_sandbox" onclick="switchSettingsModalTab('voice_sandbox')" style="border-color: rgba(56, 189, 248, 0.35); color: #38bdf8;">🧬 Voice &amp; Biometric Sandbox</button>
+        <button title="🧠 AI & Providers" class="settings-nav-tab" id="settingsNavBtn_ai" onclick="switchSettingsModalTab('ai')">🧠 AI &amp; Providers</button>
+        <button title="💾 Backups & Maintenance" class="settings-nav-tab" id="settingsNavBtn_backups" onclick="switchSettingsModalTab('backups')">💾 Backups &amp; Maintenance</button>
+        <button title="🛠️ Auto-Healer & Logs" class="settings-nav-tab" id="settingsNavBtn_autoheal" onclick="switchSettingsModalTab('autoheal')">🛠️ Auto-Healer &amp; Logs</button>
         <button title="🧠 Fleet Mind" class="settings-nav-tab" id="settingsNavBtn_mind" onclick="switchSettingsModalTab('mind')">🧠 Fleet Mind</button>
       </div>
 
       <!-- Modal Body -->
-      <div class="settings-modal-body">
+      <div class="settings-modal-body" id="fleetSettingsModalBody" style="flex: 1 1 auto; min-height: 0; overflow-y: auto;">
         <!-- View 1: Agents & Extensions -->
         <div id="settingsView_agents">
           <!-- Unified Fast Search, Category Filter & Custom Agent Trigger for 100+ Agents -->
@@ -2809,6 +2836,15 @@
         <!-- View 2: General & Automations -->
         <div id="settingsView_general" style="display: none;">
           <div style="display: flex; flex-direction: column; gap: 16px;">
+            <!-- Quick Jump Section Bar inside General & Automations -->
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 12px; border-radius: 8px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.28);">
+              <span style="font-size: 11px; font-weight: 700; color: var(--accent-cyan);">⚡ Jump to Section:</span>
+              <button type="button" class="quick-chip" title="Jump to Voiceprint Accuracy &amp; Child-Rejection Sandbox" onclick="document.getElementById('voiceprintSettingsSandboxCard')?.scrollIntoView({behavior:'smooth',block:'start'})" style="font-size: 10.5px; padding: 3px 9px; border-color: rgba(56, 189, 248, 0.5); color: #38bdf8; font-weight: 700;">🧪 Voiceprint Accuracy Sandbox</button>
+              <button type="button" class="quick-chip" title="Jump to Voice Profile, Speed &amp; Wake Word" onclick="document.getElementById('voiceProfileSettingsSection')?.scrollIntoView({behavior:'smooth',block:'start'})" style="font-size: 10.5px; padding: 3px 9px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe;">🎙️ Voice &amp; Wake Word</button>
+              <button type="button" class="quick-chip" title="Jump to Workspace Layout Modes" onclick="document.getElementById('genSettingLayout')?.scrollIntoView({behavior:'smooth',block:'center'})" style="font-size: 10.5px; padding: 3px 9px;">📐 Workspace Layout</button>
+              <button type="button" class="quick-chip" title="Jump to Color Theme &amp; Startup Agent" onclick="document.getElementById('genSettingTheme')?.scrollIntoView({behavior:'smooth',block:'center'})" style="font-size: 10.5px; padding: 3px 9px;">🎨 Theme &amp; Startup</button>
+              <button type="button" class="quick-chip" title="Jump to Timezone, Cost Policy &amp; Quiet Hours" onclick="document.getElementById('genSettingTimezone')?.scrollIntoView({behavior:'smooth',block:'center'})" style="font-size: 10.5px; padding: 3px 9px;">⏰ Timezone &amp; Quiet Hours</button>
+            </div>
             <div class="form-group">
               <label style="font-size: 13px; font-weight: 600; color: var(--text);">Fleet Timezone</label>
               <p style="font-size: 11.5px; color: var(--text-muted); margin: 2px 0 6px 0;">Used for daily morning briefings, routine triggers, and system logs.</p>
@@ -2938,13 +2974,13 @@
             </div>
 
             <!-- Voice Profile, Speed (1.5x - 3x) & Wake Word ("Mahadev") Settings Section -->
-            <div class="form-group" style="padding: 14px; background: rgba(168, 85, 247, 0.06); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 10px;">
+            <div id="voiceProfileSettingsSection" class="form-group" style="padding: 14px; background: rgba(168, 85, 247, 0.06); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 10px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
                 <label style="font-size: 13.5px; font-weight: 700; color: #d8b4fe;">🎙️ Voice Profile, Speed (up to 3x) &amp; Wake Word Configuration</label>
                 <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                   <span class="badge" style="background: rgba(245, 158, 11, 0.16); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); font-size: 10.5px;">🔱 Active Wake Word: <strong id="settingsWakeWordBadgeText">Mahadev</strong></span>
-                  <button type="button" title="Open the 12-Second Guided Voiceprint Teleprompter &amp; Biometric Calibration Studio" class="btn btn-sm" onclick="closeSettingsModal(); openVoiceprintGuidedTeleprompter(true);" style="font-size: 11px; padding: 3px 9px; border-color: rgba(56, 189, 248, 0.5); color: #38bdf8; background: rgba(56, 189, 248, 0.16);">
-                    🧬 Record 12s Voiceprint
+                  <button type="button" title="Open the 20-Second 5-Phase Guided Voiceprint Teleprompter &amp; 12-D Biometric Calibration Studio" class="btn btn-sm" onclick="closeSettingsModal(); openVoiceprintGuidedTeleprompter(true);" style="font-size: 11px; padding: 3px 9px; border-color: rgba(56, 189, 248, 0.5); color: #38bdf8; background: rgba(56, 189, 248, 0.16);">
+                    🧬 Record 20s 5-Phase Voiceprint
                   </button>
                   <button type="button" title="Test your selected voice profile, language, accent, and playback speed aloud" class="btn btn-sm" onclick="testAfccSelectedVoice()" style="font-size: 11px; padding: 3px 9px; border-color: rgba(168, 85, 247, 0.45); color: #e9d5ff; background: rgba(168, 85, 247, 0.18);">
                     🔊 Test Voice &amp; Speed
@@ -3027,12 +3063,134 @@
                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 8px; border: 1px solid var(--card-border);">
                   <div>
                     <strong style="font-size: 12px; color: var(--text);">🛡️ Biometric Speaker Lock ("My Voice Only")</strong>
-                    <div style="font-size: 10.5px; color: var(--text-muted);">Filter out background speakers using 85–3800Hz DSP &amp; pitch lock</div>
+                    <div style="font-size: 10.5px; color: var(--text-muted);">12-D Vocal Tract Length, Formant &amp; Chest Resonance Speaker Gate (Never bypassed by wake word)</div>
                   </div>
                   <label class="toggle-switch">
                     <input type="checkbox" id="genSettingVoiceSpeakerLock" checked onchange="if(Boolean(window.AFCCVoice?.speakerLockEnabled)!==this.checked){toggleVoiceSpeakerLock();}">
                     <span class="toggle-slider"></span>
                   </label>
+                </div>
+              </div>
+
+              <!-- Voiceprint Accuracy & Child/Impostor Rejection Sandbox (Settings Sandbox) -->
+              <div id="voiceprintSettingsSandboxCard" style="margin-top: 12px; padding: 13px 15px; border-radius: 10px; background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(30, 27, 75, 0.88)); border: 1px solid rgba(56, 189, 248, 0.45); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+                  <div>
+                    <div style="font-size: 13px; font-weight: 800; color: #38bdf8;">
+                      🧪 Biometric Voiceprint Accuracy &amp; Impostor / Child Rejection Sandbox
+                    </div>
+                    <div style="font-size: 11px; color: #cbd5e1; margin-top: 2px;">
+                      Test live speaker identification accuracy (Owner vs. Child / Secondary Speaker), inspect your 12-D vocal tract signature, and trigger continuous adaptive auto-refinement.
+                    </div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" class="btn" title="Open the 20s 5-Phase Voiceprint Calibration Teleprompter" onclick="if(typeof closeSettingsModal==='function'){closeSettingsModal();}openVoiceprintGuidedTeleprompter(true);" style="font-size: 10.5px; padding: 4px 10px; border-color: rgba(168, 85, 247, 0.55); color: #d8b4fe; background: rgba(168, 85, 247, 0.16); font-weight: 700;">
+                      🎙️ Calibrate 20s 5-Phase Voiceprint
+                    </button>
+                    <button type="button" class="btn" title="Clear sandbox test log" onclick="clearVoiceprintSandboxHistory()" style="font-size: 10px; padding: 4px 8px; color: var(--text-muted);">
+                      🗑️ Reset Log
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Enrolled 12-D Signature Badges -->
+                <div id="sandboxEnrolledSignatureSummary" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; font-size: 11px;">
+                  <span class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);">F0: 134 Hz (±14 Hz)</span>
+                  <span class="badge" style="background: rgba(56, 189, 248, 0.16); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35);">VTL: 17.1 cm</span>
+                  <span class="badge" style="background: rgba(168, 85, 247, 0.16); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35);">F1/F2/F3: 485/1475/2560 Hz</span>
+                  <span class="badge" style="background: rgba(245, 158, 11, 0.16); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35);">Chest Ratio: 1.42x</span>
+                </div>
+
+                <!-- Strictness Threshold & Auto-Refine Controls -->
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding: 8px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 10px;">
+                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <span style="font-size: 11px; font-weight: 700; color: #e2e8f0;">🎯 Strictness Threshold:</span>
+                    <button type="button" id="btnSandboxStrict72" class="btn" onclick="setVoiceprintStrictnessThreshold(72)" style="font-size: 10px; padding: 3px 8px;" title="72% Balanced">72% Balanced</button>
+                    <button type="button" id="btnSandboxStrict78" class="btn" onclick="setVoiceprintStrictnessThreshold(78)" style="font-size: 10px; padding: 3px 8px; border-color: var(--accent-cyan); color: var(--accent-cyan); background: rgba(0, 242, 254, 0.15);" title="78% ★ Strict (Rejects Child Voices)">78% ★ Strict (Rejects Child Voices)</button>
+                    <button type="button" id="btnSandboxStrict85" class="btn" onclick="setVoiceprintStrictnessThreshold(85)" style="font-size: 10px; padding: 3px 8px;" title="85% Ultra-Strict">85% Ultra-Strict</button>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 11px; font-weight: 600; color: #34d399;">✨ Continuous Adaptive Auto-Refine (EMA α=0.08):</span>
+                    <label class="toggle-switch">
+                      <input type="checkbox" id="sandboxAutoRefineCheckbox" checked onchange="toggleVoiceprintAutoRefine(this.checked)">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Live 5s Mic Test & 1-Click Synthetic Impostor Benchmarks -->
+                <div style="display: flex; flex-wrap: wrap; gap: 7px; align-items: center; margin-bottom: 9px;">
+                  <button type="button" id="btnSandboxLiveMicTest" class="btn btn-primary" title="Record 5 seconds from your microphone to verify your own voiceprint accuracy" onclick="runVoiceprintSandboxLiveTest('owner')" style="font-size: 11px; padding: 5px 11px; background: linear-gradient(135deg, #06b6d4, #2563eb); border: none; font-weight: 700;">
+                    🎙️ Live 5s Owner Mic Test
+                  </button>
+                  <button type="button" id="btnSandboxLiveChildTest" class="btn" title="Have your child or another person speak for 5 seconds to verify impostor rejection" onclick="runVoiceprintSandboxLiveTest('child')" style="font-size: 10.5px; padding: 5px 10px; border-color: rgba(244, 63, 94, 0.55); color: #fda4af; background: rgba(244, 63, 94, 0.14); font-weight: 700;">
+                    👶 Live 5s Child / Impostor Mic Test
+                  </button>
+                  <button type="button" class="btn" title="Run a synthetic Owner biometric sample against your voiceprint" onclick="runVoiceprintSandboxSimulatedTest('owner')" style="font-size: 10px; padding: 4px 9px; border-color: rgba(16, 185, 129, 0.45); color: #34d399; background: rgba(16, 185, 129, 0.12);">
+                    🧬 Simulate My Voice
+                  </button>
+                  <button type="button" class="btn" title="Run a synthetic Child voice sample (268 Hz, VTL 12.1 cm, Chest 0.42x) saying 'Mahadev' to verify child voice rejection" onclick="runVoiceprintSandboxSimulatedTest('child')" style="font-size: 10px; padding: 4px 9px; border-color: rgba(251, 191, 36, 0.5); color: #fde68a; background: rgba(245, 158, 11, 0.14);">
+                    👶 Simulate Child Voice (268 Hz)
+                  </button>
+                  <button type="button" class="btn" title="Run a synthetic Other Adult speaker sample (188 Hz, VTL 14.8 cm) to verify impostor rejection" onclick="runVoiceprintSandboxSimulatedTest('other_adult')" style="font-size: 10px; padding: 4px 9px; border-color: rgba(192, 132, 252, 0.45); color: #e9d5ff; background: rgba(168, 85, 247, 0.14);">
+                    🗣️ Simulate Other Adult (188 Hz)
+                  </button>
+                </div>
+
+                <!-- Live Test Status & 1-Click Manual Feedback / Refinement -->
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 9px;">
+                  <div id="sandboxLiveTestStatusText" style="font-size: 11px; color: #94a3b8;">
+                    Click <strong>"🎙️ Live 5s Owner Mic Test"</strong> (or <strong>"👶 Simulate Child Voice"</strong>) to evaluate your 12-D speaker identification accuracy.
+                  </div>
+                  <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" class="btn" title="Confirm the last sample was you and blend it into your 12-D voiceprint via EMA auto-refinement" onclick="submitVoiceprintSandboxFeedback(true)" style="font-size: 10px; padding: 3px 9px; border-color: rgba(16, 185, 129, 0.5); color: #34d399; background: rgba(16, 185, 129, 0.12);">
+                      ✅ That Was Me (Auto-Refine)
+                    </button>
+                    <button type="button" class="btn" title="Mark the last sample as NOT you (e.g. child or background voice) to tighten the strictness threshold (+2%) and narrow F0 variance" onclick="submitVoiceprintSandboxFeedback(false)" style="font-size: 10px; padding: 3px 9px; border-color: rgba(244, 63, 94, 0.5); color: #fb7185; background: rgba(244, 63, 94, 0.12);">
+                      🚫 Not Me (Tighten Boundary)
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Latest 12-D Verification Breakdown Box -->
+                <div id="sandboxLatestBreakdownBox" style="display: none; padding: 9px 11px; border-radius: 8px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.4); margin-bottom: 10px;"></div>
+
+                <!-- Accuracy Scorecard KPIs -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 9px;">
+                  <div style="padding: 7px 10px; border-radius: 7px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);">
+                    <div style="font-size: 10px; color: #94a3b8;">Overall Sandbox Accuracy</div>
+                    <div id="sandboxMetricOverallAcc" style="font-size: 15px; font-weight: 800; color: #34d399;">100%</div>
+                  </div>
+                  <div style="padding: 7px 10px; border-radius: 7px; background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.3);">
+                    <div style="font-size: 10px; color: #94a3b8;">Child / Impostor Rejection</div>
+                    <div id="sandboxMetricImpostorRej" style="font-size: 15px; font-weight: 800; color: #fda4af;">100%</div>
+                  </div>
+                  <div style="padding: 7px 10px; border-radius: 7px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3);">
+                    <div style="font-size: 10px; color: #94a3b8;">Owner Acceptance Rate</div>
+                    <div id="sandboxMetricOwnerPass" style="font-size: 15px; font-weight: 800; color: #38bdf8;">100%</div>
+                  </div>
+                  <div style="padding: 7px 10px; border-radius: 7px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3);">
+                    <div style="font-size: 10px; color: #94a3b8;">Verification Trials Run</div>
+                    <div id="sandboxMetricTotalTests" style="font-size: 15px; font-weight: 800; color: #c084fc;">0</div>
+                  </div>
+                </div>
+
+                <!-- Sandbox Verification Trial History Table -->
+                <div style="max-height: 150px; overflow-y: auto; border-radius: 7px; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(15, 23, 42, 0.65);">
+                  <table style="width: 100%; border-collapse: collapse; font-size: 10.5px;">
+                    <thead>
+                      <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; text-align: left;">
+                        <th style="padding: 5px 6px;">Time</th>
+                        <th style="padding: 5px 6px;">Trial / Speaker Sample</th>
+                        <th style="padding: 5px 6px;">Verdict &amp; Score</th>
+                        <th style="padding: 5px 6px;">12-D Telemetry</th>
+                        <th style="padding: 5px 6px;">Refinement</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sandboxHistoryTableBody">
+                      <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 10px;">No sandbox verification tests run yet — click a Live 5s Test or Simulated Child/Owner Benchmark button above!</td></tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>

@@ -404,7 +404,7 @@ Lists all `@agent` slash commands across active agents or executes a Unified `Ct
 ```
 
 <!-- AUTO-API-ROUTES:START -->
-## 🔄 Complete Live REST API Route Inventory (`192` Endpoints — `v2.18.0`)
+## 🔄 Complete Live REST API Route Inventory (`193` Endpoints — `v2.18.0`)
 
 This table is **automatically introspected from `fleet/api/*.py` AST decorators** on every release by `fleet.tools.doc_wiki_enhancer`:
 
@@ -557,9 +557,10 @@ This table is **automatically introspected from `fleet/api/*.py` AST decorators*
 | `POST` | `/api/overview/widgets/pin` | `post_pin_overview_widget_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-09: Pins, unpins, or reorders agent micro-widgets on the Overview Executive Cockpit. |
 | `GET` | `/api/voice/activities` | `get_voice_activities_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Returns the catalog of bi-directional voice-linked AFCC activities across all agents. |
 | `POST` | `/api/voice/converse` | `post_voice_converse_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Bi-Directional Audio Conversation endpoint: executes linked activities and returns spoken reply + UI actions. |
-| `GET` | `/api/voice/voiceprint` | `get_voiceprint_profile_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Returns the user's enrolled biometric speaker voiceprint profile and saved replay audio metadata. |
+| `GET` | `/api/voice/voiceprint` | `get_voiceprint_profile_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Returns the user's enrolled biometric speaker voiceprint profile, 5-phase script, and sandbox accuracy metrics. |
 | `GET` | `/api/voice/voiceprint/audio` | `get_voiceprint_audio_replay_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Streams or returns the saved voiceprint audio sample for replay. |
 | `POST` | `/api/voice/voiceprint` | `save_voiceprint_profile_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Stages a recorded voiceprint audio file for replay & user confirmation (`stage_only: True`), |
+| `POST` | `/api/voice/voiceprint/verify` | `post_verify_voiceprint_sandbox_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Evaluates a live or simulated speaker sample against the enrolled 12-D biometric voiceprint, |
 | `POST` | `/api/omnibar/voice` | `post_omnibar_voice_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-10: Transcribes/normalizes spoken voice commands into the Tier-0 Omnibar router at $0.00. |
 | `GET` | `/api/tray/status` | `get_tray_status_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-10: Returns System Tray Companion status, Harmony score, and hotkey bindings. |
 | `POST` | `/api/tray/action` | `post_tray_action_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-10: Executes a System Tray Companion quick-menu action. |

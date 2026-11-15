@@ -29,7 +29,7 @@ dependencies = []
 
 [project.optional-dependencies]
 full = [
-    "cryptography>=42.0.0",
+    "cryptography>=50.0.0",
     "keyring>=24.0.0",
     "PyYAML>=6.0",
     "google-api-python-client>=2.100.0",
@@ -37,7 +37,7 @@ full = [
     "google-auth-oauthlib>=1.1.0",
 ]
 dev = [
-    "cryptography>=42.0.0",
+    "cryptography>=50.0.0",
     "pytest>=9.0.3",
     "coverage>=7.3.0",
     "pygame-ce>=2.5.0",

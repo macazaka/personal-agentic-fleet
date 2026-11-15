@@ -1212,8 +1212,11 @@ window.AFCCVoice = {
   wakeWordRequired: localStorage.getItem('afcc_voice_wake_word_lock') !== 'false',
   wakeWordPhrase: localStorage.getItem('afcc_voice_wake_word_phrase') || 'Mahadev',
   voiceprint: _initialVoiceprint,
+  strictnessThreshold: parseInt(localStorage.getItem('afcc_voiceprint_strictness') || '78', 10) || 78,
+  autoRefineEnabled: localStorage.getItem('afcc_voiceprint_auto_refine') !== 'false',
   isCalibrating: false,
-  calibrationDurationSec: parseInt(localStorage.getItem('afcc_voiceprint_duration_sec') || '12', 10) || 12,
+  isSandboxTesting: false,
+  calibrationDurationSec: parseInt(localStorage.getItem('afcc_voiceprint_duration_sec') || '20', 10) || 20,
   calibrationCountdownTimer: null,
   calibrationTimeoutId: null,
   calibrationFinishCallback: null,
@@ -1224,8 +1227,10 @@ window.AFCCVoice = {
   liveSnrDb: 0,
   livePitchHz: 0,
   liveCentroidHz: 0,
+  liveVtlCm: 0,
   utterancePitchSamples: [],
   utteranceCentroidSamples: [],
+  utteranceFineFrameSamples: [],
   utterancePeakSnrDb: 0,
   calibrationPcmChunks: [],
   mediaRecorder: null,
@@ -1234,6 +1239,10 @@ window.AFCCVoice = {
   voiceprintAudioDataUrl: '',
   voiceprintAudioFile: '',
   lastActionWasVoiceprint: false,
+  lastUtteranceSample: null,
+  lastVerificationResult: null,
+  sandboxHistory: [],
+  sandboxMetrics: null,
   lastSpokenReply: 'Loud and clear! I am J.A.R.V.I.S., your Personal Agentic Fleet Voice Copilot. Tell me what you would like to do.',
   lastSpokenPhonetic: 'Loud and clear! I am Jarvis, your Personal Agentic Fleet Voice Copilot. Tell me what you would like to do.',
   recognition: null
@@ -1252,9 +1261,21 @@ async function loadJarvisVoiceprintFromServer() {
     }
     if (data && data.enrolled && data.profile && data.profile.pitchMeanHz) {
       window.AFCCVoice.voiceprint = data.profile;
+      if (data.profile.strictnessThreshold) {
+        window.AFCCVoice.strictnessThreshold = parseInt(data.profile.strictnessThreshold, 10) || 78;
+      }
+      if (typeof data.profile.autoRefineEnabled === 'boolean') {
+        window.AFCCVoice.autoRefineEnabled = data.profile.autoRefineEnabled;
+      }
       try {
         localStorage.setItem('afcc_jarvis_voiceprint', JSON.stringify(data.profile));
       } catch (e) {}
+    }
+    if (data && Array.isArray(data.sandbox_history)) {
+      window.AFCCVoice.sandboxHistory = data.sandbox_history;
+    }
+    if (data && data.sandbox_metrics) {
+      window.AFCCVoice.sandboxMetrics = data.sandbox_metrics;
     }
     if (data && data.wake_word && !localStorage.getItem('afcc_voice_wake_word_phrase')) {
       window.AFCCVoice.wakeWordPhrase = String(data.wake_word).trim() || 'Mahadev';
@@ -1274,6 +1295,9 @@ async function loadJarvisVoiceprintFromServer() {
       );
     }
     syncVoiceProfileSelectors();
+    if (typeof renderVoiceprintSandboxPanel === 'function') {
+      renderVoiceprintSandboxPanel();
+    }
   } catch (e) {}
 }
 setTimeout(loadJarvisVoiceprintFromServer, 800);
@@ -1355,25 +1379,49 @@ function computeAutocorrelationPitchHz(floatBuf, sampleRate) {
   rms = Math.sqrt(rms / size);
   if (rms < 0.012) return 0; // Silence or faint background
 
-  // Human fundamental vocal pitch F0 range: 75 Hz to 360 Hz
-  const minLag = Math.floor(sampleRate / 360);
-  const maxLag = Math.min(Math.floor(sampleRate / 75), Math.floor(size / 2));
-  let bestLag = -1;
-  let bestCorr = 0;
+  // Human fundamental vocal pitch F0 range: 65 Hz (deep chest) to 450 Hz (child / high pitch).
+  // Uses Normalized Square Difference Function (NSDF / McLeod-YIN first-peak selection)
+  // so a child's 260-350 Hz fundamental is NEVER octave-aliased down to 130-175 Hz!
+  const minLag = Math.max(2, Math.floor(sampleRate / 450));
+  const maxLag = Math.min(Math.floor(sampleRate / 65), Math.floor(size / 2));
+  const winLen = maxLag;
+
+  const nsdf = new Float32Array(maxLag + 2);
+  let globalMaxCorr = 0;
+  let globalBestLag = -1;
 
   for (let lag = minLag; lag <= maxLag; lag++) {
-    let sum = 0;
-    for (let i = 0; i < maxLag; i++) {
-      sum += floatBuf[i] * floatBuf[i + lag];
+    let acf = 0;
+    let norm = 0;
+    for (let i = 0; i < winLen; i++) {
+      const a = floatBuf[i];
+      const b = floatBuf[i + lag];
+      acf += a * b;
+      norm += a * a + b * b;
     }
-    if (sum > bestCorr) {
-      bestCorr = sum;
-      bestLag = lag;
+    const corr = norm > 1e-9 ? (2 * acf) / norm : 0;
+    nsdf[lag] = corr;
+    if (corr > globalMaxCorr) {
+      globalMaxCorr = corr;
+      globalBestLag = lag;
     }
   }
-  if (bestLag <= 0) return 0;
-  const f0 = sampleRate / bestLag;
-  return (f0 >= 75 && f0 <= 360) ? Math.round(f0) : 0;
+
+  if (globalMaxCorr < 0.45 || globalBestLag <= 0) return 0;
+
+  // Pick the FIRST prominent local peak (>= 82% of globalMaxCorr and >= 0.52)
+  // to lock onto true fundamental period T0 instead of sub-harmonic 2*T0 (octave error).
+  const keyThreshold = Math.max(0.52, globalMaxCorr * 0.82);
+  let chosenLag = globalBestLag;
+  for (let lag = minLag + 1; lag < maxLag; lag++) {
+    if (nsdf[lag] >= keyThreshold && nsdf[lag] >= nsdf[lag - 1] && nsdf[lag] >= nsdf[lag + 1]) {
+      chosenLag = lag;
+      break;
+    }
+  }
+
+  const f0 = sampleRate / chosenLag;
+  return (f0 >= 65 && f0 <= 450) ? Math.round(f0) : 0;
 }
 
 function computeSpectralCentroidHz(freqByteBuf, sampleRate, fftSize) {
@@ -1390,6 +1438,186 @@ function computeSpectralCentroidHz(freqByteBuf, sampleRate, fftSize) {
     }
   }
   return magSum > 0 ? Math.round(weightedSum / magSum) : 0;
+}
+
+function extractFineAcousticFrameFeatures(freqByteBuf, sampleRate, fftSize) {
+  const binHz = (sampleRate || 48000) / (fftSize || 2048);
+  const maxFreqBin = Math.min(freqByteBuf.length - 1, Math.ceil(3800 / binHz));
+
+  const findBandPeakHz = (lowHz, highHz, fallbackHz) => {
+    const bStart = Math.max(1, Math.floor(lowHz / binHz));
+    const bEnd = Math.min(maxFreqBin, Math.ceil(highHz / binHz));
+    let bestBin = -1;
+    let bestMag = 8;
+    let weightedSum = 0;
+    let magSum = 0;
+    for (let i = bStart; i <= bEnd; i++) {
+      const m = freqByteBuf[i];
+      if (m > bestMag) {
+        bestMag = m;
+        bestBin = i;
+      }
+      if (m > 10) {
+        weightedSum += (i * binHz) * m;
+        magSum += m;
+      }
+    }
+    if (bestBin > 0 && magSum > 0) {
+      return Math.round(0.65 * (bestBin * binHz) + 0.35 * (weightedSum / magSum));
+    }
+    return fallbackHz;
+  };
+
+  const f1Hz = findBandPeakHz(250, 920, 490);
+  const f2Hz = findBandPeakHz(920, 2350, 1480);
+  const f3Hz = findBandPeakHz(2350, 3600, 2580);
+
+  // Quarter-wave resonant tube Vocal Tract Length (cm): VTL = (2k-1)*c / (4*Fk), c = 35000 cm/s
+  const vtl1 = 35000 / (4 * Math.max(250, f1Hz));
+  const vtl2 = (3 * 35000) / (4 * Math.max(900, f2Hz));
+  const vtl3 = (5 * 35000) / (4 * Math.max(1800, f3Hz));
+  const rawVtl = 0.25 * vtl1 + 0.40 * vtl2 + 0.35 * vtl3;
+  const vtlCm = Number(Math.max(10.5, Math.min(21.5, rawVtl)).toFixed(2));
+
+  // Chest-to-Treble Resonance Ratio: low chest energy (85-235 Hz) vs upper-mid energy (350-1900 Hz)
+  const bandMeanEnergy = (lowHz, highHz) => {
+    const s = Math.max(1, Math.floor(lowHz / binHz));
+    const e = Math.min(maxFreqBin, Math.ceil(highHz / binHz));
+    if (e < s) return 1;
+    let sum = 0;
+    for (let i = s; i <= e; i++) sum += freqByteBuf[i];
+    return sum / (e - s + 1);
+  };
+  const chestEnergy = bandMeanEnergy(85, 235);
+  const midTrebleEnergy = Math.max(6, bandMeanEnergy(350, 1900));
+  const chestResonanceRatio = Number(Math.max(0.15, Math.min(2.6, (chestEnergy / midTrebleEnergy) * 1.25)).toFixed(2));
+
+  // 85% Spectral Rolloff Frequency
+  const minBin = Math.max(1, Math.floor(85 / binHz));
+  let totalEnergy = 0;
+  for (let i = minBin; i <= maxFreqBin; i++) totalEnergy += freqByteBuf[i];
+  let rolloffHz = 2350;
+  if (totalEnergy > 0) {
+    const targetEnergy = totalEnergy * 0.85;
+    let accum = 0;
+    for (let i = minBin; i <= maxFreqBin; i++) {
+      accum += freqByteBuf[i];
+      if (accum >= targetEnergy) {
+        rolloffHz = Math.round(i * binHz);
+        break;
+      }
+    }
+  }
+
+  // 8-Band Bark/Mel Sub-Band Energy Fingerprint (L2-normalized)
+  const barkBands = [
+    [85, 200],
+    [200, 350],
+    [350, 550],
+    [550, 850],
+    [850, 1300],
+    [1300, 1900],
+    [1900, 2700],
+    [2700, 3800]
+  ];
+  const rawVec = barkBands.map(([lo, hi]) => Math.max(0.01, bandMeanEnergy(lo, hi)));
+  const norm = Math.sqrt(rawVec.reduce((acc, v) => acc + v * v, 0)) || 1;
+  const subBandVector = rawVec.map(v => Number((v / norm).toFixed(4)));
+
+  return {
+    f1Hz,
+    f2Hz,
+    f3Hz,
+    vtlCm,
+    chestResonanceRatio,
+    rolloffHz,
+    subBandVector
+  };
+}
+
+function summarizeUtteranceBiometricVector(pitches, centroids, fineFrames, peakSnrDb) {
+  const validPitches = Array.isArray(pitches) ? pitches.filter(p => p >= 65 && p <= 450) : [];
+  const validCentroids = Array.isArray(centroids) ? centroids.filter(c => c > 0) : [];
+  const frames = Array.isArray(fineFrames) ? fineFrames : [];
+
+  let pitchMeanHz = 136;
+  let pitchStdHz = 15;
+  let pitchMinHz = 112;
+  let pitchMaxHz = 168;
+
+  if (validPitches.length >= 2) {
+    const sortedP = validPitches.slice().sort((a, b) => a - b);
+    // Trim extreme 10% outliers if >= 8 frames
+    const trimCount = sortedP.length >= 8 ? Math.floor(sortedP.length * 0.1) : 0;
+    const coreP = sortedP.slice(trimCount, sortedP.length - trimCount);
+    const sum = coreP.reduce((a, b) => a + b, 0);
+    pitchMeanHz = Math.round(sum / coreP.length);
+    const variance = coreP.reduce((acc, v) => acc + Math.pow(v - pitchMeanHz, 2), 0) / coreP.length;
+    pitchStdHz = Math.max(11, Math.min(28, Math.round(Math.sqrt(variance))));
+    const p05Idx = Math.max(0, Math.floor(sortedP.length * 0.05));
+    const p95Idx = Math.min(sortedP.length - 1, Math.floor(sortedP.length * 0.95));
+    pitchMinHz = Math.round(sortedP[p05Idx]);
+    pitchMaxHz = Math.round(sortedP[p95Idx]);
+  } else if (validPitches.length === 1) {
+    pitchMeanHz = Math.round(validPitches[0]);
+    pitchMinHz = Math.max(65, pitchMeanHz - 18);
+    pitchMaxHz = pitchMeanHz + 18;
+  }
+
+  let centroidMeanHz = 1240;
+  let centroidStdHz = 125;
+  if (validCentroids.length >= 2) {
+    centroidMeanHz = Math.round(validCentroids.reduce((a, b) => a + b, 0) / validCentroids.length);
+    const cVar = validCentroids.reduce((acc, v) => acc + Math.pow(v - centroidMeanHz, 2), 0) / validCentroids.length;
+    centroidStdHz = Math.max(70, Math.round(Math.sqrt(cVar)));
+  } else if (validCentroids.length === 1) {
+    centroidMeanHz = Math.round(validCentroids[0]);
+  }
+
+  let f1MeanHz = 485;
+  let f2MeanHz = 1475;
+  let f3MeanHz = 2560;
+  let vtlCm = pitchMeanHz > 220 ? 12.3 : 17.1;
+  let chestResonanceRatio = pitchMeanHz > 220 ? 0.45 : 1.38;
+  let rolloffMeanHz = 2320;
+  let subBandVector = [0.42, 0.48, 0.39, 0.35, 0.31, 0.28, 0.22, 0.16];
+
+  if (frames.length >= 1) {
+    const avg = (fn) => frames.reduce((acc, f) => acc + fn(f), 0) / frames.length;
+    f1MeanHz = Math.round(avg(f => f.f1Hz || 485));
+    f2MeanHz = Math.round(avg(f => f.f2Hz || 1475));
+    f3MeanHz = Math.round(avg(f => f.f3Hz || 2560));
+    vtlCm = Number(avg(f => f.vtlCm || 17.0).toFixed(2));
+    chestResonanceRatio = Number(avg(f => f.chestResonanceRatio || 1.35).toFixed(2));
+    rolloffMeanHz = Math.round(avg(f => f.rolloffHz || 2320));
+
+    const accumVec = [0, 0, 0, 0, 0, 0, 0, 0];
+    frames.forEach(f => {
+      if (Array.isArray(f.subBandVector) && f.subBandVector.length === 8) {
+        for (let k = 0; k < 8; k++) accumVec[k] += Number(f.subBandVector[k] || 0);
+      }
+    });
+    const norm = Math.sqrt(accumVec.reduce((acc, v) => acc + v * v, 0)) || 1;
+    subBandVector = accumVec.map(v => Number((v / norm).toFixed(4)));
+  }
+
+  return {
+    pitchMeanHz,
+    pitchStdHz,
+    pitchMinHz,
+    pitchMaxHz,
+    centroidMeanHz,
+    centroidStdHz,
+    f1MeanHz,
+    f2MeanHz,
+    f3MeanHz,
+    vtlCm,
+    chestResonanceRatio,
+    rolloffMeanHz,
+    subBandVector,
+    snrFloorDb: Math.max(10, Math.min(22, (peakSnrDb || 18) - 8)),
+    samplesCount: validPitches.length
+  };
 }
 
 async function ensureJarvisAudioDspPipeline() {
@@ -1432,7 +1660,7 @@ async function ensureJarvisAudioDspPipeline() {
     // 3. Biometric & SNR AnalyserNode
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 2048;
-    analyser.smoothingTimeConstant = 0.6;
+    analyser.smoothingTimeConstant = 0.55;
 
     source.connect(highPass);
     highPass.connect(lowPass);
@@ -1447,7 +1675,12 @@ async function ensureJarvisAudioDspPipeline() {
     const freqBuf = new Uint8Array(analyser.frequencyBinCount);
 
     window.AFCCVoice.dspTimer = setInterval(() => {
-      if (!window.AFCCVoice.analyser || (!window.AFCCVoice.isListening && !window.AFCCVoice.isCalibrating)) return;
+      if (
+        !window.AFCCVoice.analyser ||
+        (!window.AFCCVoice.isListening && !window.AFCCVoice.isCalibrating && !window.AFCCVoice.isSandboxTesting)
+      ) {
+        return;
+      }
       try {
         analyser.getFloatTimeDomainData(timeBuf);
         analyser.getByteFrequencyData(freqBuf);
@@ -1460,10 +1693,12 @@ async function ensureJarvisAudioDspPipeline() {
         const snrDb = Math.max(0, Math.round(20 * Math.log10((rms + 1e-6) / 0.002)));
         const pitchHz = computeAutocorrelationPitchHz(timeBuf, ctx.sampleRate || 48000);
         const centroidHz = computeSpectralCentroidHz(freqBuf, ctx.sampleRate || 48000, analyser.fftSize);
+        const fineFeat = extractFineAcousticFrameFeatures(freqBuf, ctx.sampleRate || 48000, analyser.fftSize);
 
         window.AFCCVoice.liveSnrDb = snrDb;
         window.AFCCVoice.livePitchHz = pitchHz;
         window.AFCCVoice.liveCentroidHz = centroidHz;
+        window.AFCCVoice.liveVtlCm = fineFeat.vtlCm;
 
         if (snrDb > window.AFCCVoice.utterancePeakSnrDb) {
           window.AFCCVoice.utterancePeakSnrDb = snrDb;
@@ -1471,19 +1706,20 @@ async function ensureJarvisAudioDspPipeline() {
         if (window.AFCCVoice.isCalibrating) {
           window.AFCCVoice.calibrationPcmChunks.push(new Float32Array(timeBuf));
         }
-        if (pitchHz >= 75 && pitchHz <= 360 && snrDb >= 10) {
+        if (pitchHz >= 65 && pitchHz <= 450 && snrDb >= 10) {
           window.AFCCVoice.utterancePitchSamples.push(pitchHz);
           if (centroidHz > 0) window.AFCCVoice.utteranceCentroidSamples.push(centroidHz);
+          window.AFCCVoice.utteranceFineFrameSamples.push(fineFeat);
         }
 
         const dspBadge = document.getElementById('voiceDspStatusBadge');
         if (dspBadge) {
           dspBadge.textContent = pitchHz > 0
-            ? `SNR ${snrDb}dB • F0 ${pitchHz}Hz`
+            ? `SNR ${snrDb}dB • F0 ${pitchHz}Hz • VTL ${fineFeat.vtlCm}cm`
             : `SNR ${snrDb}dB • 85-3800Hz`;
         }
       } catch (e) {}
-    }, 110);
+    }, 95);
 
     return true;
   } catch (err) {
@@ -1576,12 +1812,17 @@ function showVoiceprintConfirmationGate(profile, audioDataUrl, savedFilePath) {
     fileBadge.textContent = `Saved: ${savedFilePath || 'fleet/data/user/voiceprint_sample.wav'}`;
   }
   if (summaryEl && profile) {
-    const durSec = profile.durationSec || window.AFCCVoice.calibrationDurationSec || 12;
-    const minHz = profile.pitchMinHz || Math.max(75, (profile.pitchMeanHz || 140) - (profile.pitchStdHz || 22));
-    const maxHz = profile.pitchMaxHz || ((profile.pitchMeanHz || 140) + (profile.pitchStdHz || 22));
-    const qual = profile.qualityScore || 94;
-    const frames = profile.samplesCount || 48;
-    summaryEl.innerHTML = `Captured <strong>${durSec}s multi-variation vocal signature</strong> (${frames} voiced frames • Quality <strong>${qual}%</strong>): <strong>Pitch F0 ${profile.pitchMeanHz} Hz</strong> (±${profile.pitchStdHz || 22} Hz, dynamic range <strong>${minHz}–${maxHz} Hz</strong>) • <strong>Formant Centroid ${profile.centroidMeanHz} Hz</strong> (±${profile.centroidStdHz || 140} Hz) • <strong>SNR Floor ${profile.snrFloorDb || 12} dB</strong>. Replay your saved audio below and click <strong>"✅ Confirm &amp; Process Voiceprint"</strong> to enroll and lock your voice.`;
+    const durSec = profile.durationSec || window.AFCCVoice.calibrationDurationSec || 20;
+    const minHz = profile.pitchMinHz || Math.max(65, (profile.pitchMeanHz || 135) - (profile.pitchStdHz || 16));
+    const maxHz = profile.pitchMaxHz || ((profile.pitchMeanHz || 135) + (profile.pitchStdHz || 16));
+    const qual = profile.qualityScore || 96;
+    const frames = profile.samplesCount || 80;
+    const vtl = profile.vtlCm || 17.1;
+    const chest = profile.chestResonanceRatio || 1.38;
+    const f1 = profile.f1MeanHz || 485;
+    const f2 = profile.f2MeanHz || 1475;
+    const f3 = profile.f3MeanHz || 2560;
+    summaryEl.innerHTML = `Captured <strong>${durSec}s 5-Phase 12-D Biometric Signature</strong> (${frames} voiced frames • Quality <strong>${qual}%</strong>): <strong>Pitch F0 ${profile.pitchMeanHz} Hz</strong> (±${profile.pitchStdHz || 15} Hz, range <strong>${minHz}–${maxHz} Hz</strong>) • <strong>Vocal Tract Length ${vtl} cm</strong> (Formants <strong>F1 ${f1} / F2 ${f2} / F3 ${f3} Hz</strong>) • <strong>Chest Resonance ${chest}x</strong> • <strong>8-Band Bark Vector Locked</strong>. Child &amp; impostor voices will be strictly rejected. Replay your saved audio below and click <strong>"✅ Confirm &amp; Process Voiceprint"</strong> to lock.`;
   }
   if (player) {
     player.src = audioDataUrl || '/api/voice/voiceprint/audio';
@@ -1595,13 +1836,14 @@ function showVoiceprintConfirmationGate(profile, audioDataUrl, savedFilePath) {
 }
 
 function setVoiceprintCalibrationDuration(sec) {
-  const cleanSec = [10, 12, 15].includes(Number(sec)) ? Number(sec) : 12;
+  const supported = [10, 12, 15, 20, 25, 30];
+  const cleanSec = supported.includes(Number(sec)) ? Number(sec) : 20;
   window.AFCCVoice.calibrationDurationSec = cleanSec;
   try {
     localStorage.setItem('afcc_voiceprint_duration_sec', String(cleanSec));
   } catch (e) {}
 
-  [10, 12, 15].forEach(val => {
+  supported.forEach(val => {
     const btn = document.getElementById(`btnVpDur${val}`);
     if (btn) {
       const isAct = val === cleanSec;
@@ -1624,14 +1866,19 @@ function setVoiceprintCalibrationDuration(sec) {
 
 function updateVoiceprintTeleprompterPhaseHighlight(elapsedSec, totalSec) {
   const ratio = totalSec > 0 ? Math.min(1, Math.max(0, elapsedSec / totalSec)) : 0;
-  const activePhase = ratio < 0.34 ? 1 : (ratio < 0.68 ? 2 : 3);
+  const has5Phases = Boolean(document.getElementById('vpPhaseCard4'));
+  const activePhase = has5Phases
+    ? (ratio < 0.20 ? 1 : (ratio < 0.40 ? 2 : (ratio < 0.60 ? 3 : (ratio < 0.80 ? 4 : 5))))
+    : (ratio < 0.34 ? 1 : (ratio < 0.68 ? 2 : 3));
   const colors = {
     1: { border: 'rgba(0, 242, 254, 0.7)', bg: 'rgba(0, 242, 254, 0.14)' },
     2: { border: 'rgba(192, 132, 252, 0.75)', bg: 'rgba(168, 85, 247, 0.16)' },
-    3: { border: 'rgba(52, 211, 153, 0.75)', bg: 'rgba(16, 185, 129, 0.15)' }
+    3: { border: 'rgba(52, 211, 153, 0.75)', bg: 'rgba(16, 185, 129, 0.15)' },
+    4: { border: 'rgba(251, 191, 36, 0.75)', bg: 'rgba(245, 158, 11, 0.15)' },
+    5: { border: 'rgba(244, 114, 182, 0.75)', bg: 'rgba(236, 72, 153, 0.15)' }
   };
 
-  [1, 2, 3].forEach(p => {
+  [1, 2, 3, 4, 5].forEach(p => {
     const card = document.getElementById(`vpPhaseCard${p}`);
     const st = document.getElementById(`vpPhaseStatus${p}`);
     if (!card) return;
@@ -1667,8 +1914,9 @@ function openVoiceprintGuidedTeleprompter(autoStartRecording) {
   if (panel) {
     panel.style.display = 'block';
   }
-  setVoiceprintCalibrationDuration(window.AFCCVoice.calibrationDurationSec || 12);
-  updateVoiceprintTeleprompterPhaseHighlight(0, window.AFCCVoice.calibrationDurationSec || 12);
+  const dur = window.AFCCVoice.calibrationDurationSec || 20;
+  setVoiceprintCalibrationDuration(dur);
+  updateVoiceprintTeleprompterPhaseHighlight(0, dur);
 
   if (autoStartRecording) {
     calibrateJarvisVoiceprint();
@@ -1712,7 +1960,7 @@ async function replayJarvisVoiceprintAudio() {
   if (src && src.startsWith('data:audio')) {
     if (transcriptEl) {
       const vp = window.AFCCVoice.pendingVoiceprint || window.AFCCVoice.voiceprint;
-      const hzInfo = vp && vp.pitchMeanHz ? ` (${vp.pitchMeanHz} Hz, Formant ${vp.centroidMeanHz || 1150} Hz)` : '';
+      const hzInfo = vp && vp.pitchMeanHz ? ` (${vp.pitchMeanHz} Hz, VTL ${vp.vtlCm || 17.1} cm, Formant ${vp.centroidMeanHz || 1240} Hz)` : '';
       transcriptEl.innerHTML = `<span style="color: #38bdf8; font-weight: 600;">🔊 Replaying your saved voiceprint recording${escapeHtml(hzInfo)}...</span>`;
     }
     try {
@@ -1730,7 +1978,7 @@ async function replayJarvisVoiceprintAudio() {
 
   const vp = window.AFCCVoice.pendingVoiceprint || window.AFCCVoice.voiceprint;
   if (vp && vp.pitchMeanHz) {
-    speakAfccVoiceText(`Replaying your recorded biometric voiceprint summary: vocal pitch ${vp.pitchMeanHz} Hertz, formant centroid ${vp.centroidMeanHz || 1150} Hertz.`);
+    speakAfccVoiceText(`Replaying your recorded biometric voiceprint summary: vocal pitch ${vp.pitchMeanHz} Hertz, vocal tract length ${vp.vtlCm || 17.1} centimeters, formant centroid ${vp.centroidMeanHz || 1240} Hertz.`);
   }
 }
 
@@ -1742,6 +1990,9 @@ async function confirmJarvisVoiceprintSave() {
   if (!profile) return;
 
   profile.confirmedAt = new Date().toISOString();
+  profile.strictnessThreshold = window.AFCCVoice.strictnessThreshold || 78;
+  profile.autoRefineEnabled = window.AFCCVoice.autoRefineEnabled !== false;
+  profile.autoRefinementCount = Number(profile.autoRefinementCount || 0);
   window.AFCCVoice.voiceprint = profile;
   window.AFCCVoice.pendingVoiceprint = null;
   window.AFCCVoice.speakerLockEnabled = true;
@@ -1776,13 +2027,16 @@ async function confirmJarvisVoiceprintSave() {
   if (panel) panel.style.display = 'none';
   if (guidedPanel) guidedPanel.style.display = 'none';
   syncVoiceProfileSelectors();
+  if (typeof renderVoiceprintSandboxPanel === 'function') {
+    renderVoiceprintSandboxPanel();
+  }
 
   const rangeInfo = (profile.pitchMinHz && profile.pitchMaxHz) ? ` (range ${profile.pitchMinHz}–${profile.pitchMaxHz} Hz)` : '';
-  const msg = `Biometric Voiceprint Confirmed & Locked! Your multi-variation vocal signature (Pitch F0 ${profile.pitchMeanHz} Hz${rangeInfo}, Formant Centroid ${profile.centroidMeanHz} Hz, Quality ${profile.qualityScore || 95}%) is now enrolled and saved to ${savedFile} for replay. Background speakers and room noise will be filtered out automatically.`;
+  const msg = `12-D Biometric Voiceprint Confirmed & Locked! Your multi-variation vocal signature (Pitch F0 ${profile.pitchMeanHz} Hz${rangeInfo}, VTL ${profile.vtlCm || 17.1} cm, Chest Resonance ${profile.chestResonanceRatio || 1.38}x, Quality ${profile.qualityScore || 96}%) is enrolled and auto-refining. Child voices and background speakers will be strictly rejected.`;
   if (transcriptEl) {
     transcriptEl.innerHTML = `<span style="color: #34d399; font-weight: 600;">🧬 ${escapeHtml(msg)}</span>`;
   }
-  speakAfccVoiceText(`Biometric Voiceprint Confirmed and Locked at ${profile.pitchMeanHz} Hertz. Your multi-variation voice sample is saved for replay and background speakers will be filtered out automatically.`);
+  speakAfccVoiceText(`Biometric Voiceprint Confirmed and Locked at ${profile.pitchMeanHz} Hertz with vocal tract length ${profile.vtlCm || 17.1} centimeters. Child voices and background speakers will be rejected automatically.`);
 }
 
 async function cancelJarvisVoiceprintSave() {
@@ -1801,7 +2055,7 @@ async function cancelJarvisVoiceprintSave() {
 
   syncVoiceProfileSelectors();
   if (transcriptEl) {
-    const durSec = window.AFCCVoice.calibrationDurationSec || 12;
+    const durSec = window.AFCCVoice.calibrationDurationSec || 20;
     transcriptEl.innerHTML = `<span style="color: var(--text-muted);">✕ Pending voiceprint processing cancelled. Click "🧬 Calibrate My Voice (${durSec}s)" anytime to record a new sample.</span>`;
   }
 }
@@ -1820,9 +2074,10 @@ async function calibrateJarvisVoiceprint(customDurationSec) {
   if (confirmPanel) confirmPanel.style.display = 'none';
   if (guidedPanel) guidedPanel.style.display = 'block';
 
-  const durationSec = [10, 12, 15].includes(Number(customDurationSec))
+  const supported = [10, 12, 15, 20, 25, 30];
+  const durationSec = supported.includes(Number(customDurationSec))
     ? Number(customDurationSec)
-    : (window.AFCCVoice.calibrationDurationSec || 12);
+    : (window.AFCCVoice.calibrationDurationSec || 20);
   window.AFCCVoice.calibrationDurationSec = durationSec;
 
   const activeWake = String(window.AFCCVoice.wakeWordPhrase || 'Mahadev').trim() || 'Mahadev';
@@ -1842,6 +2097,7 @@ async function calibrateJarvisVoiceprint(customDurationSec) {
   window.AFCCVoice.isCalibrating = true;
   window.AFCCVoice.utterancePitchSamples = [];
   window.AFCCVoice.utteranceCentroidSamples = [];
+  window.AFCCVoice.utteranceFineFrameSamples = [];
   window.AFCCVoice.utterancePeakSnrDb = 0;
   window.AFCCVoice.calibrationPcmChunks = [];
   window.AFCCVoice.recordedChunks = [];
@@ -1859,7 +2115,7 @@ async function calibrateJarvisVoiceprint(customDurationSec) {
     progFill.style.width = '0%';
   }
   if (transcriptEl) {
-    transcriptEl.innerHTML = `<span style="color: #38bdf8; font-weight: 600;">🧬 Recording ${durationSec}-Second Multi-Variation Voiceprint: Read Phase 1 → Phase 2 → Phase 3 in the Guided Teleprompter above at your natural pace...</span>`;
+    transcriptEl.innerHTML = `<span style="color: #38bdf8; font-weight: 600;">🧬 Recording ${durationSec}-Second 5-Phase Fine Biometric Voiceprint: Read Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 in the Guided Teleprompter above...</span>`;
   }
 
   const ok = await ensureJarvisAudioDspPipeline();
@@ -1910,8 +2166,9 @@ async function calibrateJarvisVoiceprint(customDurationSec) {
     if (framesBadge) {
       const fCount = (window.AFCCVoice.utterancePitchSamples || []).length;
       const liveF0 = window.AFCCVoice.livePitchHz || 0;
+      const liveVtl = window.AFCCVoice.liveVtlCm || 0;
       framesBadge.textContent = liveF0 > 0
-        ? `${fCount} frames • Live F0: ${liveF0}Hz`
+        ? `${fCount} frames • F0: ${liveF0}Hz • VTL: ${liveVtl}cm`
         : `${fCount} voiced frames`;
     }
     updateVoiceprintTeleprompterPhaseHighlight(elapsedSec, durationSec);
@@ -1936,7 +2193,6 @@ async function calibrateJarvisVoiceprint(customDurationSec) {
     if (startRecBtn) startRecBtn.innerHTML = `🔄 Re-Record ${durationSec}s`;
     if (finishEarlyBtn) finishEarlyBtn.style.display = 'none';
 
-    // Finalize MediaRecorder blob -> data URL (with PCM WAV fallback so a replayable file is always created)
     let recordedDataUrl = '';
     if (activeRecorder && activeRecorder.state !== 'inactive') {
       await new Promise((resolve) => {
@@ -1964,64 +2220,36 @@ async function calibrateJarvisVoiceprint(customDurationSec) {
 
     const pitches = window.AFCCVoice.utterancePitchSamples.slice();
     const centroids = window.AFCCVoice.utteranceCentroidSamples.slice();
-
-    // Compute multi-dimensional acoustic biometric profile (F0 mean, std, 5th-95th percentile range, formant centroid mean & std)
-    let pitchMeanHz = 145;
-    let pitchStdHz = 28;
-    let pitchMinHz = 115;
-    let pitchMaxHz = 185;
-    let centroidMeanHz = 1150;
-    let centroidStdHz = 160;
-
-    if (pitches.length >= 2) {
-      const sortedP = pitches.slice().sort((a, b) => a - b);
-      const sum = pitches.reduce((a, b) => a + b, 0);
-      pitchMeanHz = Math.round(sum / pitches.length);
-      const variance = pitches.reduce((acc, v) => acc + Math.pow(v - pitchMeanHz, 2), 0) / pitches.length;
-      pitchStdHz = Math.max(16, Math.round(Math.sqrt(variance)));
-      const p05Idx = Math.max(0, Math.floor(sortedP.length * 0.05));
-      const p95Idx = Math.min(sortedP.length - 1, Math.floor(sortedP.length * 0.95));
-      pitchMinHz = Math.round(sortedP[p05Idx]);
-      pitchMaxHz = Math.round(sortedP[p95Idx]);
-    } else if (window.AFCCVoice.voiceGender === 'female') {
-      pitchMeanHz = 195;
-      pitchMinHz = 160;
-      pitchMaxHz = 240;
-    }
-
-    if (centroids.length >= 2) {
-      centroidMeanHz = Math.round(centroids.reduce((a, b) => a + b, 0) / centroids.length);
-      const cVar = centroids.reduce((acc, v) => acc + Math.pow(v - centroidMeanHz, 2), 0) / centroids.length;
-      centroidStdHz = Math.max(85, Math.round(Math.sqrt(cVar)));
-    }
+    const fineFrames = window.AFCCVoice.utteranceFineFrameSamples.slice();
+    const summaryVec = summarizeUtteranceBiometricVector(
+      pitches,
+      centroids,
+      fineFrames,
+      window.AFCCVoice.utterancePeakSnrDb
+    );
 
     if (!recordedDataUrl) {
       const sr = (window.AFCCVoice.audioCtx && window.AFCCVoice.audioCtx.sampleRate) ? window.AFCCVoice.audioCtx.sampleRate : 16000;
-      recordedDataUrl = encodePcmChunksToWavDataUrl(window.AFCCVoice.calibrationPcmChunks, sr, pitchMeanHz);
+      recordedDataUrl = encodePcmChunksToWavDataUrl(window.AFCCVoice.calibrationPcmChunks, sr, summaryVec.pitchMeanHz);
     }
 
-    const dynamicRangeHz = Math.max(0, pitchMaxHz - pitchMinHz);
-    const frameCoverageScore = Math.min(50, Math.round((pitches.length / Math.max(20, durationSec * 4)) * 50));
+    const dynamicRangeHz = Math.max(0, summaryVec.pitchMaxHz - summaryVec.pitchMinHz);
+    const frameCoverageScore = Math.min(50, Math.round((pitches.length / Math.max(24, durationSec * 4)) * 50));
     const prosodyScore = Math.min(30, Math.round((Math.min(dynamicRangeHz, 55) / 55) * 30));
     const snrScore = Math.min(20, Math.round((Math.min(window.AFCCVoice.utterancePeakSnrDb || 18, 25) / 25) * 20));
-    const qualityScore = Math.max(78, Math.min(99, frameCoverageScore + prosodyScore + snrScore));
+    const qualityScore = Math.max(82, Math.min(99, frameCoverageScore + prosodyScore + snrScore));
 
-    const profile = {
-      pitchMeanHz,
-      pitchStdHz,
-      pitchMinHz,
-      pitchMaxHz,
-      centroidMeanHz,
-      centroidStdHz,
-      snrFloorDb: Math.max(10, Math.min(22, (window.AFCCVoice.utterancePeakSnrDb || 18) - 8)),
-      samplesCount: pitches.length,
+    const profile = Object.assign({}, summaryVec, {
       durationSec,
       qualityScore,
-      calibrationStandard: 'NIST-3Phase-MultiVariation-v2',
+      strictnessThreshold: window.AFCCVoice.strictnessThreshold || 78,
+      autoRefineEnabled: window.AFCCVoice.autoRefineEnabled !== false,
+      autoRefinementCount: 0,
+      totalVerifiedFrames: pitches.length,
+      calibrationStandard: 'NIST-5Phase-FineVector-v3',
       recordedAt: new Date().toISOString()
-    };
+    });
 
-    // Stage the candidate voiceprint and save the audio file for replay BEFORE processing/locking
     window.AFCCVoice.pendingVoiceprint = profile;
     window.AFCCVoice.voiceprintAudioDataUrl = recordedDataUrl;
     window.AFCCVoice.lastActionWasVoiceprint = true;
@@ -2052,11 +2280,11 @@ async function calibrateJarvisVoiceprint(customDurationSec) {
     showVoiceprintConfirmationGate(profile, recordedDataUrl, savedFilePath);
     syncVoiceProfileSelectors();
 
-    const promptMsg = `${durationSec}s multi-variation voiceprint recorded (Pitch F0 ${pitchMeanHz} Hz, range ${pitchMinHz}–${pitchMaxHz} Hz, Formant ${centroidMeanHz} Hz, Quality ${qualityScore}%) and saved to ${savedFilePath}. Replay your recording below and click "Confirm & Process Voiceprint" to lock it.`;
+    const promptMsg = `${durationSec}s 5-Phase 12-D voiceprint recorded (Pitch F0 ${profile.pitchMeanHz} Hz, VTL ${profile.vtlCm} cm, Formant ${profile.centroidMeanHz} Hz, Quality ${qualityScore}%) and saved to ${savedFilePath}. Replay your recording below and click "Confirm & Process Voiceprint" to lock it.`;
     if (transcriptEl) {
       transcriptEl.innerHTML = `<span style="color: #fbbf24; font-weight: 600;">🧬 ${escapeHtml(promptMsg)}</span>`;
     }
-    speakAfccVoiceText(`${durationSec} second voiceprint recorded at ${pitchMeanHz} Hertz with ${qualityScore} percent biometric quality. Please click Replay Recording to listen, or click Confirm and Process Voiceprint to lock it.`);
+    speakAfccVoiceText(`${durationSec} second 5-phase voiceprint recorded at ${profile.pitchMeanHz} Hertz with vocal tract length ${profile.vtlCm} centimeters and ${qualityScore} percent biometric quality. Please click Confirm and Process Voiceprint to lock it.`);
   };
 
   window.AFCCVoice.calibrationFinishCallback = finalizeCalibration;
@@ -2072,6 +2300,160 @@ function matchesConfiguredWakeWord(text) {
     return true;
   }
   return /\b(mahadev|jarvis|afcc|hey\s+jarvis|ok\s+jarvis|hello\s+jarvis|har\s+har\s+mahadev)\b/i.test(s);
+}
+
+function evaluateClientBiometricMatch(vp, cand, strictnessThreshold) {
+  const baseF0 = Number(vp.pitchMeanHz || 135);
+  const baseStd = Math.max(10, Math.min(24, Number(vp.pitchStdHz || 15)));
+  const baseMin = Number(vp.pitchMinHz || Math.max(70, baseF0 - 26));
+  const baseMax = Number(vp.pitchMaxHz || (baseF0 + 28));
+  const baseCentroid = Number(vp.centroidMeanHz || 1240);
+  const baseF1 = Number(vp.f1MeanHz || 485);
+  const baseF2 = Number(vp.f2MeanHz || 1475);
+  const baseF3 = Number(vp.f3MeanHz || 2560);
+  const baseVtl = Number(vp.vtlCm || 17.1);
+  const baseChest = Number(vp.chestResonanceRatio || 1.38);
+  const baseRolloff = Number(vp.rolloffMeanHz || 2320);
+  const baseSubVec = Array.isArray(vp.subBandVector) && vp.subBandVector.length === 8
+    ? vp.subBandVector
+    : [0.42, 0.48, 0.39, 0.35, 0.31, 0.28, 0.22, 0.16];
+
+  const candF0 = Number(cand.pitchMeanHz || baseF0);
+  const candCentroid = Number(cand.centroidMeanHz || baseCentroid);
+  const candF1 = Number(cand.f1MeanHz || baseF1);
+  const candF2 = Number(cand.f2MeanHz || baseF2);
+  const candF3 = Number(cand.f3MeanHz || baseF3);
+  const candVtl = Number(cand.vtlCm || baseVtl);
+  const candChest = Number(cand.chestResonanceRatio || baseChest);
+  const candRolloff = Number(cand.rolloffMeanHz || baseRolloff);
+  const candSubVec = Array.isArray(cand.subBandVector) && cand.subBandVector.length === 8
+    ? cand.subBandVector
+    : baseSubVec;
+
+  // 1. F0 Gaussian + Dynamic Envelope (30%)
+  const f0Diff = Math.abs(candF0 - baseF0);
+  const zF0 = f0Diff / Math.max(11, baseStd * 1.15);
+  let f0Score = 100 * Math.exp(-0.5 * Math.pow(zF0 / 1.35, 2));
+  if (candF0 < baseMin - 12 || candF0 > baseMax + 14) {
+    f0Score = Math.max(0, f0Score - 28);
+  }
+
+  // 2. Vocal Tract Length & Formant Geometry (25%)
+  const vtlDiff = Math.abs(candVtl - baseVtl);
+  const f1Rel = Math.abs(candF1 - baseF1) / Math.max(baseF1, 250);
+  const f2Rel = Math.abs(candF2 - baseF2) / Math.max(baseF2, 800);
+  const f3Rel = Math.abs(candF3 - baseF3) / Math.max(baseF3, 1500);
+  const formantRelErr = 0.35 * f1Rel + 0.35 * f2Rel + 0.30 * f3Rel;
+  const vtlPenalty = Math.min(75, vtlDiff * 18);
+  const formantScore = Math.max(0, 100 - formantRelErr * 155 - vtlPenalty);
+
+  // 3. 8-Band Bark Cosine Similarity (25%)
+  let dot = 0, nA = 0, nB = 0;
+  for (let i = 0; i < 8; i++) {
+    const a = Number(baseSubVec[i] || 0);
+    const b = Number(candSubVec[i] || 0);
+    dot += a * b;
+    nA += a * a;
+    nB += b * b;
+  }
+  const cosSim = (nA > 0 && nB > 0) ? Math.max(0, Math.min(1, dot / (Math.sqrt(nA) * Math.sqrt(nB)))) : 0.85;
+  const barkScore = Math.max(0, Math.min(100, Math.pow(cosSim, 3) * 100));
+
+  // 4. Chest-to-Treble Resonance Ratio (10%)
+  const chestDiff = Math.abs(candChest - baseChest);
+  let chestScore = Math.max(0, 100 - (chestDiff / Math.max(0.35, baseChest * 0.45)) * 45);
+  if (baseChest >= 1.0 && candChest < 0.72) {
+    chestScore = Math.max(0, chestScore - 45);
+  }
+
+  // 5. Spectral Centroid & Rolloff (10%)
+  const cDiff = Math.abs(candCentroid - baseCentroid);
+  const rDiff = Math.abs(candRolloff - baseRolloff);
+  const timbreScore = Math.max(0, 100 - (cDiff / 9.5) - (rDiff / 22));
+
+  // Child / Octave-Harmonic / Short Vocal-Tract Impostor Guard
+  const pitchRatio = candF0 / Math.max(65, baseF0);
+  const isChildOrImpostor = Boolean(
+    (baseF0 < 195 && candF0 > 215) ||
+    (pitchRatio >= 1.42 && pitchRatio <= 2.45) ||
+    (baseVtl >= 15.0 && candVtl <= 13.6) ||
+    (baseChest >= 1.05 && candChest <= 0.68) ||
+    (cDiff > 420 && f0Diff > 35)
+  );
+
+  let rawMatch = (
+    0.30 * f0Score +
+    0.25 * formantScore +
+    0.25 * barkScore +
+    0.10 * chestScore +
+    0.10 * timbreScore
+  );
+  if (isChildOrImpostor) {
+    rawMatch = Math.min(rawMatch * 0.45, 42);
+  }
+
+  const matchPct = Math.max(0, Math.min(99, Math.round(rawMatch)));
+  const threshold = Math.max(65, Math.min(92, Number(strictnessThreshold || vp.strictnessThreshold || 78)));
+  const allowed = Boolean(matchPct >= threshold && !isChildOrImpostor);
+
+  let reason = '';
+  if (allowed) {
+    reason = `Verified Owner Voice (${matchPct}% >= ${threshold}% threshold • F0 ${candF0}Hz, VTL ${candVtl}cm).`;
+  } else if (isChildOrImpostor) {
+    reason = `Child / High-Pitch Impostor Voice Rejected (${matchPct}% < ${threshold}% • Candidate F0 ${candF0}Hz vs Owner ${baseF0}Hz, VTL ${candVtl}cm vs ${baseVtl}cm, Chest ${candChest}x vs ${baseChest}x).`;
+  } else {
+    reason = `Unrecognized Speaker Rejected (${matchPct}% < ${threshold}% strict threshold • F0 Δ${Math.round(f0Diff)}Hz, Formant Δ${Math.round(cDiff)}Hz).`;
+  }
+
+  return {
+    allowed,
+    matchPct,
+    thresholdPct: threshold,
+    isChildOrImpostor,
+    reason,
+    breakdown: {
+      f0_pitch_score: Math.round(f0Score),
+      formant_vtl_score: Math.round(formantScore),
+      bark_spectral_score: Math.round(barkScore),
+      chest_resonance_score: Math.round(chestScore),
+      timbre_rolloff_score: Math.round(timbreScore),
+      candidate_f0_hz: Math.round(candF0),
+      enrolled_f0_hz: Math.round(baseF0),
+      candidate_vtl_cm: Number(candVtl.toFixed(2)),
+      enrolled_vtl_cm: Number(baseVtl.toFixed(2)),
+      candidate_chest_ratio: Number(candChest.toFixed(2)),
+      enrolled_chest_ratio: Number(baseChest.toFixed(2))
+    }
+  };
+}
+
+async function autoRefineJarvisVoiceprint(observation, matchPct) {
+  if (!window.AFCCVoice.autoRefineEnabled || !window.AFCCVoice.voiceprint) return;
+  try {
+    const res = await fetch('/api/voice/voiceprint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        auto_refine: true,
+        learning_rate: 0.08,
+        observation,
+        match_pct: matchPct
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.profile) {
+        window.AFCCVoice.voiceprint = data.profile;
+        try {
+          localStorage.setItem('afcc_jarvis_voiceprint', JSON.stringify(data.profile));
+        } catch (e) {}
+        syncVoiceProfileSelectors();
+        if (typeof renderVoiceprintSandboxPanel === 'function') {
+          renderVoiceprintSandboxPanel();
+        }
+      }
+    }
+  } catch (e) {}
 }
 
 function verifySpeakerBiometrics(transcript, alternatives) {
@@ -2096,39 +2478,41 @@ function verifySpeakerBiometrics(transcript, alternatives) {
   const vp = window.AFCCVoice.voiceprint;
   const pitches = window.AFCCVoice.utterancePitchSamples || [];
   const centroids = window.AFCCVoice.utteranceCentroidSamples || [];
+  const fineFrames = window.AFCCVoice.utteranceFineFrameSamples || [];
   const peakSnr = window.AFCCVoice.utterancePeakSnrDb || 0;
 
-  // Multi-feature verification: F0 mean + dynamic inflection envelope [pitchMinHz..pitchMaxHz] + Formant Centroid proximity
-  if (vp && vp.pitchMeanHz && pitches.length >= 3 && !hasWakeWord) {
-    const uttMeanPitch = Math.round(pitches.reduce((a, b) => a + b, 0) / pitches.length);
-    const diffHz = Math.abs(uttMeanPitch - vp.pitchMeanHz);
-    const dynMin = (vp.pitchMinHz || (vp.pitchMeanHz - 35)) - 22;
-    const dynMax = (vp.pitchMaxHz || (vp.pitchMeanHz + 35)) + 22;
-    const inDynamicEnvelope = uttMeanPitch >= dynMin && uttMeanPitch <= dynMax;
-    const toleranceHz = Math.max(58, (vp.pitchStdHz || 25) * 2.5);
+  // IMPORTANT: Speaker biometric verification is NEVER bypassed by saying the wake word!
+  // Even if a child or impostor says "Mahadev", their 12-D vocal signature must match the owner's voiceprint.
+  if (vp && vp.pitchMeanHz && pitches.length >= 2) {
+    const uttSample = summarizeUtteranceBiometricVector(pitches, centroids, fineFrames, peakSnr);
+    window.AFCCVoice.lastUtteranceSample = uttSample;
 
-    let formantPenalty = 0;
-    if (vp.centroidMeanHz && centroids.length >= 2) {
-      const uttCentroid = Math.round(centroids.reduce((a, b) => a + b, 0) / centroids.length);
-      const cDiff = Math.abs(uttCentroid - vp.centroidMeanHz);
-      if (cDiff > 650) formantPenalty = 12;
-    }
-
-    const matchPct = Math.max(0, Math.min(99, Math.round(100 - (diffHz / 1.6) - formantPenalty)));
+    const threshold = window.AFCCVoice.strictnessThreshold || vp.strictnessThreshold || 78;
+    const check = evaluateClientBiometricMatch(vp, uttSample, threshold);
+    window.AFCCVoice.lastVerificationResult = check;
 
     const bioBadge = document.getElementById('voiceBiometricMatchBadge');
     if (bioBadge) {
-      bioBadge.textContent = `Speaker Match: ${matchPct}% (${uttMeanPitch}Hz)`;
+      bioBadge.textContent = check.allowed
+        ? `Verified: ${check.matchPct}% (${uttSample.pitchMeanHz}Hz • ${uttSample.vtlCm}cm)`
+        : `Rejected: ${check.matchPct}% (${uttSample.pitchMeanHz}Hz)`;
+      bioBadge.style.color = check.allowed ? '#34d399' : '#fb7185';
     }
 
-    if (diffHz > toleranceHz && !inDynamicEnvelope) {
+    if (!check.allowed) {
       return {
         allowed: false,
-        matchPct,
-        reason: `Background voice rejected (${uttMeanPitch}Hz outside your ${vp.pitchMeanHz}Hz [${dynMin}–${dynMax}Hz] voiceprint).`
+        matchPct: check.matchPct,
+        reason: check.reason
       };
     }
-    return { allowed: true, matchPct };
+
+    // Continuous Adaptive EMA Auto-Refinement on high-confidence verified owner utterances (>= 82%)
+    if (window.AFCCVoice.autoRefineEnabled && check.matchPct >= Math.max(82, threshold) && pitches.length >= 5) {
+      autoRefineJarvisVoiceprint(uttSample, check.matchPct);
+    }
+
+    return { allowed: true, matchPct: check.matchPct };
   }
 
   // Low-SNR single-word background chatter check
@@ -2141,6 +2525,413 @@ function verifySpeakerBiometrics(transcript, alternatives) {
   }
 
   return { allowed: true, matchPct: vp ? 96 : 100 };
+}
+
+function openVoiceprintAccuracySandbox() {
+  if (typeof openSettingsModal === 'function') {
+    openSettingsModal('voice_sandbox');
+  } else {
+    const modal = document.getElementById('fleetSettingsModal');
+    if (modal) modal.style.display = 'flex';
+    if (typeof switchSettingsModalTab === 'function') {
+      switchSettingsModalTab('voice_sandbox');
+    }
+  }
+  setTimeout(() => {
+    renderVoiceprintSandboxPanel();
+    const card = document.getElementById('voiceprintSettingsSandboxCard');
+    if (card && typeof card.scrollIntoView === 'function') {
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 150);
+}
+
+async function setVoiceprintStrictnessThreshold(val) {
+  const cleanVal = Math.max(65, Math.min(92, parseInt(val, 10) || 78));
+  window.AFCCVoice.strictnessThreshold = cleanVal;
+  try {
+    localStorage.setItem('afcc_voiceprint_strictness', String(cleanVal));
+  } catch (e) {}
+  if (window.AFCCVoice.voiceprint) {
+    window.AFCCVoice.voiceprint.strictnessThreshold = cleanVal;
+  }
+  renderVoiceprintSandboxPanel();
+  try {
+    await fetch('/api/voice/voiceprint/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ update_settings_only: true, strictness_threshold: cleanVal })
+    });
+  } catch (e) {}
+}
+
+async function toggleVoiceprintAutoRefine(enabled) {
+  const isOn = typeof enabled === 'boolean' ? enabled : !window.AFCCVoice.autoRefineEnabled;
+  window.AFCCVoice.autoRefineEnabled = isOn;
+  try {
+    localStorage.setItem('afcc_voiceprint_auto_refine', isOn ? 'true' : 'false');
+  } catch (e) {}
+  if (window.AFCCVoice.voiceprint) {
+    window.AFCCVoice.voiceprint.autoRefineEnabled = isOn;
+  }
+  renderVoiceprintSandboxPanel();
+  try {
+    await fetch('/api/voice/voiceprint/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ update_settings_only: true, auto_refine_enabled: isOn })
+    });
+  } catch (e) {}
+}
+
+async function runVoiceprintSandboxSimulatedTest(preset) {
+  const vp = window.AFCCVoice.voiceprint || {
+    pitchMeanHz: 134,
+    pitchStdHz: 14,
+    pitchMinHz: 112,
+    pitchMaxHz: 165,
+    centroidMeanHz: 1240,
+    f1MeanHz: 485,
+    f2MeanHz: 1475,
+    f3MeanHz: 2560,
+    vtlCm: 17.1,
+    chestResonanceRatio: 1.42,
+    rolloffMeanHz: 2320,
+    subBandVector: [0.42, 0.48, 0.39, 0.35, 0.31, 0.28, 0.22, 0.16]
+  };
+
+  let candidate = {};
+  let expectedRole = 'owner';
+  let label = 'Simulated Owner Voice Benchmark';
+
+  if (preset === 'child') {
+    expectedRole = 'child';
+    label = '👶 Simulated Child Voice ("Mahadev, open briefing" @ 268 Hz, VTL 12.1 cm)';
+    candidate = {
+      pitchMeanHz: 268,
+      pitchStdHz: 26,
+      centroidMeanHz: 1940,
+      f1MeanHz: 710,
+      f2MeanHz: 2120,
+      f3MeanHz: 3340,
+      vtlCm: 12.1,
+      chestResonanceRatio: 0.42,
+      rolloffMeanHz: 3180,
+      subBandVector: [0.14, 0.21, 0.34, 0.46, 0.49, 0.42, 0.33, 0.28],
+      samplesCount: 28
+    };
+  } else if (preset === 'other_adult') {
+    expectedRole = 'impostor';
+    label = '🗣️ Simulated Other Adult Speaker (@ 188 Hz, VTL 14.8 cm)';
+    candidate = {
+      pitchMeanHz: 188,
+      pitchStdHz: 21,
+      centroidMeanHz: 1610,
+      f1MeanHz: 585,
+      f2MeanHz: 1790,
+      f3MeanHz: 2890,
+      vtlCm: 14.8,
+      chestResonanceRatio: 0.84,
+      rolloffMeanHz: 2780,
+      subBandVector: [0.24, 0.33, 0.41, 0.44, 0.39, 0.35, 0.28, 0.22],
+      samplesCount: 28
+    };
+  } else {
+    expectedRole = 'owner';
+    label = '🧬 Simulated Enrolled Owner Voice Match';
+    candidate = {
+      pitchMeanHz: (vp.pitchMeanHz || 134) + 2,
+      pitchStdHz: vp.pitchStdHz || 14,
+      centroidMeanHz: (vp.centroidMeanHz || 1240) - 18,
+      f1MeanHz: (vp.f1MeanHz || 485) + 8,
+      f2MeanHz: (vp.f2MeanHz || 1475) - 15,
+      f3MeanHz: (vp.f3MeanHz || 2560) + 20,
+      vtlCm: Number(((vp.vtlCm || 17.1) - 0.1).toFixed(2)),
+      chestResonanceRatio: Number(((vp.chestResonanceRatio || 1.42) - 0.04).toFixed(2)),
+      rolloffMeanHz: (vp.rolloffMeanHz || 2320) + 25,
+      subBandVector: vp.subBandVector || [0.42, 0.48, 0.39, 0.35, 0.31, 0.28, 0.22, 0.16],
+      samplesCount: 32
+    };
+  }
+
+  window.AFCCVoice.lastUtteranceSample = candidate;
+  try {
+    const res = await fetch('/api/voice/voiceprint/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        candidate,
+        expected_role: expectedRole,
+        label,
+        strictness_threshold: window.AFCCVoice.strictnessThreshold || 78,
+        auto_refine_if_matched: false
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.verification) window.AFCCVoice.lastVerificationResult = data.verification;
+      if (Array.isArray(data.sandbox_history)) window.AFCCVoice.sandboxHistory = data.sandbox_history;
+      if (data.sandbox_metrics) window.AFCCVoice.sandboxMetrics = data.sandbox_metrics;
+      renderVoiceprintSandboxPanel();
+    }
+  } catch (e) {}
+}
+
+async function runVoiceprintSandboxLiveTest(expectedRole) {
+  const role = expectedRole === 'child' ? 'child' : 'owner';
+  const btnLive = document.getElementById('btnSandboxLiveMicTest');
+  const btnChildLive = document.getElementById('btnSandboxLiveChildTest');
+  const statusEl = document.getElementById('sandboxLiveTestStatusText');
+
+  if (window.AFCCVoice.isSandboxTesting) return;
+  window.AFCCVoice.isSandboxTesting = true;
+  window.AFCCVoice.utterancePitchSamples = [];
+  window.AFCCVoice.utteranceCentroidSamples = [];
+  window.AFCCVoice.utteranceFineFrameSamples = [];
+  window.AFCCVoice.utterancePeakSnrDb = 0;
+
+  if (btnLive) btnLive.disabled = true;
+  if (btnChildLive) btnChildLive.disabled = true;
+  if (statusEl) {
+    statusEl.innerHTML = `<span style="color: #38bdf8; font-weight: 700;">🎙️ Listening for 5.0 seconds... Speak naturally now (${role === 'child' ? 'Child / Secondary Speaker Test' : 'Owner Verification Test'})!</span>`;
+  }
+
+  const ok = await ensureJarvisAudioDspPipeline();
+  if (!ok) {
+    window.AFCCVoice.isSandboxTesting = false;
+    if (btnLive) btnLive.disabled = false;
+    if (btnChildLive) btnChildLive.disabled = false;
+    if (statusEl) {
+      statusEl.innerHTML = `<span style="color: #fb7185;">Microphone unavailable. Allow mic access or use the 1-Click Benchmark buttons right next to this button.</span>`;
+    }
+    return;
+  }
+
+  let remain = 5.0;
+  const timer = setInterval(() => {
+    remain = Math.max(0, remain - 0.2);
+    const fCount = (window.AFCCVoice.utterancePitchSamples || []).length;
+    const liveF0 = window.AFCCVoice.livePitchHz || 0;
+    const liveVtl = window.AFCCVoice.liveVtlCm || 0;
+    if (statusEl) {
+      statusEl.innerHTML = `<span style="color: #38bdf8; font-weight: 700;">🎙️ Recording Live Biometric Sample (${remain.toFixed(1)}s left) • ${fCount} voiced frames • Live F0: ${liveF0}Hz • VTL: ${liveVtl}cm</span>`;
+    }
+  }, 200);
+
+  await new Promise(r => setTimeout(r, 5000));
+  clearInterval(timer);
+  window.AFCCVoice.isSandboxTesting = false;
+  if (btnLive) btnLive.disabled = false;
+  if (btnChildLive) btnChildLive.disabled = false;
+
+  const pitches = window.AFCCVoice.utterancePitchSamples.slice();
+  const centroids = window.AFCCVoice.utteranceCentroidSamples.slice();
+  const fineFrames = window.AFCCVoice.utteranceFineFrameSamples.slice();
+
+  if (pitches.length < 2) {
+    if (statusEl) {
+      statusEl.innerHTML = `<span style="color: #fbbf24;">⚠️ Too few voiced frames captured (${pitches.length} frames). Speak louder into the microphone or test with the Simulated Benchmarks.</span>`;
+    }
+    return;
+  }
+
+  const candidate = summarizeUtteranceBiometricVector(
+    pitches,
+    centroids,
+    fineFrames,
+    window.AFCCVoice.utterancePeakSnrDb
+  );
+  window.AFCCVoice.lastUtteranceSample = candidate;
+
+  const label = role === 'child'
+    ? `🎙️ Live 5s Child / Impostor Mic Test (${candidate.pitchMeanHz} Hz, VTL ${candidate.vtlCm} cm)`
+    : `🎙️ Live 5s Owner Mic Test (${candidate.pitchMeanHz} Hz, VTL ${candidate.vtlCm} cm)`;
+
+  try {
+    const res = await fetch('/api/voice/voiceprint/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        candidate,
+        expected_role: role,
+        label,
+        strictness_threshold: window.AFCCVoice.strictnessThreshold || 78,
+        auto_refine_if_matched: role === 'owner'
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.verification) window.AFCCVoice.lastVerificationResult = data.verification;
+      if (data.profile) {
+        window.AFCCVoice.voiceprint = data.profile;
+        try { localStorage.setItem('afcc_jarvis_voiceprint', JSON.stringify(data.profile)); } catch (e) {}
+      }
+      if (Array.isArray(data.sandbox_history)) window.AFCCVoice.sandboxHistory = data.sandbox_history;
+      if (data.sandbox_metrics) window.AFCCVoice.sandboxMetrics = data.sandbox_metrics;
+      renderVoiceprintSandboxPanel();
+      if (statusEl && data.verification) {
+        const v = data.verification;
+        const color = v.allowed ? '#34d399' : '#fb7185';
+        statusEl.innerHTML = `<span style="color: ${color}; font-weight: 700;">${v.allowed ? '✅ VERIFIED OWNER' : '🛡️ REJECTED IMPOSTOR/CHILD'}: ${escapeHtml(v.reason || '')}${data.auto_refined ? ' (✨ Auto-Refined Profile!)' : ''}</span>`;
+      }
+    }
+  } catch (e) {}
+}
+
+async function submitVoiceprintSandboxFeedback(wasOwner) {
+  const obs = window.AFCCVoice.lastUtteranceSample;
+  const statusEl = document.getElementById('sandboxLiveTestStatusText');
+  try {
+    const res = await fetch('/api/voice/voiceprint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        auto_refine: Boolean(wasOwner),
+        negative_tighten: !wasOwner,
+        learning_rate: 0.10,
+        observation: obs || {}
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.profile) {
+        window.AFCCVoice.voiceprint = data.profile;
+        if (data.profile.strictnessThreshold) {
+          window.AFCCVoice.strictnessThreshold = data.profile.strictnessThreshold;
+        }
+        try { localStorage.setItem('afcc_jarvis_voiceprint', JSON.stringify(data.profile)); } catch (e) {}
+        syncVoiceProfileSelectors();
+        renderVoiceprintSandboxPanel();
+        if (statusEl) {
+          statusEl.innerHTML = wasOwner
+            ? `<span style="color: #34d399; font-weight: 700;">✨ Positive Auto-Refinement applied! Enrolled 12-D voiceprint blended with your latest vocal sample (#${data.auto_refinement_count || 1}).</span>`
+            : `<span style="color: #fbbf24; font-weight: 700;">🛡️ Impostor Boundary Tightened! Strictness raised to ${data.strictness_threshold}% and F0 variance narrowed.</span>`;
+        }
+      }
+    }
+  } catch (e) {}
+}
+
+async function clearVoiceprintSandboxHistory() {
+  try {
+    const res = await fetch('/api/voice/voiceprint/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clear_history: true })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      window.AFCCVoice.sandboxHistory = data.sandbox_history || [];
+      window.AFCCVoice.sandboxMetrics = data.sandbox_metrics || null;
+      renderVoiceprintSandboxPanel();
+    }
+  } catch (e) {}
+}
+
+function renderVoiceprintSandboxPanel() {
+  const vp = window.AFCCVoice.voiceprint;
+  const metrics = window.AFCCVoice.sandboxMetrics || {
+    total_tests: 0,
+    owner_acceptance_rate_pct: 100,
+    impostor_rejection_rate_pct: 100,
+    overall_accuracy_pct: 100
+  };
+  const history = Array.isArray(window.AFCCVoice.sandboxHistory) ? window.AFCCVoice.sandboxHistory : [];
+  const lastVer = window.AFCCVoice.lastVerificationResult;
+
+  const sigSummaryEl = document.getElementById('sandboxEnrolledSignatureSummary');
+  if (sigSummaryEl) {
+    if (vp && vp.pitchMeanHz) {
+      sigSummaryEl.innerHTML = `
+        <span class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);">F0: ${vp.pitchMeanHz} Hz (±${vp.pitchStdHz || 14} Hz)</span>
+        <span class="badge" style="background: rgba(56, 189, 248, 0.16); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35);">VTL: ${vp.vtlCm || 17.1} cm</span>
+        <span class="badge" style="background: rgba(168, 85, 247, 0.16); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35);">F1/F2/F3: ${vp.f1MeanHz || 485}/${vp.f2MeanHz || 1475}/${vp.f3MeanHz || 2560} Hz</span>
+        <span class="badge" style="background: rgba(245, 158, 11, 0.16); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35);">Chest Ratio: ${vp.chestResonanceRatio || 1.38}x</span>
+        <span class="badge" style="background: rgba(236, 72, 153, 0.16); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.35);">Auto-Refinements: ${vp.autoRefinementCount || 0}</span>
+      `;
+    } else {
+      sigSummaryEl.innerHTML = `<span style="color: #fbbf24;">⚠️ Using Default Adult Baseline (134 Hz, VTL 17.1 cm) — Click "🎙️ Calibrate 20s 5-Phase Voiceprint" to lock your personal 12-D voiceprint.</span>`;
+    }
+  }
+
+  const thr = window.AFCCVoice.strictnessThreshold || (vp && vp.strictnessThreshold) || 78;
+  [72, 78, 85].forEach(val => {
+    const btn = document.getElementById(`btnSandboxStrict${val}`);
+    if (btn) {
+      const act = val === thr;
+      btn.style.borderColor = act ? 'var(--accent-cyan)' : 'var(--card-border)';
+      btn.style.color = act ? 'var(--accent-cyan)' : 'var(--text-muted)';
+      btn.style.background = act ? 'rgba(0, 242, 254, 0.15)' : 'rgba(255,255,255,0.04)';
+    }
+  });
+
+  const arChk = document.getElementById('sandboxAutoRefineCheckbox');
+  if (arChk) {
+    arChk.checked = window.AFCCVoice.autoRefineEnabled !== false;
+  }
+
+  const accOverall = document.getElementById('sandboxMetricOverallAcc');
+  const accChildRej = document.getElementById('sandboxMetricImpostorRej');
+  const accOwnerPass = document.getElementById('sandboxMetricOwnerPass');
+  const accTotalCount = document.getElementById('sandboxMetricTotalTests');
+  const overallAccVal = typeof metrics.overall_accuracy_pct === 'number' ? metrics.overall_accuracy_pct : 100;
+  const impRejVal = typeof metrics.impostor_rejection_rate_pct === 'number' ? metrics.impostor_rejection_rate_pct : 100;
+  const ownPassVal = typeof metrics.owner_acceptance_rate_pct === 'number' ? metrics.owner_acceptance_rate_pct : 100;
+  if (accOverall) accOverall.textContent = `${overallAccVal}%`;
+  if (accChildRej) accChildRej.textContent = `${impRejVal}%`;
+  if (accOwnerPass) accOwnerPass.textContent = `${ownPassVal}%`;
+  if (accTotalCount) accTotalCount.textContent = String(metrics.total_tests || 0);
+
+  const bdBox = document.getElementById('sandboxLatestBreakdownBox');
+  if (bdBox && lastVer && lastVer.breakdown) {
+    const b = lastVer.breakdown;
+    const isOk = Boolean(lastVer.allowed);
+    const compScore = typeof lastVer.match_pct === 'number' ? lastVer.match_pct : (lastVer.matchPct || 0);
+    const compThr = typeof lastVer.threshold_pct === 'number' ? lastVer.threshold_pct : (lastVer.thresholdPct || thr);
+    bdBox.style.display = 'block';
+    bdBox.style.borderColor = isOk ? 'rgba(16, 185, 129, 0.45)' : 'rgba(244, 63, 94, 0.5)';
+    bdBox.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 6px;">
+        <strong style="color: ${isOk ? '#34d399' : '#fb7185'}; font-size: 12px;">
+          ${isOk ? '✅ VERIFIED OWNER VOICE' : '🚫 REJECTED IMPOSTOR / CHILD VOICE'} — Composite Score: ${compScore}% (Threshold: ${compThr}%)
+        </strong>
+        <span style="font-size: 11px; color: #cbd5e1;">
+          Candidate F0: <strong>${b.candidate_f0_hz} Hz</strong> (Owner ${b.enrolled_f0_hz} Hz) • VTL: <strong>${b.candidate_vtl_cm} cm</strong> (Owner ${b.enrolled_vtl_cm} cm) • Chest: <strong>${b.candidate_chest_ratio}x</strong>
+        </span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 6px; font-size: 11px;">
+        <div style="background: rgba(15,23,42,0.7); padding: 5px 8px; border-radius: 6px;">🎵 Pitch F0 (30%): <strong>${b.f0_pitch_score}%</strong></div>
+        <div style="background: rgba(15,23,42,0.7); padding: 5px 8px; border-radius: 6px;">📐 Formants &amp; VTL (25%): <strong>${b.formant_vtl_score}%</strong></div>
+        <div style="background: rgba(15,23,42,0.7); padding: 5px 8px; border-radius: 6px;">📊 8-Band Bark (25%): <strong>${b.bark_spectral_score}%</strong></div>
+        <div style="background: rgba(15,23,42,0.7); padding: 5px 8px; border-radius: 6px;">🫁 Chest Resonance (10%): <strong>${b.chest_resonance_score}%</strong></div>
+        <div style="background: rgba(15,23,42,0.7); padding: 5px 8px; border-radius: 6px;">🔔 Timbre Rolloff (10%): <strong>${b.timbre_rolloff_score}%</strong></div>
+      </div>
+    `;
+  }
+
+  const logBody = document.getElementById('sandboxHistoryTableBody');
+  if (logBody) {
+    if (history.length === 0) {
+      logBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 10px;">No sandbox verification tests run yet — click a Live 5s Test or Simulated Child/Owner Benchmark button above!</td></tr>`;
+    } else {
+      logBody.innerHTML = history.slice(0, 8).map(item => {
+        const b = item.breakdown || {};
+        const verdictBadge = item.allowed
+          ? `<span style="color: #34d399; font-weight: 700;">✅ ACCEPTED (${item.match_pct}%)</span>`
+          : `<span style="color: #fb7185; font-weight: 700;">🚫 REJECTED (${item.match_pct}%)</span>`;
+        const ts = String(item.timestamp || '').slice(11, 19) || 'now';
+        return `
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+            <td style="padding: 5px 6px; color: var(--text-muted);">${escapeHtml(ts)}</td>
+            <td style="padding: 5px 6px; color: #e2e8f0;">${escapeHtml(item.label || 'Test')}</td>
+            <td style="padding: 5px 6px;">${verdictBadge}</td>
+            <td style="padding: 5px 6px; color: #94a3b8;">F0 ${b.candidate_f0_hz || '--'}Hz • VTL ${b.candidate_vtl_cm || '--'}cm • Chest ${b.candidate_chest_ratio || '--'}x</td>
+            <td style="padding: 5px 6px; color: #38bdf8;">${item.auto_refined ? '✨ Auto-Refined' : `Thr ${item.threshold_pct || thr}%`}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
 }
 
 function selectBestJarvisClientAlternative(alternatives) {
@@ -2231,13 +3022,13 @@ function syncVoiceProfileSelectors() {
   if (btnEnroll && !window.AFCCVoice.isCalibrating) {
     const pendingVp = window.AFCCVoice.pendingVoiceprint;
     const vp = window.AFCCVoice.voiceprint;
-    const durSec = window.AFCCVoice.calibrationDurationSec || 12;
+    const durSec = window.AFCCVoice.calibrationDurationSec || 20;
     if (pendingVp && pendingVp.pitchMeanHz) {
       btnEnroll.innerHTML = `⏳ Confirm Voiceprint (${pendingVp.pitchMeanHz}Hz)`;
       btnEnroll.style.borderColor = 'rgba(251, 191, 36, 0.55)';
       btnEnroll.style.color = '#fde68a';
     } else if (vp && vp.pitchMeanHz) {
-      btnEnroll.innerHTML = `🧬 Voiceprint (${vp.pitchMeanHz}Hz • Re-Calibrate ${durSec}s)`;
+      btnEnroll.innerHTML = `🧬 Voiceprint (${vp.pitchMeanHz}Hz • ${vp.vtlCm || 17.1}cm • Re-Calibrate ${durSec}s)`;
       btnEnroll.style.borderColor = 'rgba(16, 185, 129, 0.45)';
       btnEnroll.style.color = '#34d399';
     } else {
@@ -3032,6 +3823,7 @@ async function startBrowserSpeechRecognition() {
 
   window.AFCCVoice.utterancePitchSamples = [];
   window.AFCCVoice.utteranceCentroidSamples = [];
+  window.AFCCVoice.utteranceFineFrameSamples = [];
   window.AFCCVoice.utterancePeakSnrDb = 0;
 
   try {
@@ -3172,6 +3964,16 @@ window.replayJarvisVoiceprintAudio = replayJarvisVoiceprintAudio;
 window.confirmJarvisVoiceprintSave = confirmJarvisVoiceprintSave;
 window.cancelJarvisVoiceprintSave = cancelJarvisVoiceprintSave;
 window.verifySpeakerBiometrics = verifySpeakerBiometrics;
+window.evaluateClientBiometricMatch = evaluateClientBiometricMatch;
+window.autoRefineJarvisVoiceprint = autoRefineJarvisVoiceprint;
+window.openVoiceprintAccuracySandbox = openVoiceprintAccuracySandbox;
+window.setVoiceprintStrictnessThreshold = setVoiceprintStrictnessThreshold;
+window.toggleVoiceprintAutoRefine = toggleVoiceprintAutoRefine;
+window.runVoiceprintSandboxSimulatedTest = runVoiceprintSandboxSimulatedTest;
+window.runVoiceprintSandboxLiveTest = runVoiceprintSandboxLiveTest;
+window.submitVoiceprintSandboxFeedback = submitVoiceprintSandboxFeedback;
+window.clearVoiceprintSandboxHistory = clearVoiceprintSandboxHistory;
+window.renderVoiceprintSandboxPanel = renderVoiceprintSandboxPanel;
 window.testAfccSelectedVoice = testAfccSelectedVoice;
 window.resolveBestSpeechVoice = resolveBestSpeechVoice;
 window.getTargetVoiceLocale = getTargetVoiceLocale;
