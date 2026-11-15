@@ -571,6 +571,52 @@
       </div>
     </div>
 
+    <!-- Phase 1 Tri-Device Ecosystem Hub: Apple Watch + iPhone HealthKit + FFD Readiness (TD-01, TD-02, TD-03) -->
+    <div id="triDeviceHealthHubCard" style="background: linear-gradient(135deg, rgba(0, 242, 254, 0.08), rgba(168, 85, 247, 0.08)); border: 1px solid rgba(0, 242, 254, 0.35); border-radius: var(--radius); padding: 16px 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 18px;">⌚📱💻</span>
+            <strong style="font-size: 15px; color: #fff;">Tri-Device Ecosystem Hub — Apple Watch &amp; iPhone HealthKit (Phase 1 Live)</strong>
+            <span id="triDeviceReadinessBadge" class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.45); font-weight: 700;">Readiness: 85/100 (PEAK_STRENGTH)</span>
+            <span class="badge" style="background: rgba(0, 242, 254, 0.14); color: var(--accent-cyan); font-size: 10.5px;">🔒 AES-256-GCM + Zero-Cloud</span>
+          </div>
+          <div id="triDeviceRecommendationText" style="font-size: 12px; color: #cbd5e1; margin-top: 4px;">
+            Full 6-Day Mudgal / Samtola / Bhim Gadha volume + Mandatory Warm-up &amp; Nitric Oxide Dump.
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button title="Simulate or Sync Apple Watch &amp; iPhone HealthKit Telemetry" class="btn btn-primary" onclick="triggerAppleWatchDemoSync()" style="font-size: 11.5px; padding: 6px 12px;">
+            ⌚ Sync Apple Watch Now
+          </button>
+          <button title="Copy iOS Background Health Sync Shortcut Recipe" class="btn" onclick="copyTriDeviceShortcutRecipe()" style="font-size: 11.5px; padding: 6px 12px; border-color: rgba(0, 242, 254, 0.4);">
+            📲 iOS Shortcut Recipe
+          </button>
+          <a href="/api/security/ca.crt" download="afcc_root_ca.crt" title="Download AFCC Root CA Certificate for iPhone/iPad Safari" class="btn" style="font-size: 11.5px; padding: 6px 12px; text-decoration: none; border-color: rgba(168, 85, 247, 0.4);">
+            🔐 Root CA (.crt)
+          </a>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 12px;">
+        <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 12px;">
+          <div style="font-size: 10.5px; color: var(--text-muted);">❤️ HRV (SDNN) &amp; RHR</div>
+          <div id="triDeviceHrvRhrVal" style="font-weight: 700; color: #38bdf8; margin-top: 2px;">52 ms • 58 bpm</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 12px;">
+          <div style="font-size: 10.5px; color: var(--text-muted);">💤 Watch Sleep &amp; SpO2</div>
+          <div id="triDeviceSleepSpo2Val" style="font-weight: 700; color: #c084fc; margin-top: 2px;">7.4 hrs • 98% SpO2</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 12px;">
+          <div style="font-size: 10.5px; color: var(--text-muted);">🏋️ Today's 6-Day Schedule</div>
+          <div id="triDeviceWorkoutPlanVal" style="font-weight: 700; color: #34d399; margin-top: 2px;">Mudgal / Samtola / Bhim Gadha</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 12px;">
+          <div style="font-size: 10.5px; color: var(--text-muted);">🌐 Private Mesh Gateway</div>
+          <div id="triDeviceGatewayUrlVal" style="font-weight: 700; color: #fbbf24; margin-top: 2px;">https://192.168.1.35:7890</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Health Overview Vitals Stat Grid -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;" id="healthSummaryGrid">
       <!-- 1. Hydration Stat Card -->
@@ -1237,6 +1283,29 @@
       <div class="stat-pill" style="min-width: unset; cursor: pointer;" onclick="filterBacklogByStatus('Completed')" title="Click to toggle Completed filter">
         <span class="label">Completed</span>
         <span class="val" id="backlogStatCompleted" style="color: var(--accent-green);">0</span>
+      </div>
+    </div>
+
+    <!-- Tri-Device Ecosystem Architecture Phase 1–4 Tracker Card -->
+    <div id="triDeviceBacklogBanner" style="background: linear-gradient(135deg, rgba(0, 242, 254, 0.08), rgba(16, 185, 129, 0.08)); border: 1px solid rgba(0, 242, 254, 0.35); border-radius: 10px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span style="font-size: 16px;">⌚📱💻</span>
+          <strong style="font-size: 13.5px; color: #fff;">Tri-Device Architecture Roadmap (Apple Watch • iPhone • Windows Laptop Hub)</strong>
+          <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.45); font-size: 10.5px; font-weight: 700;">✓ Phase 1: 100% Delivered (TD-01..TD-03)</span>
+          <span class="badge" style="background: rgba(0, 242, 254, 0.14); color: var(--accent-cyan); font-size: 10.5px;">v2.18.0</span>
+        </div>
+        <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">
+          Phase 1 (Tailscale Mesh Gateway, HealthKit Ingestion + FFD Readiness, iOS Shortcut &amp; Standalone PWA) is active. Track TD-01 through TD-12 below.
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button title="Filter Backlog to Tri-Device Architecture items (TD-01..TD-12)" class="btn" onclick="filterBacklogToTriDevice()" style="font-size: 11.5px; padding: 5px 11px; border-color: rgba(0, 242, 254, 0.4); color: var(--accent-cyan);">
+          ⌚ Filter Tri-Device (TD-01..TD-12)
+        </button>
+        <button title="Synchronize Tri-Device Project Roadmap &amp; Issues with GitHub" class="btn" onclick="syncTriDeviceGitHubProjectFromUI()" style="font-size: 11.5px; padding: 5px 11px; border-color: rgba(16, 185, 129, 0.4); color: #34d399;">
+          🔄 Sync GitHub Project
+        </button>
       </div>
     </div>
 
