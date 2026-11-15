@@ -7,7 +7,7 @@
   "roadmap_doc": "docs/PROJECTS_TRI_DEVICE_ROADMAP.md",
   "wiki_page": "wiki/Tri-Device-Architecture-Project.md",
   "owner": "macazaka",
-  "status": "active",
+  "status": "completed",
   "security_standard": "Zero-Cloud Local-First • AES-256-GCM + HKDF-SHA256 + RFC 5869 FPE • Tailscale WireGuard + mTLS",
   "labels": [
     {
@@ -66,7 +66,7 @@
       "number_hint": 1,
       "id": "phase-1-health-bridge",
       "title": "Phase 1: Encrypted Apple Watch & iPhone HealthKit Bridge",
-      "state": "open",
+      "state": "closed",
       "due_on": "2026-11-30T23:59:59Z",
       "description": "Deliver the Tri-Device Architecture Blueprint, encrypted `/api/mobile/health/ingest` endpoint, FFD Workout Readiness Score engine, and iOS Shortcuts / Health Auto Export integration."
     },
@@ -74,7 +74,7 @@
       "number_hint": 2,
       "id": "phase-2-pwa-cockpit",
       "title": "Phase 2: iPhone Pocket Cockpit PWA & High-Speed Voice Relay",
-      "state": "open",
+      "state": "closed",
       "due_on": "2026-12-15T23:59:59Z",
       "description": "Deliver the installable iOS Progressive Web App (PWA), Tailscale + AFCC Root CA mTLS provisioning, 1.5x-3x speed Voice Profile with 'Mahadev' wake word, and live Action-Item Conversational Engine."
     },
@@ -82,7 +82,7 @@
       "number_hint": 3,
       "id": "phase-3-upi-deeplinks",
       "title": "Phase 3: 1-Tap Open Payment Deep-Link Engine (BHIM / ICICI / UPI)",
-      "state": "open",
+      "state": "closed",
       "due_on": "2026-12-31T23:59:59Z",
       "description": "Deliver 1-Tap UPI & Bank App deep-link generation (`bhim://pay`, `imobileapp://`, `tez://upi/pay`, `phonepe://pay`, `upi://pay`) for Monthly Action Items with automatic SQLite + encrypted vault closure."
     },
@@ -90,7 +90,7 @@
       "number_hint": 4,
       "id": "phase-4-watch-complications",
       "title": "Phase 4: Apple Watch Smart Stack Complication & Siri AppIntents",
-      "state": "open",
+      "state": "closed",
       "due_on": "2027-01-15T23:59:59Z",
       "description": "Deliver the ultra-lightweight `/api/mobile/watch/complication` snapshot endpoint, WidgetKit Smart Stack complication, and Apple Watch Action Button / Siri AppIntents voice bridge."
     }

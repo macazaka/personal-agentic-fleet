@@ -69,8 +69,10 @@ def compute_tri_device_project_status(spec: Optional[Dict[str, Any]] = None) -> 
         ms_total = len(ms_items)
         ms_done = sum(1 for d in ms_items if d.get("status") == "completed")
         ms_pct = round((ms_done / ms_total) * 100.0, 1) if ms_total > 0 else 0.0
+        ms_state = "closed" if (ms_total > 0 and ms_done == ms_total) else ms.get("state", "open")
         milestone_summaries.append({
             **ms,
+            "state": ms_state,
             "total_items": ms_total,
             "completed_items": ms_done,
             "completion_pct": ms_pct,
@@ -473,6 +475,8 @@ def sync_tri_device_project_to_github(
         if existing_iss and existing_iss.get("number"):
             inum = int(existing_iss["number"])
             issue_payload["state"] = target_state
+            if target_state == "closed":
+                issue_payload["state_reason"] = "completed"
             _http_json_request(f"{base_api}/issues/{inum}", method="PATCH", payload=issue_payload, headers=headers)
             issue_num_by_td[did] = inum
         else:
@@ -491,6 +495,12 @@ def sync_tri_device_project_to_github(
     # 4. Sync Master Epic Issue
     epic_title = f"[EPIC] {status_report['title']}"
     epic_body = _build_master_epic_issue_body(status_report, issue_num_by_td)
+    metrics_obj = status_report.get("metrics", {})
+    all_epic_done = bool(
+        metrics_obj.get("total_deliverables", 0) > 0
+        and metrics_obj.get("completed", 0) == metrics_obj.get("total_deliverables", 0)
+    )
+    epic_target_state = "closed" if all_epic_done else "open"
     epic_payload: Dict[str, Any] = {
         "title": epic_title,
         "body": epic_body,
@@ -507,11 +517,22 @@ def sync_tri_device_project_to_github(
     epic_number: Optional[int] = None
     if epic_issue_existing and epic_issue_existing.get("number"):
         epic_number = int(epic_issue_existing["number"])
-        _http_json_request(f"{base_api}/issues/{epic_number}", method="PATCH", payload=epic_payload, headers=headers)
+        epic_patch_payload = dict(epic_payload)
+        epic_patch_payload["state"] = epic_target_state
+        if epic_target_state == "closed":
+            epic_patch_payload["state_reason"] = "completed"
+        _http_json_request(f"{base_api}/issues/{epic_number}", method="PATCH", payload=epic_patch_payload, headers=headers)
     else:
         code, created_epic = _http_json_request(f"{base_api}/issues", method="POST", payload=epic_payload, headers=headers)
         if code in (200, 201) and isinstance(created_epic, dict) and created_epic.get("number"):
             epic_number = int(created_epic["number"])
+            if epic_target_state == "closed":
+                _http_json_request(
+                    f"{base_api}/issues/{epic_number}",
+                    method="PATCH",
+                    payload={"state": "closed", "state_reason": "completed"},
+                    headers=headers,
+                )
 
     return {
         "status": "ok",
