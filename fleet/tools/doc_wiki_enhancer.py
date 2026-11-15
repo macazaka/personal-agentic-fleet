@@ -323,6 +323,7 @@ def enhance_wiki_pages(repo_root: Path = REPO_ROOT, state: Dict[str, Any] | None
         "### Desktop & Agents\n"
         "- [[AFCC-and-UI-Features|Agentic Fleet Control Center]]\n"
         "- [[Built-in-Agents|Built-in Agents Matrix]]\n"
+        "- [[Tri-Device-Architecture-Project|⌚📱💻 Tri-Device Architecture Project]]\n"
         "- [[Customizing-Agents|Customizing Agents]]\n"
         "- [[Agent-Development-Guide|Agent Development Guide]]\n"
         "- [[UX-Roadmap-and-Feature-Backlog|UX & Agent-Simplicity Backlog]]\n\n"

@@ -116,7 +116,7 @@ Every agent in `fleet/agents/<agent_id>/` declares its required permissions in `
 | **`auto_improvements`** | `id INTEGER PRIMARY KEY AUTOINCREMENT` | `timestamp TEXT`, `category TEXT`, `issue_detected TEXT`, `action_taken TEXT`, `status TEXT`, `impact_score INTEGER DEFAULT 5` | Autonomous self-healing actions recorded by `AutoHealer` and `FleetSoul`. |
 
 <!-- AUTO-CORE-MODULES:START -->
-## 🧩 Live Microkernel Core Modules Inventory (`36` Modules — `v2.18.0`)
+## 🧩 Live Microkernel Core Modules Inventory (`36` Modules — `v2.19.0`)
 
 Automatically introspected from `fleet/core/*.py` on every release:
 

@@ -2,21 +2,27 @@
 
 > **Release Version**: `v2.19.0` | **Package Root**: `fleet/agents/<agent_id>/` | **Core Engines**: `fleet/core/exercise_manager.py`, `fleet/core/antigravity_mirror.py`, `fleet/core/system_optimizer.py`, `fleet/integrations/gmail_classifier.py`
 
-Personal Agentic Fleet ships with **7 production-grade built-in agents**, each isolated in its own self-contained package under `fleet/agents/<agent_id>/` with a declarative `manifest.json` capability contract, a `FleetAgent` subclass in `agent.py`, and a scoped HTML5/CSS/JS workspace in `ui/panel.html`.
+Personal Agentic Fleet ships with **13 production-grade built-in agents**, each isolated in its own self-contained package under `fleet/agents/<agent_id>/` with a declarative `manifest.json` capability contract, a `FleetAgent` subclass in `agent.py`, and a scoped HTML5/CSS/JS workspace in `ui/panel.html`.
 
 ---
 
-## 1. Built-in Agent Matrix & Capability Contracts
+## 1. Built-in Agent Matrix & Capability Contracts (`13` Agents)
 
 | Agent ID | Display Name | Default Order | Declared `manifest.json` Permissions | Primary Storage Tables & Subsystems |
 | :--- | :--- | :---: | :--- | :--- |
-| `health` | **🌿 Health & Wellness Command Center** | `1` *(Default Tab)* | `db:read`, `db:write`, `ui:render`, `notifications:send` | `health_metrics`, `routines`, `ExerciseManager`, HTTP 206 Video Streamer |
-| `overview` | **⚡ Daily Briefing, Tasks & Habits** | `2` | `db:read`, `db:write`, `ui:render`, `notifications:send` | `tasks`, `routines`, `notes`, `activity_logs`, `DailyBriefingEngine` |
-| `optimizer` | **🚀 Silent PC & System Optimizer** | `3` | `db:read`, `db:write`, `ui:render`, `system:read`, `system:execute` | `activity_logs`, `SystemOptimizer` (Win32 `PSAPI.dll` / `Kernel32.dll`) |
-| `antigravity` | **🤖 Antigravity Live Hub & Token Vault** | `4` | `db:read`, `ui:render`, `system:read` | `AntigravityMirror` (`.gemini/antigravity/brain/*`), `TokenOptimizer` |
-| `backlog` | **📋 Feature Backlog & Kanban** | `5` | `db:read`, `db:write`, `ui:render` | `backlog`, `auto_improvements`, `AutoHealer` ticket bridge |
-| `gmail` | **📬 Gmail 5-Folder Inbox Intelligence** | `6` | `db:read`, `db:write`, `ui:render`, `network:http`, `secrets:read` | `GmailClassifier`, `CryptoVault` (DPAPI OAuth/IMAP credentials) |
-| `mind` / `pr_review` | **🧠 Cognitive Fleet Mind & PR Sentinel** | `7` | `db:read`, `db:write`, `ui:render`, `system:read` | `CognitiveFleetMind`, `memories`, `auto_improvements`, Git diff analyzer |
+| `overview` | **⚡ Daily Briefing, Tasks & Habits** | `10` | `db:read`, `db:write`, `ui:render`, `notifications:send` | `tasks`, `routines`, `notes`, `activity_logs`, `DailyBriefingEngine`, J.A.R.V.I.S. 9-D Voice Cockpit |
+| `health` | **🌿 Health & Wellness Command Center** | `20` | `db:read`, `db:write`, `ui:render`, `notifications:send` | `health_metrics`, `routines`, `ExerciseManager`, HTTP 206 Video Streamer & Playlists |
+| `tri_device` | **⌚📱💻 Tri-Device & Connections Hub** | `25` | `db:read`, `db:write`, `ui:render`, `network:http`, `notifications:send`, `secrets:read` | Apple Watch + iPhone 15 + Windows Laptop Relay (`TD-01`..`TD-12`), Encrypted Hardware Vault (`EC-01`..`EC-10`) |
+| `optimizer` | **🚀 Silent PC & System Optimizer** | `30` | `db:read`, `db:write`, `ui:render`, `system:read`, `system:execute` | `activity_logs`, `SystemOptimizer` (Win32 `PSAPI.dll` / `Kernel32.dll`) |
+| `antigravity` | **🤖 Antigravity Live Hub & Token Vault** | `40` | `db:read`, `ui:render`, `system:read` | `AntigravityMirror` (`.gemini/antigravity/brain/*`), `TokenOptimizer` |
+| `backlog` | **📋 Feature Backlog & Kanban** | `50` | `db:read`, `db:write`, `ui:render` | `feature_backlog` (`87/87 = 100.0%` Completed), `auto_improvements`, `AutoHealer` bridge |
+| `gmail` | **📬 Gmail 5-Folder Inbox Intelligence** | `60` | `db:read`, `db:write`, `ui:render`, `network:http`, `secrets:read` | `GmailClassifier`, `CryptoVault` (DPAPI OAuth/IMAP credentials), Virus Scanner |
+| `pr_review` | **🛡️ Admin PR Review & CI Quality Gate** | `70` | `db:read`, `db:write`, `ui:render`, `system:read`, `network:http` | `PRReviewAgent`, Unmerged Branch Governance, GitHub Actions & CodeQL Sentinel |
+| `remote_chat` | **📱 Telegram & WhatsApp Remote Bot** | `75` | `db:read`, `db:write`, `ui:render`, `network:http`, `secrets:read` | Bidirectional mobile chat webhook & polling bridge |
+| `calendar` | **📅 Calendar & Meet Auto-Agenda** | `80` | `db:read`, `db:write`, `ui:render`, `network:http` | Meeting invite parser & automated pre-meeting briefing notes |
+| `mcp_studio` | **🔌 Custom MCP Tool Creator Studio** | `85` | `db:read`, `db:write`, `ui:render`, `system:execute` | Visual JSON-RPC 2.0 MCP tool builder & sandbox tester |
+| `local_llm` | **🦙 Local Ollama Offline LLM & LoRA** | `90` | `db:read`, `db:write`, `ui:render`, `network:http` | Offline Ollama router, PII-scrubbed `.jsonl` builder & LoRA Personal-Habit Fine-Tuner (`#BL-5`) |
+| `process_discovery` | **🕵️ Process Discovery & Agent Miner** | `95` | `db:read`, `db:write`, `ui:render`, `system:read` | `ProcessMiner` (`UX-02`), 1-Click Zero-Code Agent Spawner |
 
 ---
 

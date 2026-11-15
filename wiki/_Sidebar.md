@@ -9,6 +9,7 @@
 ### Desktop & Agents
 - [[AFCC-and-UI-Features|Agentic Fleet Control Center]]
 - [[Built-in-Agents|Built-in Agents Matrix]]
+- [[Tri-Device-Architecture-Project|⌚📱💻 Tri-Device Architecture Project]]
 - [[Customizing-Agents|Customizing Agents]]
 - [[Agent-Development-Guide|Agent Development Guide]]
 - [[UX-Roadmap-and-Feature-Backlog|UX & Agent-Simplicity Backlog]]
@@ -31,8 +32,7 @@
 - **Palette:** `Ctrl+K` or `/`
 - **Cost:** `$0.00 / Zero-Token`
 - **Security:** `100/100 Grade A+`
-- **Tests:** `525/525 Passing`
+- **Tests:** `536/536 Passing`
 
 ---
 [Personal Agentic Fleet GitHub](https://github.com/macazaka/personal-agentic-fleet)
-* [⌚📱💻 Tri-Device Architecture Project](Tri-Device-Architecture-Project)

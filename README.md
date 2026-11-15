@@ -119,27 +119,23 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
 ## 🌟 Key Highlights
 
 <!-- AUTO-LATEST-RELEASE:START -->
-### 🆕 What's New in Release `v2.18.0` (Auto-Synchronized)
+### 🆕 What's New in Release `v2.19.0` (Auto-Synchronized)
 
-> **Live Telemetry**: `11` Core Agents • `203` REST API Endpoints • `36` Microkernel Engines • `22` Automation Tools • `525` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
+> **Live Telemetry**: `11` Core Agents • `203` REST API Endpoints • `36` Microkernel Engines • `22` Automation Tools • `536` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
 
 ### Added
-- **Tri Device**: Enhance architecture and backlog with 10 real-world environmental constraints (EC-01..EC-10) and local-only encrypted hardware registry.
-- **Tri Device**: Extract Tri-Device Hub into dedicated Connection Agent & enforce iPhone Companion Relay topology.
-- **Voice**: Upgrade voiceprint enrollment to 10s/12s/15s guided 3-phase multi-variation teleprompter.
-- **Tri Device**: Add 5-step Apple Watch & iPhone hardware/LAN connection verification and live sync bridge.
-- **Tri Device**: Add Tri-Device Architecture (TD-01..TD-12) to backlog and implement Phase 1 end-to-end.
-- **Tri Device**: Add Tri-Device Architecture GitHub Project, Milestones, Epics, Issues & Mobile APIs.
+- **Backlog**: Complete all P3 backlog items (Local Ollama LoRA fine-tuning & UX-10 System Tray Companion).
+- **QA**: Implement all P2 open QA-04/07/08/09/10 unit test suites and playbook trigger normalization.
+- **QA**: Implement all P1 open QA-01..QA-10 unit test suites and complete all open backlog items.
+- **Tri Device**: Complete all 12 Tri-Device Ecosystem & Hardware Hub backlog items (TD-01..TD-12).
 
 ### Fixed
-- **IDE**: Sync mobile_tri_device_api.py and user/workspace VS Code saveConflictResolution settings.
-- **Vscode**: Prevent dashboard.html save conflict by enforcing LF eol, autoSave, and overwriteFileOnDisk in VS Code settings.
-- **Tri Device**: Detect Windows Firewall Public profile block on port 7890 and add 1-click firewall unblock + Wi-Fi settings launcher.
-- **UI**: Render Tri-Device HealthKit Hub and Backlog Banner in main dashboard template.
-- **Tests**: Align encrypted vault readers and voice completion reply for full test suite.
+- **Voice**: Ensure 'Let's discuss action items' speaks back across all routing modes, 107Hz voiceprints, and English TTS.
+- **Settings,Voice**: Prevent flexbox clipping of Settings tabs, add Voice & Biometric Sandbox tab, and enforce 12-D child-voice rejection & EMA auto-refinement.
 
 ### Documentation & Maintenance
-- **Deps**: Bump docker/login-action from 3 to 4.
+- **License**: Remove LGPL pygame-ce from pyproject.toml and enforce 100% permissive commercial-safe licenses.
+- **License**: Add NOTICE, THIRD_PARTY_NOTICES.md, and in-app open-source & scientific attributions.
 <!-- AUTO-LATEST-RELEASE:END -->
 
 - **🔌 Modular Plug-and-Play Agents**: Every dashboard view is a standalone, self-contained agent package inside `fleet/agents/` with least-privilege capability manifests (`manifest.json`) enforced by `ScopedDatabaseProxy`. See **[Wiki: 7 Built-in Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents)** and **[Wiki: Customizing Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Customizing-Agents)**.
