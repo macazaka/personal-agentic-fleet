@@ -1936,6 +1936,7 @@ def _dispatch_voice_command_core(
             f"You have {len(pending_tasks)} open action items. {top_task_speech} "
             f"Today's {snap['today_name']} workout is {_clean_for_speech(snap['today_workout'])}."
         )
+        top_item_md = f"#{active_item['id']} — {active_item['title']}" if active_item else "All caught up (0 open)"
         return _record_turn(spoken, {
             "status": "ok",
             "mode": "voice_macro_routine",
@@ -1948,7 +1949,7 @@ def _dispatch_voice_command_core(
             "message": (
                 f"🌅 **Good Morning Macro Executed**:\n"
                 f"• 💧 **Hydration**: Logged `+1 glass (250 ml)` morning water (`{snap['hydration'].get('amount_ml', 250)} ml` today)\n"
-                f"• 🎯 **Top Action Item**: {f'#{active_item[\"id\"]} — {active_item[\"title\"]}' if active_item else 'All caught up (0 open)'}\n"
+                f"• 🎯 **Top Action Item**: {top_item_md}\n"
                 f"• 🏋️ **Today's Training ({snap['today_name']})**: {snap['today_workout']}"
             ),
             "spoken_reply": spoken_reply,
