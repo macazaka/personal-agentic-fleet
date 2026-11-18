@@ -1744,6 +1744,9 @@ async function ensureJarvisAudioDspPipeline() {
             ? `SNR ${snrDb}dB • F0 ${pitchHz}Hz • VTL ${fineFeat.vtlCm}cm`
             : `SNR ${snrDb}dB • 85-3800Hz`;
         }
+        if (typeof renderJarvisLiveSpectrumCanvas === 'function') {
+          renderJarvisLiveSpectrumCanvas(freqBuf, pitchHz, snrDb);
+        }
       } catch (e) {}
     }, 45);
 
@@ -2491,7 +2494,10 @@ async function autoRefineJarvisVoiceprint(observation, matchPct) {
 function isExplicitJarvisCommandPhrase(text) {
   const s = String(text || '').trim().toLowerCase();
   if (!s) return false;
-  return /\b(action\s+items?|discuss\s+action|talk\s+about\s+.*action|close\s+it|close\s+that|already\s+closed|closed\s+action|reopen\s+it|edit\s+it|next\s+action|next\s+item|can\s+you\s+hear\s+me|what\s+agents\s+do\s+i\s+have|daily\s+briefing|log\s+a?\s*glass\s+of\s+water|workout\s+today|play\s+my\s+workout|check\s+my\s+emails|auto\s*tune\s+my\s+pc|run\s+security\s+scan|unapproved\s+backlog)\b/i.test(s);
+  if (window.AFCCVoice && window.AFCCVoice.activeActionItem && /^(done|yes|skip|next|details|more|reopen|undo|pay|pay it|upi|close)$/i.test(s)) {
+    return true;
+  }
+  return /\b(action\s+items?|discuss\s+action|talk\s+about\s+.*action|close\s+it|close\s+that|already\s+closed|closed\s+action|reopen\s+it|edit\s+it|next\s+action|next\s+item|read\s+details|pay\s+it|pay\s+via\s+upi|good\s+morning|start\s+my\s+workout|wrap\s+up\s+my\s+day|can\s+you\s+hear\s+me|what\s+agents\s+do\s+i\s+have|daily\s+briefing|log\s+a?\s*glass\s+of\s+water|workout\s+today|play\s+my\s+workout|check\s+my\s+emails|auto\s*tune\s+my\s+pc|run\s+security\s+scan|unapproved\s+backlog)\b/i.test(s);
 }
 
 function verifySpeakerBiometrics(transcript, alternatives) {
@@ -4075,6 +4081,16 @@ async function executeVoiceTurnText(transcriptText, alternativesList) {
     if (typeof data.active_action_item !== 'undefined') {
       renderVoiceFocusedActionItem(data.active_action_item);
     }
+    if (typeof renderDynamicVoiceContextChips === 'function') {
+      renderDynamicVoiceContextChips(data.context_chips || []);
+    }
+    const burstBar = document.getElementById('voiceAcousticBurstFallbackBar');
+    if (burstBar) burstBar.style.display = 'none';
+    const floatToast = document.getElementById('voiceGlobalFloatingToast');
+    const floatText = document.getElementById('voiceGlobalFloatingText');
+    if (floatToast && floatToast.style.display !== 'none' && floatText) {
+      floatText.textContent = `🔊 ${activeSpokenReply}`;
+    }
     Promise.resolve().then(async () => {
       await executeVoiceUiActions(data.ui_actions || []);
       if (typeof fetchLogs === 'function') fetchLogs();
@@ -4084,6 +4100,88 @@ async function executeVoiceTurnText(transcriptText, alternativesList) {
     console.error('Voice converse error:', e);
     updateVoiceCopilotUI();
   }
+}
+
+function toggleVoiceStudioTuningDrawer(forceOpen) {
+  // UX Improvement #3: Collapsible Voice Studio & Biometrics Drawer for Decluttered Focus HUD
+  const drawer = document.getElementById('voiceStudioTuningDrawer');
+  const btn = document.getElementById('btnVoiceStudioDrawerToggle');
+  if (!drawer) return;
+  const isOpen = typeof forceOpen === 'boolean' ? forceOpen : (drawer.style.display === 'none');
+  drawer.style.display = isOpen ? 'block' : 'none';
+  if (btn) {
+    btn.innerHTML = isOpen ? '⚙️ Studio ▴' : '⚙️ Studio ▾';
+    btn.style.background = isOpen ? 'rgba(168, 85, 247, 0.28)' : 'rgba(168, 85, 247, 0.14)';
+  }
+}
+
+function renderDynamicVoiceContextChips(chips) {
+  // UX Improvement #1: Dynamic Contextual Follow-Up Chips
+  const bar = document.getElementById('voiceDynamicContextChipsBar');
+  if (!bar) return;
+  if (!Array.isArray(chips) || chips.length === 0) {
+    bar.style.display = 'none';
+    return;
+  }
+  bar.style.display = 'flex';
+  bar.innerHTML = `<span style="font-size: 9.5px; color: #38bdf8; font-weight: 700;">🎯 Next Step:</span>` +
+    chips.map(c => {
+      const safePhrase = String(c.phrase || '').replace(/'/g, "\\'");
+      return `<button type="button" class="quick-chip" style="font-size: 10px; padding: 2px 8px; border-color: rgba(56, 189, 248, 0.5); color: #7dd3fc; background: rgba(56, 189, 248, 0.14);" onclick="executeVoiceTurnText('${safePhrase}')">${escapeHtml(c.label || c.phrase || '')}</button>`;
+    }).join('');
+}
+
+function renderJarvisLiveSpectrumCanvas(freqBuf, pitchHz, snrDb) {
+  // UX Improvement #2: Live 60fps 16-Bar WebAudio Spectrum & Biometric Pitch Lock Visualizer
+  const canvas = document.getElementById('voiceLiveSpectrumCanvas');
+  if (!canvas || typeof canvas.getContext !== 'function') return;
+  const ctx2d = canvas.getContext('2d');
+  if (!ctx2d) return;
+  const w = canvas.width || 168;
+  const h = canvas.height || 22;
+  ctx2d.clearRect(0, 0, w, h);
+
+  const numBars = 16;
+  const barW = Math.floor((w - (numBars - 1) * 2) / numBars);
+  const isOwnerVoice = pitchHz >= 65 && pitchHz <= 195 && snrDb >= 11;
+  const isChildOrHigh = pitchHz > 205 && snrDb >= 11;
+  const fillStyle = isOwnerVoice
+    ? '#10b981'
+    : (isChildOrHigh ? '#f43f5e' : (snrDb >= 9 ? '#f59e0b' : 'rgba(56, 189, 248, 0.35)'));
+
+  ctx2d.fillStyle = fillStyle;
+  for (let b = 0; b < numBars; b++) {
+    const binIdx = Math.min((freqBuf ? freqBuf.length - 1 : 0), 2 + b * 4);
+    const val = freqBuf ? (freqBuf[binIdx] || 0) : 0;
+    const barH = Math.max(3, Math.round((val / 255) * (h - 4)));
+    const x = b * (barW + 2);
+    const y = h - barH - 2;
+    ctx2d.fillRect(x, y, barW, barH);
+  }
+}
+
+function handleAcousticShortBurstFallback() {
+  // UX Improvement #7: Local Acoustic Reflex Fallback when Chrome Speech API drops a short 1-word utterance
+  const pitches = window.AFCCVoice.utterancePitchSamples || [];
+  const peakSnr = window.AFCCVoice.utterancePeakSnrDb || 0;
+  const bar = document.getElementById('voiceAcousticBurstFallbackBar');
+  if (!bar) return false;
+  if (pitches.length >= 2 && pitches.length <= 18 && peakSnr >= 14) {
+    const avgPitch = Math.round(pitches.reduce((a, b) => a + b, 0) / pitches.length);
+    if (avgPitch >= 65 && avgPitch <= 195) {
+      bar.style.display = 'flex';
+      bar.innerHTML = `
+        <span>🎤 <strong>Heard short owner voice burst (${avgPitch}Hz, ${peakSnr}dB)</strong> — Chrome Speech dropped the short word. Tap or repeat:</span>
+        <div style="display: inline-flex; gap: 4px; flex-wrap: wrap;">
+          <button type="button" class="btn" style="font-size: 9.5px; padding: 1px 7px; border-color: #34d399; color: #34d399;" onclick="executeVoiceTurnText('Close it')">✅ Done / Close</button>
+          <button type="button" class="btn" style="font-size: 9.5px; padding: 1px 7px; border-color: #38bdf8; color: #38bdf8;" onclick="executeVoiceTurnText('Next action item')">⏭️ Next</button>
+          <button type="button" class="btn" style="font-size: 9.5px; padding: 1px 7px; border-color: #c084fc; color: #c084fc;" onclick="executeVoiceTurnText('Read details')">🔎 Details</button>
+        </div>
+      `;
+      return true;
+    }
+  }
+  return false;
 }
 
 async function startBrowserSpeechRecognition() {
@@ -4209,7 +4307,13 @@ async function startBrowserSpeechRecognition() {
         clearTimeout(earlyEndpointTimer);
         earlyEndpointTimer = null;
       }
+      const vadBar = document.getElementById('voiceVadLockProgressBar');
+      const vadFill = document.getElementById('voiceVadLockProgressFill');
       if (sawFinal && finalTranscript.trim()) {
+        if (vadBar && vadFill) {
+          vadBar.style.display = 'block';
+          vadFill.style.width = '100%';
+        }
         // Final chunk arrived from SpeechRecognition: commit immediately in 40ms instead of waiting 1.8s for rec.onend
         earlyEndpointTimer = setTimeout(commitVoiceUtteranceNow, 40);
       } else if (preview && (isExplicitJarvisCommandPhrase(preview) || matchesConfiguredWakeWord(preview))) {
@@ -4217,6 +4321,10 @@ async function startBrowserSpeechRecognition() {
         // If WebAudio VAD shows vocal cords stopped vibrating (>130ms silence), commit in 180ms; otherwise 260ms
         const silenceMs = Date.now() - (window.AFCCVoice.lastVoiceActivityAtMs || 0);
         const waitMs = silenceMs >= 130 ? 180 : 260;
+        if (vadBar && vadFill) {
+          vadBar.style.display = 'block';
+          vadFill.style.width = '75%';
+        }
         earlyEndpointTimer = setTimeout(commitVoiceUtteranceNow, waitMs);
       }
     };
@@ -4248,18 +4356,23 @@ async function startBrowserSpeechRecognition() {
         clearTimeout(earlyEndpointTimer);
         earlyEndpointTimer = null;
       }
+      const vadBar = document.getElementById('voiceVadLockProgressBar');
+      if (vadBar) vadBar.style.display = 'none';
       window.AFCCVoice.isListening = false;
       updateVoiceCopilotUI();
       if (uttrDispatched) return;
       const captured = (finalTranscript || lastInterimTranscript).trim();
       if (captured) {
         commitVoiceUtteranceNow();
-      } else if (window.AFCCVoice.userWantsListening && window.AFCCVoice.continuousMode && !window.AFCCVoice.isSpeaking) {
-        setTimeout(() => {
-          if (window.AFCCVoice.userWantsListening && !window.AFCCVoice.isListening && !window.AFCCVoice.isSpeaking) {
-            startBrowserSpeechRecognition();
-          }
-        }, 70);
+      } else {
+        handleAcousticShortBurstFallback();
+        if (window.AFCCVoice.userWantsListening && window.AFCCVoice.continuousMode && !window.AFCCVoice.isSpeaking) {
+          setTimeout(() => {
+            if (window.AFCCVoice.userWantsListening && !window.AFCCVoice.isListening && !window.AFCCVoice.isSpeaking) {
+              startBrowserSpeechRecognition();
+            }
+          }, 70);
+        }
       }
     };
 
@@ -4287,12 +4400,59 @@ function toggleVoiceMicListening(forceStart) {
   }
 }
 
+// UX Improvement #5: Global Push-to-Talk Hotkey (Alt+V or Hold Right-Ctrl) from any tab
+let _pttRightCtrlDownAtMs = 0;
+window.addEventListener('keydown', (ev) => {
+  const tag = (ev.target && ev.target.tagName) ? ev.target.tagName.toUpperCase() : '';
+  const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || (ev.target && ev.target.isContentEditable);
+
+  // Alt+V toggles J.A.R.V.I.S. Voice Listening globally from any tab
+  if (ev.altKey && !ev.ctrlKey && !ev.metaKey && String(ev.key || '').toLowerCase() === 'v') {
+    ev.preventDefault();
+    const toast = document.getElementById('voiceGlobalFloatingToast');
+    const toastTxt = document.getElementById('voiceGlobalFloatingText');
+    const nextState = !window.AFCCVoice.isListening;
+    if (toast) {
+      toast.style.display = nextState ? 'inline-flex' : 'none';
+      if (toastTxt && nextState) toastTxt.textContent = '🎙️ J.A.R.V.I.S. Listening (Alt+V)... Speak now';
+    }
+    toggleVoiceMicListening(nextState);
+    return;
+  }
+
+  // Hold Right-Ctrl for Push-to-Talk when not typing inside an input
+  if (!isInput && ev.code === 'ControlRight' && !ev.repeat && !window.AFCCVoice.isListening) {
+    _pttRightCtrlDownAtMs = Date.now();
+    const toast = document.getElementById('voiceGlobalFloatingToast');
+    const toastTxt = document.getElementById('voiceGlobalFloatingText');
+    if (toast) {
+      toast.style.display = 'inline-flex';
+      if (toastTxt) toastTxt.textContent = '🎙️ Push-to-Talk Active (Hold Right-Ctrl)...';
+    }
+    toggleVoiceMicListening(true);
+  }
+});
+
+window.addEventListener('keyup', (ev) => {
+  if (ev.code === 'ControlRight' && _pttRightCtrlDownAtMs > 0) {
+    const heldMs = Date.now() - _pttRightCtrlDownAtMs;
+    _pttRightCtrlDownAtMs = 0;
+    if (heldMs >= 250 && window.AFCCVoice.recognition) {
+      try { window.AFCCVoice.recognition.stop(); } catch (e) {}
+    }
+  }
+});
+
 window.toggleVoiceCopilotPanel = toggleVoiceCopilotPanel;
 window.toggleVoiceMicListening = toggleVoiceMicListening;
 window.toggleVoiceContinuousLoop = toggleVoiceContinuousLoop;
 window.toggleVoiceSpokenReply = toggleVoiceSpokenReply;
 window.toggleVoiceConciseMode = toggleVoiceConciseMode;
 window.toggleVoiceAudioStreamingMode = toggleVoiceAudioStreamingMode;
+window.toggleVoiceStudioTuningDrawer = toggleVoiceStudioTuningDrawer;
+window.renderDynamicVoiceContextChips = renderDynamicVoiceContextChips;
+window.renderJarvisLiveSpectrumCanvas = renderJarvisLiveSpectrumCanvas;
+window.handleAcousticShortBurstFallback = handleAcousticShortBurstFallback;
 window.playJarvisInstantAckChime = playJarvisInstantAckChime;
 window.splitTextIntoSpeechClauses = splitTextIntoSpeechClauses;
 window.tryInstantClientVoiceFastPath = tryInstantClientVoiceFastPath;

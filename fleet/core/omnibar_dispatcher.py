@@ -1050,6 +1050,91 @@ def build_concise_spoken_reply(res: Dict[str, Any], full_spoken: str) -> str:
     return clauses[0] if clauses else full_spoken
 
 
+def _build_dynamic_context_chips(res: Dict[str, Any]) -> List[Dict[str, str]]:
+    """
+    UX Improvement #1: Generates dynamic contextual follow-up chips tailored to the
+    active voice turn's conversation state so the user can tap or speak 1-word follow-ups.
+    """
+    mode = str(res.get("mode") or "")
+    agent_id = str(res.get("agent_id") or "")
+    active_item = res.get("active_action_item") if isinstance(res.get("active_action_item"), dict) else None
+
+    if active_item and active_item.get("id"):
+        tid = active_item.get("id")
+        is_closed = str(active_item.get("status") or "").lower() == "completed"
+        if is_closed:
+            return [
+                {"label": f"🔄 Reopen #{tid}", "phrase": "Reopen it"},
+                {"label": "⏭️ Next Closed Item", "phrase": "Next action item"},
+                {"label": "🔎 Read Details", "phrase": "Read details"},
+                {"label": "🗣️ Open Action Items", "phrase": "Let's discuss action items"},
+            ]
+        return [
+            {"label": f"✅ Done / Close #{tid}", "phrase": "Close it"},
+            {"label": "⏭️ Skip / Next", "phrase": "Next action item"},
+            {"label": "🔎 Details", "phrase": "Read details"},
+            {"label": f"💳 Pay #{tid} via UPI", "phrase": "Pay it via UPI"},
+            {"label": "⚡ Make It P1", "phrase": "Make it high priority"},
+        ]
+    if agent_id == "health" or "hydration" in mode or "workout" in mode:
+        return [
+            {"label": "💧 +1 Glass Water", "phrase": "Please log a glass of water"},
+            {"label": "🎬 Play Workout Playlist", "phrase": "Play my workout playlist"},
+            {"label": "🏋️ Today's Workout", "phrase": "What is my workout today?"},
+            {"label": "🗣️ Action Items Chat", "phrase": "Let's discuss action items"},
+        ]
+    if agent_id == "optimizer":
+        return [
+            {"label": "🚀 4-Stage Auto-Tune PC", "phrase": "Auto tune my PC"},
+            {"label": "🔒 12-Layer Security Scan", "phrase": "Run security scan"},
+            {"label": "☀️ Daily Briefing", "phrase": "Give me my daily briefing"},
+        ]
+    return [
+        {"label": "🌅 Good Morning Routine", "phrase": "Good morning"},
+        {"label": "🗣️ Discuss Action Items", "phrase": "Let's discuss action items"},
+        {"label": "💧 +1 Water", "phrase": "Please log a glass of water"},
+        {"label": "🌙 Wrap Up My Day", "phrase": "Wrap up my day"},
+    ]
+
+
+_CHAINABLE_ACTION_RE = re.compile(
+    r"\b(close|complete|finish|reopen|next|skip|details|read|discuss|review|log|water|drink|workout|play|optimize|tune|clean|briefing|scan|check|open|show|filter|good\s+morning|wrap\s+up)\b",
+    re.I,
+)
+
+
+def _split_chained_voice_commands(spoken: str) -> List[str]:
+    """
+    UX Improvement #4: Splits compound natural-language commands joined by 'and then', 'then', or 'and'
+    when both clauses contain distinct actionable Jarvis verbs (e.g. 'Close it and next action item',
+    'Log a glass of water and play my workout playlist').
+    """
+    clean = (spoken or "").strip()
+    if not clean or len(clean.split()) < 4:
+        return [clean] if clean else []
+    # Do not split single built-in phrases that naturally contain 'and'
+    lower = clean.lower()
+    if any(
+        phrase in lower
+        for phrase in (
+            "check my emails and scan",
+            "loud and clear",
+            "health and wellness",
+            "overview and tasks",
+            "listen and speak",
+        )
+    ):
+        return [clean]
+
+    parts = re.split(r"\s+(?:and\s+then|then|and)\s+", clean, maxsplit=2, flags=re.I)
+    if len(parts) < 2:
+        return [clean]
+    valid_parts = [p.strip() for p in parts if p.strip() and _CHAINABLE_ACTION_RE.search(p)]
+    if len(valid_parts) == len(parts) and len(valid_parts) >= 2:
+        return valid_parts
+    return [clean]
+
+
 def _apply_voice_localization(
     res: Dict[str, Any],
     language: str = "en",
@@ -1186,6 +1271,8 @@ def _apply_voice_localization(
     res["spoken_reply_phonetic"] = phonetic_reply
     res["spoken_stream_clauses"] = stream_clauses
     res["concise_mode"] = bool(concise_mode)
+    if "context_chips" not in res:
+        res["context_chips"] = _build_dynamic_context_chips(res)
     res["voice_profile"] = {
         "language": lang,
         "gender": gen,
@@ -1465,6 +1552,63 @@ def transcribe_and_dispatch_voice_command(
         return {"status": "error", "message": "Empty voice transcript."}
 
     canonical_spoken = _normalize_multilingual_voice_query(raw_spoken)
+    sub_commands = _split_chained_voice_commands(canonical_spoken)
+
+    if len(sub_commands) >= 2:
+        combined_ui_actions: List[Dict[str, Any]] = []
+        combined_activities: List[str] = []
+        spoken_parts: List[str] = []
+        concise_parts: List[str] = []
+        msg_parts: List[str] = []
+        last_res: Dict[str, Any] = {}
+
+        for sub_cmd in sub_commands:
+            sub_res = _dispatch_voice_command_core(
+                sub_cmd,
+                agent_registry=agent_registry,
+                db=db,
+                routing_mode=routing_mode,
+            )
+            sub_loc = _apply_voice_localization(
+                sub_res,
+                language=language,
+                gender=gender,
+                accent=accent,
+                concise_mode=concise_mode,
+            )
+            last_res = sub_loc
+            combined_ui_actions.extend(sub_loc.get("ui_actions") or [])
+            combined_activities.extend(sub_loc.get("executed_activities") or [])
+            if sub_loc.get("spoken_reply"):
+                spoken_parts.append(str(sub_loc["spoken_reply"]).strip())
+            if sub_loc.get("spoken_reply_concise"):
+                concise_parts.append(str(sub_loc["spoken_reply_concise"]).strip())
+            if sub_loc.get("message"):
+                msg_parts.append(str(sub_loc["message"]).strip())
+
+        merged_spoken = " ".join(spoken_parts)
+        merged_concise = " ".join(concise_parts) if concise_parts else merged_spoken
+        chained_res: Dict[str, Any] = {
+            **last_res,
+            "status": "ok",
+            "mode": "voice_chained_multi_command",
+            "chained_commands": sub_commands,
+            "chained_commands_count": len(sub_commands),
+            "voice_transcript": raw_spoken,
+            "selected_transcript": raw_spoken,
+            "title": f"⛓️ Executed {len(sub_commands)} Chained Voice Commands",
+            "message": "\n\n".join(msg_parts),
+            "spoken_reply": merged_spoken,
+            "spoken_reply_full": merged_spoken,
+            "spoken_reply_concise": merged_concise,
+            "spoken_reply_phonetic": merged_spoken,
+            "spoken_stream_clauses": split_speech_into_stream_clauses(merged_concise if concise_mode else merged_spoken),
+            "ui_actions": combined_ui_actions,
+            "executed_activities": combined_activities,
+            "context_chips": _build_dynamic_context_chips(last_res),
+        }
+        return chained_res
+
     res = _dispatch_voice_command_core(
         canonical_spoken,
         agent_registry=agent_registry,
@@ -1762,6 +1906,164 @@ def _dispatch_voice_command_core(
             "tokens_used": 0,
             "cost_usd": "$0.00",
         })
+
+    # 0G. UX Improvement #6: Custom 1-Phrase Voice Macro Routines ("Good morning", "Start my workout", "Wrap up my day")
+    if re.search(r"\b(?:good\s+morning|morning\s+macro|start\s+my\s+day|morning\s+launchpad)\b", lower):
+        if db and hasattr(db, "log_water_intake"):
+            try:
+                db.log_water_intake(glasses_delta=1, amount_delta_ml=250)
+            except Exception:
+                pass
+        snap = _gather_live_fleet_snapshot(agent_registry=agent_registry, db=db)
+        all_tasks = db.list_tasks(limit=200, exclude_tests=True) if (db and hasattr(db, "list_tasks")) else []
+        pending_tasks = [t for t in all_tasks if str(t.get("status") or "").lower() != "completed"]
+        active_item = _set_voice_focused_task(pending_tasks[0] if pending_tasks else None, queue=pending_tasks, mode="pending")
+        ui_actions = [
+            {"type": "switch_agent", "agent_id": "overview"},
+            {"type": "refresh_health"},
+            {"type": "refresh_tasks"},
+            {"type": "refresh_briefing"},
+        ]
+        if active_item:
+            ui_actions.append({"type": "focus_action_item", "task": active_item})
+        top_task_speech = (
+            f"Top action item #{active_item['id']}: {_clean_for_speech(active_item['title'])}, priority {active_item.get('priority', 'P1')}."
+            if active_item
+            else "You have zero open action items."
+        )
+        spoken_reply = (
+            f"Good morning! Logged 1 glass of morning water. "
+            f"You have {len(pending_tasks)} open action items. {top_task_speech} "
+            f"Today's {snap['today_name']} workout is {_clean_for_speech(snap['today_workout'])}."
+        )
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "voice_macro_routine",
+            "macro_id": "good_morning",
+            "agent_id": "overview",
+            "active_action_item": active_item,
+            "voice_transcript": spoken,
+            "normalized_command": "macro:good_morning",
+            "title": f"🌅 Good Morning Launchpad ({len(pending_tasks)} Open Tasks • +250ml Water • {snap['today_name']})",
+            "message": (
+                f"🌅 **Good Morning Macro Executed**:\n"
+                f"• 💧 **Hydration**: Logged `+1 glass (250 ml)` morning water (`{snap['hydration'].get('amount_ml', 250)} ml` today)\n"
+                f"• 🎯 **Top Action Item**: {f'#{active_item[\"id\"]} — {active_item[\"title\"]}' if active_item else 'All caught up (0 open)'}\n"
+                f"• 🏋️ **Today's Training ({snap['today_name']})**: {snap['today_workout']}"
+            ),
+            "spoken_reply": spoken_reply,
+            "ui_actions": ui_actions,
+            "executed_activities": [
+                "🌅 Executed Good Morning Voice Macro",
+                "💧 Logged +250ml Morning Hydration",
+                f"🎯 Focused Top Action Item ({len(pending_tasks)} open)",
+            ],
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
+
+    if re.search(r"\b(?:start\s+my\s+workout|launch\s+my\s+workout|begin\s+my\s+workout|workout\s+macro)\b", lower):
+        snap = _gather_live_fleet_snapshot(agent_registry=agent_registry, db=db)
+        ui_actions = [
+            {"type": "switch_agent", "agent_id": "health"},
+            {"type": "play_video_by_voice", "query": "workout playlist"},
+        ]
+        spoken_reply = (
+            f"Starting your {snap['today_name']} workout now: {_clean_for_speech(snap['today_workout'])}. "
+            "Launching your mandatory World's Best Warm-up and workout playlist."
+        )
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "voice_macro_routine",
+            "macro_id": "start_workout",
+            "agent_id": "health",
+            "voice_transcript": spoken,
+            "normalized_command": "macro:start_workout",
+            "title": f"🏋️ Started {snap['today_name']} Workout Macro & Video Playlist",
+            "message": f"🏋️ **Workout Macro Executed**: Switched to **Health & Wellness**, prescribed **{snap['today_workout']}**, and launched your workout playlist.",
+            "spoken_reply": spoken_reply,
+            "ui_actions": ui_actions,
+            "executed_activities": [
+                "🏋️ Executed Start Workout Voice Macro",
+                "🎬 Launched Exercise Video Playlist",
+            ],
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
+
+    if re.search(r"\b(?:wrap\s+up\s+my\s+day|evening\s+shutdown|end\s+of\s+day\s+review|close\s+out\s+my\s+day)\b", lower):
+        all_tasks = db.list_tasks(limit=200, exclude_tests=True) if (db and hasattr(db, "list_tasks")) else []
+        closed_cnt = sum(1 for t in all_tasks if str(t.get("status") or "").lower() == "completed")
+        open_cnt = sum(1 for t in all_tasks if str(t.get("status") or "").lower() != "completed")
+        ui_actions = [
+            {"type": "switch_agent", "agent_id": "overview"},
+            {"type": "auto_tune_pc"},
+            {"type": "refresh_tasks"},
+        ]
+        spoken_reply = (
+            f"Wrapping up your day. You have completed {closed_cnt} action items with {open_cnt} remaining open, "
+            "and I am running a silent PC memory cleanup now. Have a restful evening!"
+        )
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "voice_macro_routine",
+            "macro_id": "wrap_up_day",
+            "agent_id": "overview",
+            "voice_transcript": spoken,
+            "normalized_command": "macro:wrap_up_day",
+            "title": f"🌙 Evening Wrap-Up ({closed_cnt} Closed • {open_cnt} Open • RAM Optimized)",
+            "message": (
+                f"🌙 **Evening Shutdown Macro Executed**:\n"
+                f"• ✅ **Completed Action Items**: `{closed_cnt}`\n"
+                f"• 📋 **Remaining Open Items**: `{open_cnt}`\n"
+                f"• 🚀 **PC Optimizer**: Triggered working-set RAM & temp cache sweep"
+            ),
+            "spoken_reply": spoken_reply,
+            "ui_actions": ui_actions,
+            "executed_activities": [
+                "🌙 Executed Evening Wrap-Up Voice Macro",
+                f"📊 Audited Tasks ({closed_cnt} closed, {open_cnt} open)",
+                "🚀 Triggered PC RAM & Cache Cleanup",
+            ],
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
+
+    # 0H. UX Improvement #1: Contextual 1-Word Multi-Turn Follow-Ups when an Action Item is focused
+    focused_tid = _VOICE_ACTION_ITEM_STATE.get("focused_task_id")
+    if focused_tid is not None:
+        if cleaned_alpha in ("done", "yes", "mark done", "finished", "close", "complete", "mark it done"):
+            spoken = "Close it"
+            lower = "close it"
+            cleaned_alpha = "close it"
+        elif cleaned_alpha in ("details", "more", "info", "description", "read it", "tell me more", "read details"):
+            spoken = "Read details of this action item"
+            lower = "read details of this action item"
+            cleaned_alpha = "read details of this action item"
+        elif cleaned_alpha in ("reopen", "undo", "mark open"):
+            spoken = "Reopen it"
+            lower = "reopen it"
+            cleaned_alpha = "reopen it"
+        elif cleaned_alpha in ("pay", "pay it", "pay via upi", "pay bill", "upi", "qr", "scan and pay") or re.search(r"\bpay\s+(?:it|this)\s+via\s+upi\b", lower):
+            all_tasks = db.list_tasks(limit=200, exclude_tests=True) if (db and hasattr(db, "list_tasks")) else []
+            t_obj = next((t for t in all_tasks if int(t.get("id") or 0) == int(focused_tid)), None)
+            t_title = str(t_obj.get("title") if t_obj else f"Action Item #{focused_tid}")
+            return _record_turn(spoken, {
+                "status": "ok",
+                "mode": "voice_action_item_upi_pay",
+                "agent_id": "tri_device",
+                "task_id": focused_tid,
+                "active_action_item": _set_voice_focused_task(t_obj) if t_obj else None,
+                "voice_transcript": spoken,
+                "normalized_command": f"action_item:pay_upi:{focused_tid}",
+                "title": f"💳 1-Tap UPI Deep Link & QR Ready for #{focused_tid}: {t_title}",
+                "message": f"💳 Opened **Tri-Device & Connections Hub** with 1-Tap BHIM / ICICI / GPay / PhonePe UPI deep link & QR matrix for **#{focused_tid} — {t_title}**.",
+                "spoken_reply": f"Ready to pay action item number {focused_tid}, {_clean_for_speech(t_title)}, via UPI. Scan the QR code or tap your iPhone payment link, then say close it.",
+                "ui_actions": [{"type": "switch_agent", "agent_id": "tri_device"}],
+                "executed_activities": [f"💳 Generated 1-Tap UPI Payment Link for #{focused_tid}"],
+                "tokens_used": 0,
+                "cost_usd": "$0.00",
+            })
 
     # 1. Sensitive ID Masking / Unmasking on Overview & Tasks
     if re.search(r"\b(?:unmask|reveal|show)\b.*\b(?:id|ids|account|numbers|sensitive)\b", lower) or "turn off mask" in lower:

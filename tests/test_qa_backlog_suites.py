@@ -1109,3 +1109,55 @@ def test_ultra_low_latency_voice_streaming_and_all_6_optimizations(isolated_db, 
     assert "btnVoiceConciseMode" in dash_html
     assert "btnVoiceStreamMode" in dash_html
     assert "voiceLatencyBadge" in dash_html
+    assert "voiceLiveSpectrumCanvas" in dash_html
+    assert "voiceStudioTuningDrawer" in dash_html
+    assert "voiceDynamicContextChipsBar" in dash_html
+    assert "voiceAcousticBurstFallbackBar" in dash_html
+    assert "voiceGlobalFloatingToast" in dash_html
+
+    # 5. Verify all 7 UX Improvements (Macros, Contextual 1-Word Follow-Ups, Multi-Command Chaining & Dynamic Chips)
+    # 5A. Good Morning Macro
+    h_macro = MagicMock()
+    post_voice_converse_endpoint(h_macro, {"transcript": "Mahadev, good morning", "concise_mode": True})
+    m_payload = h_macro._send_json.call_args[0][0]
+    assert m_payload["status"] == "ok"
+    assert m_payload["mode"] == "voice_macro_routine"
+    assert m_payload["macro_id"] == "good_morning"
+    assert len(m_payload.get("context_chips", [])) >= 3
+
+    # 5B. Contextual 1-word follow-up ("Details" & "Pay it via UPI" & "Done") while Action Item #1 is focused
+    h_det = MagicMock()
+    post_voice_converse_endpoint(h_det, {"transcript": "Details"})
+    det_payload = h_det._send_json.call_args[0][0]
+    assert det_payload["status"] == "ok"
+    assert det_payload["mode"] == "voice_action_item_details"
+
+    h_upi = MagicMock()
+    post_voice_converse_endpoint(h_upi, {"transcript": "Pay it via UPI"})
+    upi_payload = h_upi._send_json.call_args[0][0]
+    assert upi_payload["status"] == "ok"
+    assert upi_payload["mode"] == "voice_action_item_upi_pay"
+
+    h_done = MagicMock()
+    post_voice_converse_endpoint(h_done, {"transcript": "Done"})
+    done_payload = h_done._send_json.call_args[0][0]
+    assert done_payload["status"] == "ok"
+    assert done_payload["mode"] == "voice_task_completed"
+
+    # 5C. Multi-Command Chaining in One Breath ("Log a glass of water and wrap up my day")
+    h_chain = MagicMock()
+    post_voice_converse_endpoint(h_chain, {"transcript": "Please log a glass of water and wrap up my day"})
+    chain_payload = h_chain._send_json.call_args[0][0]
+    assert chain_payload["status"] == "ok"
+    assert chain_payload["mode"] == "voice_chained_multi_command"
+    assert chain_payload["chained_commands_count"] == 2
+    assert len(chain_payload["ui_actions"]) >= 2
+
+    for ux_sym in (
+        "toggleVoiceStudioTuningDrawer",
+        "renderDynamicVoiceContextChips",
+        "renderJarvisLiveSpectrumCanvas",
+        "handleAcousticShortBurstFallback",
+        "ControlRight",
+    ):
+        assert ux_sym in ag_js, f"Missing UX symbol {ux_sym} in antigravity.js"
