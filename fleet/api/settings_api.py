@@ -2154,7 +2154,7 @@ def get_voice_activities_endpoint(handler: Any, parsed_url: urllib.parse.ParseRe
 
 @router.post("/api/voice/converse")
 def post_voice_converse_endpoint(handler: Any, body: Dict[str, Any]):
-    """Bi-Directional Audio Conversation endpoint: executes linked activities and returns spoken reply + UI actions."""
+    """Bi-Directional Audio Conversation endpoint: executes linked activities and returns spoken reply + streaming clauses."""
     from fleet.core.omnibar_dispatcher import transcribe_and_dispatch_voice_command
 
     payload = body if isinstance(body, dict) else {}
@@ -2166,6 +2166,7 @@ def post_voice_converse_endpoint(handler: Any, body: Dict[str, Any]):
     gender = str(payload.get("gender") or "female").strip().lower()
     accent = str(payload.get("accent") or "IN").strip().upper()
     routing_mode = str(payload.get("routing_mode") or "zero_token").strip().lower()
+    concise_mode = bool(payload.get("concise_mode", False))
     raw_alts = payload.get("alternatives")
     alternatives = [str(a).strip() for a in raw_alts if str(a).strip()] if isinstance(raw_alts, list) else []
     res = transcribe_and_dispatch_voice_command(
@@ -2177,13 +2178,96 @@ def post_voice_converse_endpoint(handler: Any, body: Dict[str, Any]):
         accent=accent,
         routing_mode=routing_mode,
         alternatives=alternatives,
+        concise_mode=concise_mode,
     )
+    # Send response immediately so browser TTS begins on the very first microtask before SQLite log_activity fsync
+    handler._send_json(res)
     if hasattr(srv, "db") and srv.db and not res.get("ignored_noise"):
         try:
             srv.db.log_activity("VoiceCopilot", "voice_turn", f"Voice ({language}/{gender}/{accent}): '{transcript[:80]}' -> {res.get('title', 'OK')}")
         except Exception:
             pass
-    handler._send_json(res)
+
+
+@router.post("/api/voice/stream")
+def post_voice_stream_endpoint(handler: Any, body: Dict[str, Any]):
+    """
+    Ultra-Low-Latency Clause-Streaming Voice Endpoint:
+    Returns ordered streaming speech clauses (`events: [ack, clause_0, clause_1, ..., complete]`)
+    so the client audio engine can play Clause #0 within <15ms while subsequent clauses stream/queue.
+    """
+    from fleet.core.omnibar_dispatcher import (
+        split_speech_into_stream_clauses,
+        transcribe_and_dispatch_voice_command,
+    )
+
+    payload = body if isinstance(body, dict) else {}
+    transcript = str(payload.get("transcript") or payload.get("query") or "").strip()
+    if not transcript:
+        handler._send_json({"status": "error", "message": "Field 'transcript' is required"}, status=400)
+        return
+    language = str(payload.get("language") or "en").strip().lower()
+    gender = str(payload.get("gender") or "female").strip().lower()
+    accent = str(payload.get("accent") or "IN").strip().upper()
+    routing_mode = str(payload.get("routing_mode") or "zero_token").strip().lower()
+    concise_mode = bool(payload.get("concise_mode", True))
+    raw_alts = payload.get("alternatives")
+    alternatives = [str(a).strip() for a in raw_alts if str(a).strip()] if isinstance(raw_alts, list) else []
+
+    res = transcribe_and_dispatch_voice_command(
+        transcript=transcript,
+        agent_registry=getattr(srv, "agent_registry", None),
+        db=getattr(srv, "db", None),
+        language=language,
+        gender=gender,
+        accent=accent,
+        routing_mode=routing_mode,
+        alternatives=alternatives,
+        concise_mode=concise_mode,
+    )
+    active_speech = (
+        res.get("spoken_reply_concise")
+        if concise_mode and res.get("spoken_reply_concise")
+        else res.get("spoken_reply")
+    ) or ""
+    clauses = res.get("spoken_stream_clauses") or split_speech_into_stream_clauses(str(active_speech))
+
+    stream_events = [
+        {
+            "type": "ack",
+            "selected_transcript": res.get("selected_transcript") or transcript,
+            "mode": res.get("mode", "conversation"),
+            "concise_mode": concise_mode,
+        }
+    ]
+    for idx, cl in enumerate(clauses):
+        stream_events.append(
+            {
+                "type": "clause",
+                "index": idx,
+                "is_first": idx == 0,
+                "is_last": idx == len(clauses) - 1,
+                "text": cl,
+            }
+        )
+    stream_events.append(
+        {
+            "type": "complete",
+            "title": res.get("title", ""),
+            "ui_actions": res.get("ui_actions", []),
+            "executed_activities": res.get("executed_activities", []),
+            "active_action_item": res.get("active_action_item"),
+        }
+    )
+
+    handler._send_json(
+        {
+            **res,
+            "streaming": True,
+            "spoken_stream_clauses": clauses,
+            "stream_events": stream_events,
+        }
+    )
 
 
 def _get_voiceprint_storage_paths() -> Dict[str, Path]:

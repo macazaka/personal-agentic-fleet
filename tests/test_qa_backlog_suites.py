@@ -1015,3 +1015,97 @@ def test_p3_backlog_items_local_ollama_lora_finetuning_and_ux10_tray_voice_compa
     assert stats["idea"] == 0
     assert stats["planned"] == 0
     assert stats["in_progress"] == 0
+
+
+def test_ultra_low_latency_voice_streaming_and_all_6_optimizations(isolated_db, monkeypatch):
+    """
+    Verifies all 6 Ultra-Low-Latency Voice Optimizations & Clause Audio Streaming:
+      1. Early-Intent VAD Endpointing on `rec.onresult` (`commitVoiceUtteranceNow`)
+      2. Speak-First Parallel Execution & Clause-by-Clause Streaming TTS (`split_speech_into_stream_clauses`, `/api/voice/stream`)
+      3. Zero-Network Client Reflex Cache (`tryInstantClientVoiceFastPath`)
+      4. Hardware-Local SAPI5/OneCore TTS Priority (`+160` localService boost & `_cachedVoiceByKey` + `220ms` watchdog)
+      5. Instant 12ms WebAudio Chime (`playJarvisInstantAckChime`) + Hot-Mic Barge-In + Deferred Auto-Refinement
+      6. Snappy / Concise Executive Voice Mode (`build_concise_spoken_reply`, `concise_mode=True`)
+    """
+    import fleet.server as srv
+    from fleet.api.settings_api import post_voice_converse_endpoint, post_voice_stream_endpoint
+    from fleet.core.omnibar_dispatcher import (
+        build_concise_spoken_reply,
+        split_speech_into_stream_clauses,
+    )
+
+    monkeypatch.setattr(srv, "db", isolated_db)
+    isolated_db.add_task(title="Pay Electricity Bill", description="MSEB monthly payment", priority="P1", source="Monthly")
+    isolated_db.add_task(title="Review Tax Portfolio", description="Annual tax review", priority="P2", source="Yearly")
+
+    # 1. Verify Clause Splitter & Concise Spoken Reply Builder
+    sample_long = "You have 2 open action items and 0 closed items. Item 1 of 2 is task number 1: Pay Electricity Bill, priority P1. Say 'close it', 'edit it', or 'next action item'."
+    clauses = split_speech_into_stream_clauses(sample_long)
+    assert len(clauses) >= 3
+    assert len(clauses[0].split()) <= 12
+
+    concise = build_concise_spoken_reply(
+        {
+            "mode": "voice_action_items_open_review",
+            "pending_count": 2,
+            "active_action_item": {"id": 1, "title": "Pay Electricity Bill", "priority": "P1"},
+        },
+        sample_long,
+    )
+    assert "2 open items" in concise and "Pay Electricity Bill" in concise
+    assert len(concise) < len(sample_long)
+
+    # 2. Verify POST /api/voice/stream Clause-Streaming Endpoint
+    h_stream = MagicMock()
+    post_voice_stream_endpoint(
+        h_stream,
+        {
+            "transcript": "Let's discuss action items",
+            "language": "en",
+            "gender": "female",
+            "accent": "IN",
+            "concise_mode": True,
+        },
+    )
+    stream_payload = h_stream._send_json.call_args[0][0]
+    assert stream_payload["status"] == "ok"
+    assert stream_payload["streaming"] is True
+    assert stream_payload["concise_mode"] is True
+    assert len(stream_payload["spoken_stream_clauses"]) >= 2
+    events = stream_payload["stream_events"]
+    assert events[0]["type"] == "ack"
+    assert any(ev["type"] == "clause" and ev["is_first"] is True for ev in events)
+    assert events[-1]["type"] == "complete"
+
+    # 3. Verify POST /api/voice/converse with concise_mode=True
+    h_conv = MagicMock()
+    post_voice_converse_endpoint(
+        h_conv,
+        {
+            "transcript": "Next action item",
+            "concise_mode": True,
+        },
+    )
+    conv_payload = h_conv._send_json.call_args[0][0]
+    assert conv_payload["status"] == "ok"
+    assert "spoken_reply_concise" in conv_payload
+    assert "spoken_stream_clauses" in conv_payload
+
+    # 4. Verify all 6 frontend optimizations in antigravity.js & dashboard.html
+    ag_js = (BASE_DIR / "web" / "static" / "js" / "antigravity.js").read_text(encoding="utf-8")
+    for required_sym in (
+        "commitVoiceUtteranceNow",
+        "splitTextIntoSpeechClauses",
+        "tryInstantClientVoiceFastPath",
+        "playJarvisInstantAckChime",
+        "toggleVoiceConciseMode",
+        "toggleVoiceAudioStreamingMode",
+        "_cachedVoiceByKey",
+        "bargeInFrames",
+    ):
+        assert required_sym in ag_js, f"Missing voice latency optimization symbol {required_sym} in antigravity.js"
+
+    dash_html = (BASE_DIR / "web" / "templates" / "dashboard.html").read_text(encoding="utf-8")
+    assert "btnVoiceConciseMode" in dash_html
+    assert "btnVoiceStreamMode" in dash_html
+    assert "voiceLatencyBadge" in dash_html

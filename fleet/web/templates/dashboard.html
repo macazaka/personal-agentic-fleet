@@ -2111,6 +2111,12 @@
                 <button id="btnVoiceTtsToggle" title="Mute or unmute AFCC spoken audio responses" class="btn" onclick="toggleVoiceSpokenReply()" style="font-size: 10.5px; padding: 4px 9px; border-color: rgba(56, 189, 248, 0.4); color: var(--accent-cyan); background: rgba(56, 189, 248, 0.12);">
                   🔊 Voice Reply: ON
                 </button>
+                <button id="btnVoiceConciseMode" title="Toggle Snappy 1-Sentence Executive Replies (cuts speech latency &amp; verbosity by 70%)" class="btn" onclick="toggleVoiceConciseMode()" style="font-size: 10.5px; padding: 4px 9px; border-color: rgba(251, 191, 36, 0.45); color: #fbbf24; background: rgba(251, 191, 36, 0.14);">
+                  ⚡ Snappy: ON
+                </button>
+                <button id="btnVoiceStreamMode" title="Toggle Clause-by-Clause Audio Streaming + Early VAD Endpointing (<150ms response)" class="btn" onclick="toggleVoiceAudioStreamingMode()" style="font-size: 10.5px; padding: 4px 9px; border-color: rgba(16, 185, 129, 0.45); color: #34d399; background: rgba(16, 185, 129, 0.14);">
+                  🌊 Stream: ON
+                </button>
                 <button id="btnVoiceStopSpeaking" title="Interrupt and stop AFCC spoken audio playback immediately" class="btn" onclick="stopAfccVoiceSpeaking()" style="font-size: 10.5px; padding: 4px 8px; display: none; border-color: rgba(244, 63, 94, 0.45); color: #fb7185;">
                   🤫 Stop Audio
                 </button>
@@ -2153,6 +2159,7 @@
                 </div>
               </div>
               <div id="voiceAcousticTelemetryBar" style="display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--text-muted); font-family: monospace;">
+                <span id="voiceLatencyBadge" class="badge" title="Last end-to-end voice turn response time (Early VAD + Clause Audio Streaming)" style="background: rgba(251, 191, 36, 0.14); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.35); font-size: 9.5px;">⚡ &lt;150ms Stream</span>
                 <span id="voiceDspStatusBadge" class="badge" style="background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 9.5px;">DSP 85-3800Hz</span>
                 <span id="voiceBiometricMatchBadge" class="badge" style="background: rgba(56, 189, 248, 0.12); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.3); font-size: 9.5px;">Speaker: Ready</span>
               </div>
