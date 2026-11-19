@@ -1159,8 +1159,13 @@ def test_ultra_low_latency_voice_streaming_and_all_6_optimizations(isolated_db, 
         "renderJarvisLiveSpectrumCanvas",
         "handleAcousticShortBurstFallback",
         "ControlRight",
+        "_SHARED_NSDF_BUF",
+        "_STATIC_BARK_BANDS",
+        "MAX_UTTERANCE_FRAMES",
+        "_canvasIsIdleFlat",
+        "_lastDspBadgeText",
     ):
-        assert ux_sym in ag_js, f"Missing UX symbol {ux_sym} in antigravity.js"
+        assert ux_sym in ag_js, f"Missing UX/CPU optimization symbol {ux_sym} in antigravity.js"
 
     # 6. Verify Zero-CPU / Zero-RAM Keyboard Shortcut Engine (Hold-Alt X-Ray CSS, g-Chords, Task Triage, ? Modal)
     nav_js = (BASE_DIR / "web" / "static" / "js" / "fleet_navigator.js").read_text(encoding="utf-8")
