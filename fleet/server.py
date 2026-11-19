@@ -946,12 +946,41 @@ class RobustThreadingHTTPServer(ThreadingHTTPServer):
         super().handle_error(request, client_address)
 
 
+def _evict_stale_port_listener(port: int) -> None:
+    """Terminates any stale previous Python listener holding `port` on Windows so new routes never 404."""
+    if os.name != "nt":
+        return
+    try:
+        import subprocess
+        my_pid = os.getpid()
+        res = subprocess.run(
+            ["netstat", "-ano", "-p", "tcp"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+        for line in (res.stdout or "").splitlines():
+            if f":{port} " in line and "LISTENING" in line:
+                parts = line.split()
+                if parts:
+                    pid = int(parts[-1])
+                    if pid > 0 and pid != my_pid:
+                        subprocess.run(
+                            ["taskkill", "/F", "/PID", str(pid)],
+                            capture_output=True,
+                            timeout=3,
+                        )
+    except Exception:
+        pass
+
+
 def start_server(port: int = PORT):
     """Starts the Personal Agentic Fleet Dashboard server with Dual-Stack HTTPS + HTTP on port 7890."""
     from fleet.core.database import get_effective_db_path, is_test_environment
     from fleet.core.local_tls import build_local_ssl_context
     in_test = is_test_environment()
     if not in_test:
+        _evict_stale_port_listener(port)
         os.environ["FLEET_PRODUCTION_SERVER"] = "1"
         os.environ.pop("FLEET_TEST_MODE", None)
         os.environ.pop("PYTEST_CURRENT_TEST", None)

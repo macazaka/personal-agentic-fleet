@@ -1814,10 +1814,17 @@ async function ensureJarvisAudioDspPipeline() {
         window.AFCCVoice.lastVoiceActivityAtMs = Date.now();
 
         // Optimization 5: Real-Time Hot-Mic Barge-In Detection while J.A.R.V.I.S. is speaking
-        if (window.AFCCVoice.isSpeaking && window.AFCCVoice.userWantsListening && window.AFCCVoice.continuousMode) {
-          if (snrDb >= 23 && pitchHz >= 65 && pitchHz <= 195) {
+        // Guarded by a 1100ms post-speech-start grace window and 27dB SNR threshold so your own sentence tail
+        // or laptop speaker onset never self-cancels J.A.R.V.I.S.'s spoken reply!
+        if (
+          window.AFCCVoice.isSpeaking &&
+          window.AFCCVoice.userWantsListening &&
+          window.AFCCVoice.continuousMode &&
+          (Date.now() - (window.AFCCVoice.speakingStartedAtMs || 0) > 1100)
+        ) {
+          if (snrDb >= 27 && pitchHz >= 65 && pitchHz <= 195) {
             window.AFCCVoice.bargeInFrames = (window.AFCCVoice.bargeInFrames || 0) + 1;
-            if (window.AFCCVoice.bargeInFrames >= 2) {
+            if (window.AFCCVoice.bargeInFrames >= 3) {
               window.AFCCVoice.bargeInFrames = 0;
               stopAfccVoiceSpeaking();
               startBrowserSpeechRecognition();
@@ -2614,7 +2621,7 @@ function isExplicitJarvisCommandPhrase(text) {
   if (window.AFCCVoice && window.AFCCVoice.activeActionItem && /^(done|yes|skip|next|details|more|reopen|undo|pay|pay it|upi|close)$/i.test(s)) {
     return true;
   }
-  return /\b(action\s+items?|discuss\s+action|talk\s+about\s+.*action|close\s+it|close\s+that|already\s+closed|closed\s+action|reopen\s+it|edit\s+it|next\s+action|next\s+item|read\s+details|pay\s+it|pay\s+via\s+upi|good\s+morning|start\s+my\s+workout|wrap\s+up\s+my\s+day|can\s+you\s+hear\s+me|what\s+agents\s+do\s+i\s+have|daily\s+briefing|log\s+a?\s*glass\s+of\s+water|workout\s+today|play\s+my\s+workout|check\s+my\s+emails|auto\s*tune\s+my\s+pc|run\s+security\s+scan|unapproved\s+backlog)\b/i.test(s);
+  return /\b(action\s+items?|discuss\s+action|talk\s+about\s+.*action|close\s+it|close\s+that|already\s+closed|closed\s+action|reopen\s+it|edit\s+it|next\s+action|next\s+item|read\s+details|pay\s+it|pay\s+via\s+upi|good\s+morning|start\s+my\s+workout|wrap\s+up\s+my\s+day|can\s+you\s+hear\s+me|what\s+agents\s+do\s+i\s+have|daily\s+briefing|log\s+a?\s*glass\s+of\s+water|workout\s+today|play\s+my\s+workout|check\s+my\s+emails|auto\s*tune\s+my\s+pc|run\s+security\s+scan|unapproved\s+backlog|today'?s?\s+news|latest\s+news|top\s+headlines|latest\s+updates\s+of\s+pune|updates\s+of\s+pune|pune\s+news)\b/i.test(s);
 }
 
 function verifySpeakerBiometrics(transcript, alternatives) {
@@ -3110,7 +3117,7 @@ function selectBestJarvisClientAlternative(alternatives) {
   if (cleaned.length === 0) return '';
   if (cleaned.length === 1) return cleaned[0];
 
-  const highValueRegex = /\b(mahadev|can you hear|hear me|jarvis|are you there|mic check|audible|action item|action items|discuss action|talk about|close it|close that|already closed|closed action|reopen|edit it|edit action|next action|next item|what agents|list agents|my agents|about .* agent|health agent|optimizer agent|email agent|backlog agent|overview agent|antigravity|daily briefing|water|workout|playlist|video|optimize|security scan|emails|tasks|smoothie|weight|fasting)\b/i;
+  const highValueRegex = /\b(mahadev|can you hear|hear me|jarvis|are you there|mic check|audible|action item|action items|discuss action|talk about|close it|close that|already closed|closed action|reopen|edit it|edit action|next action|next item|what agents|list agents|my agents|about .* agent|health agent|optimizer agent|email agent|backlog agent|overview agent|antigravity|daily briefing|water|workout|playlist|video|optimize|security scan|emails|tasks|smoothie|weight|fasting|today's news|todays news|latest news|latest updates|pune|headlines)\b/i;
   const noiseWords = new Set(['crisis', 'crying', 'christ', 'prices', 'places', 'the', 'a', 'uh', 'um', 'hmm']);
 
   let best = cleaned[0];
@@ -3712,7 +3719,11 @@ function speakAfccVoiceText(text, onDoneCallback, altPhoneticText, streamClauses
   }
 
   try {
-    window.speechSynthesis.cancel();
+    window.AFCCVoice.speakingStartedAtMs = Date.now();
+    window.AFCCVoice.bargeInFrames = 0;
+    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+      try { window.speechSynthesis.cancel(); } catch (e) {}
+    }
     if (window.speechSynthesis.paused && typeof window.speechSynthesis.resume === 'function') {
       try { window.speechSynthesis.resume(); } catch (e) {}
     }
@@ -4021,8 +4032,9 @@ function tryInstantClientVoiceFastPath(spokenText) {
     return 'Loud and clear! Jarvis online. How can I help?';
   }
   const cache = window.AFCCVoice.actionItemsCache;
-  if (cache && Array.isArray(cache.open) && cache.open.length > 0 && (Date.now() - (cache.lastSyncedAt || 0) < 60000)) {
+  if (cache && Array.isArray(cache.open) && cache.open.length > 0 && (Date.now() - (cache.lastSyncedAt || 0) < 900000)) {
     if (/\b(discuss action items|talk about.*action items|open action items|action items chat)\b/i.test(lower)) {
+      cache.cursorIdx = 0;
       const t = cache.open[0];
       return window.AFCCVoice.conciseMode
         ? `${cache.open.length} open items. Item 1, #${t.id}: ${t.title}, ${t.priority || 'P2'}. Close, edit, or next?`
@@ -4030,6 +4042,7 @@ function tryInstantClientVoiceFastPath(spokenText) {
     }
     if (/^(next|next action item|next item|skip|skip it)$/i.test(lower)) {
       const nextIdx = ((cache.cursorIdx || 0) + 1) % cache.open.length;
+      cache.cursorIdx = nextIdx;
       const t = cache.open[nextIdx];
       if (t) {
         return `Item ${nextIdx + 1} of ${cache.open.length}: #${t.id} ${t.title}. Close, edit, or next?`;
@@ -4101,20 +4114,33 @@ async function executeVoiceTurnText(transcriptText, alternativesList) {
   }
 
   try {
+    window.AFCCVoice.lastTurnDispatchedAtMs = Date.now();
+    const burstBarEarly = document.getElementById('voiceAcousticBurstFallbackBar');
+    if (burstBarEarly) burstBarEarly.style.display = 'none';
+
+    const reqBody = JSON.stringify({
+      transcript: spoken,
+      alternatives: rawAlts,
+      routing_mode: window.AFCCVoice.routingMode || 'zero_token',
+      language: window.AFCCVoice.voiceLanguage || 'en',
+      gender: window.AFCCVoice.voiceGender || 'female',
+      accent: window.AFCCVoice.voiceAccent || 'IN',
+      concise_mode: Boolean(window.AFCCVoice.conciseMode)
+    });
     const endpointUrl = window.AFCCVoice.audioStreamMode ? '/api/voice/stream' : '/api/voice/converse';
-    const res = await fetch(endpointUrl, {
+    let res = await fetch(endpointUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        transcript: spoken,
-        alternatives: rawAlts,
-        routing_mode: window.AFCCVoice.routingMode || 'zero_token',
-        language: window.AFCCVoice.voiceLanguage || 'en',
-        gender: window.AFCCVoice.voiceGender || 'female',
-        accent: window.AFCCVoice.voiceAccent || 'IN',
-        concise_mode: Boolean(window.AFCCVoice.conciseMode)
-      })
+      body: reqBody
     });
+    // Automatic endpoint fallback: if /api/voice/stream returned 404/500, transparently fall back to /api/voice/converse
+    if (!res.ok && endpointUrl === '/api/voice/stream') {
+      res = await fetch('/api/voice/converse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: reqBody
+      });
+    }
     const data = await res.json();
     const netElapsedMs = Math.max(12, Math.round((performance.now ? performance.now() : Date.now()) - turnStartMs));
     if (!preSpokenFastPath) {
@@ -4218,6 +4244,18 @@ async function executeVoiceTurnText(transcriptText, alternativesList) {
     });
   } catch (e) {
     console.error('Voice converse error:', e);
+    if (!preSpokenFastPath) {
+      const errFallbackSpeech = `I heard ${spoken}. Connecting to your local Fleet server now.`;
+      if (replyLineEl && replyTextEl) {
+        replyLineEl.style.display = 'block';
+        replyTextEl.textContent = errFallbackSpeech;
+      }
+      speakAfccVoiceText(errFallbackSpeech, () => {
+        if (window.AFCCVoice.userWantsListening && window.AFCCVoice.continuousMode) {
+          startBrowserSpeechRecognition();
+        }
+      }, errFallbackSpeech);
+    }
     updateVoiceCopilotUI();
   }
 }
@@ -4282,6 +4320,10 @@ function renderJarvisLiveSpectrumCanvas(freqBuf, pitchHz, snrDb) {
 
 function handleAcousticShortBurstFallback() {
   // UX Improvement #7: Local Acoustic Reflex Fallback when Chrome Speech API drops a short 1-word utterance
+  // Suppress for 2500ms after a valid voice turn was already dispatched so sentence tails never trigger a false banner
+  if (Date.now() - (window.AFCCVoice.lastTurnDispatchedAtMs || 0) < 2500) {
+    return false;
+  }
   const pitches = window.AFCCVoice.utterancePitchSamples || [];
   const peakSnr = window.AFCCVoice.utterancePeakSnrDb || 0;
   const bar = document.getElementById('voiceAcousticBurstFallbackBar');
@@ -4362,6 +4404,12 @@ async function startBrowserSpeechRecognition() {
 
       // Biometric Speaker Verification & Background Noise Gate
       const bioCheck = verifySpeakerBiometrics(captured, collectedAlternatives);
+      // Clear utterance biometric sample buffers immediately after verification so trailing frames never leak into rec.onend
+      window.AFCCVoice.utterancePitchSamples = [];
+      window.AFCCVoice.utteranceCentroidSamples = [];
+      window.AFCCVoice.utteranceFineFrameSamples = [];
+      window.AFCCVoice.utterancePeakSnrDb = 0;
+      window.AFCCVoice.lastTurnDispatchedAtMs = Date.now();
       if (!bioCheck.allowed) {
         const rejectMsg = `🛡️ ${bioCheck.reason || 'Background audio ignored'} ("${captured}")`;
         if (transcriptEl) {

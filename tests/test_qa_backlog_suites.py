@@ -1182,3 +1182,31 @@ def test_ultra_low_latency_voice_streaming_and_all_6_optimizations(isolated_db, 
     assert "body.afcc-alt-xray-active [data-shortcut]::after" in dash_css
     assert "afccChordHudToast" in dash_html
     assert "afccKeyboardShortcutsModal" in dash_html
+
+    # 7. Verify Live News & Pune Updates + Automatic Zero-Token Jarvis -> Antigravity Fallback
+    h_news = MagicMock()
+    post_voice_stream_endpoint(h_news, {"transcript": "Tell me today's news", "concise_mode": False})
+    news_payload = h_news._send_json.call_args[0][0]
+    assert news_payload["status"] == "ok"
+    assert news_payload["mode"] == "voice_live_news_digest"
+    assert len(news_payload["headlines"]) >= 2
+    assert len(news_payload["spoken_reply"]) > 20
+
+    h_pune = MagicMock()
+    post_voice_stream_endpoint(h_pune, {"transcript": "Tell me about latest updates of Pune", "concise_mode": True})
+    pune_payload = h_pune._send_json.call_args[0][0]
+    assert pune_payload["status"] == "ok"
+    assert pune_payload["mode"] == "voice_live_news_digest"
+    assert "Pune" in pune_payload["topic"]
+    assert "Pune" in pune_payload["spoken_reply"]
+
+    h_fallback = MagicMock()
+    post_voice_converse_endpoint(
+        h_fallback,
+        {"transcript": "Design a distributed Raft consensus state machine in Rust"},
+    )
+    fb_payload = h_fallback._send_json.call_args[0][0]
+    assert fb_payload["status"] == "ok"
+    assert fb_payload["mode"] == "antigravity_auto_fallback"
+    assert fb_payload["escalated_to_antigravity"] is True
+    assert any(a.get("type") == "send_to_antigravity" for a in fb_payload.get("ui_actions", []))
