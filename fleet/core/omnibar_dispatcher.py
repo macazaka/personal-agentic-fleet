@@ -1182,8 +1182,8 @@ def score_voice_intent_priority(sub_query: str) -> Dict[str, Any]:
 
     # Check if this sub-command is an in-context follow-up on the currently focused action item
     is_action_item_followup = bool(
-        re.match(r"^(?:close|complete|done|yes|reopen|undo|next|skip|previous|prev|details|more|read\s+details|edit|rename|make\s+it|change\s+priority|pay|upi)\b", low)
-        or re.search(r"\b(?:close\s+it|reopen\s+it|edit\s+it|next\s+action\s+item|next\s+item|pay\s+it|pay\s+via\s+upi|read\s+details)\b", low)
+        re.match(r"^(?:close|complete|done|yes|reopen|undo|next|skip|previous|prev|details|more|read\s+details|edit|rename|make\s+it|change\s+priority|pay|upi|add\s+note|note)\b", low)
+        or re.search(r"\b(?:close\s+it|reopen\s+it|edit\s+it|next\s+action\s+item|next\s+item|pay\s+it|pay\s+via\s+upi|read\s+details|add\s+note)\b", low)
     )
     if is_action_item_followup:
         return {
@@ -1950,6 +1950,8 @@ def _build_topic_frame_from_result(spoken_cmd: str, res_obj: Dict[str, Any]) -> 
             "voice_action_item_upi_pay",
             "voice_macro_routine",
             "voice_task_completed",
+            "voice_task_edited",
+            "voice_task_created",
             "voice_action_items_closed_review",
             "voice_activity",
         ) and not is_closed:
@@ -2404,6 +2406,8 @@ def transcribe_and_dispatch_voice_command(
             "voice_action_item_details",
             "voice_action_item_upi_pay",
             "voice_task_completed",
+            "voice_task_edited",
+            "voice_task_created",
             "voice_action_items_closed_review",
             "jarvis_presence",
         )
@@ -2424,7 +2428,7 @@ def transcribe_and_dispatch_voice_command(
         resume_md = str(prev_active_topic.get("resume_markdown") or "")
         parked_item = prev_active_topic.get("active_action_item")
 
-        if parked_item and isinstance(parked_item, dict):
+        if parked_item and isinstance(parked_item, dict) and not loc_res.get("active_action_item"):
             _VOICE_ACTION_ITEM_STATE["focused_task_id"] = parked_item.get("id")
             loc_res["active_action_item"] = parked_item
 
