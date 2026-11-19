@@ -1242,6 +1242,9 @@ window.AFCCVoice = {
   lastTurnLatencyMs: 0,
   _cachedVoiceByKey: {},
   actionItemsCache: { open: [], closed: [], cursorIdx: 0, lastSyncedAt: 0 },
+  audioMessageQueue: [],
+  activeQueueItem: null,
+  topicStackSnapshot: { active_topic: null, parked_topics: [], parked_count: 0 },
   utterancePitchSamples: [],
   utteranceCentroidSamples: [],
   utteranceFineFrameSamples: [],
@@ -4069,6 +4072,180 @@ async function refreshVoiceActionItemsClientCache() {
 }
 setTimeout(refreshVoiceActionItemsClientCache, 1400);
 
+const MAX_VOICE_AUDIO_QUEUE = 10;
+
+function renderJarvisQueueAndTopicStackBar() {
+  const bar = document.getElementById('voiceQueueAndTopicStackBar');
+  if (!bar) return;
+  const q = window.AFCCVoice.audioMessageQueue || [];
+  const cur = window.AFCCVoice.activeQueueItem;
+  const stack = window.AFCCVoice.topicStackSnapshot || { parked_topics: [], parked_count: 0 };
+  const parkedList = Array.isArray(stack.parked_topics) ? stack.parked_topics : [];
+  const parkedCount = Number(stack.parked_count || parkedList.length || 0);
+
+  const hasMultiPartActive = Boolean((cur && cur.total_parts > 1) || q.length > 0);
+  if (!hasMultiPartActive && parkedCount === 0) {
+    bar.style.display = 'none';
+    return;
+  }
+  bar.style.display = 'block';
+
+  const stepBadge = document.getElementById('voiceQueueStepBadge');
+  const topicLbl = document.getElementById('voiceQueueCurrentTopicLabel');
+  const parkedBadge = document.getElementById('voiceParkedTopicsBadge');
+  const btnSkip = document.getElementById('btnVoiceSkipQueuePart');
+  const btnResume = document.getElementById('btnVoiceResumeParkedTopic');
+  const btnClear = document.getElementById('btnVoiceClearAudioQueue');
+
+  if (stepBadge) {
+    if (cur && cur.total_parts > 1) {
+      stepBadge.textContent = `🔊 Part ${cur.part_index}/${cur.total_parts}`;
+      stepBadge.style.display = 'inline-block';
+    } else if (q.length > 0) {
+      stepBadge.textContent = `📚 ${q.length} Queued`;
+      stepBadge.style.display = 'inline-block';
+    } else {
+      stepBadge.style.display = 'none';
+    }
+  }
+  if (topicLbl) {
+    if (cur && cur.total_parts > 1) {
+      topicLbl.textContent = `${cur.topic_label || cur.title || 'Speaking...'}${q.length > 0 ? ` (+${q.length} next)` : ''}`;
+    } else if (stack.active_topic && stack.active_topic.topic_label) {
+      topicLbl.textContent = `Active: ${stack.active_topic.topic_label}`;
+    } else {
+      topicLbl.textContent = 'Conversation Stack Active';
+    }
+  }
+  if (parkedBadge) {
+    if (parkedCount > 0) {
+      const topParked = parkedList[0] ? (parkedList[0].topic_label || 'Topic') : 'Topic';
+      parkedBadge.style.display = 'inline-block';
+      parkedBadge.textContent = `📌 Parked (${parkedCount}): ${topParked}`;
+    } else {
+      parkedBadge.style.display = 'none';
+    }
+  }
+  if (btnSkip) {
+    btnSkip.style.display = q.length > 0 ? 'inline-block' : 'none';
+  }
+  if (btnClear) {
+    btnClear.style.display = (q.length > 0 || (cur && cur.total_parts > 1)) ? 'inline-block' : 'none';
+  }
+  if (btnResume) {
+    btnResume.style.display = parkedCount > 0 ? 'inline-block' : 'none';
+  }
+}
+
+function processNextJarvisAudioQueueItem() {
+  const q = window.AFCCVoice.audioMessageQueue || [];
+  if (q.length === 0) {
+    window.AFCCVoice.activeQueueItem = null;
+    renderJarvisQueueAndTopicStackBar();
+    if (window.AFCCVoice.userWantsListening && window.AFCCVoice.continuousMode && !window.AFCCVoice.isSpeaking) {
+      startBrowserSpeechRecognition();
+    }
+    return;
+  }
+
+  const nextItem = q.shift();
+  window.AFCCVoice.activeQueueItem = nextItem;
+  renderJarvisQueueAndTopicStackBar();
+
+  const replyLineEl = document.getElementById('voiceAssistantReplyLine');
+  const replyTextEl = document.getElementById('voiceSpokenReplyText');
+  const floatToast = document.getElementById('voiceGlobalFloatingToast');
+  const floatText = document.getElementById('voiceGlobalFloatingText');
+
+  const spokenText = (window.AFCCVoice.conciseMode && nextItem.spoken_reply_concise)
+    ? nextItem.spoken_reply_concise
+    : (nextItem.spoken_reply || nextItem.message || nextItem.title || 'Done.');
+
+  const prefixLabel = (nextItem.total_parts && nextItem.total_parts > 1)
+    ? `[Part ${nextItem.part_index}/${nextItem.total_parts} • ${nextItem.topic_label || 'Answer'}] `
+    : '';
+
+  if (replyLineEl && replyTextEl) {
+    replyLineEl.style.display = 'block';
+    replyTextEl.textContent = `${prefixLabel}${spokenText}`;
+  }
+  if (floatToast && floatToast.style.display !== 'none' && floatText) {
+    floatText.textContent = `🔊 ${prefixLabel}${spokenText}`;
+  }
+
+  if (typeof nextItem.active_action_item !== 'undefined' && nextItem.active_action_item !== null) {
+    renderVoiceFocusedActionItem(nextItem.active_action_item);
+  }
+  if (Array.isArray(nextItem.ui_actions) && nextItem.ui_actions.length > 0) {
+    Promise.resolve().then(() => executeVoiceUiActions(nextItem.ui_actions));
+  }
+
+  const clauses = Array.isArray(nextItem.spoken_stream_clauses) ? nextItem.spoken_stream_clauses : null;
+  speakAfccVoiceText(
+    spokenText,
+    () => {
+      if ((window.AFCCVoice.audioMessageQueue || []).length > 0) {
+        // Natural 220ms conversational breath between sequential queued audio answers
+        setTimeout(() => processNextJarvisAudioQueueItem(), 220);
+      } else {
+        window.AFCCVoice.activeQueueItem = null;
+        renderJarvisQueueAndTopicStackBar();
+        if (window.AFCCVoice.userWantsListening && window.AFCCVoice.continuousMode) {
+          startBrowserSpeechRecognition();
+        }
+      }
+    },
+    spokenText,
+    clauses
+  );
+}
+
+function playJarvisSequentialAudioQueue(queueItems, appendToExisting) {
+  if (!Array.isArray(queueItems) || queueItems.length === 0) return;
+  if (!Array.isArray(window.AFCCVoice.audioMessageQueue)) {
+    window.AFCCVoice.audioMessageQueue = [];
+  }
+  if (!appendToExisting) {
+    window.AFCCVoice.audioMessageQueue = [];
+  }
+  for (let i = 0; i < queueItems.length; i++) {
+    if (window.AFCCVoice.audioMessageQueue.length >= MAX_VOICE_AUDIO_QUEUE) {
+      window.AFCCVoice.audioMessageQueue.shift();
+    }
+    window.AFCCVoice.audioMessageQueue.push(queueItems[i]);
+  }
+  renderJarvisQueueAndTopicStackBar();
+  if (!appendToExisting || !window.AFCCVoice.isSpeaking) {
+    processNextJarvisAudioQueueItem();
+  }
+}
+
+function skipCurrentJarvisAudioQueuePart() {
+  if ('speechSynthesis' in window) {
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+  }
+  window.AFCCVoice.isSpeaking = false;
+  if ((window.AFCCVoice.audioMessageQueue || []).length > 0) {
+    setTimeout(() => processNextJarvisAudioQueueItem(), 60);
+  } else {
+    window.AFCCVoice.activeQueueItem = null;
+    renderJarvisQueueAndTopicStackBar();
+    updateVoiceCopilotUI();
+  }
+}
+
+function clearJarvisAudioQueue() {
+  window.AFCCVoice.audioMessageQueue = [];
+  window.AFCCVoice.activeQueueItem = null;
+  stopAfccVoiceSpeaking();
+  renderJarvisQueueAndTopicStackBar();
+}
+
+function resumeParkedJarvisTopicNow() {
+  clearJarvisAudioQueue();
+  executeVoiceTurnText('Resume parked topic');
+}
+
 async function executeVoiceTurnText(transcriptText, alternativesList) {
   window.AFCCVoice.lastActionWasVoiceprint = false;
   const turnStartMs = performance.now ? performance.now() : Date.now();
@@ -4077,6 +4254,17 @@ async function executeVoiceTurnText(transcriptText, alternativesList) {
     : [transcriptText];
   const spoken = selectBestJarvisClientAlternative(rawAlts) || String(transcriptText || '').trim();
   if (!spoken) return;
+
+  // Client-side instant queue control reflexes (<5ms, 0 network calls)
+  const lowerSpoken = spoken.toLowerCase().trim();
+  if (/^(skip\s+part|next\s+part|next\s+answer|skip\s+to\s+next\s+question|skip\s+answer)$/i.test(lowerSpoken)) {
+    skipCurrentJarvisAudioQueuePart();
+    return;
+  }
+  if (/^(clear\s+queue|stop\s+queue|cancel\s+queue|clear\s+all\s+audio)$/i.test(lowerSpoken)) {
+    clearJarvisAudioQueue();
+    return;
+  }
 
   // Optimization 5: Immediate 12ms WebAudio harmonic acknowledgment chime
   playJarvisInstantAckChime();
@@ -4093,8 +4281,17 @@ async function executeVoiceTurnText(transcriptText, alternativesList) {
   updateVoiceCopilotUI('⚡ J.A.R.V.I.S. Streaming...', 'executing');
 
   // Optimization 3: Check Zero-Network Client Reflex Cache for <15ms pre-speech start
+  // Only use single-turn fast cache when no parked topic or multi-part connector is present
+  const hasMultiConnector = /\b(and|also|then|after that|first|second|news|pune|updates)\b|\?/i.test(lowerSpoken);
+  const hasActiveTopicInterrupt = Boolean(
+    window.AFCCVoice.topicStackSnapshot &&
+    window.AFCCVoice.topicStackSnapshot.active_topic &&
+    !/\b(discuss action items|next|close|edit|details|reopen|pay)\b/i.test(lowerSpoken)
+  );
   let preSpokenFastPath = false;
-  const instantFastReply = tryInstantClientVoiceFastPath(spoken);
+  const instantFastReply = (!hasMultiConnector && !hasActiveTopicInterrupt)
+    ? tryInstantClientVoiceFastPath(spoken)
+    : null;
   if (instantFastReply && window.AFCCVoice.spokenReplyEnabled) {
     preSpokenFastPath = true;
     const fastElapsed = Math.max(8, Math.round((performance.now ? performance.now() : Date.now()) - turnStartMs));
@@ -4167,6 +4364,10 @@ async function executeVoiceTurnText(transcriptText, alternativesList) {
       return;
     }
 
+    if (data.topic_stack && typeof data.topic_stack === 'object') {
+      window.AFCCVoice.topicStackSnapshot = data.topic_stack;
+    }
+
     let fullSpokenReply = data.spoken_reply || data.message || data.title || 'Done.';
     if (typeof fullSpokenReply === 'string' && fullSpokenReply.trim().startsWith('{') && fullSpokenReply.includes('conversation')) {
       fullSpokenReply = 'I heard you clearly. All Fleet agents are online at $0.00 zero-token cost. Tell me which agent or action you would like to run.';
@@ -4176,20 +4377,29 @@ async function executeVoiceTurnText(transcriptText, alternativesList) {
       : fullSpokenReply;
     const spokenPhonetic = data.spoken_reply_phonetic || activeSpokenReply;
     const streamClauses = Array.isArray(data.spoken_stream_clauses) ? data.spoken_stream_clauses : null;
+    const queueItems = Array.isArray(data.voice_queue_items) ? data.voice_queue_items : [];
 
-    if (replyLineEl && replyTextEl) {
-      replyLineEl.style.display = 'block';
-      replyTextEl.textContent = activeSpokenReply;
-    }
-
-    // Optimization 2: SPEAK-FIRST PARALLEL EXECUTION!
-    // Trigger Clause-by-Clause Streaming TTS on the very first microtask BEFORE awaiting UI actions or DOM refreshes!
-    if (!preSpokenFastPath) {
-      speakAfccVoiceText(activeSpokenReply, () => {
-        if (window.AFCCVoice.userWantsListening && window.AFCCVoice.continuousMode) {
-          startBrowserSpeechRecognition();
-        }
-      }, spokenPhonetic, streamClauses);
+    // If the response contains multiple sequential audio queue parts (either from a multi-question utterance
+    // or from an interrupted topic + auto-resume bridge), play them sequentially one after another via the event-driven queue!
+    if (!preSpokenFastPath && queueItems.length >= 2) {
+      playJarvisSequentialAudioQueue(queueItems, false);
+    } else {
+      window.AFCCVoice.audioMessageQueue = [];
+      window.AFCCVoice.activeQueueItem = queueItems[0] || null;
+      renderJarvisQueueAndTopicStackBar();
+      if (replyLineEl && replyTextEl) {
+        replyLineEl.style.display = 'block';
+        replyTextEl.textContent = activeSpokenReply;
+      }
+      if (!preSpokenFastPath) {
+        speakAfccVoiceText(activeSpokenReply, () => {
+          window.AFCCVoice.activeQueueItem = null;
+          renderJarvisQueueAndTopicStackBar();
+          if (window.AFCCVoice.userWantsListening && window.AFCCVoice.continuousMode) {
+            startBrowserSpeechRecognition();
+          }
+        }, spokenPhonetic, streamClauses);
+      }
     }
 
     const activities = Array.isArray(data.executed_activities) ? data.executed_activities : [];
@@ -4660,3 +4870,9 @@ window.replayLastAfccVoiceReply = replayLastAfccVoiceReply;
 window.executeVoiceTurnText = executeVoiceTurnText;
 window.executeVoiceUiActions = executeVoiceUiActions;
 window.speakAfccVoiceText = speakAfccVoiceText;
+window.renderJarvisQueueAndTopicStackBar = renderJarvisQueueAndTopicStackBar;
+window.playJarvisSequentialAudioQueue = playJarvisSequentialAudioQueue;
+window.processNextJarvisAudioQueueItem = processNextJarvisAudioQueueItem;
+window.skipCurrentJarvisAudioQueuePart = skipCurrentJarvisAudioQueuePart;
+window.clearJarvisAudioQueue = clearJarvisAudioQueue;
+window.resumeParkedJarvisTopicNow = resumeParkedJarvisTopicNow;

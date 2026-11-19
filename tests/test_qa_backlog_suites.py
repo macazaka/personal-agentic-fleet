@@ -1184,6 +1184,9 @@ def test_ultra_low_latency_voice_streaming_and_all_6_optimizations(isolated_db, 
     assert "afccKeyboardShortcutsModal" in dash_html
 
     # 7. Verify Live News & Pune Updates + Automatic Zero-Token Jarvis -> Antigravity Fallback
+    from fleet.core.omnibar_dispatcher import reset_voice_topic_stack
+    reset_voice_topic_stack()
+
     h_news = MagicMock()
     post_voice_stream_endpoint(h_news, {"transcript": "Tell me today's news", "concise_mode": False})
     news_payload = h_news._send_json.call_args[0][0]
@@ -1210,3 +1213,74 @@ def test_ultra_low_latency_voice_streaming_and_all_6_optimizations(isolated_db, 
     assert fb_payload["mode"] == "antigravity_auto_fallback"
     assert fb_payload["escalated_to_antigravity"] is True
     assert any(a.get("type") == "send_to_antigravity" for a in fb_payload.get("ui_actions", []))
+
+    # 8. Verify Multi-Question Audio Queue, Priority Ordering & Human-Like Topic Interrupt + Auto-Resume Stack
+    reset_voice_topic_stack()
+
+    # 8A. Multi-part question + action decomposition & priority reordering:
+    # "Let's discuss action items? Also log a glass of water. And tell me about latest updates of Pune."
+    # Priority Arbitrator executes P0 (Water=95) -> P1 (Pune News=80) -> P2 (Action Items=65)
+    h_multi = MagicMock()
+    post_voice_stream_endpoint(
+        h_multi,
+        {
+            "transcript": "Let's discuss action items? Also log a glass of water. And tell me about latest updates of Pune.",
+            "concise_mode": True,
+        },
+    )
+    multi_payload = h_multi._send_json.call_args[0][0]
+    assert multi_payload["status"] == "ok"
+    assert multi_payload["mode"] == "voice_chained_multi_command"
+    assert multi_payload["chained_commands_count"] == 3
+    assert multi_payload["priority_reordered"] is True
+    q_items = multi_payload["voice_queue_items"]
+    assert len(q_items) == 3
+    assert q_items[0]["priority_score"] == 95  # P0 Water logged first
+    assert q_items[1]["priority_score"] == 80  # P1 Pune news second
+    assert q_items[2]["priority_score"] == 65  # P2 Action Items interactive conversation third
+
+    # 8B. Human-Like Topic Interrupt & Auto-Resume while Action Items conversation is active:
+    # Now that Action Items review is the active conversation, interrupt with a new topic ("Tell me about latest updates of Pune")
+    h_interrupt = MagicMock()
+    post_voice_stream_endpoint(
+        h_interrupt,
+        {
+            "transcript": "Tell me about latest updates of Pune",
+            "concise_mode": True,
+        },
+    )
+    int_payload = h_interrupt._send_json.call_args[0][0]
+    assert int_payload["status"] == "ok"
+    assert int_payload.get("topic_interrupted_and_resumed") is True
+    assert int_payload.get("arbitration_decision") == "interrupted_by_higher_priority_topic_then_auto_resumed"
+    int_queue = int_payload["voice_queue_items"]
+    assert len(int_queue) == 2
+    assert int_queue[0]["is_auto_resume"] is False
+    assert "Pune" in int_queue[0]["spoken_reply"]
+    assert int_queue[1]["is_auto_resume"] is True
+    assert "Action Item" in int_queue[1]["spoken_reply"]
+
+    # 8C. Explicit Park for Later ("After this, tell me today's news") & Resume ("Resume parked topic")
+    h_park = MagicMock()
+    post_voice_converse_endpoint(h_park, {"transcript": "After this, tell me today's news"})
+    park_payload = h_park._send_json.call_args[0][0]
+    assert park_payload["status"] == "ok"
+    assert park_payload["mode"] == "voice_topic_parked"
+    assert park_payload["topic_stack"]["parked_count"] >= 1
+
+    h_resume = MagicMock()
+    post_voice_converse_endpoint(h_resume, {"transcript": "Resume parked topic"})
+    res_payload = h_resume._send_json.call_args[0][0]
+    assert res_payload["status"] == "ok"
+    assert res_payload["mode"] == "voice_topic_resumed"
+
+    for q_sym in (
+        "playJarvisSequentialAudioQueue",
+        "processNextJarvisAudioQueueItem",
+        "skipCurrentJarvisAudioQueuePart",
+        "clearJarvisAudioQueue",
+        "resumeParkedJarvisTopicNow",
+        "renderJarvisQueueAndTopicStackBar",
+    ):
+        assert q_sym in ag_js, f"Missing audio queue / topic stack symbol {q_sym} in antigravity.js"
+    assert "voiceQueueAndTopicStackBar" in dash_html

@@ -1136,22 +1136,138 @@ def _build_dynamic_context_chips(res: Dict[str, Any]) -> List[Dict[str, str]]:
 
 
 _CHAINABLE_ACTION_RE = re.compile(
-    r"\b(close|complete|finish|reopen|next|skip|details|read|discuss|review|log|water|drink|workout|play|optimize|tune|clean|briefing|scan|check|open|show|filter|good\s+morning|wrap\s+up)\b",
+    r"\b(close|complete|finish|reopen|next|skip|details|read|discuss|review|log|water|drink|workout|play|optimize|tune|clean|briefing|scan|check|open|show|filter|good\s+morning|wrap\s+up|tell|what|who|where|when|why|how|news|updates?|pune|headlines?|emails?|ram|memory|security|tasks?|action\s+items?|pay|upi|weather|agents?|add|create|mask|unmask|reveal)\b",
     re.I,
 )
+
+# ---------------------------------------------------------------------------
+# Human-Like Conversational Topic Stack & Priority Arbitrator (Bounded 6-Frame LIFO)
+# ---------------------------------------------------------------------------
+_MAX_TOPIC_STACK_DEPTH = 6
+_MAX_VOICE_QUEUE_BATCH = 6
+
+_VOICE_TOPIC_STACK_STATE: Dict[str, Any] = {
+    "active_topic": None,
+    "parked_stack": [],
+}
+
+
+def reset_voice_topic_stack() -> None:
+    """Resets the conversational topic stack (used by unit tests or explicit 'clear queue' command)."""
+    _VOICE_TOPIC_STACK_STATE["active_topic"] = None
+    _VOICE_TOPIC_STACK_STATE["parked_stack"] = []
+
+
+def get_voice_topic_stack_snapshot() -> Dict[str, Any]:
+    """Returns a zero-allocation snapshot of the active conversation topic and parked topic stack."""
+    active = _VOICE_TOPIC_STACK_STATE.get("active_topic")
+    parked = list(_VOICE_TOPIC_STACK_STATE.get("parked_stack") or [])
+    return {
+        "active_topic": dict(active) if isinstance(active, dict) else None,
+        "parked_topics": [dict(p) for p in parked[:_MAX_TOPIC_STACK_DEPTH]],
+        "parked_count": len(parked),
+    }
+
+
+def score_voice_intent_priority(sub_query: str) -> Dict[str, Any]:
+    """
+    Scores urgency, topic identity, and conversational depth of a voice sub-command or question:
+      - P0 (95): Urgent Security / Privacy / Fast State Mutation (log water, close/pay item, optimize RAM, security scan)
+      - P1 (80): Fast Factual Lookup / Live News / City Bulletin (Pune updates, today's news, workout check, email check)
+      - P2 (65): Multi-Turn Interactive Review (Let's discuss action items, closed action items, daily briefing)
+      - P3 (50): Open-Ended Deep Exploration / Antigravity Live escalation
+    """
+    s = (sub_query or "").strip()
+    low = s.lower()
+
+    # Check if this sub-command is an in-context follow-up on the currently focused action item
+    is_action_item_followup = bool(
+        re.match(r"^(?:close|complete|done|yes|reopen|undo|next|skip|previous|prev|details|more|read\s+details|edit|rename|make\s+it|change\s+priority|pay|upi)\b", low)
+        or re.search(r"\b(?:close\s+it|reopen\s+it|edit\s+it|next\s+action\s+item|next\s+item|pay\s+it|pay\s+via\s+upi|read\s+details)\b", low)
+    )
+    if is_action_item_followup:
+        return {
+            "priority_score": 96,
+            "priority_band": "P0_FOCUSED_FOLLOWUP",
+            "topic_id": "action_items_review",
+            "topic_label": "🗣️ Action Items Review",
+            "is_multi_turn": True,
+            "is_followup_on_topic": "action_items_review",
+        }
+
+    # P0 (95): Urgent Security, Privacy Masking, or Instant State Mutation (Water, RAM, Temp, DNS, Add Task)
+    if re.search(
+        r"\b(?:security\s+scan|antivirus|virus|mask|unmask|reveal|log\s+a?\s*glass|water|drink|drank|optimize\s+my\s+ram|free\s+ram|clean\s+temp|flush\s+dns|auto\s*tune|add\s+task|create\s+task|log\s+weight|sugar|glucose)\b",
+        low,
+    ):
+        t_id = "health_hydration" if re.search(r"\b(?:water|drink|drank|weight|sugar|glucose)\b", low) else "pc_security_mutation"
+        t_lbl = "💧 Health & Vitals Quick Log" if t_id == "health_hydration" else "🛡️ Security & PC Quick Action"
+        return {
+            "priority_score": 95,
+            "priority_band": "P0_QUICK_MUTATION",
+            "topic_id": t_id,
+            "topic_label": t_lbl,
+            "is_multi_turn": False,
+            "is_followup_on_topic": None,
+        }
+
+    # P1 (80): Fast Factual Query, Live News Bulletin, City Updates (Pune, India, Tech), Workout / Agent Status
+    if (
+        _extract_news_or_topic_query(s) is not None
+        or re.search(
+            r"\b(?:today'?s?\s+news|latest\s+news|updates?\s+of|pune|headlines?|workout\s+today|what\s+is\s+my\s+workout|play\s+my\s+workout|what\s+agents|tell\s+me\s+about\s+.*agent|recent\s+agent\s+activity|check\s+my\s+emails)\b",
+            low,
+        )
+    ):
+        is_news = _extract_news_or_topic_query(s) is not None or "news" in low or "pune" in low or "updates" in low
+        return {
+            "priority_score": 80,
+            "priority_band": "P1_FAST_FACTUAL_OR_NEWS",
+            "topic_id": "live_news_bulletin" if is_news else "agent_telemetry_lookup",
+            "topic_label": "📰 Live News & City Updates" if is_news else "📊 Fast Agent Telemetry",
+            "is_multi_turn": False,
+            "is_followup_on_topic": None,
+        }
+
+    # P2 (65): Multi-Turn Interactive Review (Open/Closed/Monthly/Yearly Action Items, Daily Briefing, Macros)
+    if re.search(
+        r"\b(?:action\s+items?|discuss\s+action|talk\s+about\s+.*action|pending\s+tasks?|monthly\s+tasks?|yearly\s+tasks?|closed\s+action|daily\s+briefing|morning\s+briefing|good\s+morning|wrap\s+up\s+my\s+day|backlog)\b",
+        low,
+    ):
+        is_act = bool(re.search(r"\b(?:action\s+items?|tasks?|good\s+morning)\b", low))
+        return {
+            "priority_score": 65,
+            "priority_band": "P2_INTERACTIVE_REVIEW",
+            "topic_id": "action_items_review" if is_act else "executive_briefing",
+            "topic_label": "🗣️ Action Items Conversation" if is_act else "☀️ Executive Briefing",
+            "is_multi_turn": True,
+            "is_followup_on_topic": None,
+        }
+
+    # P3 (50): Open-Ended Deep Exploration / Antigravity Live
+    return {
+        "priority_score": 50,
+        "priority_band": "P3_DEEP_EXPLORATION",
+        "topic_id": "antigravity_exploration",
+        "topic_label": "🚀 Antigravity Deep Exploration",
+        "is_multi_turn": False,
+        "is_followup_on_topic": None,
+    }
 
 
 def _split_chained_voice_commands(spoken: str) -> List[str]:
     """
-    UX Improvement #4: Splits compound natural-language commands joined by 'and then', 'then', or 'and'
-    when both clauses contain distinct actionable Jarvis verbs (e.g. 'Close it and next action item',
-    'Log a glass of water and play my workout playlist').
+    Multi-Question & Multi-Intent Voice Decomposer:
+    Splits compound utterances containing multiple questions ('?'), semicolons, ordinal markers
+    ('first ... second ... third ... finally'), or discourse connectors ('and also', 'also',
+    'after that', 'then', 'plus', 'and') into up to 6 atomic voice commands/questions.
     """
     clean = (spoken or "").strip()
     if not clean or len(clean.split()) < 4:
         return [clean] if clean else []
-    # Do not split single built-in phrases that naturally contain 'and'
+
     lower = clean.lower()
+    # Do not split single built-in phrases that naturally contain 'and'
     if any(
         phrase in lower
         for phrase in (
@@ -1161,16 +1277,67 @@ def _split_chained_voice_commands(spoken: str) -> List[str]:
             "overview and tasks",
             "listen and speak",
         )
-    ):
+    ) and "?" not in clean and "also" not in lower and "then" not in lower:
         return [clean]
 
-    parts = re.split(r"\s+(?:and\s+then|then|and)\s+", clean, maxsplit=2, flags=re.I)
-    if len(parts) < 2:
-        return [clean]
-    valid_parts = [p.strip() for p in parts if p.strip() and _CHAINABLE_ACTION_RE.search(p)]
-    if len(valid_parts) == len(parts) and len(valid_parts) >= 2:
-        return valid_parts
-    return [clean]
+    # 1. Split on question marks followed by another clause, semicolons, or sentence boundaries with discourse connectors
+    stage1_chunks: List[str] = []
+    for piece in re.split(
+        r"(?:\?\s+|\s*;\s*|\.\s+(?=(?:also|and|then|next|after\s+that|second|third|finally|plus|by\s+the\s+way|tell|what|how|log|check|open|show|let'?s|please)\b))",
+        clean,
+        flags=re.I,
+    ):
+        p = piece.strip()
+        if p:
+            stage1_chunks.append(p)
+
+    # 2. Further split each chunk on explicit multi-intent connectors ('and also', 'after that', 'and then', 'also', 'then', 'plus', 'and')
+    final_parts: List[str] = []
+    connector_pattern = re.compile(
+        r"\s*(?:,\s*)?\b(?:and\s+also|and\s+then|after\s+that|next\s+question|secondly|thirdly|finally|also|then|plus|and)\b\s+",
+        re.I,
+    )
+    ordinal_prefix_re = re.compile(r"^(?:first(?:ly)?|second(?:ly)?|third(?:ly)?|finally|lastly|next|also)\b[\s,.:;-]*", re.I)
+
+    for chunk in stage1_chunks:
+        sub_splits = connector_pattern.split(chunk)
+        if len(sub_splits) >= 2:
+            cleaned_subs = [ordinal_prefix_re.sub("", s).strip(" .,?!") for s in sub_splits if s and s.strip(" .,?!")]
+            if len(cleaned_subs) >= 2 and all(_CHAINABLE_ACTION_RE.search(s) or len(s.split()) >= 3 for s in cleaned_subs):
+                final_parts.extend(cleaned_subs)
+                continue
+        clean_chunk = ordinal_prefix_re.sub("", chunk).strip()
+        if clean_chunk:
+            final_parts.append(clean_chunk)
+
+    return final_parts[:_MAX_VOICE_QUEUE_BATCH] if final_parts else [clean]
+
+
+def _prioritize_decomposed_sub_commands(sub_commands: List[str], raw_spoken: str) -> Tuple[List[str], bool]:
+    """
+    Orders decomposed sub-commands by conversational priority so fast atomic actions/questions
+    (e.g. logging water P0=95 or checking Pune news P1=80) execute and speak BEFORE opening a long
+    multi-turn interactive review (e.g. Action Items P2=65), unless the user used explicit sequential
+    ordinals ('first ... second ...') or stateful cursor chains ('close it and next action item').
+    Returns (ordered_sub_commands, was_reordered_by_priority).
+    """
+    if len(sub_commands) <= 1:
+        return sub_commands, False
+    raw_low = (raw_spoken or "").lower()
+    # Respect explicit user ordinal ordering or stateful action-item step chains
+    if re.search(r"\b(?:first|second|third|finally|close\s+it|reopen\s+it|edit\s+it)\b", raw_low):
+        return sub_commands, False
+
+    scored = []
+    for idx, cmd in enumerate(sub_commands):
+        p_meta = score_voice_intent_priority(cmd)
+        scored.append((idx, cmd, p_meta["priority_score"], p_meta["is_multi_turn"]))
+
+    # Sort higher priority_score first (and non-multi-turn before multi-turn), preserving relative order on ties
+    sorted_scored = sorted(scored, key=lambda item: (-item[2], 1 if item[3] else 0, item[0]))
+    ordered_cmds = [item[1] for item in sorted_scored]
+    was_reordered = ordered_cmds != sub_commands
+    return ordered_cmds, was_reordered
 
 
 def _apply_voice_localization(
@@ -1767,6 +1934,82 @@ def _match_action_item_from_voice(
     return None
 
 
+def _build_topic_frame_from_result(spoken_cmd: str, res_obj: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """
+    Constructs a resumable Conversational Topic Frame if the voice turn represents
+    an unfinished multi-turn interactive conversation (such as an active Action Items review).
+    """
+    mode = str(res_obj.get("mode") or "")
+    active_item = res_obj.get("active_action_item")
+    if isinstance(active_item, dict) and active_item.get("id") is not None:
+        is_closed = str(active_item.get("status") or "").lower() == "completed"
+        if mode in (
+            "voice_action_items_open_review",
+            "voice_action_item_step",
+            "voice_action_item_details",
+            "voice_action_item_upi_pay",
+            "voice_macro_routine",
+            "voice_task_completed",
+            "voice_action_items_closed_review",
+            "voice_activity",
+        ) and not is_closed:
+            tid = int(active_item["id"])
+            t_title = str(active_item.get("title") or f"Action Item #{tid}")
+            t_prio = str(active_item.get("priority") or "P2")
+            pos = int(active_item.get("cursor_position") or 1)
+            tot = int(active_item.get("queue_total") or 1)
+            return {
+                "topic_id": "action_items_review",
+                "topic_label": f"🗣️ Action Items (#{tid} — {pos}/{tot})",
+                "priority_score": 65,
+                "priority_band": "P2_INTERACTIVE_REVIEW",
+                "is_unfinished": True,
+                "focused_task_id": tid,
+                "cursor_position": pos,
+                "queue_total": tot,
+                "active_action_item": dict(active_item),
+                "resume_phrase": "Let's discuss action items",
+                "resume_spoken": (
+                    f"Now, returning to our parked conversation on Action Items "
+                    f"(Item {pos} of {tot}, task number {tid}: {_clean_for_speech(t_title)}, priority {t_prio}): "
+                    f"would you like to close it, edit it, or move to the next action item?"
+                ),
+                "resume_spoken_concise": (
+                    f"Back to parked Action Item {pos} of {tot}, #{tid}: {_clean_for_speech(t_title)} ({t_prio}). "
+                    f"Close, edit, or next?"
+                ),
+                "resume_markdown": (
+                    f"↩️ **Auto-Resumed Parked Conversation — Action Items ({pos} of {tot})**: "
+                    f"**#{tid} — {t_title}** (`{t_prio}`)\n"
+                    f"💡 *Say **\"Close it\"**, **\"Edit it to ...\"**, **\"Read details\"**, or **\"Next action item\"**.*"
+                ),
+            }
+    return None
+
+
+def _push_topic_to_parked_stack(topic_frame: Dict[str, Any]) -> None:
+    """Pushes a topic frame onto the bounded LIFO parked conversation stack (max 6 frames)."""
+    if not isinstance(topic_frame, dict) or not topic_frame.get("topic_id"):
+        return
+    tid = str(topic_frame["topic_id"])
+    stack: List[Dict[str, Any]] = [
+        p for p in (_VOICE_TOPIC_STACK_STATE.get("parked_stack") or [])
+        if isinstance(p, dict) and str(p.get("topic_id")) != tid
+    ]
+    stack.insert(0, dict(topic_frame))
+    _VOICE_TOPIC_STACK_STATE["parked_stack"] = stack[:_MAX_TOPIC_STACK_DEPTH]
+
+
+def _pop_top_parked_topic() -> Optional[Dict[str, Any]]:
+    """Pops and returns the highest-priority / most recent parked conversation topic."""
+    stack: List[Dict[str, Any]] = list(_VOICE_TOPIC_STACK_STATE.get("parked_stack") or [])
+    if not stack:
+        return None
+    top = stack.pop(0)
+    _VOICE_TOPIC_STACK_STATE["parked_stack"] = stack
+    return top
+
+
 def transcribe_and_dispatch_voice_command(
     transcript: str,
     agent_registry: Optional[Any] = None,
@@ -1779,18 +2022,185 @@ def transcribe_and_dispatch_voice_command(
     concise_mode: bool = False,
 ) -> Dict[str, Any]:
     """
-    UX-10 & Jarvis Bi-Directional Audio Conversation Engine:
+    UX-10 & Jarvis Bi-Directional Audio Conversation, Multi-Question Audio Queue & Topic Stack Engine:
     1. Selects the highest-intent transcript from N-best SpeechRecognition alternatives.
     2. Normalizes spoken natural-language voice commands (in English, Hindi, Telugu, or Marathi).
-    3. Executes linked backend activities or routes directly to Antigravity when requested.
-    4. Returns structured `ui_actions`, `executed_activities`, `spoken_stream_clauses`, and localized `spoken_reply`.
+    3. Decomposes multi-part questions/actions into an ordered, priority-scored `voice_queue_items` array
+       so the client speaks each answer one after the other as sequential audio messages.
+    4. Tracks ongoing multi-turn conversations in `_VOICE_TOPIC_STACK_STATE`: when a new topic interrupts
+       an unfinished conversation, J.A.R.V.I.S. prioritizes which topic to finish now, parks the unfinished
+       conversation, and automatically resumes it via a follow-up audio message!
     """
     raw_spoken = _select_best_voice_candidate(transcript, alternatives)
     if not raw_spoken:
         return {"status": "error", "message": "Empty voice transcript."}
 
     canonical_spoken = _normalize_multilingual_voice_query(raw_spoken)
-    sub_commands = _split_chained_voice_commands(canonical_spoken)
+    clean_low = canonical_spoken.lower().strip()
+
+    # -----------------------------------------------------------------------
+    # 0. Explicit Topic-Stack Meta-Commands ("Resume parked topic", "What were we talking about?", "Park for later: ...")
+    # -----------------------------------------------------------------------
+    defer_match = re.match(
+        r"^(?:after\s+(?:we\s+finish\s+)?this|park\s+(?:this\s+)?for\s+later|queue\s+(?:this\s+)?for\s+later|remind\s+me\s+after\s+this\s+to)\b[\s,.:;-]*(.+)$",
+        canonical_spoken,
+        flags=re.I,
+    )
+    if defer_match:
+        deferred_q = defer_match.group(1).strip()
+        p_meta = score_voice_intent_priority(deferred_q)
+        deferred_frame = {
+            "topic_id": f"deferred:{deferred_q.lower()[:28]}",
+            "topic_label": f"📌 Queued: {deferred_q[:38]}",
+            "priority_score": p_meta["priority_score"],
+            "priority_band": p_meta["priority_band"],
+            "is_unfinished": True,
+            "deferred_query": deferred_q,
+            "resume_phrase": deferred_q,
+            "resume_spoken": f"Now covering your queued topic: {_clean_for_speech(deferred_q)}.",
+            "resume_spoken_concise": f"Queued topic: {_clean_for_speech(deferred_q)}.",
+            "resume_markdown": f"📌 **Queued Follow-Up Topic**: **\"{deferred_q}\"**",
+        }
+        _push_topic_to_parked_stack(deferred_frame)
+        cur_act = _VOICE_TOPIC_STACK_STATE.get("active_topic")
+        cur_lbl = cur_act.get("topic_label") if isinstance(cur_act, dict) else "your current conversation"
+        msg = (
+            f"📌 **Parked Topic for After Current Conversation**: **\"{deferred_q}\"**\n"
+            f"• **Current Priority Focus**: {cur_lbl}\n"
+            f"• Say **\"Resume parked topic\"** anytime (or finish your current item) to cover it next."
+        )
+        spoken_ack = (
+            f"Got it. I have queued {_clean_for_speech(deferred_q)} in your conversation stack to cover right after we finish {cur_lbl}."
+        )
+        base_defer = _apply_voice_localization(
+            {
+                "status": "ok",
+                "mode": "voice_topic_parked",
+                "agent_id": "overview",
+                "voice_transcript": raw_spoken,
+                "selected_transcript": raw_spoken,
+                "title": f"📌 Parked Follow-Up Topic: \"{deferred_q[:40]}\"",
+                "message": msg,
+                "spoken_reply": spoken_ack,
+                "ui_actions": [],
+                "executed_activities": [f"📌 Parked Topic in Conversation Stack: \"{deferred_q[:40]}\""],
+                "active_action_item": cur_act.get("active_action_item") if isinstance(cur_act, dict) else None,
+            },
+            language=language,
+            gender=gender,
+            accent=accent,
+            concise_mode=concise_mode,
+        )
+        base_defer["topic_stack"] = get_voice_topic_stack_snapshot()
+        base_defer["voice_queue_items"] = [
+            {
+                "part_index": 1,
+                "total_parts": 1,
+                "priority_score": 90,
+                "priority_band": "P0_TOPIC_STACK_CONTROL",
+                "topic_label": "📌 Topic Stack Manager",
+                "title": base_defer["title"],
+                "message": base_defer["message"],
+                "spoken_reply": base_defer["spoken_reply"],
+                "spoken_reply_concise": base_defer["spoken_reply_concise"],
+                "spoken_stream_clauses": base_defer["spoken_stream_clauses"],
+                "ui_actions": [],
+                "executed_activities": base_defer["executed_activities"],
+                "is_auto_resume": False,
+            }
+        ]
+        return base_defer
+
+    if re.search(
+        r"\b(?:resume\s+(?:parked|previous|last)\s+(?:topic|conversation)|go\s+back\s+to\s+(?:where\s+we\s+were|previous\s+topic|our\s+conversation|action\s+items)|what\s+were\s+we\s+(?:talking\s+about|discussing)|what\s+did\s+we\s+park|continue\s+(?:previous|parked)\s+(?:topic|conversation))\b",
+        clean_low,
+    ):
+        popped = _pop_top_parked_topic() or _VOICE_TOPIC_STACK_STATE.get("active_topic")
+        if isinstance(popped, dict):
+            if popped.get("deferred_query"):
+                res_def = _dispatch_voice_command_core(
+                    str(popped["deferred_query"]),
+                    agent_registry=agent_registry,
+                    db=db,
+                    routing_mode=routing_mode,
+                )
+                res_def["mode"] = "voice_topic_resumed"
+                res_def["title"] = f"↩️ Resumed Parked Topic: {res_def.get('title', '')}"
+                loc_def = _apply_voice_localization(res_def, language=language, gender=gender, accent=accent, concise_mode=concise_mode)
+                loc_def["topic_stack"] = get_voice_topic_stack_snapshot()
+                return loc_def
+            if popped.get("active_action_item"):
+                _VOICE_TOPIC_STACK_STATE["active_topic"] = popped
+                act_item = popped["active_action_item"]
+                _VOICE_ACTION_ITEM_STATE["focused_task_id"] = act_item.get("id")
+                res_act = _apply_voice_localization(
+                    {
+                        "status": "ok",
+                        "mode": "voice_topic_resumed",
+                        "agent_id": "overview",
+                        "active_action_item": act_item,
+                        "voice_transcript": raw_spoken,
+                        "selected_transcript": raw_spoken,
+                        "title": f"↩️ Resumed Parked Conversation: {popped.get('topic_label')}",
+                        "message": popped.get("resume_markdown") or "Resumed parked conversation.",
+                        "spoken_reply": popped.get("resume_spoken") or "Resumed your parked conversation.",
+                        "spoken_reply_concise": popped.get("resume_spoken_concise") or popped.get("resume_spoken"),
+                        "ui_actions": [
+                            {"type": "switch_agent", "agent_id": "overview"},
+                            {"type": "focus_action_item", "task": act_item},
+                        ],
+                        "executed_activities": [f"↩️ Resumed Parked Conversation: {popped.get('topic_label')}"],
+                    },
+                    language=language,
+                    gender=gender,
+                    accent=accent,
+                    concise_mode=concise_mode,
+                )
+                res_act["topic_stack"] = get_voice_topic_stack_snapshot()
+                res_act["voice_queue_items"] = [
+                    {
+                        "part_index": 1,
+                        "total_parts": 1,
+                        "priority_score": 90,
+                        "priority_band": "P0_TOPIC_RESUMED",
+                        "topic_label": popped.get("topic_label", "Resumed Topic"),
+                        "title": res_act["title"],
+                        "message": res_act["message"],
+                        "spoken_reply": res_act["spoken_reply"],
+                        "spoken_reply_concise": res_act["spoken_reply_concise"],
+                        "spoken_stream_clauses": res_act["spoken_stream_clauses"],
+                        "ui_actions": res_act["ui_actions"],
+                        "executed_activities": res_act["executed_activities"],
+                        "active_action_item": act_item,
+                        "is_auto_resume": True,
+                    }
+                ]
+                return res_act
+
+    # -----------------------------------------------------------------------
+    # 1. Snapshot Current Active Conversation Before Executing Turn
+    # -----------------------------------------------------------------------
+    prev_active_topic = _VOICE_TOPIC_STACK_STATE.get("active_topic")
+    if not isinstance(prev_active_topic, dict) and _VOICE_ACTION_ITEM_STATE.get("focused_task_id") is not None and db and hasattr(db, "list_tasks"):
+        # Rehydrate active_topic from _VOICE_ACTION_ITEM_STATE if a task is currently focused
+        try:
+            f_tid = int(_VOICE_ACTION_ITEM_STATE["focused_task_id"])
+            all_t = db.list_tasks(limit=200, exclude_tests=True)
+            t_match = next((t for t in all_t if int(t.get("id") or 0) == f_tid and str(t.get("status") or "").lower() != "completed"), None)
+            if t_match:
+                q_ids = _VOICE_ACTION_ITEM_STATE.get("queue_ids") or [f_tid]
+                pos = (q_ids.index(f_tid) + 1) if f_tid in q_ids else 1
+                tot = max(1, len(q_ids))
+                hydrated_item = {**t_match, "cursor_position": pos, "queue_total": tot}
+                prev_active_topic = _build_topic_frame_from_result("", {"mode": "voice_action_items_open_review", "active_action_item": hydrated_item})
+        except Exception:
+            prev_active_topic = None
+
+    # -----------------------------------------------------------------------
+    # 2. Multi-Question / Multi-Command Decomposition & Priority Ordering
+    # -----------------------------------------------------------------------
+    raw_sub_commands = _split_chained_voice_commands(canonical_spoken)
+    sub_commands, was_reordered = _prioritize_decomposed_sub_commands(raw_sub_commands, raw_spoken)
 
     if len(sub_commands) >= 2:
         combined_ui_actions: List[Dict[str, Any]] = []
@@ -1798,9 +2208,14 @@ def transcribe_and_dispatch_voice_command(
         spoken_parts: List[str] = []
         concise_parts: List[str] = []
         msg_parts: List[str] = []
+        queue_items: List[Dict[str, Any]] = []
         last_res: Dict[str, Any] = {}
+        touched_topics: set[str] = set()
+        latest_topic_frame: Optional[Dict[str, Any]] = None
 
-        for sub_cmd in sub_commands:
+        for idx, sub_cmd in enumerate(sub_commands):
+            p_info = score_voice_intent_priority(sub_cmd)
+            touched_topics.add(p_info["topic_id"])
             sub_res = _dispatch_voice_command_core(
                 sub_cmd,
                 agent_registry=agent_registry,
@@ -1815,38 +2230,125 @@ def transcribe_and_dispatch_voice_command(
                 concise_mode=concise_mode,
             )
             last_res = sub_loc
+            cand_frame = _build_topic_frame_from_result(sub_cmd, sub_loc)
+            if cand_frame:
+                latest_topic_frame = cand_frame
+
+            part_spoken = str(sub_loc.get("spoken_reply") or "").strip()
+            part_concise = str(sub_loc.get("spoken_reply_concise") or part_spoken).strip()
+            part_active_speech = part_concise if concise_mode else part_spoken
+
             combined_ui_actions.extend(sub_loc.get("ui_actions") or [])
             combined_activities.extend(sub_loc.get("executed_activities") or [])
-            if sub_loc.get("spoken_reply"):
-                spoken_parts.append(str(sub_loc["spoken_reply"]).strip())
-            if sub_loc.get("spoken_reply_concise"):
-                concise_parts.append(str(sub_loc["spoken_reply_concise"]).strip())
+            if part_spoken:
+                spoken_parts.append(part_spoken)
+            if part_concise:
+                concise_parts.append(part_concise)
             if sub_loc.get("message"):
-                msg_parts.append(str(sub_loc["message"]).strip())
+                msg_parts.append(f"**Part {idx + 1} ({p_info['topic_label']})**: {str(sub_loc['message']).strip()}")
+
+            queue_items.append({
+                "part_index": idx + 1,
+                "total_parts": len(sub_commands),
+                "sub_command": sub_cmd,
+                "priority_score": p_info["priority_score"],
+                "priority_band": p_info["priority_band"],
+                "topic_id": p_info["topic_id"],
+                "topic_label": p_info["topic_label"],
+                "title": sub_loc.get("title") or f"Part {idx + 1}: {sub_cmd}",
+                "message": sub_loc.get("message") or "",
+                "spoken_reply": part_spoken,
+                "spoken_reply_concise": part_concise,
+                "spoken_stream_clauses": split_speech_into_stream_clauses(part_active_speech),
+                "ui_actions": sub_loc.get("ui_actions") or [],
+                "executed_activities": sub_loc.get("executed_activities") or [],
+                "active_action_item": sub_loc.get("active_action_item"),
+                "is_auto_resume": False,
+            })
+
+        # If an unfinished conversation was active BEFORE this multi-part utterance and wasn't touched,
+        # auto-park and append an auto-resume audio message at the end of the queue!
+        arbitration_decision = "priority_reordered_multi_queue" if was_reordered else "sequential_multi_queue"
+        if (
+            isinstance(prev_active_topic, dict)
+            and prev_active_topic.get("is_unfinished")
+            and prev_active_topic.get("topic_id") not in touched_topics
+            and not latest_topic_frame
+        ):
+            _push_topic_to_parked_stack(prev_active_topic)
+            _VOICE_TOPIC_STACK_STATE["active_topic"] = prev_active_topic
+            res_sp = str(prev_active_topic.get("resume_spoken") or "")
+            res_con = str(prev_active_topic.get("resume_spoken_concise") or res_sp)
+            spoken_parts.append(res_sp)
+            concise_parts.append(res_con)
+            msg_parts.append(str(prev_active_topic.get("resume_markdown") or ""))
+            queue_items.append({
+                "part_index": len(queue_items) + 1,
+                "total_parts": len(queue_items) + 1,
+                "sub_command": prev_active_topic.get("resume_phrase", "Resume parked topic"),
+                "priority_score": prev_active_topic.get("priority_score", 65),
+                "priority_band": "P2_AUTO_RESUME_PARKED_TOPIC",
+                "topic_id": prev_active_topic.get("topic_id"),
+                "topic_label": f"↩️ Resuming {prev_active_topic.get('topic_label')}",
+                "title": f"↩️ Auto-Resuming Parked Topic: {prev_active_topic.get('topic_label')}",
+                "message": prev_active_topic.get("resume_markdown") or "",
+                "spoken_reply": res_sp,
+                "spoken_reply_concise": res_con,
+                "spoken_stream_clauses": split_speech_into_stream_clauses(res_con if concise_mode else res_sp),
+                "ui_actions": [
+                    {"type": "focus_action_item", "task": prev_active_topic.get("active_action_item")}
+                ] if prev_active_topic.get("active_action_item") else [],
+                "executed_activities": [f"↩️ Auto-Resumed Parked Topic: {prev_active_topic.get('topic_label')}"],
+                "active_action_item": prev_active_topic.get("active_action_item"),
+                "is_auto_resume": True,
+            })
+            for qi in queue_items:
+                qi["total_parts"] = len(queue_items)
+            arbitration_decision = "parked_ongoing_topic_and_auto_resumed_after_queue"
+        elif latest_topic_frame:
+            _VOICE_TOPIC_STACK_STATE["active_topic"] = latest_topic_frame
 
         merged_spoken = " ".join(spoken_parts)
         merged_concise = " ".join(concise_parts) if concise_parts else merged_spoken
+        active_action_final = (
+            latest_topic_frame.get("active_action_item")
+            if isinstance(latest_topic_frame, dict)
+            else (
+                prev_active_topic.get("active_action_item")
+                if isinstance(prev_active_topic, dict) and arbitration_decision.startswith("parked_")
+                else last_res.get("active_action_item")
+            )
+        )
         chained_res: Dict[str, Any] = {
             **last_res,
             "status": "ok",
             "mode": "voice_chained_multi_command",
             "chained_commands": sub_commands,
             "chained_commands_count": len(sub_commands),
+            "priority_reordered": was_reordered,
+            "arbitration_decision": arbitration_decision,
             "voice_transcript": raw_spoken,
             "selected_transcript": raw_spoken,
-            "title": f"⛓️ Executed {len(sub_commands)} Chained Voice Commands",
+            "active_action_item": active_action_final,
+            "title": f"⛓️ Queued & Executed {len(sub_commands)} Voice Parts" + (" (Priority Ordered)" if was_reordered else ""),
             "message": "\n\n".join(msg_parts),
             "spoken_reply": merged_spoken,
             "spoken_reply_full": merged_spoken,
             "spoken_reply_concise": merged_concise,
             "spoken_reply_phonetic": merged_spoken,
             "spoken_stream_clauses": split_speech_into_stream_clauses(merged_concise if concise_mode else merged_spoken),
+            "voice_queue_items": queue_items,
+            "topic_stack": get_voice_topic_stack_snapshot(),
             "ui_actions": combined_ui_actions,
             "executed_activities": combined_activities,
-            "context_chips": _build_dynamic_context_chips(last_res),
+            "context_chips": _build_dynamic_context_chips({**last_res, "active_action_item": active_action_final}),
         }
         return chained_res
 
+    # -----------------------------------------------------------------------
+    # 3. Single Utterance Dispatch + Human-Like Topic Interrupt Priority Arbitration
+    # -----------------------------------------------------------------------
+    new_p_info = score_voice_intent_priority(canonical_spoken)
     res = _dispatch_voice_command_core(
         canonical_spoken,
         agent_registry=agent_registry,
@@ -1855,13 +2357,126 @@ def transcribe_and_dispatch_voice_command(
     )
     res["voice_transcript"] = raw_spoken
     res["selected_transcript"] = raw_spoken
-    return _apply_voice_localization(
+    loc_res = _apply_voice_localization(
         res,
         language=language,
         gender=gender,
         accent=accent,
         concise_mode=concise_mode,
     )
+
+    new_topic_frame = _build_topic_frame_from_result(canonical_spoken, loc_res)
+    primary_spoken = str(loc_res.get("spoken_reply") or "").strip()
+    primary_concise = str(loc_res.get("spoken_reply_concise") or primary_spoken).strip()
+    primary_active = primary_concise if concise_mode else primary_spoken
+
+    queue_items_single: List[Dict[str, Any]] = [
+        {
+            "part_index": 1,
+            "total_parts": 1,
+            "sub_command": canonical_spoken,
+            "priority_score": new_p_info["priority_score"],
+            "priority_band": new_p_info["priority_band"],
+            "topic_id": new_p_info["topic_id"],
+            "topic_label": new_p_info["topic_label"],
+            "title": loc_res.get("title") or canonical_spoken,
+            "message": loc_res.get("message") or "",
+            "spoken_reply": primary_spoken,
+            "spoken_reply_concise": primary_concise,
+            "spoken_stream_clauses": split_speech_into_stream_clauses(primary_active),
+            "ui_actions": loc_res.get("ui_actions") or [],
+            "executed_activities": loc_res.get("executed_activities") or [],
+            "active_action_item": loc_res.get("active_action_item"),
+            "is_auto_resume": False,
+        }
+    ]
+
+    arbitration_decision = "direct_execution"
+    is_topic_interrupt = bool(
+        isinstance(prev_active_topic, dict)
+        and prev_active_topic.get("is_unfinished")
+        and not loc_res.get("ignored_noise")
+        and new_p_info.get("topic_id") != prev_active_topic.get("topic_id")
+        and new_p_info.get("is_followup_on_topic") != prev_active_topic.get("topic_id")
+        and loc_res.get("mode") not in (
+            "voice_action_items_open_review",
+            "voice_action_item_step",
+            "voice_action_item_details",
+            "voice_action_item_upi_pay",
+            "voice_task_completed",
+            "voice_action_items_closed_review",
+            "jarvis_presence",
+        )
+    )
+
+    if is_topic_interrupt and isinstance(prev_active_topic, dict):
+        # Human-Like Conversational Interrupt Arbitration:
+        # An ongoing multi-turn conversation (e.g. Action Items Review on #422) was interrupted by a new topic
+        # (e.g. "Tell me about latest updates of Pune" or "Log a glass of water" or "Optimize my RAM").
+        # We finish the higher-priority atomic new topic FIRST (Audio Message #1), park the ongoing conversation,
+        # and automatically queue Audio Message #2 to resume the parked conversation right after!
+        _push_topic_to_parked_stack(prev_active_topic)
+        _VOICE_TOPIC_STACK_STATE["active_topic"] = prev_active_topic
+        arbitration_decision = "interrupted_by_higher_priority_topic_then_auto_resumed"
+
+        resume_sp = str(prev_active_topic.get("resume_spoken") or "")
+        resume_con = str(prev_active_topic.get("resume_spoken_concise") or resume_sp)
+        resume_md = str(prev_active_topic.get("resume_markdown") or "")
+        parked_item = prev_active_topic.get("active_action_item")
+
+        if parked_item and isinstance(parked_item, dict):
+            _VOICE_ACTION_ITEM_STATE["focused_task_id"] = parked_item.get("id")
+            loc_res["active_action_item"] = parked_item
+
+        queue_items_single[0]["total_parts"] = 2
+        queue_items_single.append({
+            "part_index": 2,
+            "total_parts": 2,
+            "sub_command": prev_active_topic.get("resume_phrase", "Resume parked topic"),
+            "priority_score": prev_active_topic.get("priority_score", 65),
+            "priority_band": "P2_AUTO_RESUME_PARKED_TOPIC",
+            "topic_id": prev_active_topic.get("topic_id"),
+            "topic_label": f"↩️ Resuming {prev_active_topic.get('topic_label')}",
+            "title": f"↩️ Auto-Resuming Parked Conversation: {prev_active_topic.get('topic_label')}",
+            "message": resume_md,
+            "spoken_reply": resume_sp,
+            "spoken_reply_concise": resume_con,
+            "spoken_stream_clauses": split_speech_into_stream_clauses(resume_con if concise_mode else resume_sp),
+            "ui_actions": [{"type": "focus_action_item", "task": parked_item}] if parked_item else [],
+            "executed_activities": [
+                f"📌 Parked & Auto-Resumed Ongoing Topic: {prev_active_topic.get('topic_label')}"
+            ],
+            "active_action_item": parked_item,
+            "is_auto_resume": True,
+        })
+
+        loc_res["message"] = f"{loc_res.get('message', '')}\n\n---\n{resume_md}"
+        loc_res["spoken_reply"] = f"{primary_spoken} {resume_sp}".strip()
+        loc_res["spoken_reply_full"] = loc_res["spoken_reply"]
+        loc_res["spoken_reply_concise"] = f"{primary_concise} {resume_con}".strip()
+        loc_res["spoken_stream_clauses"] = split_speech_into_stream_clauses(
+            loc_res["spoken_reply_concise"] if concise_mode else loc_res["spoken_reply"]
+        )
+        loc_res["executed_activities"] = list(loc_res.get("executed_activities") or []) + [
+            f"📌 Parked & Auto-Resumed: {prev_active_topic.get('topic_label')}"
+        ]
+        loc_res["topic_interrupted_and_resumed"] = True
+        loc_res["resumed_topic"] = prev_active_topic
+    else:
+        if new_topic_frame:
+            _VOICE_TOPIC_STACK_STATE["active_topic"] = new_topic_frame
+            # Remove from parked_stack if it was previously parked and is now active again
+            _VOICE_TOPIC_STACK_STATE["parked_stack"] = [
+                p for p in (_VOICE_TOPIC_STACK_STATE.get("parked_stack") or [])
+                if isinstance(p, dict) and p.get("topic_id") != new_topic_frame.get("topic_id")
+            ]
+        elif loc_res.get("mode") == "voice_task_completed" and not loc_res.get("active_action_item"):
+            _VOICE_TOPIC_STACK_STATE["active_topic"] = None
+
+    loc_res["arbitration_decision"] = arbitration_decision
+    loc_res["voice_queue_items"] = queue_items_single
+    loc_res["topic_stack"] = get_voice_topic_stack_snapshot()
+    return loc_res
 
 
 def _dispatch_voice_command_core(

@@ -2375,6 +2375,21 @@
 
               <!-- UX Improvement #7: Local Acoustic Short-Burst Reflex Fallback Bar -->
               <div id="voiceAcousticBurstFallbackBar" style="display: none; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; margin-top: 6px; padding: 5px 8px; border-radius: 6px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(251, 191, 36, 0.4); font-size: 10.5px; color: #fde68a;"></div>
+              <!-- Multi-Question Sequential Audio Queue & Human Conversational Topic Stack Bar -->
+              <div id="voiceQueueAndTopicStackBar" style="display: none; margin-top: 6px; padding: 6px 9px; border-radius: 7px; background: rgba(168, 85, 247, 0.11); border: 1px solid rgba(192, 132, 252, 0.38);">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 10.5px;">
+                    <span id="voiceQueueStepBadge" class="badge" style="background: rgba(168, 85, 247, 0.24); color: #e9d5ff; font-size: 9.5px; font-weight: 700;">📚 Queue 1/1</span>
+                    <span id="voiceQueueCurrentTopicLabel" style="color: #f8fafc; font-weight: 600;">Ready</span>
+                    <span id="voiceParkedTopicsBadge" class="badge" style="display: none; background: rgba(251, 191, 36, 0.18); color: #fde68a; border: 1px solid rgba(251, 191, 36, 0.4); font-size: 9.5px;">📌 0 Parked</span>
+                  </div>
+                  <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                    <button id="btnVoiceSkipQueuePart" type="button" title="Skip current audio answer and play the next queued answer immediately" class="btn" onclick="skipCurrentJarvisAudioQueuePart()" style="font-size: 9.5px; padding: 1px 7px; background: rgba(56, 189, 248, 0.18); border-color: rgba(56, 189, 248, 0.45); color: #7dd3fc;">⏭️ Next Part</button>
+                    <button id="btnVoiceResumeParkedTopic" type="button" title="Resume your parked ongoing conversation topic immediately" class="btn" onclick="resumeParkedJarvisTopicNow()" style="display: none; font-size: 9.5px; padding: 1px 7px; background: rgba(245, 158, 11, 0.2); border-color: rgba(251, 191, 36, 0.5); color: #fde68a;">↩️ Resume Parked</button>
+                    <button id="btnVoiceClearAudioQueue" type="button" title="Clear remaining queued audio messages" class="btn" onclick="clearJarvisAudioQueue()" style="font-size: 9.5px; padding: 1px 7px; background: rgba(244, 63, 94, 0.16); border-color: rgba(244, 63, 94, 0.45); color: #fda4af;">✕ Clear</button>
+                  </div>
+                </div>
+              </div>
               <!-- Focused Action Item Live Conversational Bar -->
               <div id="voiceFocusedActionItemBar" style="display: none; margin-top: 7px; padding: 7px 9px; border-radius: 7px; background: rgba(16, 185, 129, 0.09); border: 1px solid rgba(16, 185, 129, 0.32);">
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap;">
@@ -2403,6 +2418,7 @@
               <button title="1-Phrase Workout Macro: Switches to Health &amp; launches today's 6-day strength &amp; warm-up playlist" type="button" class="quick-chip" style="border-color: rgba(16, 185, 129, 0.55); color: #34d399; font-weight: 700;" onclick="executeVoiceTurnText('Start my workout')">🏋️ Start Workout</button>
               <button title="1-Phrase Evening Shutdown Macro: Summarizes closed vs open tasks and runs PC RAM cleanup" type="button" class="quick-chip" style="border-color: rgba(192, 132, 252, 0.55); color: #c084fc; font-weight: 700;" onclick="executeVoiceTurnText('Wrap up my day')">🌙 Wrap Up Day</button>
               <button title="Start a live verbal conversation on your open action items (close, edit, or step through them)" type="button" class="quick-chip" style="border-color: rgba(16, 185, 129, 0.55); color: #34d399; font-weight: 700;" onclick="executeVoiceTurnText('Let\'s discuss action items')">🗣️ Action Items Chat</button>
+              <button title="Multi-Question Audio Queue Demo: Breaks 3 questions/actions into a prioritized sequential audio queue and answers them one after another" type="button" class="quick-chip" style="border-color: rgba(192, 132, 252, 0.65); color: #e9d5ff; font-weight: 700;" onclick="executeVoiceTurnText('Log a glass of water, tell me about latest updates of Pune, and let\'s discuss action items')">⛓️ 3-Part Queue: Water + Pune + Tasks</button>
               <button title="Scrape and speak today's top national &amp; technology news headlines aloud" type="button" class="quick-chip" style="border-color: rgba(56, 189, 248, 0.6); color: #38bdf8; font-weight: 700;" onclick="executeVoiceTurnText('Tell me today\'s news')">📰 Today's News</button>
               <button title="Scrape and speak the latest live updates and headlines for Pune aloud" type="button" class="quick-chip" style="border-color: rgba(56, 189, 248, 0.6); color: #7dd3fc; font-weight: 700;" onclick="executeVoiceTurnText('Tell me about latest updates of Pune')">🏙️ Pune Updates</button>
               <button title="Talk with the Voice Cockpit about action items you have already closed" type="button" class="quick-chip" style="border-color: rgba(52, 211, 153, 0.45); color: #6ee7b7;" onclick="executeVoiceTurnText('What action items have I already closed?')">✅ Closed Action Items</button>
