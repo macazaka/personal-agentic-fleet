@@ -235,7 +235,7 @@ The Personal Agentic Fleet provides a comprehensive terminal interface accessibl
 | `fleet version` | None | Displays version, Python interpreter details, and operating system platform. |
 
 <!-- AUTO-API-ROUTES:START -->
-## 🔄 Complete Live REST API Route Inventory (`204` Endpoints — `v2.19.0`)
+## 🔄 Complete Live REST API Route Inventory (`205` Endpoints — `v2.19.0`)
 
 This table is **automatically introspected from `fleet/api/*.py` AST decorators** on every release by `fleet.tools.doc_wiki_enhancer`:
 
@@ -397,6 +397,7 @@ This table is **automatically introspected from `fleet/api/*.py` AST decorators*
 | `GET` | `/api/overview/widgets` | `get_overview_micro_widgets_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-09: Aggregates `get_micro_widget()` payloads for all user-pinned agents in <15ms. |
 | `POST` | `/api/overview/widgets/pin` | `post_pin_overview_widget_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | UX-09: Pins, unpins, or reorders agent micro-widgets on the Overview Executive Cockpit. |
 | `GET` | `/api/voice/activities` | `get_voice_activities_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Returns the catalog of bi-directional voice-linked AFCC activities across all agents. |
+| `GET` | `/api/voice/action_items` | `get_voice_action_items_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Returns open and closed action items for the J.A.R.V.I.S. <15ms Client Reflex Cache. |
 | `POST` | `/api/voice/converse` | `post_voice_converse_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Bi-Directional Audio Conversation endpoint: executes linked activities and returns spoken reply + streaming clauses. |
 | `POST` | `/api/voice/stream` | `post_voice_stream_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Ultra-Low-Latency Clause-Streaming Voice Endpoint: |
 | `GET` | `/api/voice/voiceprint` | `get_voiceprint_profile_endpoint` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Returns the user's enrolled biometric speaker voiceprint profile, 5-phase script, and sandbox accuracy metrics. |

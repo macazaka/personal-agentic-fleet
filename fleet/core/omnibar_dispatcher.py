@@ -1153,9 +1153,12 @@ _VOICE_TOPIC_STACK_STATE: Dict[str, Any] = {
 
 
 def reset_voice_topic_stack() -> None:
-    """Resets the conversational topic stack (used by unit tests or explicit 'clear queue' command)."""
+    """Resets the conversational topic stack and focused action-item cursor (used by unit tests or explicit 'clear queue')."""
     _VOICE_TOPIC_STACK_STATE["active_topic"] = None
     _VOICE_TOPIC_STACK_STATE["parked_stack"] = []
+    _VOICE_ACTION_ITEM_STATE["focused_task_id"] = None
+    _VOICE_ACTION_ITEM_STATE["queue_ids"] = []
+    _VOICE_ACTION_ITEM_STATE["cursor_idx"] = 0
 
 
 def get_voice_topic_stack_snapshot() -> Dict[str, Any]:
@@ -1294,7 +1297,7 @@ def _split_chained_voice_commands(spoken: str) -> List[str]:
     # 2. Further split each chunk on explicit multi-intent connectors ('and also', 'after that', 'and then', 'also', 'then', 'plus', 'and')
     final_parts: List[str] = []
     connector_pattern = re.compile(
-        r"\s*(?:,\s*)?\b(?:and\s+also|and\s+then|after\s+that|next\s+question|secondly|thirdly|finally|also|then|plus|and)\b\s+",
+        r"\s*(?:,\s*)?\b(?:and\s+also|and\s+then|after\s+that|next\s+question|second(?:ly)?|third(?:ly)?|finally|also|then|plus|and)\b[\s,.:;-]*",
         re.I,
     )
     ordinal_prefix_re = re.compile(r"^(?:first(?:ly)?|second(?:ly)?|third(?:ly)?|finally|lastly|next|also)\b[\s,.:;-]*", re.I)

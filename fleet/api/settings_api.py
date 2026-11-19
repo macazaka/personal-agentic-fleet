@@ -2152,6 +2152,35 @@ def get_voice_activities_endpoint(handler: Any, parsed_url: urllib.parse.ParseRe
     })
 
 
+@router.get("/api/voice/action_items")
+def get_voice_action_items_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """Returns open and closed action items for the J.A.R.V.I.S. <15ms Client Reflex Cache."""
+    db_inst = getattr(srv, "db", None)
+    all_tasks: List[Dict[str, Any]] = []
+    if db_inst and hasattr(db_inst, "list_tasks"):
+        try:
+            all_tasks = db_inst.list_tasks(limit=200, exclude_tests=True)
+        except Exception:
+            all_tasks = []
+    q_params = urllib.parse.parse_qs(parsed_url.query or "") if parsed_url else {}
+    status_filter = str((q_params.get("status") or ["all"])[0] or "all").lower()
+    if status_filter == "open" or status_filter == "pending":
+        items = [t for t in all_tasks if str(t.get("status") or "").lower() != "completed"]
+    elif status_filter == "closed" or status_filter == "completed":
+        items = [t for t in all_tasks if str(t.get("status") or "").lower() == "completed"]
+    else:
+        items = all_tasks
+    open_cnt = sum(1 for t in all_tasks if str(t.get("status") or "").lower() != "completed")
+    closed_cnt = sum(1 for t in all_tasks if str(t.get("status") or "").lower() == "completed")
+    handler._send_json({
+        "status": "ok",
+        "items": items,
+        "count": len(items),
+        "open_count": open_cnt,
+        "closed_count": closed_cnt,
+    })
+
+
 @router.post("/api/voice/converse")
 def post_voice_converse_endpoint(handler: Any, body: Dict[str, Any]):
     """Bi-Directional Audio Conversation endpoint: executes linked activities and returns spoken reply + streaming clauses."""
