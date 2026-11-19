@@ -2614,17 +2614,74 @@ def auto_refine_voiceprint_profile(
     return updated
 
 
+# [JV-07] In-Memory AES-256-GCM Voiceprint Profile & Sandbox History Memoization Cache
+_VOICEPRINT_MEM_CACHE: Dict[str, Any] = {
+    "profile_raw": None,
+    "profile_parsed": None,
+    "pending_raw": None,
+    "pending_parsed": None,
+    "history_raw": None,
+    "history_parsed": None,
+    "cache_hits": 0,
+    "cache_misses": 0,
+}
+
+
+def _invalidate_voiceprint_mem_cache() -> None:
+    """[JV-07] Invalidates in-memory decrypted voiceprint cache on write/update/clear."""
+    _VOICEPRINT_MEM_CACHE["profile_raw"] = None
+    _VOICEPRINT_MEM_CACHE["profile_parsed"] = None
+    _VOICEPRINT_MEM_CACHE["pending_raw"] = None
+    _VOICEPRINT_MEM_CACHE["pending_parsed"] = None
+    _VOICEPRINT_MEM_CACHE["history_raw"] = None
+    _VOICEPRINT_MEM_CACHE["history_parsed"] = None
+
+
+def _get_cached_decrypted_voiceprint(db_inst: Any, setting_key: str = "jarvis_voiceprint_profile") -> Optional[Dict[str, Any]]:
+    """[JV-07] Returns decrypted voiceprint dict from in-memory cache if raw ciphertext is unchanged."""
+    if not db_inst or not hasattr(db_inst, "get_setting"):
+        return None
+    raw = db_inst.get_setting(setting_key, "")
+    if not raw:
+        return None
+    raw_key = "profile_raw" if setting_key == "jarvis_voiceprint_profile" else "pending_raw"
+    parsed_key = "profile_parsed" if setting_key == "jarvis_voiceprint_profile" else "pending_parsed"
+    if _VOICEPRINT_MEM_CACHE.get(raw_key) == raw and isinstance(_VOICEPRINT_MEM_CACHE.get(parsed_key), dict):
+        _VOICEPRINT_MEM_CACHE["cache_hits"] = int(_VOICEPRINT_MEM_CACHE.get("cache_hits", 0)) + 1
+        return dict(_VOICEPRINT_MEM_CACHE[parsed_key])
+    try:
+        from fleet.core.crypto_vault import decrypt_sensitive_text
+
+        parsed = json.loads(decrypt_sensitive_text(str(raw)))
+        if isinstance(parsed, dict):
+            _VOICEPRINT_MEM_CACHE[raw_key] = raw
+            _VOICEPRINT_MEM_CACHE[parsed_key] = dict(parsed)
+            _VOICEPRINT_MEM_CACHE["cache_misses"] = int(_VOICEPRINT_MEM_CACHE.get("cache_misses", 0)) + 1
+            return parsed
+    except Exception:
+        pass
+    return None
+
+
 def _load_voiceprint_sandbox_history(db_inst: Any) -> List[Dict[str, Any]]:
     if not db_inst or not hasattr(db_inst, "get_setting"):
         return []
     raw = db_inst.get_setting("jarvis_voiceprint_sandbox_history", "")
     if not raw:
         return []
+    if _VOICEPRINT_MEM_CACHE.get("history_raw") == raw and isinstance(_VOICEPRINT_MEM_CACHE.get("history_parsed"), list):
+        _VOICEPRINT_MEM_CACHE["cache_hits"] = int(_VOICEPRINT_MEM_CACHE.get("cache_hits", 0)) + 1
+        return list(_VOICEPRINT_MEM_CACHE["history_parsed"])
     try:
         from fleet.core.crypto_vault import decrypt_sensitive_text
 
         parsed = json.loads(decrypt_sensitive_text(str(raw)))
-        return parsed if isinstance(parsed, list) else []
+        if isinstance(parsed, list):
+            _VOICEPRINT_MEM_CACHE["history_raw"] = raw
+            _VOICEPRINT_MEM_CACHE["history_parsed"] = list(parsed)
+            _VOICEPRINT_MEM_CACHE["cache_misses"] = int(_VOICEPRINT_MEM_CACHE.get("cache_misses", 0)) + 1
+            return parsed
+        return []
     except Exception:
         return []
 
@@ -2664,22 +2721,8 @@ def _compute_sandbox_accuracy_metrics(history: List[Dict[str, Any]]) -> Dict[str
 def get_voiceprint_profile_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
     """Returns the user's enrolled biometric speaker voiceprint profile, 5-phase script, and sandbox accuracy metrics."""
     db_inst = getattr(srv, "db", None)
-    profile = None
-    pending_profile = None
-    if db_inst and hasattr(db_inst, "get_setting"):
-        from fleet.core.crypto_vault import decrypt_sensitive_text
-        raw = db_inst.get_setting("jarvis_voiceprint_profile", "")
-        if raw:
-            try:
-                profile = json.loads(decrypt_sensitive_text(str(raw)))
-            except Exception:
-                profile = None
-        raw_pending = db_inst.get_setting("jarvis_voiceprint_pending", "")
-        if raw_pending:
-            try:
-                pending_profile = json.loads(decrypt_sensitive_text(str(raw_pending)))
-            except Exception:
-                pending_profile = None
+    profile = _get_cached_decrypted_voiceprint(db_inst, "jarvis_voiceprint_profile")
+    pending_profile = _get_cached_decrypted_voiceprint(db_inst, "jarvis_voiceprint_pending")
 
     audio_rec = _load_voiceprint_audio_record()
     if not profile and isinstance(audio_rec.get("profile"), dict) and not audio_rec.get("staged"):
@@ -2799,6 +2842,7 @@ def save_voiceprint_profile_endpoint(handler: Any, body: Dict[str, Any]):
     paths = _get_voiceprint_storage_paths()
 
     if payload.get("clear"):
+        _invalidate_voiceprint_mem_cache()
         if db_inst and hasattr(db_inst, "set_setting"):
             db_inst.set_setting("jarvis_voiceprint_profile", "")
             db_inst.set_setting("jarvis_voiceprint_pending", "")
@@ -2812,22 +2856,14 @@ def save_voiceprint_profile_endpoint(handler: Any, body: Dict[str, Any]):
         return
 
     if payload.get("cancel_pending"):
+        _invalidate_voiceprint_mem_cache()
         if db_inst and hasattr(db_inst, "set_setting"):
             db_inst.set_setting("jarvis_voiceprint_pending", "")
         handler._send_json({"status": "pending_cancelled", "awaiting_confirmation": False})
         return
 
     if payload.get("auto_refine") or payload.get("negative_tighten"):
-        existing_profile = None
-        if db_inst and hasattr(db_inst, "get_setting"):
-            from fleet.core.crypto_vault import decrypt_sensitive_text, encrypt_aes256_gcm
-
-            raw_existing = db_inst.get_setting("jarvis_voiceprint_profile", "")
-            if raw_existing:
-                try:
-                    existing_profile = json.loads(decrypt_sensitive_text(str(raw_existing)))
-                except Exception:
-                    existing_profile = None
+        existing_profile = _get_cached_decrypted_voiceprint(db_inst, "jarvis_voiceprint_profile")
         if not existing_profile:
             audio_rec = _load_voiceprint_audio_record()
             if isinstance(audio_rec.get("profile"), dict):
@@ -2852,7 +2888,10 @@ def save_voiceprint_profile_endpoint(handler: Any, body: Dict[str, Any]):
         if db_inst and hasattr(db_inst, "set_setting"):
             from fleet.core.crypto_vault import encrypt_aes256_gcm
 
-            db_inst.set_setting("jarvis_voiceprint_profile", encrypt_aes256_gcm(json.dumps(refined_vp)))
+            enc_val = encrypt_aes256_gcm(json.dumps(refined_vp))
+            db_inst.set_setting("jarvis_voiceprint_profile", enc_val)
+            _VOICEPRINT_MEM_CACHE["profile_raw"] = enc_val
+            _VOICEPRINT_MEM_CACHE["profile_parsed"] = dict(refined_vp)
         handler._send_json(
             {
                 "status": "auto_refined" if not payload.get("negative_tighten") else "boundary_tightened",
@@ -2905,9 +2944,11 @@ def save_voiceprint_profile_endpoint(handler: Any, body: Dict[str, Any]):
 
     if stage_only:
         if db_inst and hasattr(db_inst, "set_setting"):
-            db_inst.set_setting("jarvis_voiceprint_pending", json.dumps(vp))
             from fleet.core.crypto_vault import encrypt_aes256_gcm
-            db_inst.set_setting("jarvis_voiceprint_pending", encrypt_aes256_gcm(json.dumps(vp)))
+            enc_pending = encrypt_aes256_gcm(json.dumps(vp))
+            db_inst.set_setting("jarvis_voiceprint_pending", enc_pending)
+            _VOICEPRINT_MEM_CACHE["pending_raw"] = enc_pending
+            _VOICEPRINT_MEM_CACHE["pending_parsed"] = dict(vp)
         existing_enrolled = False
         if db_inst and hasattr(db_inst, "get_setting"):
             existing_enrolled = bool(db_inst.get_setting("jarvis_voiceprint_profile", ""))
@@ -2927,10 +2968,14 @@ def save_voiceprint_profile_endpoint(handler: Any, body: Dict[str, Any]):
         return
 
     if db_inst and hasattr(db_inst, "set_setting"):
-        db_inst.set_setting("jarvis_voiceprint_profile", json.dumps(vp))
         from fleet.core.crypto_vault import encrypt_aes256_gcm
-        db_inst.set_setting("jarvis_voiceprint_profile", encrypt_aes256_gcm(json.dumps(vp)))
+        enc_prof = encrypt_aes256_gcm(json.dumps(vp))
+        db_inst.set_setting("jarvis_voiceprint_profile", enc_prof)
         db_inst.set_setting("jarvis_voiceprint_pending", "")
+        _VOICEPRINT_MEM_CACHE["profile_raw"] = enc_prof
+        _VOICEPRINT_MEM_CACHE["profile_parsed"] = dict(vp)
+        _VOICEPRINT_MEM_CACHE["pending_raw"] = None
+        _VOICEPRINT_MEM_CACHE["pending_parsed"] = None
     handler._send_json(
         {
             "status": "ok",
@@ -2961,6 +3006,8 @@ def post_verify_voiceprint_sandbox_endpoint(handler: Any, body: Dict[str, Any]):
     from fleet.core.crypto_vault import decrypt_sensitive_text, encrypt_aes256_gcm
 
     if payload.get("clear_history"):
+        _VOICEPRINT_MEM_CACHE["history_raw"] = None
+        _VOICEPRINT_MEM_CACHE["history_parsed"] = None
         if db_inst and hasattr(db_inst, "set_setting"):
             db_inst.set_setting("jarvis_voiceprint_sandbox_history", "")
         handler._send_json(
@@ -2973,13 +3020,8 @@ def post_verify_voiceprint_sandbox_endpoint(handler: Any, body: Dict[str, Any]):
         return
 
     enrolled_profile = payload.get("enrolled_profile") if isinstance(payload.get("enrolled_profile"), dict) else None
-    if not enrolled_profile and db_inst and hasattr(db_inst, "get_setting"):
-        raw_vp = db_inst.get_setting("jarvis_voiceprint_profile", "")
-        if raw_vp:
-            try:
-                enrolled_profile = json.loads(decrypt_sensitive_text(str(raw_vp)))
-            except Exception:
-                enrolled_profile = None
+    if not enrolled_profile:
+        enrolled_profile = _get_cached_decrypted_voiceprint(db_inst, "jarvis_voiceprint_profile")
     if not enrolled_profile:
         audio_rec = _load_voiceprint_audio_record()
         if isinstance(audio_rec.get("profile"), dict):
@@ -3090,7 +3132,10 @@ def post_verify_voiceprint_sandbox_endpoint(handler: Any, body: Dict[str, Any]):
     history.insert(0, trial_entry)
     history = history[:30]
     if db_inst and hasattr(db_inst, "set_setting"):
-        db_inst.set_setting("jarvis_voiceprint_sandbox_history", encrypt_aes256_gcm(json.dumps(history)))
+        enc_hist = encrypt_aes256_gcm(json.dumps(history))
+        db_inst.set_setting("jarvis_voiceprint_sandbox_history", enc_hist)
+        _VOICEPRINT_MEM_CACHE["history_raw"] = enc_hist
+        _VOICEPRINT_MEM_CACHE["history_parsed"] = list(history)
 
     metrics = _compute_sandbox_accuracy_metrics(history)
     handler._send_json(
@@ -3104,6 +3149,20 @@ def post_verify_voiceprint_sandbox_endpoint(handler: Any, body: Dict[str, Any]):
             "sandbox_metrics": metrics,
         }
     )
+
+
+@router.get("/api/voice/diagnostics")
+def get_voice_diagnostics_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
+    """[JV-16] Returns J.A.R.V.I.S. zero-token performance & cache diagnostics."""
+    from fleet.core.omnibar_dispatcher import get_jarvis_voice_diagnostics
+
+    diag = get_jarvis_voice_diagnostics()
+    diag["voiceprint_mem_cache"] = {
+        "cache_hits": int(_VOICEPRINT_MEM_CACHE.get("cache_hits", 0)),
+        "cache_misses": int(_VOICEPRINT_MEM_CACHE.get("cache_misses", 0)),
+        "has_cached_profile": _VOICEPRINT_MEM_CACHE.get("profile_parsed") is not None,
+    }
+    handler._send_json(diag)
 
 
 @router.post("/api/omnibar/voice")

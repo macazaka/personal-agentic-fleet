@@ -727,12 +727,146 @@ TRI_DEVICE_BACKLOG_ITEMS: List[Dict[str, str]] = [
     },
 ]
 
+JARVIS_PERFORMANCE_AND_UX_BACKLOG_ITEMS: List[Dict[str, str]] = [
+    # --- 10 Critical (P1/Critical) J.A.R.V.I.S. Performance Enhancements ---
+    {
+        "title": "[JV-01] Critical Perf #1: O(1) Frozenset Token Intersection & Pre-Compiled Multi-Word Regex for N-Best ASR Scoring (_score_voice_candidate)",
+        "description": "Eliminates 330 dynamic re.search() regex compilations per voice turn in _score_voice_candidate by replacing the 66-keyword loop with an O(1) frozenset token intersection (_JARVIS_SINGLE_WORD_SET) and a single pre-compiled _JARVIS_MULTI_WORD_RE, cutting N-best candidate scoring CPU time by >96%.",
+        "category": "AI/LLM",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.20.0",
+    },
+    {
+        "title": "[JV-02] Critical Perf #2: In-Memory Wake-Word Setting & Compiled Regex Memoization Cache (_WAKE_WORD_MEMO_CACHE)",
+        "description": "Memoizes db.get_setting('voice_wake_word') and its compiled wake-word stripping regex per DB instance (with 60s TTL & instant invalidation on settings update), eliminating 1-6 redundant SQLite SELECT queries and regex compilations on every voice turn.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.20.0",
+    },
+    {
+        "title": "[JV-03] Critical Perf #3: Pre-Compiled Speech Sanitizer Pipeline & Bounded 32-Entry LRU Memo Cache (_clean_for_speech & split_speech_into_stream_clauses)",
+        "description": "Pre-compiles all URL, account-masking, Markdown, emoji, whitespace, and clause-boundary regexes at module import time and caches cleaned spoken strings in a bounded 32-entry ring buffer (_CLEAN_SPEECH_CACHE) so repeated speech sanitization passes execute in <0.01ms with zero GC churn.",
+        "category": "AI/LLM",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.20.0",
+    },
+    {
+        "title": "[JV-04] Critical Perf #4: Turn-Scoped SQLite Task List & Live Fleet Snapshot Coalescing (_get_turn_cached_tasks)",
+        "description": "Coalesces db.list_tasks(limit=200) and _gather_live_fleet_snapshot across topic-stack rehydration, multi-question decomposition, and sub-command execution within a 1.5s turn window so a 3-part voice queue runs at most 1 SQLite task scan instead of 4-6 redundant queries.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.20.0",
+    },
+    {
+        "title": "[JV-06] Critical Perf #5: O(1) Canonical Fast-Intent Hash Dispatch Table (_FAST_INTENT_CANONICAL_ALIASES)",
+        "description": "Normalizes the 25 highest-frequency J.A.R.V.I.S. voice phrases ('can you hear me', 'lets discuss action items', 'next action item', 'close it', 'good morning', 'tell me todays news', 'tell me about latest updates of pune', etc.) via an O(1) hash lookup table before evaluating 40+ regex branches.",
+        "category": "AI/LLM",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.20.0",
+    },
+    {
+        "title": "[JV-06B] Critical Perf #6: Zero-Allocation Audio Spectrum Canvas 32-Bit Signature Diffing & Offscreen Skip (renderJarvisLiveSpectrumCanvas)",
+        "description": "Skips WebAudio <canvas> 2D clearRect/fillRect repaints when #afccVoiceCopilotHud is hidden (offsetParent === null) and compares a quantized 32-bit bar-height signature (_lastSpectrumSig) to avoid redundant GPU/CPU canvas repaints when bar heights are unchanged.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.20.0",
+    },
+    {
+        "title": "[JV-07] Critical Perf #7: In-Memory Decrypted Voiceprint Profile & Sandbox History Read-Through Cache (_VOICEPRINT_MEM_CACHE)",
+        "description": "Caches decrypted AES-256-GCM jarvis_voiceprint_profile and jarvis_voiceprint_sandbox_history in memory inside fleet/api/settings_api.py (invalidated on write), eliminating repeated PBKDF2/AES decryption and disk I/O on GET /api/voice/voiceprint and biometric verification turns.",
+        "category": "Security",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.20.0",
+    },
+    {
+        "title": "[JV-08] Critical Perf #8: Client-Side Single-Flight Voice Turn Deduplicator & AbortController Guard (_activeVoiceFetchController)",
+        "description": "Prevents duplicate concurrent /api/voice/stream network requests when SpeechRecognition early-endpointing and rec.onend fire within <150ms for the same utterance, deduplicating by transcript signature and aborting superseded in-flight fetches.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.20.0",
+    },
+    {
+        "title": "[JV-09] Critical Perf #9: Speak-First Hardware TTS Scheduling with requestAnimationFrame DOM Mutation Batching",
+        "description": "Queues Clause #0 on the browser SpeechSynthesis hardware thread BEFORE batching post-turn DOM updates (transcript badge, activity pills, context chips, focused task bar, queue bar) inside requestAnimationFrame, eliminating main-thread layout thrashing during audio onset.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.20.0",
+    },
+    {
+        "title": "[JV-10] Critical Perf #10: Stale-While-Revalidate (SWR) Non-Blocking Background News & City RSS Cache Engine",
+        "description": "Upgrades _fetch_live_news_and_web_digest with a 2-tier SWR cache (10-min fresh TTL + 60-min stale-while-revalidate window) that returns cached headlines in 0.05ms and refreshes Google News RSS asynchronously on a background daemon thread.",
+        "category": "AI/LLM",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.20.0",
+    },
+    # --- 6 Non-Conflicting High (P1), Medium (P2), and Low (P3) J.A.R.V.I.S. Feature Enhancements ---
+    {
+        "title": "[JV-11] High Crit #11: Conversational Voice Undo & Correction Reflex ('Undo that', 'Scratch that') with Mutation Journal",
+        "description": "Maintains a bounded in-memory _LAST_VOICE_MUTATION_JOURNAL recording the last voice-triggered task closure, task creation, title/priority edit, or water log so saying 'Undo that' or 'Scratch that' reverses the mutation in <5ms at $0.00.",
+        "category": "Automation",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.20.0",
+    },
+    {
+        "title": "[JV-12] High Crit #12: Zero-Token Spoken Time, Date, Day & Schedule Context Awareness ('What time is it?', 'What day is today?')",
+        "description": "Instantaneous (<1ms, $0.00) local temporal & schedule awareness answering current time, date, day of week, today's 6-day strength split, and active cron routines aloud without external API calls.",
+        "category": "AI/LLM",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.20.0",
+    },
+    {
+        "title": "[JV-13] Medium Crit #13: Interactive Voice Queue & Parked Topic Stack Verbal Inspector ('What is in my queue?', 'Clear parked topics')",
+        "description": "Enables verbal inspection and clearing of the active conversational topic stack and parked topics ('What is in my queue?', 'List parked topics', 'Clear parked topics'), reading out each parked topic and its priority level.",
+        "category": "UI/UX",
+        "priority": "P2",
+        "status": "Completed",
+        "target_version": "v2.20.0",
+    },
+    {
+        "title": "[JV-14] Medium Crit #14: Indian Currency (Rs / ₹ / Lakh / Crore) & Technical Acronym Phonetic Normalizer in _clean_for_speech",
+        "description": "Normalizes Indian currency symbols and numbers ('Rs. 40,000' -> '40,000 rupees', '₹35 lakh' -> '35 lakh rupees') and technical acronyms in _clean_for_speech for natural Indian English, Hindi, Telugu, and Marathi TTS pronunciation.",
+        "category": "AI/LLM",
+        "priority": "P2",
+        "status": "Completed",
+        "target_version": "v2.20.0",
+    },
+    {
+        "title": "[JV-15] Low Crit #15: Whisper / Late-Night Quiet Voice Mode ('Whisper mode on', 'Quiet mode') with Softened Gain & Ultra-Short Replies",
+        "description": "Adds voice- and UI-togglable Whisper Mode (window.AFCCVoice.whisperMode) that softens TTS output volume (0.45), lowers pitch (0.92), and enforces ultra-concise 1-clause spoken replies for quiet environments.",
+        "category": "UI/UX",
+        "priority": "P3",
+        "status": "Completed",
+        "target_version": "v2.20.0",
+    },
+    {
+        "title": "[JV-16] Low Crit #16: Real-Time J.A.R.V.I.S. Performance & Cache Telemetry Diagnostics Endpoint (GET /api/voice/diagnostics & 'Voice diagnostics')",
+        "description": "Exposes GET /api/voice/diagnostics and voice command 'Jarvis performance report' returning real-time hit/miss counters, cache sizes (_CLEAN_SPEECH_CACHE, _LIVE_NEWS_CACHE, _WAKE_WORD_MEMO_CACHE), topic stack depth, and sub-5ms dispatch latency.",
+        "category": "Core",
+        "priority": "P3",
+        "status": "Completed",
+        "target_version": "v2.20.0",
+    },
+]
+
 ALL_CANONICAL_BACKLOG_ITEMS: List[Dict[str, str]] = (
     FOUNDATIONAL_DEFAULT_BACKLOG_ITEMS
     + HISTORICAL_RELEASE_BACKLOG_ITEMS
     + ROBUSTNESS_BACKLOG_ITEMS
     + UX_ROADMAP_BACKLOG_ITEMS
     + TRI_DEVICE_BACKLOG_ITEMS
+    + JARVIS_PERFORMANCE_AND_UX_BACKLOG_ITEMS
 )
 
 

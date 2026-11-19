@@ -633,3 +633,210 @@ def test_jarvis_frontend_and_laptop_hardware_guardrails():
         "btnVoiceClearAudioQueue",
     ):
         assert html_id in dash_html, f"Missing HUD element #{html_id} in dashboard.html"
+
+    # 4. [JV-06B], [JV-08], [JV-09], [JV-15] Frontend Performance & UX Guardrails
+    for perf_sym in (
+        "_lastSpectrumSig",
+        "!canvas.offsetParent",
+        "_lastDispatchedTurnSig",
+        "_activeVoiceFetchController",
+        "scheduleVisualDomCommit",
+        "whisperMode",
+        "set_whisper_mode",
+    ):
+        assert perf_sym in ag_js, f"Missing [JV-06B/08/09/15] symbol in antigravity.js: {perf_sym}"
+
+
+# =========================================================================
+# 11. 10 Critical Performance Enhancements ([JV-01]..[JV-10]) & 6 Feature Enhancements ([JV-11]..[JV-16])
+# =========================================================================
+def test_jarvis_10_critical_performance_and_6_feature_enhancements_jv01_to_jv16(isolated_db, monkeypatch):
+    import time
+    import fleet.server as srv
+    from fleet.core.omnibar_dispatcher import (
+        _CLEAN_SPEECH_CACHE,
+        _FAST_INTENT_CANONICAL_ALIASES,
+        _JARVIS_MULTI_WORD_RE,
+        _JARVIS_PERF_TELEMETRY,
+        _JARVIS_SINGLE_WORD_SET,
+        _LAST_VOICE_MUTATION_JOURNAL,
+        _LIVE_NEWS_CACHE,
+        _clean_for_speech,
+        _fetch_live_news_and_web_digest,
+        _get_compiled_wake_word_regex,
+        _get_turn_cached_tasks,
+        _invalidate_turn_task_cache,
+        _score_voice_candidate,
+        get_jarvis_voice_diagnostics,
+        reset_voice_topic_stack,
+        transcribe_and_dispatch_voice_command,
+    )
+
+    monkeypatch.setattr(srv, "db", isolated_db)
+    reset_voice_topic_stack()
+    _LAST_VOICE_MUTATION_JOURNAL.clear()
+
+    # [JV-01] O(1) Frozenset Token Intersection & Pre-Compiled Multi-Word Regex
+    assert isinstance(_JARVIS_SINGLE_WORD_SET, frozenset)
+    assert len(_JARVIS_SINGLE_WORD_SET) >= 20
+    assert _JARVIS_MULTI_WORD_RE is not None
+    assert _score_voice_candidate("let's discuss action items and check pune news") > _score_voice_candidate("random noise")
+
+    # [JV-02] Wake-Word Setting 60s Memoization & Pre-Compiled Regex Cache
+    hits_before = _JARVIS_PERF_TELEMETRY["wake_word_cache_hits"]
+    rx1 = _get_compiled_wake_word_regex(isolated_db)
+    rx2 = _get_compiled_wake_word_regex(isolated_db)
+    assert rx1 is rx2
+    assert _JARVIS_PERF_TELEMETRY["wake_word_cache_hits"] > hits_before
+
+    # [JV-03] & [JV-14] Pre-Compiled Speech Regexes, Bounded 32-Entry LRU Cache & Indian Currency Normalization
+    _CLEAN_SPEECH_CACHE.clear()
+    cleaned_inr = _clean_for_speech("Pay Rs. 40,000 for rent and ₹35 lakh for home loan")
+    assert "40,000 rupees" in cleaned_inr
+    assert "35 lakh rupees" in cleaned_inr
+    speech_hits_before = _JARVIS_PERF_TELEMETRY["clean_speech_cache_hits"]
+    cleaned_inr_cached = _clean_for_speech("Pay Rs. 40,000 for rent and ₹35 lakh for home loan")
+    assert cleaned_inr_cached == cleaned_inr
+    assert _JARVIS_PERF_TELEMETRY["clean_speech_cache_hits"] == speech_hits_before + 1
+
+    # [JV-04] Turn-Scoped SQLite Task List Coalescing & Mutation Invalidation
+    _invalidate_turn_task_cache()
+    t_id = isolated_db.add_task(title="Pay Rs. 2,500 Broadband Bill", description="Monthly fiber", priority="P2", source="Monthly")
+    tasks_first = _get_turn_cached_tasks(isolated_db)
+    task_hits_before = _JARVIS_PERF_TELEMETRY["turn_task_cache_hits"]
+    tasks_second = _get_turn_cached_tasks(isolated_db)
+    assert len(tasks_first) == len(tasks_second)
+    assert _JARVIS_PERF_TELEMETRY["turn_task_cache_hits"] == task_hits_before + 1
+
+    # [JV-05] O(1) Canonical Voice Intent Fast-Path Hash Table
+    assert "talk about my action items" in _FAST_INTENT_CANONICAL_ALIASES
+    fast_hits_before = _JARVIS_PERF_TELEMETRY["fast_intent_hits"]
+    res_fast = transcribe_and_dispatch_voice_command("Talk about my action items", db=isolated_db)
+    assert res_fast["mode"] == "voice_action_items_open_review"
+    assert _JARVIS_PERF_TELEMETRY["fast_intent_hits"] > fast_hits_before
+
+    # [JV-10] Stale-While-Revalidate (SWR) Non-Blocking Background RSS News Refresh
+    import fleet.core.database as db_mod
+    monkeypatch.setattr(db_mod, "is_test_environment", lambda: False)
+    monkeypatch.delenv("FLEET_TEST_MODE", raising=False)
+    _LIVE_NEWS_CACHE["pune"] = (
+        time.time() - 800.0,  # Between 600s TTL and 3600s SWR window
+        [{"title": "Pune Metro Line 3 Trial Run Completed", "source": "TOI"}],
+    )
+    swr_hits_before = _JARVIS_PERF_TELEMETRY["news_swr_cache_hits"]
+    swr_digest = _fetch_live_news_and_web_digest("pune", "Pune")
+    assert swr_digest["headlines"][0]["title"] == "Pune Metro Line 3 Trial Run Completed"
+    assert swr_digest["source_mode"] == "swr_instant_cache"
+    assert _JARVIS_PERF_TELEMETRY["news_swr_cache_hits"] == swr_hits_before + 1
+    monkeypatch.setattr(db_mod, "is_test_environment", lambda: True)
+
+    # [JV-11] Voice "Undo That" / "Scratch That" Last-Mutation Reversal
+    # 11A. Complete task via voice, then say "Undo that" -> task returns to pending
+    res_close = transcribe_and_dispatch_voice_command(f"Close action item #{t_id}", db=isolated_db)
+    assert res_close["mode"] == "voice_task_completed"
+    tasks_after_close = {int(t["id"]): t for t in isolated_db.list_tasks(limit=50, exclude_tests=True)}
+    assert tasks_after_close[t_id]["status"] == "completed"
+
+    res_undo = transcribe_and_dispatch_voice_command("Undo that", db=isolated_db)
+    assert res_undo["mode"] == "voice_undo"
+    assert res_undo["undo_applied"] is True
+    tasks_after_undo = {int(t["id"]): t for t in isolated_db.list_tasks(limit=50, exclude_tests=True)}
+    assert tasks_after_undo[t_id]["status"] == "pending"
+
+    # 11B. Create task via voice, then say "Scratch that" -> newly created task is deleted
+    res_add = transcribe_and_dispatch_voice_command("Add action item Buy new running shoes", db=isolated_db)
+    assert res_add["mode"] == "voice_task_created"
+    created_tid = int(res_add["task_id"])
+    res_scratch = transcribe_and_dispatch_voice_command("Scratch that", db=isolated_db)
+    assert res_scratch["mode"] == "voice_undo"
+    assert res_scratch["undo_applied"] is True
+    remaining_ids = {int(t["id"]) for t in isolated_db.list_tasks(limit=50, exclude_tests=True)}
+    assert created_tid not in remaining_ids
+
+    # [JV-12] Spoken Time, Date, Day & Schedule Context
+    res_time = transcribe_and_dispatch_voice_command("What time is it?", db=isolated_db)
+    assert res_time["mode"] == "voice_temporal_context"
+    assert "It is currently" in res_time["spoken_reply"]
+
+    # [JV-13] Interactive Voice Queue & Parked Topic Stack Verbal Inspector
+    reset_voice_topic_stack()
+    transcribe_and_dispatch_voice_command("Let's discuss action items", db=isolated_db)
+    transcribe_and_dispatch_voice_command("Log a glass of water", db=isolated_db)
+    res_q_inspect = transcribe_and_dispatch_voice_command("What is in my voice queue?", db=isolated_db)
+    assert res_q_inspect["mode"] == "voice_queue_inspector"
+    res_q_clear = transcribe_and_dispatch_voice_command("Clear parked topics", db=isolated_db)
+    assert res_q_clear["mode"] == "voice_queue_inspector"
+    assert res_q_clear["topic_stack"]["parked_count"] == 0
+
+    # [JV-15] Whisper / Late-Night Quiet Voice Mode
+    res_whisper_on = transcribe_and_dispatch_voice_command("Whisper mode on", db=isolated_db)
+    assert res_whisper_on["mode"] == "voice_whisper_mode"
+    assert res_whisper_on["whisper_mode"] is True
+    assert any(a.get("type") == "set_whisper_mode" and a.get("enabled") is True for a in res_whisper_on["ui_actions"])
+
+    res_whisper_off = transcribe_and_dispatch_voice_command("Whisper mode off", db=isolated_db)
+    assert res_whisper_off["mode"] == "voice_whisper_mode"
+    assert res_whisper_off["whisper_mode"] is False
+
+    # [JV-16] Zero-Token Voice Performance & Cache Diagnostics
+    res_diag = transcribe_and_dispatch_voice_command("Voice diagnostics", db=isolated_db)
+    assert res_diag["mode"] == "voice_performance_diagnostics"
+    diag_obj = get_jarvis_voice_diagnostics()
+    assert diag_obj["status"] == "ok"
+    assert diag_obj["telemetry"]["clean_speech_cache_hits"] >= 1
+
+
+# =========================================================================
+# 12. Backlog Registration ([JV-01]..[JV-16]) & Voiceprint In-Memory Cache ([JV-07])
+# =========================================================================
+def test_jarvis_backlog_registration_and_voiceprint_mem_cache(isolated_db, monkeypatch):
+    import fleet.server as srv
+    from fleet.api.settings_api import _VOICEPRINT_MEM_CACHE, _invalidate_voiceprint_mem_cache
+    from fleet.core.db.backlog import JARVIS_PERFORMANCE_AND_UX_BACKLOG_ITEMS
+
+    monkeypatch.setattr(srv, "db", isolated_db)
+
+    # 12A. Verify 16 Backlog Items (10 Critical + 6 High/Medium/Low)
+    assert len(JARVIS_PERFORMANCE_AND_UX_BACKLOG_ITEMS) == 16
+    critical_items = [b for b in JARVIS_PERFORMANCE_AND_UX_BACKLOG_ITEMS if "Critical Perf" in b["title"]]
+    non_critical_items = [b for b in JARVIS_PERFORMANCE_AND_UX_BACKLOG_ITEMS if "Critical Perf" not in b["title"]]
+    assert len(critical_items) == 10
+    assert len(non_critical_items) == 6
+
+    isolated_db.sync_ux_roadmap_backlog()
+    db_backlog_titles = {b["title"] for b in isolated_db.list_feature_backlog_items()}
+    for item in JARVIS_PERFORMANCE_AND_UX_BACKLOG_ITEMS:
+        assert item["title"] in db_backlog_titles, f"Backlog item missing from DB: {item['title']}"
+
+    # 12B. Verify [JV-07] In-Memory AES-256-GCM Voiceprint Cache & GET /api/voice/diagnostics HTTP route
+    import urllib.parse
+    from fleet.api.settings_api import (
+        get_voice_diagnostics_endpoint,
+        get_voiceprint_profile_endpoint,
+        save_voiceprint_profile_endpoint,
+    )
+
+    _invalidate_voiceprint_mem_cache()
+    h_save = MagicMock()
+    save_voiceprint_profile_endpoint(
+        h_save,
+        {"profile": {"pitchMeanHz": 108, "vtlCm": 17.3, "strictnessThreshold": 78}, "confirmed": True},
+    )
+    saved_vp = h_save._send_json.call_args[0][0]
+    assert saved_vp["enrolled"] is True
+
+    hits_before = int(_VOICEPRINT_MEM_CACHE.get("cache_hits", 0))
+    h_get1 = MagicMock()
+    get_voiceprint_profile_endpoint(h_get1, urllib.parse.urlparse("/api/voice/voiceprint"))
+    vp_get1 = h_get1._send_json.call_args[0][0]
+    h_get2 = MagicMock()
+    get_voiceprint_profile_endpoint(h_get2, urllib.parse.urlparse("/api/voice/voiceprint"))
+    assert vp_get1["profile"]["pitchMeanHz"] == 108
+    assert int(_VOICEPRINT_MEM_CACHE.get("cache_hits", 0)) > hits_before
+
+    h_diag = MagicMock()
+    get_voice_diagnostics_endpoint(h_diag, urllib.parse.urlparse("/api/voice/diagnostics"))
+    diag_payload = h_diag._send_json.call_args[0][0]
+    assert diag_payload["status"] == "ok"
+    assert diag_payload["voiceprint_mem_cache"]["has_cached_profile"] is True
+

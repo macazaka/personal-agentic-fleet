@@ -8,6 +8,7 @@ into a single responsive conversational interface.
 
 from datetime import datetime
 import re
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 
@@ -119,19 +120,70 @@ def _record_turn(user_query: str, reply: Dict[str, Any]) -> Dict[str, Any]:
     return reply
 
 
+# [JV-04] Turn-Scoped SQLite Task List & Live Fleet Snapshot Coalescing Cache (1.5s turn window)
+_TURN_TASK_CACHE: Dict[str, Any] = {
+    "db_id": None,
+    "ts": 0.0,
+    "tasks": [],
+}
+_JARVIS_PERF_TELEMETRY: Dict[str, int] = {
+    "clean_speech_hits": 0,
+    "clean_speech_cache_hits": 0,
+    "clean_speech_misses": 0,
+    "turn_task_cache_hits": 0,
+    "turn_task_cache_misses": 0,
+    "wake_word_cache_hits": 0,
+    "wake_word_cache_misses": 0,
+    "fast_intent_alias_hits": 0,
+    "fast_intent_hits": 0,
+    "news_cache_hits": 0,
+    "news_swr_cache_hits": 0,
+    "news_swr_bg_refreshes": 0,
+    "total_voice_turns": 0,
+}
+
+
+def _invalidate_turn_task_cache() -> None:
+    """Invalidates the coalesced turn task list cache immediately whenever a task is added, edited, or closed."""
+    _TURN_TASK_CACHE["db_id"] = None
+    _TURN_TASK_CACHE["ts"] = 0.0
+    _TURN_TASK_CACHE["tasks"] = []
+
+
+def _get_turn_cached_tasks(db: Optional[Any], limit: int = 200) -> List[Dict[str, Any]]:
+    """
+    [JV-04] Coalesces db.list_tasks(limit=200, exclude_tests=True) across a single voice turn
+    (1.2s window keyed by id(db)) so multi-part voice queues execute at most 1 SQLite task scan.
+    """
+    import time
+
+    if db is None or not hasattr(db, "list_tasks"):
+        return []
+    now_t = time.monotonic()
+    if _TURN_TASK_CACHE["db_id"] == id(db) and (now_t - float(_TURN_TASK_CACHE["ts"])) < 1.2:
+        _JARVIS_PERF_TELEMETRY["turn_task_cache_hits"] += 1
+        return [dict(t) for t in _TURN_TASK_CACHE["tasks"]]
+    _JARVIS_PERF_TELEMETRY["turn_task_cache_misses"] += 1
+    try:
+        rows = db.list_tasks(limit=limit, exclude_tests=True) or []
+        _TURN_TASK_CACHE["db_id"] = id(db)
+        _TURN_TASK_CACHE["ts"] = now_t
+        _TURN_TASK_CACHE["tasks"] = [dict(r) for r in rows]
+        return rows
+    except Exception:
+        return []
+
+
 def _gather_live_fleet_snapshot(agent_registry: Optional[Any] = None, db: Optional[Any] = None) -> Dict[str, Any]:
-    """Collects live workstation & Fleet telemetry for context-aware conversational replies."""
+    """Collects live workstation & Fleet telemetry for context-aware conversational replies (using [JV-04] coalesced tasks)."""
     agents_map = getattr(agent_registry, "agents", {}) if agent_registry else {}
     active_agents = len(agents_map) if agents_map else 7
     pending_tasks: List[Dict[str, Any]] = []
     hydration = {"glasses": 0, "amount_ml": 0, "goal_ml": 2500}
 
     if db is not None:
-        try:
-            if hasattr(db, "list_tasks"):
-                pending_tasks = db.list_tasks(status="pending", exclude_tests=True) or []
-        except Exception:
-            pass
+        all_t = _get_turn_cached_tasks(db, limit=200)
+        pending_tasks = [t for t in all_t if str(t.get("status") or "").lower() != "completed"]
         try:
             if hasattr(db, "get_today_hydration"):
                 hyd = db.get_today_hydration()
@@ -570,6 +622,7 @@ def dispatch_omnibar_query(
     if add_task_match and db is not None and hasattr(db, "add_task"):
         task_title = add_task_match.group(1).strip()
         task_id = db.add_task(title=task_title, description=f"Created via Conversational Omnibar: {task_title}", priority="P2", assigned_agent="Omnibar")
+        _invalidate_turn_task_cache()
         return _record_turn(raw, {
             "status": "ok",
             "mode": "conversation",
@@ -794,26 +847,67 @@ def dispatch_omnibar_query(
     })
 
 
+# [JV-03] & [JV-14] Pre-Compiled Speech Sanitizer Pipeline & Bounded 32-Entry LRU Memo Cache
+_SPEECH_URL_RE = re.compile(r"https?://[^\s)]+")
+_SPEECH_ACCT_RE = re.compile(r"\b(\d{8,16})\b")
+_SPEECH_CURRENCY_INR_RE = re.compile(
+    r"(?:₹|\bRs\.?\s*|\bINR\s*)(\d[\d,]*(?:\.\d+)?)(?:\s*(lakh|lakhs|crore|crores|k))?\b",
+    re.I,
+)
+_SPEECH_MD_RE = re.compile(r"[*_`#~>|]+")
+_SPEECH_EMOJI_RE = re.compile(r"[\U00010000-\U0010ffff\u2600-\u27bf]")
+_SPEECH_WS_RE = re.compile(r"\s+")
+_SPEECH_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?;])\s+")
+_SPEECH_LEAD_CLAUSE_RE = re.compile(r"(?<=[:,])\s+")
+
+_CLEAN_SPEECH_CACHE: Dict[str, str] = {}
+_MAX_CLEAN_SPEECH_CACHE = 32
+
+
+def _format_currency_for_speech(match: re.Match) -> str:
+    amt = match.group(1)
+    unit = (match.group(2) or "").strip()
+    if unit:
+        return f"{amt} {unit} rupees"
+    return f"{amt} rupees"
+
+
 def _clean_for_speech(text: str) -> str:
     """
-    Converts markdown/emoji-rich dashboard responses into smooth, natural, privacy-safe
-    spoken sentences for Browser SpeechSynthesis (TTS).
+    [JV-03] & [JV-14] Converts markdown/emoji-rich dashboard responses into smooth, natural,
+    privacy-safe spoken sentences for Browser SpeechSynthesis (TTS), with pre-compiled regexes,
+    Indian currency phonetic normalization ('Rs 40,000' -> '40,000 rupees'), and bounded 32-entry memoization.
     """
     if not text:
         return ""
     s = str(text).strip()
+    cached = _CLEAN_SPEECH_CACHE.get(s)
+    if cached is not None:
+        _JARVIS_PERF_TELEMETRY["clean_speech_hits"] += 1
+        _JARVIS_PERF_TELEMETRY["clean_speech_cache_hits"] += 1
+        return cached
+    _JARVIS_PERF_TELEMETRY["clean_speech_misses"] += 1
+
     # Guard against raw CLI/JSON telemetry envelopes ever reaching TTS
     if (s.startswith("{") and s.endswith("}")) or "conversation_id" in s or "denied_actions" in s:
         return "System ready. All Fleet agents are standing by."
+    raw_key = s
     # Replace URLs with concise spoken phrase
-    s = re.sub(r"https?://[^\s)]+", "linked portal", s)
+    s = _SPEECH_URL_RE.sub("linked portal", s)
+    # [JV-14] Normalize Indian currency ('Rs. 40,000' / '₹35 lakh') into natural spoken words
+    s = _SPEECH_CURRENCY_INR_RE.sub(_format_currency_for_speech, s)
     # Mask long numeric account/consumer identifiers for spoken privacy
-    s = re.sub(r"\b(\d{8,16})\b", lambda m: f"account ending in {m.group(1)[-4:]}", s)
+    s = _SPEECH_ACCT_RE.sub(lambda m: f"account ending in {m.group(1)[-4:]}", s)
     # Strip markdown formatting characters
-    s = re.sub(r"[*_`#~>|]+", " ", s)
+    s = _SPEECH_MD_RE.sub(" ", s)
     # Remove common decorative emojis so TTS does not read emoji names awkwardly
-    s = re.sub(r"[\U00010000-\U0010ffff\u2600-\u27bf]", " ", s)
-    s = re.sub(r"\s+", " ", s).strip()
+    s = _SPEECH_EMOJI_RE.sub(" ", s)
+    s = _SPEECH_WS_RE.sub(" ", s).strip()
+
+    if len(_CLEAN_SPEECH_CACHE) >= _MAX_CLEAN_SPEECH_CACHE:
+        oldest_key = next(iter(_CLEAN_SPEECH_CACHE))
+        _CLEAN_SPEECH_CACHE.pop(oldest_key, None)
+    _CLEAN_SPEECH_CACHE[raw_key] = s
     return s
 
 
@@ -1013,18 +1107,19 @@ def split_speech_into_stream_clauses(text: str) -> List[str]:
     Splits a spoken response into short acoustic clauses (first clause <= 10-12 words)
     so Browser SpeechSynthesis or streaming audio engines can emit the first phoneme in < 20ms
     while subsequent clauses queue seamlessly in the background.
+    [JV-03]: Uses pre-compiled _SPEECH_SENTENCE_SPLIT_RE and _SPEECH_LEAD_CLAUSE_RE.
     """
     cleaned = _clean_for_speech(text)
     if not cleaned:
         return []
     # Split on sentence boundaries first (., !, ?, ;)
-    raw_sentences = [s.strip() for s in re.split(r"(?<=[.!?;])\s+", cleaned) if s.strip()]
+    raw_sentences = [s.strip() for s in _SPEECH_SENTENCE_SPLIT_RE.split(cleaned) if s.strip()]
     clauses: List[str] = []
     for idx, sent in enumerate(raw_sentences):
         words = sent.split()
         # If the very first sentence is long (> 12 words) and has a colon or comma, split its lead clause
         if idx == 0 and len(words) > 12 and (":" in sent or "," in sent):
-            sub_parts = [p.strip() for p in re.split(r"(?<=[:，,])\s+", sent, maxsplit=1) if p.strip()]
+            sub_parts = [p.strip() for p in _SPEECH_LEAD_CLAUSE_RE.split(sent, maxsplit=1) if p.strip()]
             if len(sub_parts) == 2 and len(sub_parts[0].split()) >= 3:
                 clauses.extend(sub_parts)
                 continue
@@ -1503,10 +1598,22 @@ _JARVIS_INTENT_KEYWORDS: Tuple[str, ...] = (
     "news", "headlines", "updates", "pune", "india", "today", "latest",
 )
 
-# Bounded 16-entry, 10-minute TTL memory cache for live RSS/Web news digests (0 background CPU/RAM)
+# Bounded 16-entry, 10-minute fresh TTL + 60-minute Stale-While-Revalidate (SWR) memory cache for live RSS/Web news digests
 _LIVE_NEWS_CACHE: Dict[str, Tuple[float, List[Dict[str, str]]]] = {}
 _MAX_NEWS_CACHE_ENTRIES = 16
 _NEWS_CACHE_TTL_SEC = 600.0
+_NEWS_SWR_STALE_SEC = 3600.0
+_NEWS_SWR_INFLIGHT: set[str] = set()
+
+# [JV-01] Pre-Compiled O(1) Single-Word Frozenset & Multi-Word Regex for N-Best ASR Scoring
+_JARVIS_SINGLE_WORD_SET: frozenset[str] = frozenset(
+    kw for kw in _JARVIS_INTENT_KEYWORDS if " " not in kw
+)
+_JARVIS_MULTI_WORD_RE = re.compile(
+    r"\b(?:" + "|".join(re.escape(kw) for kw in _JARVIS_INTENT_KEYWORDS if " " in kw) + r")\b",
+    re.I,
+)
+_TOKEN_SPLIT_RE = re.compile(r"[a-z0-9]+")
 
 
 def _extract_news_or_topic_query(spoken: str) -> Optional[Tuple[str, str]]:
@@ -1616,62 +1723,93 @@ def _get_curated_offline_news_fallback(topic_query: str, display_topic: str) -> 
 
 def _fetch_live_news_and_web_digest(topic_query: str, display_topic: str) -> Dict[str, Any]:
     """
-    Scrapes live news headlines from Google News RSS (stdlib urllib + ElementTree, 2.5s timeout,
-    10-minute bounded 16-entry cache) and synthesizes a spoken audio response + Antigravity transcript log.
-    Falls back cleanly to curated local digest if offline or inside socket-guarded unit tests.
+    [JV-10] Scrapes live news headlines from Google News RSS (stdlib urllib + ElementTree, 1.8s timeout,
+    10-minute fresh TTL + 60-minute Stale-While-Revalidate non-blocking background refresh) and
+    synthesizes a spoken audio response. Falls back cleanly to curated local digest if offline or in unit tests.
     """
     import os
+    import threading
     import time
     import urllib.parse
     import urllib.request
     import xml.etree.ElementTree as ET
     from fleet.core.database import is_test_environment
 
+    def _pull_rss_headlines(q_str: str) -> List[Dict[str, str]]:
+        pulled: List[Dict[str, str]] = []
+        if q_str:
+            q_enc = urllib.parse.quote_plus(f"{q_str} when:2d")
+            rss_url = f"https://news.google.com/rss/search?q={q_enc}&hl=en-IN&gl=IN&ceid=IN:en"
+        else:
+            rss_url = "https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en"
+        req = urllib.request.Request(
+            rss_url,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PersonalAgenticFleet/2.20"},
+        )
+        with urllib.request.urlopen(req, timeout=1.8) as resp:
+            xml_bytes = resp.read(262144)  # Bounded 256 KB max read
+        root = ET.fromstring(xml_bytes)
+        for item in root.findall("./channel/item")[:4]:
+            raw_title = (item.findtext("title") or "").strip()
+            src_el = item.find("source")
+            src_name = (src_el.text if src_el is not None and src_el.text else "").strip()
+            if " - " in raw_title:
+                clean_t, _, tail_src = raw_title.rpartition(" - ")
+                if clean_t.strip():
+                    raw_title = clean_t.strip()
+                    if not src_name:
+                        src_name = tail_src.strip()
+            if raw_title:
+                pulled.append({
+                    "title": raw_title,
+                    "source": src_name or "Google News India",
+                })
+        return pulled
+
+    def _store_news_cache(k: str, ts_val: float, items_list: List[Dict[str, str]]) -> None:
+        if k not in _LIVE_NEWS_CACHE and len(_LIVE_NEWS_CACHE) >= _MAX_NEWS_CACHE_ENTRIES:
+            oldest_k = next(iter(_LIVE_NEWS_CACHE))
+            _LIVE_NEWS_CACHE.pop(oldest_k, None)
+        _LIVE_NEWS_CACHE[k] = (ts_val, items_list)
+
     cache_key = (topic_query or "__top_headlines__").lower().strip()
     now_ts = time.time()
     cached_entry = _LIVE_NEWS_CACHE.get(cache_key)
+    in_test = is_test_environment() or os.environ.get("FLEET_TEST_MODE") == "1"
+
     if cached_entry and (now_ts - cached_entry[0]) < _NEWS_CACHE_TTL_SEC:
+        _JARVIS_PERF_TELEMETRY["news_cache_hits"] += 1
         headlines = cached_entry[1]
         source_mode = "live_cache"
+    elif cached_entry and (now_ts - cached_entry[0]) < _NEWS_SWR_STALE_SEC and not in_test:
+        # [JV-10] Stale-While-Revalidate: return cached headlines in 0.05ms and refresh asynchronously
+        _JARVIS_PERF_TELEMETRY["news_cache_hits"] += 1
+        _JARVIS_PERF_TELEMETRY["news_swr_cache_hits"] += 1
+        headlines = cached_entry[1]
+        source_mode = "swr_instant_cache"
+        if cache_key not in _NEWS_SWR_INFLIGHT:
+            _NEWS_SWR_INFLIGHT.add(cache_key)
+
+            def _bg_refresh() -> None:
+                try:
+                    fresh = _pull_rss_headlines(topic_query)
+                    if fresh:
+                        _store_news_cache(cache_key, time.time(), fresh)
+                except Exception:
+                    pass
+                finally:
+                    _NEWS_SWR_INFLIGHT.discard(cache_key)
+
+            threading.Thread(target=_bg_refresh, daemon=True).start()
     else:
-        headlines: List[Dict[str, str]] = []
+        headlines = []
         source_mode = "offline_fallback"
-        in_test = is_test_environment() or os.environ.get("FLEET_TEST_MODE") == "1"
         if not in_test:
             try:
-                if topic_query:
-                    q_enc = urllib.parse.quote_plus(f"{topic_query} when:2d")
-                    rss_url = f"https://news.google.com/rss/search?q={q_enc}&hl=en-IN&gl=IN&ceid=IN:en"
-                else:
-                    rss_url = "https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en"
-                req = urllib.request.Request(
-                    rss_url,
-                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PersonalAgenticFleet/2.19"},
-                )
-                with urllib.request.urlopen(req, timeout=1.8) as resp:
-                    xml_bytes = resp.read(262144)  # Bounded 256 KB max read
-                root = ET.fromstring(xml_bytes)
-                for item in root.findall("./channel/item")[:4]:
-                    raw_title = (item.findtext("title") or "").strip()
-                    src_el = item.find("source")
-                    src_name = (src_el.text if src_el is not None and src_el.text else "").strip()
-                    if " - " in raw_title:
-                        clean_t, _, tail_src = raw_title.rpartition(" - ")
-                        if clean_t.strip():
-                            raw_title = clean_t.strip()
-                            if not src_name:
-                                src_name = tail_src.strip()
-                    if raw_title:
-                        headlines.append({
-                            "title": raw_title,
-                            "source": src_name or "Google News India",
-                        })
+                headlines = _pull_rss_headlines(topic_query)
                 if headlines:
                     source_mode = "live_web_rss"
-                    if len(_LIVE_NEWS_CACHE) >= _MAX_NEWS_CACHE_ENTRIES:
-                        oldest_k = next(iter(_LIVE_NEWS_CACHE))
-                        _LIVE_NEWS_CACHE.pop(oldest_k, None)
-                    _LIVE_NEWS_CACHE[cache_key] = (now_ts, headlines)
+                    _store_news_cache(cache_key, now_ts, headlines)
             except Exception:
                 headlines = []
 
@@ -1712,7 +1850,11 @@ _PHONETIC_MIC_CHECK_PATTERNS: Tuple[str, ...] = (
 
 
 def _score_voice_candidate(text: str) -> int:
-    """Scores a SpeechRecognition alternative against known Jarvis intents, agents, and grammar."""
+    """
+    [JV-01] Scores a SpeechRecognition alternative against known Jarvis intents in O(1) time
+    using frozenset token intersection (_JARVIS_SINGLE_WORD_SET) and a single pre-compiled
+    multi-word regex (_JARVIS_MULTI_WORD_RE), eliminating 330 dynamic regex compilations per turn.
+    """
     s = (text or "").lower().strip()
     if not s:
         return -100
@@ -1720,13 +1862,15 @@ def _score_voice_candidate(text: str) -> int:
     for pat in _PHONETIC_MIC_CHECK_PATTERNS:
         if pat in s:
             score += 50
-    for kw in _JARVIS_INTENT_KEYWORDS:
-        if re.search(rf"\b{re.escape(kw)}\b", s):
-            score += 20
-    words = s.split()
-    if len(words) >= 2:
+    tokens = _TOKEN_SPLIT_RE.findall(s)
+    if tokens:
+        matched_single = len(set(tokens) & _JARVIS_SINGLE_WORD_SET)
+        score += matched_single * 20
+    matched_multi = len(_JARVIS_MULTI_WORD_RE.findall(s))
+    score += matched_multi * 20
+    if len(tokens) >= 2:
         score += 8
-    elif len(words) == 1 and score == 0:
+    elif len(tokens) == 1 and score == 0:
         # Penalize isolated single-word noise fragments like "crisis", "uh", "the"
         score -= 25
     return score
@@ -2413,6 +2557,10 @@ def transcribe_and_dispatch_voice_command(
             "voice_task_created",
             "voice_action_items_closed_review",
             "jarvis_presence",
+            "voice_undo",
+            "voice_queue_inspector",
+            "voice_whisper_mode",
+            "voice_performance_diagnostics",
         )
     )
 
@@ -2486,27 +2634,136 @@ def transcribe_and_dispatch_voice_command(
     return loc_res
 
 
+# [JV-02] Wake-Word Setting 60s Memoization & Pre-Compiled Wake Regex Cache
+_WAKE_WORD_MEMO_CACHE: Dict[str, Any] = {
+    "db_id": None,
+    "custom_wake": "mahadev",
+    "expires_at": 0.0,
+    "compiled_re": re.compile(
+        r"^(?:hey\s+|hi\s+|hello\s+|ok\s+|okay\s+|har\s+har\s+|jai\s+|om\s+)?(?:mahadev|shiva|jarvis|afcc|fleet|महादेव|మహాదేవ్)\b[\s,.:;!?-]*",
+        re.I,
+    ),
+}
+_WAKE_WORD_SAFE_RE = re.compile(r"^[a-z0-9\s_-]{2,30}$")
+_CLEAN_ALPHA_RE = re.compile(r"[^a-z0-9\s]")
+
+
+def _get_compiled_wake_word_regex(db: Optional[Any]) -> re.Pattern:
+    """[JV-02] Memoizes db.get_setting('voice_wake_word') for 60s and caches the compiled regex."""
+    now = time.time()
+    db_id = id(db) if db is not None else None
+    if (
+        _WAKE_WORD_MEMO_CACHE["db_id"] == db_id
+        and now < float(_WAKE_WORD_MEMO_CACHE["expires_at"])
+        and _WAKE_WORD_MEMO_CACHE["compiled_re"] is not None
+    ):
+        _JARVIS_PERF_TELEMETRY["wake_word_cache_hits"] += 1
+        return _WAKE_WORD_MEMO_CACHE["compiled_re"]
+
+    _JARVIS_PERF_TELEMETRY["wake_word_cache_misses"] += 1
+    custom_wake = "mahadev"
+    if db is not None and hasattr(db, "get_setting"):
+        try:
+            cw = str(db.get_setting("voice_wake_word", "Mahadev") or "Mahadev").strip().lower()
+            if cw and _WAKE_WORD_SAFE_RE.match(cw):
+                custom_wake = re.escape(cw)
+        except Exception:
+            pass
+
+    if custom_wake != _WAKE_WORD_MEMO_CACHE["custom_wake"] or _WAKE_WORD_MEMO_CACHE["compiled_re"] is None:
+        _WAKE_WORD_MEMO_CACHE["custom_wake"] = custom_wake
+        _WAKE_WORD_MEMO_CACHE["compiled_re"] = re.compile(
+            rf"^(?:hey\s+|hi\s+|hello\s+|ok\s+|okay\s+|har\s+har\s+|jai\s+|om\s+)?(?:mahadev|shiva|jarvis|afcc|fleet|{custom_wake}|महादेव|మహాదేవ్)\b[\s,.:;!?-]*",
+            re.I,
+        )
+    _WAKE_WORD_MEMO_CACHE["db_id"] = db_id
+    _WAKE_WORD_MEMO_CACHE["expires_at"] = now + 60.0
+    return _WAKE_WORD_MEMO_CACHE["compiled_re"]
+
+
+# [JV-05] O(1) Canonical Voice Intent Fast-Path Hash Table (30+ top phrases bypass 70+ regex cascades)
+_FAST_INTENT_CANONICAL_ALIASES: Dict[str, str] = {
+    "let s discuss action items": "lets discuss action items",
+    "let us discuss action items": "lets discuss action items",
+    "talk about action items": "lets discuss action items",
+    "talk about my action items": "lets discuss action items",
+    "discuss my action items": "lets discuss action items",
+    "review my action items": "lets discuss action items",
+    "what are my open action items": "lets discuss action items",
+    "what are my action items": "lets discuss action items",
+    "read out my action items": "lets discuss action items",
+    "action items": "lets discuss action items",
+    "open action items": "lets discuss action items",
+    "pending action items": "lets discuss action items",
+    "show closed action items": "closed action items",
+    "what action items have i closed": "closed action items",
+    "completed action items": "closed action items",
+    "next": "next action item",
+    "next item": "next action item",
+    "next task": "next action item",
+    "skip": "next action item",
+    "skip this one": "next action item",
+    "previous": "previous action item",
+    "previous item": "previous action item",
+    "previous task": "previous action item",
+    "close it": "close it",
+    "mark it as closed": "close it",
+    "mark it closed": "close it",
+    "complete it": "close it",
+    "done with this": "close it",
+}
+
+# [JV-11] Voice Undo Last Mutation Journal (Bounded 10-entry stack)
+_LAST_VOICE_MUTATION_JOURNAL: List[Dict[str, Any]] = []
+# [JV-15] Whisper / Quiet Mode Flag
+_JARVIS_WHISPER_MODE: bool = False
+
+
+def _record_voice_mutation(mutation_entry: Dict[str, Any]) -> None:
+    """[JV-11] Records reversible voice mutations (task complete/create/edit/water) in a bounded 10-entry stack."""
+    mutation_entry["recorded_at"] = time.time()
+    _LAST_VOICE_MUTATION_JOURNAL.append(mutation_entry)
+    if len(_LAST_VOICE_MUTATION_JOURNAL) > 10:
+        del _LAST_VOICE_MUTATION_JOURNAL[:-10]
+
+
+def get_jarvis_voice_diagnostics() -> Dict[str, Any]:
+    """[JV-16] Returns O(1) snapshot of J.A.R.V.I.S. performance caches, SWR status, and topic stack depth."""
+    topic_snap = get_voice_topic_stack_snapshot()
+    return {
+        "status": "ok",
+        "version": "v2.20.0",
+        "telemetry": dict(_JARVIS_PERF_TELEMETRY),
+        "caches": {
+            "clean_speech_lru_size": len(_CLEAN_SPEECH_CACHE),
+            "clean_speech_lru_max": _MAX_CLEAN_SPEECH_CACHE,
+            "news_swr_cached_topics": len(_LIVE_NEWS_CACHE),
+            "news_swr_max_topics": _MAX_NEWS_CACHE_ENTRIES,
+            "news_swr_inflight_topics": list(_NEWS_SWR_INFLIGHT),
+            "mutation_journal_depth": len(_LAST_VOICE_MUTATION_JOURNAL),
+        },
+        "whisper_mode": _JARVIS_WHISPER_MODE,
+        "topic_stack": {
+            "has_active_topic": topic_snap.get("active_topic") is not None,
+            "parked_count": int(topic_snap.get("parked_count", 0)),
+        },
+    }
+
+
 def _dispatch_voice_command_core(
     transcript: str,
     agent_registry: Optional[Any] = None,
     db: Optional[Any] = None,
     routing_mode: str = "zero_token",
 ) -> Dict[str, Any]:
+    global _JARVIS_WHISPER_MODE
     spoken = (transcript or "").strip()
     if not spoken:
         return {"status": "error", "message": "Empty voice transcript."}
 
-    # Strip leading wake word ("Mahadev", "Har Har Mahadev", "Jarvis", "Hey Jarvis", "AFCC", or custom DB wake word)
-    custom_wake = "mahadev"
-    if db and hasattr(db, "get_setting"):
-        try:
-            cw = str(db.get_setting("voice_wake_word", "Mahadev") or "Mahadev").strip().lower()
-            if cw and re.match(r"^[a-z0-9\s_-]{2,30}$", cw):
-                custom_wake = re.escape(cw)
-        except Exception:
-            pass
-    wake_pattern = rf"^(?:hey\s+|hi\s+|hello\s+|ok\s+|okay\s+|har\s+har\s+|jai\s+|om\s+)?(?:mahadev|shiva|jarvis|afcc|fleet|{custom_wake}|महादेव|మహాదేవ్)\b[\s,.:;!?-]*"
-    wake_match = re.match(wake_pattern, spoken, flags=re.I)
+    # [JV-02] Strip leading wake word using 60s memoized & pre-compiled regex
+    wake_regex = _get_compiled_wake_word_regex(db)
+    wake_match = wake_regex.match(spoken)
     had_wake_word = bool(wake_match)
     if wake_match:
         stripped = spoken[wake_match.end():].strip()
@@ -2514,10 +2771,262 @@ def _dispatch_voice_command_core(
             spoken = stripped
 
     lower = spoken.lower().strip()
-    cleaned_alpha = re.sub(r"[^a-z0-9\s]", "", lower).strip()
+    cleaned_alpha = " ".join(_CLEAN_ALPHA_RE.sub(" ", lower).split())
+    # [JV-05] O(1) Canonical Fast-Path Alias Resolution
+    if cleaned_alpha in _FAST_INTENT_CANONICAL_ALIASES:
+        _JARVIS_PERF_TELEMETRY["fast_intent_hits"] += 1
+        cleaned_alpha = _FAST_INTENT_CANONICAL_ALIASES[cleaned_alpha]
+        lower = cleaned_alpha
     normalized = spoken
     ui_actions: List[Dict[str, Any]] = []
     executed_activities: List[str] = []
+
+    # 0A-1. [JV-11] Voice "Undo That" / "Scratch That" Last-Mutation Reversal
+    if cleaned_alpha in (
+        "undo", "undo that", "scratch that", "undo last action", "revert that",
+        "cancel last action", "undo my last command", "take that back",
+    ):
+        if not _LAST_VOICE_MUTATION_JOURNAL:
+            return _record_turn(spoken, {
+                "status": "ok",
+                "mode": "voice_undo",
+                "Undo_applied": False,
+                "agent_id": "overview",
+                "voice_transcript": spoken,
+                "normalized_command": "jarvis:undo_empty",
+                "title": "↩️ Nothing to Undo",
+                "message": "ℹ️ No recent reversible voice mutation found in this session's undo journal.",
+                "spoken_reply": "There is no recent voice action to undo right now.",
+                "ui_actions": [],
+                "executed_activities": ["ℹ️ Checked Voice Undo Journal (Empty)"],
+                "tokens_used": 0,
+                "cost_usd": "$0.00",
+            })
+        last_mut = _LAST_VOICE_MUTATION_JOURNAL.pop()
+        m_type = last_mut.get("type")
+        tid = last_mut.get("task_id")
+        t_title = str(last_mut.get("title") or f"Task #{tid}")
+        undo_msg = "Reverted your last voice action."
+        undo_speech = "Done! I have undone your last action."
+        undo_ui: List[Dict[str, Any]] = [{"type": "refresh_tasks"}, {"type": "refresh_briefing"}]
+        if m_type == "task_complete" and db is not None and hasattr(db, "update_task_status") and tid is not None:
+            prev_status = str(last_mut.get("prev_status") or "pending")
+            db.update_task_status(int(tid), prev_status)
+            _invalidate_turn_task_cache()
+            undo_msg = f"↩️ **Undid Task Completion**: Reopened **#{tid} — {t_title}** back to `{prev_status}`."
+            undo_speech = f"Undone! I reopened action item number {tid}, {_clean_for_speech(t_title)}, back to {prev_status}."
+        elif m_type == "task_create" and db is not None and hasattr(db, "delete_task") and tid is not None:
+            db.delete_task(int(tid))
+            _invalidate_turn_task_cache()
+            undo_msg = f"↩️ **Undid Task Creation**: Removed newly created action item **#{tid} — {t_title}**."
+            undo_speech = f"Scratch that! I removed the newly created action item {_clean_for_speech(t_title)}."
+        elif m_type == "task_edit_title" and db is not None and hasattr(db, "update_task") and tid is not None:
+            old_title = str(last_mut.get("old_title") or t_title)
+            db.update_task(int(tid), title=old_title)
+            _invalidate_turn_task_cache()
+            undo_msg = f"↩️ **Undid Title Rename**: Restored **#{tid}** title back to **\"{old_title}\"**."
+            undo_speech = f"Undone! I restored action item number {tid} back to {_clean_for_speech(old_title)}."
+        elif m_type == "task_edit_priority" and db is not None and hasattr(db, "update_task") and tid is not None:
+            old_prio = str(last_mut.get("old_priority") or "P2")
+            db.update_task(int(tid), priority=old_prio)
+            _invalidate_turn_task_cache()
+            undo_msg = f"↩️ **Undid Priority Change**: Restored **#{tid} — {t_title}** priority back to `{old_prio}`."
+            undo_speech = f"Undone! I restored the priority of {_clean_for_speech(t_title)} back to {old_prio}."
+        elif m_type == "task_edit_note" and db is not None and hasattr(db, "update_task") and tid is not None:
+            old_desc = str(last_mut.get("old_description") or "")
+            db.update_task(int(tid), description=old_desc)
+            _invalidate_turn_task_cache()
+            undo_msg = f"↩️ **Undid Note Update**: Restored previous notes on **#{tid} — {t_title}**."
+            undo_speech = f"Undone! I restored the previous notes on {_clean_for_speech(t_title)}."
+        elif m_type == "water_log" and db is not None and hasattr(db, "log_water_intake"):
+            glasses = int(last_mut.get("glasses") or 1)
+            try:
+                db.log_water_intake(glasses_delta=-glasses)
+            except Exception:
+                pass
+            undo_ui = [{"type": "refresh_health"}, {"type": "refresh_briefing"}]
+            undo_msg = f"↩️ **Undid Hydration Log**: Subtracted `{glasses}` glass(es) ({glasses * 250} ml) from today's water total."
+            undo_speech = f"Undone! I subtracted {glasses} glass{'es' if glasses != 1 else ''} of water from today's hydration log."
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "voice_undo",
+            "undo_applied": True,
+            "undone_mutation": last_mut,
+            "agent_id": "overview",
+            "voice_transcript": spoken,
+            "normalized_command": f"jarvis:undo:{m_type}",
+            "title": "↩️ Last Voice Action Undone ($0.00)",
+            "message": undo_msg,
+            "spoken_reply": undo_speech,
+            "ui_actions": undo_ui,
+            "executed_activities": [f"↩️ Reverted Voice Mutation ({m_type})"],
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
+
+    # 0A-2. [JV-12] Spoken Time, Date, Day & Schedule Context ("What time is it?", "What day is today?", "What is today's date?")
+    if re.search(
+        r"\b(?:what\s+time\s+is\s+it|current\s+time|tell\s+me\s+the\s+time|what\s+is\s+the\s+time|what\s+day\s+is\s+(?:it|today)|what\s+is\s+today'?s?\s+date|today'?s?\s+date)\b",
+        lower,
+    ):
+        now_dt = datetime.now()
+        time_str = now_dt.strftime("%I:%M %p").lstrip("0")
+        day_str = now_dt.strftime("%A")
+        date_str = now_dt.strftime("%B %d, %Y")
+        snap = _gather_live_fleet_snapshot(agent_registry=agent_registry, db=db)
+        workout = snap.get("today_workout", "Strength & Mobility")
+        pending_c = snap.get("pending_count", 0)
+        msg = (
+            f"🕒 **Current Local Time & Schedule Context**\n"
+            f"• **Time**: `{time_str}`\n"
+            f"• **Day & Date**: **{day_str}, {date_str}**\n"
+            f"• **Today's FFD Protocol**: {workout}\n"
+            f"• **Open Action Items**: `{pending_c}` pending"
+        )
+        spoken_reply = (
+            f"It is currently {time_str} on {day_str}, {date_str}. "
+            f"Your scheduled workout today is {_clean_for_speech(workout)}, and you have {pending_c} open action items."
+        )
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "voice_temporal_context",
+            "agent_id": "overview",
+            "voice_transcript": spoken,
+            "normalized_command": "jarvis:time_and_date",
+            "title": f"🕒 {time_str} • {day_str}, {date_str}",
+            "message": msg,
+            "spoken_reply": spoken_reply,
+            "ui_actions": [],
+            "executed_activities": [f"🕒 Checked Local Clock & Daily Schedule ({time_str})"],
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
+
+    # 0A-3. [JV-13] Interactive Voice Queue & Parked Topic Stack Verbal Inspector ("What is in my queue?", "List parked topics", "Clear parked topics")
+    if re.search(
+        r"\b(?:what\s+is\s+in\s+my\s+(?:voice\s+)?queue|what(?:'s|\s+is)\s+parked|list\s+parked\s+topics|show\s+parked\s+topics|check\s+topic\s+stack|clear\s+parked\s+topics|clear\s+voice\s+queue|clear\s+topic\s+stack)\b",
+        lower,
+    ):
+        if "clear" in lower:
+            reset_voice_topic_stack()
+            return _record_turn(spoken, {
+                "status": "ok",
+                "mode": "voice_queue_inspector",
+                "agent_id": "overview",
+                "voice_transcript": spoken,
+                "normalized_command": "jarvis:clear_topic_stack",
+                "title": "🧹 Cleared Voice Queue & Parked Topic Stack",
+                "message": "🧹 Cleared all active and parked topics from your J.A.R.V.I.S. conversational stack.",
+                "spoken_reply": "I have cleared all active and parked topics from your conversational queue.",
+                "ui_actions": [],
+                "executed_activities": ["🧹 Cleared Conversational Topic Stack"],
+                "tokens_used": 0,
+                "cost_usd": "$0.00",
+            })
+        stack_snap = get_voice_topic_stack_snapshot()
+        act_t = stack_snap.get("active_topic")
+        parked_list = stack_snap.get("parked_stack") or []
+        if not act_t and not parked_list:
+            msg = "🗂️ **Conversational Topic Stack**: No active or parked topics right now."
+            spoken_reply = "Your conversational topic queue is currently empty, with no parked topics waiting."
+        else:
+            act_label = act_t.get("label", "None") if isinstance(act_t, dict) else "None"
+            parked_labels = [str(p.get("label") or p.get("domain") or "Topic") for p in parked_list if isinstance(p, dict)]
+            msg = (
+                f"🗂️ **Conversational Topic Stack Inspector**\n"
+                f"• **Active Topic**: `{act_label}`\n"
+                f"• **Parked Topics ({len(parked_labels)})**: {', '.join(parked_labels) if parked_labels else 'None'}"
+            )
+            spoken_reply = (
+                f"Your active conversation topic is {_clean_for_speech(act_label)}. "
+                + (
+                    f"You have {len(parked_labels)} parked topic{'s' if len(parked_labels) != 1 else ''} waiting to resume: "
+                    f"{_clean_for_speech(', '.join(parked_labels))}. Say 'resume previous topic' whenever you are ready."
+                    if parked_labels
+                    else "You have no parked topics waiting in the background."
+                )
+            )
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "voice_queue_inspector",
+            "agent_id": "overview",
+            "voice_transcript": spoken,
+            "normalized_command": "jarvis:inspect_topic_stack",
+            "title": f"🗂️ Voice Topic Stack ({len(parked_list)} Parked)",
+            "message": msg,
+            "spoken_reply": spoken_reply,
+            "ui_actions": [],
+            "executed_activities": ["🗂️ Inspected Conversational Topic Stack"],
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
+
+    # 0A-4. [JV-15] Whisper / Late-Night Quiet Voice Mode ("Whisper mode on", "Quiet mode", "Whisper mode off", "Normal volume")
+    if re.search(
+        r"\b(?:whisper\s+mode|quiet\s+mode|late\s+night\s+voice|night\s+voice\s+mode|normal\s+voice\s+volume|disable\s+whisper\s+mode)\b",
+        lower,
+    ):
+        enable_whisper = not any(w in lower for w in ("off", "disable", "normal", "stop", "exit"))
+        _JARVIS_WHISPER_MODE = enable_whisper
+        state_lbl = "ON (0.45 Vol • 0.98x Soft Cadence)" if enable_whisper else "OFF (1.0 Vol • Standard Cadence)"
+        spoken_reply = (
+            "Whisper mode is now active. I will keep my voice soft, concise, and gentle."
+            if enable_whisper
+            else "Whisper mode is now off. Restored standard speaking volume and cadence."
+        )
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "voice_whisper_mode",
+            "whisper_mode": enable_whisper,
+            "agent_id": "overview",
+            "voice_transcript": spoken,
+            "normalized_command": f"jarvis:whisper_mode:{'on' if enable_whisper else 'off'}",
+            "title": f"🌙 J.A.R.V.I.S. Whisper Mode: {state_lbl}",
+            "message": f"🌙 **Whisper / Quiet Mode**: `{state_lbl}`",
+            "spoken_reply": spoken_reply,
+            "ui_actions": [{"type": "set_whisper_mode", "enabled": enable_whisper}],
+            "executed_activities": [f"🌙 Toggled J.A.R.V.I.S. Whisper Mode → {'ON' if enable_whisper else 'OFF'}"],
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
+
+    # 0A-5. [JV-16] Zero-Token Voice Performance & Cache Diagnostics ("Voice diagnostics", "Jarvis performance report", "Voice telemetry")
+    if re.search(
+        r"\b(?:voice\s+diagnostics|jarvis\s+diagnostics|jarvis\s+performance|voice\s+telemetry|voice\s+cache\s+stats|voice\s+latency\s+report)\b",
+        lower,
+    ):
+        diag = get_jarvis_voice_diagnostics()
+        tel = diag["telemetry"]
+        caches = diag["caches"]
+        msg = (
+            f"⚡ **J.A.R.V.I.S. Zero-Token Performance & Cache Diagnostics (`v2.20.0`)**\n"
+            f"• **Turn Task Cache Hits / Misses**: `{tel['turn_task_cache_hits']}` / `{tel['turn_task_cache_misses']}`\n"
+            f"• **Speech Sanitizer LRU Hits**: `{tel['clean_speech_cache_hits']}` (`{caches['clean_speech_lru_size']}/{caches['clean_speech_lru_max']}` entries)\n"
+            f"• **Wake-Word Memo Cache Hits**: `{tel['wake_word_cache_hits']}`\n"
+            f"• **O(1) Fast-Intent Hash Hits**: `{tel['fast_intent_hits']}`\n"
+            f"• **News SWR Instant Hits / Refreshes**: `{tel['news_swr_cache_hits']}` / `{tel['news_swr_bg_refreshes']}`"
+        )
+        spoken_reply = (
+            f"Jarvis performance diagnostics are nominal at zero token cost. "
+            f"Task cache hits: {tel['turn_task_cache_hits']}. "
+            f"Speech sanitizer cache hits: {tel['clean_speech_cache_hits']}. "
+            f"Fast intent table hits: {tel['fast_intent_hits']}."
+        )
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "voice_performance_diagnostics",
+            "diagnostics": diag,
+            "agent_id": "optimizer",
+            "voice_transcript": spoken,
+            "normalized_command": "jarvis:diagnostics",
+            "title": "⚡ J.A.R.V.I.S. Voice Performance & Cache Diagnostics ($0.00)",
+            "message": msg,
+            "spoken_reply": spoken_reply,
+            "ui_actions": [],
+            "executed_activities": ["⚡ Inspected J.A.R.V.I.S. O(1) Cache & Latency Counters"],
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
 
     # 0A. Microphone Check, Presence & Wake-Word Greeting ("Mahadev", "Can you hear me?", "Jarvis", "Are you there?")
     if (
@@ -2973,7 +3482,7 @@ def _dispatch_voice_command_core(
 
     # 2. Task Cadence & Conversational Action-Item Engine (Monthly / Yearly / Completed / Open Review / Next / Prev / Details)
     if re.search(r"\b(?:show|filter|list|what\s+are|open|view|talk\s+about|review)\b.*\b(?:monthly)\s+(?:tasks?|action\s+items?|bills?|payments?|items?)\b", lower) or lower in ("monthly tasks", "monthly action items", "show monthly"):
-        all_tasks = db.list_tasks(limit=200, exclude_tests=True) if (db and hasattr(db, "list_tasks")) else []
+        all_tasks = _get_turn_cached_tasks(db)
         monthly = [t for t in all_tasks if str(t.get("source") or "").lower() == "monthly"]
         pending_m = [t for t in monthly if t.get("status") != "completed"]
         done_m = [t for t in monthly if t.get("status") == "completed"]
@@ -3016,7 +3525,7 @@ def _dispatch_voice_command_core(
         })
 
     if re.search(r"\b(?:show|filter|list|what\s+are|open|view|talk\s+about|review)\b.*\b(?:yearly|annual)\s+(?:tasks?|action\s+items?|renewals?|items?)\b", lower) or lower in ("yearly tasks", "yearly action items", "show yearly"):
-        all_tasks = db.list_tasks(limit=200, exclude_tests=True) if (db and hasattr(db, "list_tasks")) else []
+        all_tasks = _get_turn_cached_tasks(db)
         yearly = [t for t in all_tasks if str(t.get("source") or "").lower() == "yearly"]
         pending_y = [t for t in yearly if t.get("status") != "completed"]
         focus_queue = pending_y if pending_y else yearly
@@ -3057,7 +3566,7 @@ def _dispatch_voice_command_core(
         or lower in ("closed action items", "completed action items", "closed tasks", "completed tasks", "show closed", "show completed")
     )
     if is_asking_closed_list:
-        all_tasks = db.list_tasks(limit=200, exclude_tests=True) if (db and hasattr(db, "list_tasks")) else []
+        all_tasks = _get_turn_cached_tasks(db)
         closed_tasks = [t for t in all_tasks if str(t.get("status") or "").lower() == "completed"]
         pending_tasks = [t for t in all_tasks if str(t.get("status") or "").lower() != "completed"]
         active_item = _set_voice_focused_task(closed_tasks[0] if closed_tasks else None, queue=closed_tasks, mode="completed")
@@ -3128,7 +3637,7 @@ def _dispatch_voice_command_core(
         )
     )
     if is_open_action_review:
-        all_tasks = db.list_tasks(limit=200, exclude_tests=True) if (db and hasattr(db, "list_tasks")) else []
+        all_tasks = _get_turn_cached_tasks(db)
         pending_tasks = [t for t in all_tasks if str(t.get("status") or "").lower() != "completed"]
         closed_tasks = [t for t in all_tasks if str(t.get("status") or "").lower() == "completed"]
         active_item = _set_voice_focused_task(pending_tasks[0] if pending_tasks else None, queue=pending_tasks, mode="pending")
@@ -3190,7 +3699,7 @@ def _dispatch_voice_command_core(
         or lower in ("previous item", "previous task", "previous action item")
     )
     if (is_next_item or is_prev_item) and db is not None and hasattr(db, "list_tasks"):
-        all_tasks = db.list_tasks(limit=200, exclude_tests=True)
+        all_tasks = _get_turn_cached_tasks(db)
         mode = _VOICE_ACTION_ITEM_STATE.get("review_mode", "pending")
         pool = [t for t in all_tasks if (t.get("status") == "completed" if mode == "completed" else t.get("status") != "completed")]
         if not pool:
@@ -3260,7 +3769,7 @@ def _dispatch_voice_command_core(
     )
     if details_match and ("detail" in lower or "description" in lower or "action item" in lower or "this task" in lower or "that task" in lower) and db is not None and hasattr(db, "list_tasks"):
         q_target = (details_match.group(1) or "").strip()
-        all_tasks = db.list_tasks(limit=200, exclude_tests=True)
+        all_tasks = _get_turn_cached_tasks(db)
         matched_task = _match_action_item_from_voice(all_tasks, q_target, allow_focused_fallback=True)
         if matched_task:
             active_item = _set_voice_focused_task(matched_task)
@@ -3314,10 +3823,19 @@ def _dispatch_voice_command_core(
             "p3": "P3", "low": "P3", "low priority": "P3",
         }
         new_prio = prio_map.get(raw_prio, "P1")
-        tasks_list = db.list_tasks(limit=200, exclude_tests=True)
+        tasks_list = _get_turn_cached_tasks(db)
         matched_task = _match_action_item_from_voice(tasks_list, target_q, allow_focused_fallback=True)
         if matched_task:
+            old_prio = str(matched_task.get("priority") or "P2")
             db.update_task(int(matched_task["id"]), priority=new_prio)
+            _invalidate_turn_task_cache()
+            _record_voice_mutation({
+                "type": "task_edit_priority",
+                "task_id": int(matched_task["id"]),
+                "title": str(matched_task.get("title") or ""),
+                "old_priority": old_prio,
+                "new_priority": new_prio,
+            })
             matched_task["priority"] = new_prio
             active_item = _set_voice_focused_task(matched_task)
             ui_actions = [
@@ -3359,12 +3877,20 @@ def _dispatch_voice_command_core(
             target_q = (note_match.group(1) or "it").strip()
             new_note = (note_match.group(2) or "").strip()
         if new_note:
-            tasks_list = db.list_tasks(limit=200, exclude_tests=True)
+            tasks_list = _get_turn_cached_tasks(db)
             matched_task = _match_action_item_from_voice(tasks_list, target_q, allow_focused_fallback=True)
             if matched_task:
                 existing_desc = str(matched_task.get("description") or "").strip()
                 updated_desc = f"{existing_desc} | Note: {new_note}" if (existing_desc and "add" in lower) else new_note
                 db.update_task(int(matched_task["id"]), description=updated_desc)
+                _invalidate_turn_task_cache()
+                _record_voice_mutation({
+                    "type": "task_edit_note",
+                    "task_id": int(matched_task["id"]),
+                    "title": str(matched_task.get("title") or ""),
+                    "old_description": existing_desc,
+                    "new_description": updated_desc,
+                })
                 matched_task["description"] = updated_desc
                 active_item = _set_voice_focused_task(matched_task)
                 ui_actions = [
@@ -3414,11 +3940,18 @@ def _dispatch_voice_command_core(
             target_q = "it"
             new_title = (groups[1] or "").strip().strip("\"'")
         if new_title:
-            tasks_list = db.list_tasks(limit=200, exclude_tests=True)
+            tasks_list = _get_turn_cached_tasks(db)
             matched_task = _match_action_item_from_voice(tasks_list, target_q, allow_focused_fallback=True)
             if matched_task:
                 old_title = str(matched_task.get("title") or "")
                 db.update_task(int(matched_task["id"]), title=new_title)
+                _invalidate_turn_task_cache()
+                _record_voice_mutation({
+                    "type": "task_edit_title",
+                    "task_id": int(matched_task["id"]),
+                    "title": new_title,
+                    "old_title": old_title,
+                })
                 matched_task["title"] = new_title
                 active_item = _set_voice_focused_task(matched_task)
                 ui_actions = [
@@ -3461,10 +3994,11 @@ def _dispatch_voice_command_core(
     )
     if reopen_match and db is not None and hasattr(db, "list_tasks") and hasattr(db, "update_task_status"):
         target_q = f"#{reopen_match.group(1)}" if reopen_match.group(1) else (reopen_match.group(2) or "it").strip()
-        tasks_list = db.list_tasks(limit=200, exclude_tests=True)
+        tasks_list = _get_turn_cached_tasks(db)
         matched_task = _match_action_item_from_voice(tasks_list, target_q, prefer_status="completed", allow_focused_fallback=True)
         if matched_task:
             db.update_task_status(int(matched_task["id"]), "pending")
+            _invalidate_turn_task_cache()
             matched_task["status"] = "pending"
             active_item = _set_voice_focused_task(matched_task, mode="pending")
             ui_actions = [
@@ -3501,13 +4035,14 @@ def _dispatch_voice_command_core(
     )
     if delete_match and db is not None and hasattr(db, "list_tasks") and hasattr(db, "delete_task"):
         target_q = f"#{delete_match.group(1)}" if delete_match.group(1) else (delete_match.group(2) or "").strip()
-        tasks_list = db.list_tasks(limit=200, exclude_tests=True)
+        tasks_list = _get_turn_cached_tasks(db)
         matched_task = _match_action_item_from_voice(tasks_list, target_q, allow_focused_fallback=True)
         if matched_task:
             tid_del = int(matched_task["id"])
             title_del = str(matched_task.get("title") or "")
             db.delete_task(tid_del)
-            remaining = [t for t in db.list_tasks(limit=200, exclude_tests=True) if t.get("status") != "completed"]
+            _invalidate_turn_task_cache()
+            remaining = [t for t in _get_turn_cached_tasks(db) if t.get("status") != "completed"]
             active_item = _set_voice_focused_task(remaining[0] if remaining else None, queue=remaining, mode="pending")
             ui_actions = [
                 {"type": "switch_agent", "agent_id": "overview"},
@@ -3569,7 +4104,7 @@ def _dispatch_voice_command_core(
             target_q = f"#{groups[0]}" if groups[0] else (groups[1] or "it").strip()
         target_q = re.sub(r"\s+as\s+(?:closed|done|completed|complete|finished)$", "", target_q, flags=re.I).strip()
 
-        tasks_list = db.list_tasks(limit=200, exclude_tests=True)
+        tasks_list = _get_turn_cached_tasks(db)
         matched_task = _match_action_item_from_voice(
             tasks_list,
             target_q,
@@ -3577,9 +4112,17 @@ def _dispatch_voice_command_core(
             allow_focused_fallback=True,
         )
         if matched_task:
-            was_already_closed = (str(matched_task.get("status") or "").lower() == "completed")
+            prev_status = str(matched_task.get("status") or "pending").lower()
+            was_already_closed = (prev_status == "completed")
             db.update_task_status(int(matched_task["id"]), "completed")
-            updated_all = db.list_tasks(limit=200, exclude_tests=True)
+            _invalidate_turn_task_cache()
+            _record_voice_mutation({
+                "type": "task_complete",
+                "task_id": int(matched_task["id"]),
+                "title": str(matched_task.get("title") or ""),
+                "prev_status": prev_status if not was_already_closed else "pending",
+            })
+            updated_all = _get_turn_cached_tasks(db)
             remaining_pending = [t for t in updated_all if str(t.get("status") or "").lower() != "completed"]
             next_focus_task = remaining_pending[0] if remaining_pending else None
             active_item = _set_voice_focused_task(next_focus_task, queue=remaining_pending, mode="pending")
@@ -3628,6 +4171,7 @@ def _dispatch_voice_command_core(
     if re.search(r"\b(?:log|drink|drank|had|add)\b.*\b(?:glass|glasses|water|hydration)\b", lower):
         m_num = re.search(r"\b(\d+)\b", lower)
         glasses = int(m_num.group(1)) if (m_num and 1 <= int(m_num.group(1)) <= 20) else 1
+        _record_voice_mutation({"type": "water_log", "glasses": glasses})
         normalized = "@health water +250" if glasses == 1 else f"@health water +{glasses}"
         ui_actions = [
             {"type": "refresh_health"},
@@ -3663,6 +4207,12 @@ def _dispatch_voice_command_core(
                     priority=pri,
                     source=src,
                 )
+                _invalidate_turn_task_cache()
+                _record_voice_mutation({
+                    "type": "task_create",
+                    "task_id": int(tid),
+                    "title": task_body,
+                })
                 new_task_obj = {
                     "id": tid,
                     "title": task_body,

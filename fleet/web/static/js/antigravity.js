@@ -1211,8 +1211,13 @@ window.AFCCVoice = {
   continuousMode: localStorage.getItem('afcc_voice_continuous') !== 'false',
   spokenReplyEnabled: localStorage.getItem('afcc_voice_tts_enabled') !== 'false',
   conciseMode: localStorage.getItem('afcc_voice_concise') !== 'false',
+  whisperMode: localStorage.getItem('afcc_voice_whisper_mode') === 'true',
   audioStreamMode: localStorage.getItem('afcc_voice_stream_mode') !== 'false',
   speechRate: parseFloat(localStorage.getItem('afcc_voice_rate') || '1.35') || 1.35,
+  _lastSpectrumSig: -1,
+  _lastDispatchedTurnSig: '',
+  _lastDispatchedTurnAtMs: 0,
+  _activeVoiceFetchController: null,
   voiceLanguage: localStorage.getItem('afcc_voice_lang') || 'en',
   voiceGender: localStorage.getItem('afcc_voice_gender') || 'female',
   voiceAccent: localStorage.getItem('afcc_voice_accent') || 'IN',
@@ -3789,7 +3794,11 @@ function speakAfccVoiceText(text, onDoneCallback, altPhoneticText, streamClauses
 
     clauses.forEach((clauseText, idx) => {
       const u = new SpeechSynthesisUtterance(clauseText);
-      u.rate = window.AFCCVoice.speechRate || 1.35;
+      const isWhisper = Boolean(window.AFCCVoice.whisperMode);
+      u.volume = isWhisper ? 0.45 : 1.0;
+      u.rate = isWhisper
+        ? Math.min(1.15, (window.AFCCVoice.speechRate || 1.35) * 0.85)
+        : (window.AFCCVoice.speechRate || 1.35);
       u.lang = preferred && preferred.lang ? preferred.lang : targetBcp47;
       u.pitch = targetPitch;
       if (preferred) u.voice = preferred;
@@ -4019,6 +4028,11 @@ async function executeVoiceUiActions(uiActions) {
         if (typeof FleetNavigator !== 'undefined' && typeof FleetNavigator.setWorkspaceLayout === 'function') {
           FleetNavigator.setWorkspaceLayout(act.layout, true);
         }
+      } else if (act.type === 'set_whisper_mode') {
+        window.AFCCVoice.whisperMode = Boolean(act.enabled);
+        try {
+          localStorage.setItem('afcc_voice_whisper_mode', window.AFCCVoice.whisperMode ? 'true' : 'false');
+        } catch (e) {}
       }
     } catch (err) {
       console.warn('Voice UI action error:', err);
@@ -4257,6 +4271,17 @@ async function executeVoiceTurnText(transcriptText, alternativesList) {
 
   // Client-side instant queue control reflexes (<5ms, 0 network calls)
   const lowerSpoken = spoken.toLowerCase().trim();
+  const nowTurnMs = Date.now();
+  // [JV-08] Single-Flight Voice Turn Deduplicator (<150ms double-dispatch guard)
+  if (
+    lowerSpoken === window.AFCCVoice._lastDispatchedTurnSig &&
+    (nowTurnMs - (window.AFCCVoice._lastDispatchedTurnAtMs || 0) < 150)
+  ) {
+    return;
+  }
+  window.AFCCVoice._lastDispatchedTurnSig = lowerSpoken;
+  window.AFCCVoice._lastDispatchedTurnAtMs = nowTurnMs;
+
   if (/^(skip\s+part|next\s+part|next\s+answer|skip\s+to\s+next\s+question|skip\s+answer)$/i.test(lowerSpoken)) {
     skipCurrentJarvisAudioQueuePart();
     return;
@@ -4265,6 +4290,13 @@ async function executeVoiceTurnText(transcriptText, alternativesList) {
     clearJarvisAudioQueue();
     return;
   }
+
+  // [JV-08] Cancel any superseded in-flight voice fetch via AbortController
+  if (window.AFCCVoice._activeVoiceFetchController) {
+    try { window.AFCCVoice._activeVoiceFetchController.abort(); } catch (e) {}
+  }
+  const fetchController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  window.AFCCVoice._activeVoiceFetchController = fetchController;
 
   // Optimization 5: Immediate 12ms WebAudio harmonic acknowledgment chime
   playJarvisInstantAckChime();
@@ -4325,18 +4357,16 @@ async function executeVoiceTurnText(transcriptText, alternativesList) {
       concise_mode: Boolean(window.AFCCVoice.conciseMode)
     });
     const endpointUrl = window.AFCCVoice.audioStreamMode ? '/api/voice/stream' : '/api/voice/converse';
-    let res = await fetch(endpointUrl, {
+    const fetchOpts = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: reqBody
-    });
+    };
+    if (fetchController) fetchOpts.signal = fetchController.signal;
+    let res = await fetch(endpointUrl, fetchOpts);
     // Automatic endpoint fallback: if /api/voice/stream returned 404/500, transparently fall back to /api/voice/converse
     if (!res.ok && endpointUrl === '/api/voice/stream') {
-      res = await fetch('/api/voice/converse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: reqBody
-      });
+      res = await fetch('/api/voice/converse', fetchOpts);
     }
     const data = await res.json();
     const netElapsedMs = Math.max(12, Math.round((performance.now ? performance.now() : Date.now()) - turnStartMs));
@@ -4402,57 +4432,61 @@ async function executeVoiceTurnText(transcriptText, alternativesList) {
       }
     }
 
-    const activities = Array.isArray(data.executed_activities) ? data.executed_activities : [];
-    if (actStripEl) {
-      if (activities.length > 0) {
-        actStripEl.style.display = 'flex';
-        actStripEl.innerHTML = activities.map(act => `
-          <span class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 10px; padding: 2px 7px;">
-            ⚡ ${escapeHtml(act)}
-          </span>
-        `).join('');
-      } else {
-        actStripEl.style.display = 'none';
+    // [JV-09] Non-Blocking requestAnimationFrame Post-Speech DOM Update Batching
+    // Defers visual badge, chat history, and context chip DOM mutations until after SpeechSynthesis audio starts
+    const scheduleVisualDomCommit = window.requestAnimationFrame || ((fn) => setTimeout(fn, 0));
+    scheduleVisualDomCommit(() => {
+      const activities = Array.isArray(data.executed_activities) ? data.executed_activities : [];
+      if (actStripEl) {
+        if (activities.length > 0) {
+          actStripEl.style.display = 'flex';
+          actStripEl.innerHTML = activities.map(act => `
+            <span class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 10px; padding: 2px 7px;">
+              ⚡ ${escapeHtml(act)}
+            </span>
+          `).join('');
+        } else {
+          actStripEl.style.display = 'none';
+        }
       }
-    }
 
-    // Mirror into Zero-Token Fleet Chat history so conversation is preserved visually
-    if (typeof FleetNavigator !== 'undefined') {
-      if (!Array.isArray(FleetNavigator.omnibarChatTurns)) {
-        FleetNavigator.omnibarChatTurns = [];
+      if (typeof FleetNavigator !== 'undefined') {
+        if (!Array.isArray(FleetNavigator.omnibarChatTurns)) {
+          FleetNavigator.omnibarChatTurns = [];
+        }
+        if (FleetNavigator.omnibarChatTurns.length >= 40) {
+          FleetNavigator.omnibarChatTurns.shift();
+        }
+        FleetNavigator.omnibarChatTurns.push({
+          userQuery: `🎙️ ${data.selected_transcript || spoken}`,
+          data: data
+        });
+        if (typeof renderAgFleetZeroChat === 'function') {
+          renderAgFleetZeroChat();
+        }
       }
-      if (FleetNavigator.omnibarChatTurns.length >= 40) {
-        FleetNavigator.omnibarChatTurns.shift();
-      }
-      FleetNavigator.omnibarChatTurns.push({
-        userQuery: `🎙️ ${data.selected_transcript || spoken}`,
-        data: data
-      });
-      if (typeof renderAgFleetZeroChat === 'function') {
-        renderAgFleetZeroChat();
-      }
-    }
 
-    // Execute linked live UI & agent activities asynchronously in parallel while TTS is already speaking
-    if (typeof data.active_action_item !== 'undefined') {
-      renderVoiceFocusedActionItem(data.active_action_item);
-    }
-    if (typeof renderDynamicVoiceContextChips === 'function') {
-      renderDynamicVoiceContextChips(data.context_chips || []);
-    }
-    const burstBar = document.getElementById('voiceAcousticBurstFallbackBar');
-    if (burstBar) burstBar.style.display = 'none';
-    const floatToast = document.getElementById('voiceGlobalFloatingToast');
-    const floatText = document.getElementById('voiceGlobalFloatingText');
-    if (floatToast && floatToast.style.display !== 'none' && floatText) {
-      floatText.textContent = `🔊 ${activeSpokenReply}`;
-    }
+      if (typeof data.active_action_item !== 'undefined') {
+        renderVoiceFocusedActionItem(data.active_action_item);
+      }
+      if (typeof renderDynamicVoiceContextChips === 'function') {
+        renderDynamicVoiceContextChips(data.context_chips || []);
+      }
+      const burstBar = document.getElementById('voiceAcousticBurstFallbackBar');
+      if (burstBar) burstBar.style.display = 'none';
+      const floatToast = document.getElementById('voiceGlobalFloatingToast');
+      const floatText = document.getElementById('voiceGlobalFloatingText');
+      if (floatToast && floatToast.style.display !== 'none' && floatText) {
+        floatText.textContent = `🔊 ${activeSpokenReply}`;
+      }
+    });
     Promise.resolve().then(async () => {
       await executeVoiceUiActions(data.ui_actions || []);
       if (typeof fetchLogs === 'function') fetchLogs();
       refreshVoiceActionItemsClientCache();
     });
   } catch (e) {
+    if (e && e.name === 'AbortError') return;
     console.error('Voice converse error:', e);
     if (!preSpokenFastPath) {
       const errFallbackSpeech = `I heard ${spoken}. Connecting to your local Fleet server now.`;
@@ -4500,19 +4534,36 @@ function renderDynamicVoiceContextChips(chips) {
 }
 
 function renderJarvisLiveSpectrumCanvas(freqBuf, pitchHz, snrDb) {
-  // UX Improvement #2: Live 60fps 16-Bar WebAudio Spectrum & Biometric Pitch Lock Visualizer
+  // UX Improvement #2 + [JV-06B]: Live 16-Bar WebAudio Spectrum with Offscreen Skip & 32-Bit Signature Diffing
   const canvas = document.getElementById('voiceLiveSpectrumCanvas');
-  if (!canvas || typeof canvas.getContext !== 'function') return;
-  const ctx2d = canvas.getContext('2d');
-  if (!ctx2d) return;
+  if (!canvas || !canvas.offsetParent || typeof canvas.getContext !== 'function') return;
   const w = canvas.width || 168;
   const h = canvas.height || 22;
-  ctx2d.clearRect(0, 0, w, h);
-
   const numBars = 16;
-  const barW = Math.floor((w - (numBars - 1) * 2) / numBars);
   const isOwnerVoice = pitchHz >= 65 && pitchHz <= 195 && snrDb >= 11;
   const isChildOrHigh = pitchHz > 205 && snrDb >= 11;
+  const colorCode = isOwnerVoice ? 3 : (isChildOrHigh ? 2 : (snrDb >= 9 ? 1 : 0));
+
+  // Compute fast 32-bit FNV-style signature of the 16 bar heights + colorCode to skip identical redraws
+  let sig = 2166136261 ^ colorCode;
+  for (let b = 0; b < numBars; b++) {
+    const binIdx = Math.min((freqBuf ? freqBuf.length - 1 : 0), 2 + b * 4);
+    const val = freqBuf ? (freqBuf[binIdx] || 0) : 0;
+    const barH = Math.max(3, Math.round((val / 255) * (h - 4)));
+    sig = Math.imul(sig ^ barH, 16777619);
+  }
+  if (window.AFCCVoice && window.AFCCVoice._lastSpectrumSig === sig) {
+    return;
+  }
+  if (window.AFCCVoice) {
+    window.AFCCVoice._lastSpectrumSig = sig;
+  }
+
+  const ctx2d = canvas.getContext('2d');
+  if (!ctx2d) return;
+  ctx2d.clearRect(0, 0, w, h);
+
+  const barW = Math.floor((w - (numBars - 1) * 2) / numBars);
   const fillStyle = isOwnerVoice
     ? '#10b981'
     : (isChildOrHigh ? '#f43f5e' : (snrDb >= 9 ? '#f59e0b' : 'rgba(56, 189, 248, 0.35)'));
