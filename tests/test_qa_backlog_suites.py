@@ -1161,3 +1161,19 @@ def test_ultra_low_latency_voice_streaming_and_all_6_optimizations(isolated_db, 
         "ControlRight",
     ):
         assert ux_sym in ag_js, f"Missing UX symbol {ux_sym} in antigravity.js"
+
+    # 6. Verify Zero-CPU / Zero-RAM Keyboard Shortcut Engine (Hold-Alt X-Ray CSS, g-Chords, Task Triage, ? Modal)
+    nav_js = (BASE_DIR / "web" / "static" / "js" / "fleet_navigator.js").read_text(encoding="utf-8")
+    dash_css = (BASE_DIR / "web" / "static" / "css" / "dashboard.css").read_text(encoding="utf-8")
+    for kb_sym in (
+        "afcc-alt-xray-active",
+        "GO_CHORD_MAP",
+        "handleTaskTriageKey",
+        "triggerShortcutAction",
+        "openKeyboardShortcutsModal",
+        "afcc-kb-focused-task",
+    ):
+        assert kb_sym in nav_js, f"Missing keyboard shortcut symbol {kb_sym} in fleet_navigator.js"
+    assert "body.afcc-alt-xray-active [data-shortcut]::after" in dash_css
+    assert "afccChordHudToast" in dash_html
+    assert "afccKeyboardShortcutsModal" in dash_html

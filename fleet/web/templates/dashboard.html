@@ -74,12 +74,15 @@
             <span>🚀</span>
             <span id="headerUpdateBadgeText">Update Available</span>
           </div>
-          <button class="btn" id="btnGlobalVoiceLive" onclick="toggleVoiceCopilotPanel(true)" title="Bi-Directional Audio Conversation with AFCC — Speak to control tasks, health, email virus scan, PC optimizer, and backlog" style="padding: 7px 11px; font-size: 12px; border-color: rgba(168, 85, 247, 0.5); color: #d8b4fe; background: rgba(168, 85, 247, 0.16); display: inline-flex; align-items: center; gap: 5px;">
+          <button class="btn" id="btnGlobalVoiceLive" data-shortcut="Alt+V" onclick="toggleVoiceCopilotPanel(true)" title="Bi-Directional Audio Conversation with AFCC (Alt+V or Hold Right-Ctrl) — Speak to control tasks, health, email virus scan, PC optimizer, and backlog" style="padding: 7px 11px; font-size: 12px; border-color: rgba(168, 85, 247, 0.5); color: #d8b4fe; background: rgba(168, 85, 247, 0.16); display: inline-flex; align-items: center; gap: 5px;">
             <span id="globalVoiceMicIcon">🎙️</span>
             <span id="globalVoiceBtnText">Voice Live</span>
           </button>
-          <button class="btn" id="btnGlobalHeaderRightDock" onclick="toggleAntigravityRightDock()" title="Show / Hide Antigravity Live &amp; $0.00 Fleet Chat in the Right Side Panel" style="padding: 7px 11px; font-size: 12px; border-color: rgba(16, 185, 129, 0.45); color: var(--accent-green); background: rgba(16, 185, 129, 0.18);">
+          <button class="btn" id="btnGlobalHeaderRightDock" data-shortcut="Alt+D" onclick="toggleAntigravityRightDock()" title="Show / Hide Antigravity Live &amp; $0.00 Fleet Chat in the Right Side Panel (Alt+D)" style="padding: 7px 11px; font-size: 12px; border-color: rgba(16, 185, 129, 0.45); color: var(--accent-green); background: rgba(16, 185, 129, 0.18);">
             ◨ Hide Right Chat
+          </button>
+          <button class="btn" id="btnHeaderKeyboardShortcuts" data-shortcut="?" onclick="openKeyboardShortcutsModal()" title="Keyboard Shortcuts Cheat-Sheet &amp; X-Ray Guide (Press ? or Hold Alt)" style="padding: 7px 10px; font-size: 12px; border-color: rgba(56, 189, 248, 0.4); color: var(--accent-cyan); background: rgba(56, 189, 248, 0.1); font-family: monospace; font-weight: 700;">
+            ⌨️ ?
           </button>
           <button title="Trigger desktop notification alert" class="btn btn-primary" onclick="triggerNotification()" style="padding: 7px 12px; font-size: 12px;">
             🔔 Alert
@@ -139,12 +142,12 @@
       <!-- Tier 2: Bounded Pinned Command Deck Bar (Capped width, zero duplicate tabs, +N overflow pill) -->
       <div class="wcc-command-deck-bar" id="wccCommandDeckBar">
         <div class="nav-tabs" id="dynamicNavTabs">
-          <button title="⚡ Overview & Tasks" class="nav-tab active" id="tabBtnOverview" onclick="switchTab('overview')">⚡ Overview</button>
-          <button title="🌿 Health & Wellness" class="nav-tab" id="tabBtnHealth" onclick="switchTab('health')">🌿 Health & Wellness</button>
-          <button title="⌚ Tri-Device &amp; Hardware Connections (Connection Agents Group)" class="nav-tab" id="tabBtnTriDevice" onclick="switchTab('tri_device')">⌚ Connections</button>
-          <button title="🤖 Antigravity Live" class="nav-tab" id="tabBtnAntigravity" onclick="switchTab('antigravity')">🤖 Antigravity Live</button>
-          <button title="📋 Feature Backlog" class="nav-tab" id="tabBtnBacklog" onclick="switchTab('backlog')">📋 Feature Backlog</button>
-          <button title="🚀 PC Optimizer" class="nav-tab" id="tabBtnOptimizer" onclick="switchTab('optimizer')">🚀 PC Optimizer</button>
+          <button title="⚡ Overview &amp; Tasks (Alt+1 or g then o)" data-shortcut="Alt+1" class="nav-tab active" id="tabBtnOverview" onclick="switchTab('overview')">⚡ Overview</button>
+          <button title="🌿 Health &amp; Wellness (Alt+2 or g then h)" data-shortcut="Alt+2" class="nav-tab" id="tabBtnHealth" onclick="switchTab('health')">🌿 Health &amp; Wellness</button>
+          <button title="⌚ Tri-Device &amp; Hardware Connections (Alt+3 or g then t)" data-shortcut="Alt+3" class="nav-tab" id="tabBtnTriDevice" onclick="switchTab('tri_device')">⌚ Connections</button>
+          <button title="🤖 Antigravity Live (Alt+4 or g then a)" data-shortcut="Alt+4" class="nav-tab" id="tabBtnAntigravity" onclick="switchTab('antigravity')">🤖 Antigravity Live</button>
+          <button title="📋 Feature Backlog (Alt+5 or g then b)" data-shortcut="Alt+5" class="nav-tab" id="tabBtnBacklog" onclick="switchTab('backlog')">📋 Feature Backlog</button>
+          <button title="🚀 PC Optimizer (Alt+6 or g then p)" data-shortcut="Alt+6" class="nav-tab" id="tabBtnOptimizer" onclick="switchTab('optimizer')">🚀 PC Optimizer</button>
           <div id="pinnedAgentsNavTray" class="pinned-agents-tray" style="display: inline-flex; align-items: center; gap: 4px;"></div>
           <button class="nav-tab fleet-hub-trigger-btn" id="btnFleetNavigator" onclick="toggleFleetNavigator(true)" title="Fleet Hub: Browse & Filter 100+ Agents by Domain">
             🤖 Fleet Hub <span id="fleetAgentCountNavBadge" class="badge" style="background: rgba(0, 242, 254, 0.18); color: var(--accent-cyan); font-size: 10px; padding: 1px 6px; margin-left: 4px;">6</span>
@@ -2422,7 +2425,7 @@
           <div id="voiceGlobalFloatingToast" style="display: none; position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 9999; padding: 8px 16px; border-radius: 999px; background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 27, 75, 0.96)); border: 1px solid rgba(168, 85, 247, 0.65); box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55); align-items: center; gap: 10px; font-size: 11.5px; color: #f8fafc;">
             <span id="voiceGlobalFloatingOrb" style="font-size: 14px;">🎙️</span>
             <span id="voiceGlobalFloatingText" style="font-weight: 600; max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">J.A.R.V.I.S. Listening (Alt+V)...</span>
-            <button type="button" class="btn" onclick="toggleVoiceMicListening(false); document.getElementById('voiceGlobalFloatingToast').style.display='none';" style="font-size: 9.5px; padding: 2px 7px;">✕</button>
+            <button type="button" class="btn" onclick="toggleVoiceMicListening(false); document.getElementById('voiceGlobalFloatingToast').style.display='none';" style="font-size: 9.5px; padding: 2px 7px;" title="Close dialog">✕</button>
           </div>
 
           <!-- Token Exhaustion / Health Alert Banner -->
@@ -4314,6 +4317,33 @@
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- Zero-Bloat Two-Key Chord HUD Pill (g -> o/h/t/b/p/e/a/s) -->
+  <div id="afccChordHudToast" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9998; padding: 8px 16px; border-radius: 999px; background: rgba(9, 13, 22, 0.96); border: 1px solid #38bdf8; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.65); color: #f8fafc; font-size: 11.5px; font-family: monospace; align-items: center; gap: 10px;">
+    <strong style="color: #38bdf8;">🧭 Go to (g + key):</strong>
+    <span><kbd style="background:#1e293b;padding:1px 5px;border-radius:4px;color:#34d399;">O</kbd>verview</span>
+    <span><kbd style="background:#1e293b;padding:1px 5px;border-radius:4px;color:#34d399;">H</kbd>ealth</span>
+    <span><kbd style="background:#1e293b;padding:1px 5px;border-radius:4px;color:#34d399;">T</kbd>ri-Device</span>
+    <span><kbd style="background:#1e293b;padding:1px 5px;border-radius:4px;color:#34d399;">B</kbd>acklog</span>
+    <span><kbd style="background:#1e293b;padding:1px 5px;border-radius:4px;color:#34d399;">P</kbd>C Opt</span>
+    <span><kbd style="background:#1e293b;padding:1px 5px;border-radius:4px;color:#34d399;">E</kbd>mail</span>
+    <span><kbd style="background:#1e293b;padding:1px 5px;border-radius:4px;color:#34d399;">A</kbd>ntigravity</span>
+    <span><kbd style="background:#1e293b;padding:1px 5px;border-radius:4px;color:#34d399;">S</kbd>ettings</span>
+  </div>
+
+  <!-- Lazy-Rendered Interactive Keyboard Shortcuts Cheat-Sheet Modal (Press ? or Click ⌨️ ?) -->
+  <div id="afccKeyboardShortcutsModal" class="modal-overlay" style="display: none; z-index: 9995;" onclick="if(event.target===this)closeKeyboardShortcutsModal()">
+    <div class="modal-content" style="max-width: 760px; width: 94%; max-height: 86vh; overflow-y: auto; padding: 20px 24px; background: #0b1120; border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 14px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div>
+          <h3 style="margin: 0; font-size: 16px; color: #f8fafc;">⌨️ AFCC Keyboard Shortcuts &amp; Zero-Latency Reflexes</h3>
+          <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">Click any shortcut row below to execute it immediately • Hold <strong>Alt</strong> for 350ms to see live X-Ray Keycap badges on screen.</div>
+        </div>
+        <button type="button" class="btn" onclick="closeKeyboardShortcutsModal()" style="font-size: 12px; padding: 4px 10px;">✕ Esc</button>
+      </div>
+      <div id="afccKeyboardShortcutsModalBody"></div>
     </div>
   </div>
 

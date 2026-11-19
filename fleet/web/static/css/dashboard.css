@@ -2211,4 +2211,34 @@
       }
     }
 
+    /* Zero-DOM-Allocation Hold-Alt X-Ray Keycap Badges & Keyboard Task Triage Focus Ring */
+    [data-shortcut] {
+      position: relative;
+    }
+    body.afcc-alt-xray-active [data-shortcut]::after {
+      content: attr(data-shortcut);
+      position: absolute;
+      top: -7px;
+      right: -5px;
+      z-index: 950;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: #0f172a;
+      color: #38bdf8;
+      border: 1px solid #38bdf8;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 9.5px;
+      font-weight: 800;
+      line-height: 1.25;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.65);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .task-item.afcc-kb-focused-task {
+      outline: 2px solid #38bdf8 !important;
+      background: rgba(56, 189, 248, 0.12) !important;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
+    }
+
+
 
