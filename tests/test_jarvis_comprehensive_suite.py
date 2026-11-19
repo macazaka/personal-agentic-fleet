@@ -840,3 +840,120 @@ def test_jarvis_backlog_registration_and_voiceprint_mem_cache(isolated_db, monke
     assert diag_payload["status"] == "ok"
     assert diag_payload["voiceprint_mem_cache"]["has_cached_profile"] is True
 
+
+# =========================================================================
+# 13. 10 Critical AFCC UI & Polar-Obsidian Design System Enhancements ([UI-01]..[UI-10])
+# =========================================================================
+def test_afcc_10_critical_ui_and_design_system_enhancements_ui01_to_ui10(isolated_db, monkeypatch):
+    import fleet.server as srv
+    from fleet.core.db.backlog import AFCC_UI_DESIGN_SYSTEM_BACKLOG_ITEMS
+    from fleet.core.omnibar_dispatcher import (
+        reset_voice_topic_stack,
+        transcribe_and_dispatch_voice_command,
+    )
+
+    monkeypatch.setattr(srv, "db", isolated_db)
+    reset_voice_topic_stack()
+
+    # 13A. Verify 10 Critical AFCC UI & Design System Backlog Items ([UI-01]..[UI-10])
+    assert len(AFCC_UI_DESIGN_SYSTEM_BACKLOG_ITEMS) == 10
+    for idx, item in enumerate(AFCC_UI_DESIGN_SYSTEM_BACKLOG_ITEMS, start=1):
+        assert f"[UI-{idx:02d}]" in item["title"]
+        assert "Critical UI" in item["title"]
+        assert item["priority"] == "P1"
+
+    isolated_db.sync_ux_roadmap_backlog()
+    db_backlog_titles = {b["title"] for b in isolated_db.list_feature_backlog_items()}
+    for item in AFCC_UI_DESIGN_SYSTEM_BACKLOG_ITEMS:
+        assert item["title"] in db_backlog_titles, f"UI backlog item missing from DB: {item['title']}"
+
+    # 13B. Verify W3C DTCG 3-Tier Tokens, 6 Themes, Density, Zen, Eco Glass & Offscreen Isolation in dashboard.css
+    dash_css = (BASE_DIR / "web" / "static" / "css" / "dashboard.css").read_text(encoding="utf-8")
+    for css_token in (
+        "--ds-space-1: 4px;",
+        "--ds-space-8: 32px;",
+        "--ds-font-sans:",
+        "--ds-font-mono:",
+        "--ds-surface-0:",
+        "--ds-surface-3:",
+        "--ds-focus-ring:",
+        "--ds-right-dock-width:",
+        'body[data-theme="light"]',
+        'body[data-theme="cyberpunk"]',
+        'body[data-density="compact"]',
+        'body[data-density="comfortable"]',
+        'body[data-density="spacious"]',
+        'body[data-zen="true"]',
+        'body[data-gpu-eco="true"]',
+        "content-visibility: auto;",
+        "font-variant-numeric: tabular-nums;",
+        ".afcc-contextual-subheader",
+        ".ag-right-dock-resize-sash",
+        ".afcc-toast-stack",
+        ".ds-skeleton",
+        ".afcc-telemetry-cluster",
+        ".afcc-mobile-bottom-nav",
+    ):
+        assert css_token in dash_css, f"Missing Design System CSS token/rule in dashboard.css: {css_token}"
+
+    # 13C. Verify HTML Landmarks, Sub-Header, Resize Sash, Design System Modal, Toast Stack & Mobile Dock in dashboard.html
+    dash_html = (BASE_DIR / "web" / "templates" / "dashboard.html").read_text(encoding="utf-8")
+    for html_sym in (
+        'data-density="comfortable"',
+        "afcc-skip-link",
+        "afccZenExitFloatingPill",
+        "afcc-telemetry-cluster",
+        "btnHeaderDesignSystem",
+        "afccContextualSubheader",
+        "afccBreadcrumbDomain",
+        "afccBreadcrumbActiveAgent",
+        "btnDensity_compact",
+        "btnSubheaderEcoGlass",
+        "btnSubheaderZenFocus",
+        "agRightDockResizeHandle",
+        "afccDesignSystemModal",
+        "afccGlobalToastStack",
+        "afccMobileBottomNav",
+    ):
+        assert html_sym in dash_html, f"Missing UI enhancement element in dashboard.html: {html_sym}"
+
+    # 13D. Verify AFCCUI Engine & 6-Theme / 4-Layout Support in fleet_navigator.js
+    nav_js = (BASE_DIR / "web" / "static" / "js" / "fleet_navigator.js").read_text(encoding="utf-8")
+    for js_sym in (
+        "const VALID_WORKSPACE_LAYOUTS = ['sidebar_dock', 'command_deck', 'launchpad_grid', 'zen_focus'];",
+        "const VALID_WORKSPACE_THEMES = ['dark', 'midnight', 'aurora', 'solar', 'light', 'cyberpunk'];",
+        "const VALID_DENSITY_MODES = ['compact', 'comfortable', 'spacious'];",
+        "window.AFCCUI = AFCCUI;",
+        "setDensityMode(",
+        "toggleZenFocusMode(",
+        "toggleGpuEcoMode(",
+        "setRightDockWidth(",
+        "bindRightDockResizeSash(",
+        "updateContextualSubheader(",
+        "openDesignSystemModal(",
+        "showToast(",
+    ):
+        assert js_sym in nav_js, f"Missing AFCCUI symbol in fleet_navigator.js: {js_sym}"
+
+    # 13E. Verify Voice & Omnibar Dispatch for 6 Themes, 3 Density Modes, Zen Mode & Design System Studio
+    res_light = transcribe_and_dispatch_voice_command("Switch theme to light", db=isolated_db)
+    assert res_light["status"] == "ok"
+    assert any(a.get("type") == "set_theme" and a.get("theme") == "light" for a in res_light["ui_actions"])
+
+    res_cyber = transcribe_and_dispatch_voice_command("Switch theme to cyberpunk", db=isolated_db)
+    assert res_cyber["status"] == "ok"
+    assert any(a.get("type") == "set_theme" and a.get("theme") == "cyberpunk" for a in res_cyber["ui_actions"])
+
+    res_density = transcribe_and_dispatch_voice_command("Switch density to compact", db=isolated_db)
+    assert res_density["status"] == "ok"
+    assert any(a.get("type") == "set_density" and a.get("density") == "compact" for a in res_density["ui_actions"])
+
+    res_zen = transcribe_and_dispatch_voice_command("Turn on zen focus mode", db=isolated_db)
+    assert res_zen["status"] == "ok"
+    assert any(a.get("type") == "set_zen_mode" and a.get("enabled") is True for a in res_zen["ui_actions"])
+
+    res_ds = transcribe_and_dispatch_voice_command("Open design system", db=isolated_db)
+    assert res_ds["status"] == "ok"
+    assert any(a.get("type") == "open_design_system" for a in res_ds["ui_actions"])
+
+

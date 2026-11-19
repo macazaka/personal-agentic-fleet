@@ -4033,6 +4033,18 @@ async function executeVoiceUiActions(uiActions) {
         try {
           localStorage.setItem('afcc_voice_whisper_mode', window.AFCCVoice.whisperMode ? 'true' : 'false');
         } catch (e) {}
+      } else if (act.type === 'set_density' && act.density) {
+        if (typeof window.AFCCUI !== 'undefined' && typeof window.AFCCUI.setDensityMode === 'function') {
+          window.AFCCUI.setDensityMode(act.density, true);
+        }
+      } else if (act.type === 'set_zen_mode') {
+        if (typeof window.AFCCUI !== 'undefined' && typeof window.AFCCUI.toggleZenFocusMode === 'function') {
+          window.AFCCUI.toggleZenFocusMode(Boolean(act.enabled));
+        }
+      } else if (act.type === 'open_design_system') {
+        if (typeof window.AFCCUI !== 'undefined' && typeof window.AFCCUI.openDesignSystemModal === 'function') {
+          window.AFCCUI.openDesignSystemModal();
+        }
       }
     } catch (err) {
       console.warn('Voice UI action error:', err);

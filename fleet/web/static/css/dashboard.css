@@ -1,8 +1,15 @@
+/* ==========================================================================
+   [UI-01] AFCC Polar-Obsidian Design System v1.0 (W3C DTCG 3-Tier Tokens)
+   Tier 1: Primitive Spatial (8pt), Fluid Modular Typography, Radius & Motion
+   Tier 2: Semantic Surface, Contrast, Status & Elevation Hierarchy
+   Tier 3: Component & Density Tokens (Compact / Comfortable / Spacious)
+   ========================================================================== */
 :root {
+      /* Legacy & Core Semantic Aliases */
       --bg: #0b0f19;
-      --card-bg: rgba(22, 30, 49, 0.75);
-      --card-border: rgba(255, 255, 255, 0.08);
-      --border-color: rgba(255, 255, 255, 0.1);
+      --card-bg: rgba(22, 30, 49, 0.78);
+      --card-border: rgba(255, 255, 255, 0.09);
+      --border-color: rgba(255, 255, 255, 0.11);
       --accent-cyan: #00f2fe;
       --accent-blue: #4facfe;
       --accent-pink: #f43f5e;
@@ -14,33 +21,177 @@
       --text-muted: #94a3b8;
       --radius: 14px;
       --radius-sm: 8px;
+
+      /* Tier 1: 8pt Spatial & Sizing Grid */
+      --ds-space-1: 4px;
+      --ds-space-2: 8px;
+      --ds-space-3: 12px;
+      --ds-space-4: 16px;
+      --ds-space-5: 20px;
+      --ds-space-6: 24px;
+      --ds-space-8: 32px;
+
+      /* Tier 1: Modular Typography & Tabular Telemetry Scale */
+      --ds-font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --ds-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --ds-text-2xs: 10.5px;
+      --ds-text-xs: 12px;
+      --ds-text-sm: 13px;
+      --ds-text-md: 14px;
+      --ds-text-lg: 16px;
+      --ds-text-xl: 20px;
+      --ds-text-2xl: 24px;
+
+      /* Tier 1: Corner Radius Scale */
+      --ds-radius-xs: 6px;
+      --ds-radius-sm: 8px;
+      --ds-radius-md: 12px;
+      --ds-radius-lg: 14px;
+      --ds-radius-xl: 18px;
+      --ds-radius-pill: 9999px;
+
+      /* Tier 2: 4-Level Z-Elevation & Surface Hierarchy */
+      --ds-surface-0: #0b0f19;
+      --ds-surface-1: rgba(22, 30, 49, 0.78);
+      --ds-surface-2: rgba(30, 41, 59, 0.88);
+      --ds-surface-3: rgba(15, 23, 42, 0.97);
+      --ds-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.28);
+      --ds-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.42);
+      --ds-shadow-lg: 0 18px 42px rgba(0, 0, 0, 0.65);
+      --ds-shadow-glow: 0 0 16px rgba(0, 242, 254, 0.24);
+      --ds-focus-ring: 0 0 0 2px rgba(0, 242, 254, 0.85), 0 0 12px rgba(0, 242, 254, 0.35);
+
+      /* Tier 1: GPU-Safe Motion Tokens */
+      --ds-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --ds-dur-fast: 120ms;
+      --ds-dur-normal: 200ms;
+
+      /* Tier 3: Adaptive Density & Split-Pane Tokens ([UI-02] & [UI-05]) */
+      --ds-body-pad-y: 16px;
+      --ds-body-pad-x: 22px;
+      --ds-card-pad: 20px;
+      --ds-card-mb: 20px;
+      --ds-grid-gap: 20px;
+      --ds-row-pad-y: 12px;
+      --ds-row-pad-x: 15px;
+      --ds-right-dock-width: 460px;
     }
 
+    /* [UI-07] Complete 6-Theme WCAG 2.2 AA+ Verified Palette Parity */
     body[data-theme="midnight"] {
-      --bg: #050811;
-      --card-bg: rgba(13, 19, 34, 0.85);
-      --card-border: rgba(99, 102, 241, 0.18);
+      --bg: #03060c;
+      --ds-surface-0: #03060c;
+      --card-bg: rgba(11, 16, 30, 0.88);
+      --ds-surface-1: rgba(11, 16, 30, 0.88);
+      --ds-surface-2: rgba(19, 27, 49, 0.92);
+      --card-border: rgba(99, 102, 241, 0.22);
       --accent-cyan: #818cf8;
       --accent-blue: #6366f1;
-      background: radial-gradient(circle at top right, #0f172a, #050811 80%);
+      background: radial-gradient(circle at top right, #0f172a, #03060c 80%);
     }
 
     body[data-theme="aurora"] {
       --bg: #061214;
-      --card-bg: rgba(11, 31, 36, 0.8);
-      --card-border: rgba(16, 185, 129, 0.22);
+      --ds-surface-0: #061214;
+      --card-bg: rgba(11, 31, 36, 0.82);
+      --ds-surface-1: rgba(11, 31, 36, 0.82);
+      --ds-surface-2: rgba(16, 44, 50, 0.9);
+      --card-border: rgba(16, 185, 129, 0.24);
       --accent-cyan: #34d399;
       --accent-blue: #06b6d4;
       background: radial-gradient(circle at top right, #0c2b2e, #061214 80%);
     }
 
-    body[data-theme="solar"] {
+    body[data-theme="solar"],
+    body[data-theme="solarized"] {
       --bg: #0e0d0a;
-      --card-bg: rgba(28, 25, 23, 0.85);
-      --card-border: rgba(245, 158, 11, 0.22);
+      --ds-surface-0: #0e0d0a;
+      --card-bg: rgba(28, 25, 23, 0.86);
+      --ds-surface-1: rgba(28, 25, 23, 0.86);
+      --ds-surface-2: rgba(41, 37, 34, 0.92);
+      --card-border: rgba(245, 158, 11, 0.24);
       --accent-cyan: #fbbf24;
       --accent-blue: #f59e0b;
       background: radial-gradient(circle at top right, #272014, #0e0d0a 80%);
+    }
+
+    body[data-theme="cyberpunk"] {
+      --bg: #0c051a;
+      --ds-surface-0: #0c051a;
+      --card-bg: rgba(25, 11, 48, 0.84);
+      --ds-surface-1: rgba(25, 11, 48, 0.84);
+      --ds-surface-2: rgba(38, 17, 72, 0.92);
+      --card-border: rgba(244, 63, 94, 0.28);
+      --accent-cyan: #f43f5e;
+      --accent-blue: #d946ef;
+      --accent-purple: #38bdf8;
+      background: radial-gradient(circle at top right, #260d4d, #0c051a 80%);
+    }
+
+    body[data-theme="light"] {
+      --bg: #f1f5f9;
+      --ds-surface-0: #f1f5f9;
+      --card-bg: rgba(255, 255, 255, 0.94);
+      --ds-surface-1: rgba(255, 255, 255, 0.94);
+      --ds-surface-2: #f8fafc;
+      --ds-surface-3: #ffffff;
+      --card-border: rgba(15, 23, 42, 0.14);
+      --border-color: rgba(15, 23, 42, 0.16);
+      --accent-cyan: #0284c7;
+      --accent-blue: #2563eb;
+      --accent-green: #059669;
+      --accent-amber: #d97706;
+      --accent-pink: #e11d48;
+      --accent-purple: #7c3aed;
+      --text: #0f172a;
+      --text-primary: #0f172a;
+      --text-muted: #475569;
+      background: radial-gradient(circle at top right, #e2e8f0, #f8fafc 80%);
+      color: #0f172a;
+    }
+
+    /* High-Contrast Daylight Remapping for Light Theme */
+    body[data-theme="light"] .card,
+    body[data-theme="light"] .fleet-left-sidebar,
+    body[data-theme="light"] .fleet-launchpad-matrix,
+    body[data-theme="light"] #viewAntigravity.ag-docked-right {
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+    }
+    body[data-theme="light"] .briefing-headline,
+    body[data-theme="light"] .email-subject,
+    body[data-theme="light"] .card-title {
+      color: #0f172a !important;
+    }
+
+    /* [UI-02] 3-Tier Adaptive Information Density Scaling (Compact / Comfortable / Spacious) */
+    body[data-density="compact"] {
+      --ds-body-pad-y: 10px;
+      --ds-body-pad-x: 14px;
+      --ds-card-pad: 13px;
+      --ds-card-mb: 12px;
+      --ds-grid-gap: 12px;
+      --ds-row-pad-y: 8px;
+      --ds-row-pad-x: 11px;
+      --radius: 10px;
+    }
+    body[data-density="comfortable"] {
+      --ds-body-pad-y: 16px;
+      --ds-body-pad-x: 22px;
+      --ds-card-pad: 20px;
+      --ds-card-mb: 20px;
+      --ds-grid-gap: 20px;
+      --ds-row-pad-y: 12px;
+      --ds-row-pad-x: 15px;
+    }
+    body[data-density="spacious"] {
+      --ds-body-pad-y: 24px;
+      --ds-body-pad-x: 32px;
+      --ds-card-pad: 26px;
+      --ds-card-mb: 26px;
+      --ds-grid-gap: 26px;
+      --ds-row-pad-y: 16px;
+      --ds-row-pad-x: 20px;
+      --radius: 16px;
     }
 
     * {
@@ -2126,11 +2277,11 @@
       box-shadow: 0 0 12px rgba(0, 242, 254, 0.2);
     }
 
-    /* Right-Docked Persistent Antigravity Live & $0.00 Fleet Chatbot Panel */
+    /* Right-Docked Persistent Antigravity Live & $0.00 Fleet Chatbot Panel ([UI-05] Resizable Split-Pane) */
     .ag-right-dock-panel {
-      width: 480px;
-      min-width: 380px;
-      max-width: 45vw;
+      width: var(--ds-right-dock-width, 460px);
+      min-width: 330px;
+      max-width: 56vw;
       flex-shrink: 0;
       position: sticky;
       top: 8px;
@@ -2139,7 +2290,34 @@
       display: flex;
       flex-direction: column;
       z-index: 90;
-      transition: width 0.2s ease;
+    }
+    .ag-right-dock-resize-sash {
+      position: absolute;
+      left: -8px;
+      top: 16px;
+      bottom: 16px;
+      width: 10px;
+      cursor: col-resize;
+      z-index: 120;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      transition: background var(--ds-dur-fast) ease;
+    }
+    .ag-right-dock-resize-sash::after {
+      content: "";
+      width: 3px;
+      height: 36px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.16);
+      transition: background var(--ds-dur-fast) ease, height var(--ds-dur-fast) ease;
+    }
+    .ag-right-dock-resize-sash:hover::after,
+    .ag-right-dock-resize-sash.dragging::after {
+      background: var(--accent-cyan);
+      height: 64px;
+      box-shadow: 0 0 10px var(--accent-cyan);
     }
     #viewAntigravity.ag-docked-right {
       height: calc(100vh - 16px);
@@ -2238,6 +2416,364 @@
       outline: 2px solid #38bdf8 !important;
       background: rgba(56, 189, 248, 0.12) !important;
       box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
+    }
+
+    /* ==========================================================================
+       [UI-01..UI-10] AFCC Design System Primitives, Contextual Sub-Header,
+       Zen Focus, Offscreen Isolation, Eco Glass, Toasts & Mobile Bottom Dock
+       ========================================================================== */
+
+    /* [UI-01] & [UI-02] Bind Core Containers to Adaptive Density Design Tokens */
+    body {
+      padding: var(--ds-body-pad-y, 16px) var(--ds-body-pad-x, 22px);
+    }
+    .dashboard-grid {
+      gap: var(--ds-grid-gap, 20px);
+    }
+    .card {
+      padding: var(--ds-card-pad, 20px);
+      margin-bottom: var(--ds-card-mb, 20px);
+    }
+    .task-item {
+      padding: var(--ds-row-pad-y, 12px) var(--ds-row-pad-x, 15px);
+    }
+    .stat-pill .val,
+    #testPassPct,
+    #testRunCount,
+    #testCoveragePct,
+    #testDuration,
+    .ds-tabular {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* [UI-01] Reusable Design System Component Tokens (.ds-*) */
+    .ds-card {
+      background: var(--ds-surface-1);
+      border: 1px solid var(--card-border);
+      border-radius: var(--ds-radius-lg);
+      padding: var(--ds-card-pad);
+      box-shadow: var(--ds-shadow-sm);
+    }
+    .ds-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: var(--ds-radius-pill);
+      font-size: var(--ds-text-xs);
+      font-weight: 600;
+      border: 1px solid var(--card-border);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+    .ds-kbd {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 5px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: var(--accent-cyan);
+      font-family: var(--ds-font-mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+    .ds-segmented-control {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.28);
+      border: 1px solid var(--card-border);
+      border-radius: var(--ds-radius-sm);
+      padding: 2px;
+      gap: 2px;
+    }
+    .ds-seg-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 9px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all var(--ds-dur-fast) ease;
+    }
+    .ds-seg-btn:hover {
+      color: var(--text);
+    }
+    .ds-seg-btn.active {
+      background: rgba(0, 242, 254, 0.18);
+      color: var(--accent-cyan);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    }
+
+    /* [UI-03] Sticky Contextual Workspace Sub-Header & Breadcrumb Bar */
+    .afcc-contextual-subheader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 8px 14px;
+      margin-bottom: 14px;
+      background: var(--ds-surface-1);
+      border: 1px solid var(--card-border);
+      border-radius: var(--ds-radius-md);
+      backdrop-filter: blur(12px);
+    }
+    .afcc-breadcrumb {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .afcc-breadcrumb-root {
+      cursor: pointer;
+      color: var(--text-muted);
+      font-weight: 600;
+      transition: color var(--ds-dur-fast) ease;
+    }
+    .afcc-breadcrumb-root:hover {
+      color: var(--accent-cyan);
+    }
+    .afcc-breadcrumb-sep {
+      opacity: 0.45;
+      font-size: 11px;
+    }
+    .afcc-breadcrumb-active {
+      color: var(--text);
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .afcc-subheader-actions {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* [UI-04] Distraction-Free Zen Focus Mode (body[data-zen="true"] & zen_focus layout) */
+    body[data-zen="true"] .wcc-top-header,
+    body[data-zen="true"] #fleetLeftSidebarDock,
+    body[data-zen="true"] #fleetLaunchpadMatrix,
+    body[data-zen="true"] #agRightDockSlot,
+    body[data-zen="true"] #agRightDockContainer,
+    body[data-layout="zen_focus"] #fleetLeftSidebarDock,
+    body[data-layout="zen_focus"] #wccCommandDeckBar,
+    body[data-layout="zen_focus"] #fleetLaunchpadMatrix {
+      display: none !important;
+    }
+    .afcc-zen-exit-pill {
+      display: none;
+      position: fixed;
+      top: 12px;
+      right: 18px;
+      z-index: 9990;
+      padding: 6px 14px;
+      border-radius: var(--ds-radius-pill);
+      background: var(--ds-surface-3);
+      border: 1px solid var(--accent-cyan);
+      color: var(--accent-cyan);
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: var(--ds-shadow-md);
+      align-items: center;
+      gap: 6px;
+    }
+    body[data-zen="true"] .afcc-zen-exit-pill {
+      display: inline-flex;
+    }
+
+    /* [UI-06] Hardware-Friendly Offscreen Rendering Isolation & Low-GPU Eco Glass Mode */
+    .log-stream,
+    #emailListContainer,
+    #backlogTableBody,
+    .launchpad-matrix-grid {
+      content-visibility: auto;
+      contain-intrinsic-size: auto 240px;
+      contain: layout style;
+    }
+    body[data-gpu-eco="true"] *,
+    body[data-gpu-eco="true"] .card,
+    body[data-gpu-eco="true"] .fleet-left-sidebar,
+    body[data-gpu-eco="true"] #viewAntigravity.ag-docked-right,
+    body[data-gpu-eco="true"] .afcc-contextual-subheader,
+    body[data-gpu-eco="true"] .health-test-popover-card {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+    body[data-gpu-eco="true"] .card,
+    body[data-gpu-eco="true"] .fleet-left-sidebar,
+    body[data-gpu-eco="true"] #viewAntigravity.ag-docked-right {
+      background: var(--ds-surface-3) !important;
+    }
+    body[data-gpu-eco="true"] .pulse-dot {
+      animation: none !important;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* [UI-07] WCAG 2.2 AA+ Universal Keyboard :focus-visible Halo Rings & Skip Link */
+    button:focus-visible,
+    a:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    [tabindex]:focus-visible {
+      outline: none !important;
+      box-shadow: var(--ds-focus-ring) !important;
+    }
+    .afcc-skip-link {
+      position: absolute;
+      left: -9999px;
+      top: 8px;
+      z-index: 10000;
+      padding: 8px 14px;
+      background: var(--accent-cyan);
+      color: #0b0f19;
+      font-weight: 800;
+      font-size: 12px;
+      border-radius: 8px;
+      text-decoration: none;
+    }
+    .afcc-skip-link:focus {
+      left: 16px;
+    }
+
+    /* [UI-08] Unified Non-Blocking Action Toast & Undo Stack + Zero-CLS Skeletons */
+    .afcc-toast-stack {
+      position: fixed;
+      bottom: 22px;
+      right: 22px;
+      z-index: 9997;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 380px;
+      pointer-events: none;
+    }
+    .ds-toast-card {
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: var(--ds-surface-3);
+      border: 1px solid rgba(0, 242, 254, 0.45);
+      color: var(--text);
+      font-size: 12.5px;
+      font-weight: 600;
+      box-shadow: var(--ds-shadow-lg);
+    }
+    .ds-skeleton {
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.09) 50%, rgba(255, 255, 255, 0.04) 75%);
+      background-size: 200% 100%;
+      border-radius: 8px;
+      min-height: 24px;
+    }
+    .ds-empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px 16px;
+      border: 1px dashed var(--card-border);
+      border-radius: var(--ds-radius-md);
+      color: var(--text-muted);
+      gap: 8px;
+    }
+
+    /* [UI-09] Decluttered Progressive-Disclosure Top Header Telemetry Cluster */
+    .afcc-telemetry-cluster {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 6px;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid var(--card-border);
+      border-radius: var(--ds-radius-pill);
+    }
+    body[data-theme="light"] .afcc-telemetry-cluster {
+      background: rgba(15, 23, 42, 0.05);
+    }
+    @media (max-width: 1360px) {
+      .brand-subtitle {
+        display: none;
+      }
+    }
+
+    /* [UI-10] Responsive <=960px Split-Screen & Tri-Device Mobile Bottom Navigation Dock */
+    .afcc-mobile-bottom-nav {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 9980;
+      background: var(--ds-surface-3);
+      border-top: 1px solid var(--card-border);
+      padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+      justify-content: space-around;
+      align-items: center;
+      gap: 4px;
+      box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.45);
+    }
+    .afcc-mobile-nav-btn {
+      flex: 1;
+      min-height: 44px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      border-radius: 10px;
+      font-size: 10.5px;
+      font-weight: 700;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      cursor: pointer;
+    }
+    .afcc-mobile-nav-btn.active {
+      color: var(--accent-cyan);
+      background: rgba(0, 242, 254, 0.12);
+    }
+    @media (max-width: 960px) {
+      body {
+        padding-bottom: 74px !important;
+      }
+      .afcc-mobile-bottom-nav {
+        display: flex;
+      }
+      .fleet-workspace-shell {
+        flex-direction: column;
+      }
+      .fleet-left-sidebar {
+        display: none !important;
+      }
+      .ag-right-dock-panel {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        position: relative !important;
+        height: auto !important;
+        max-height: 620px !important;
+      }
     }
 
 

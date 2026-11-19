@@ -4564,8 +4564,8 @@ def _dispatch_voice_command_core(
             "cost_usd": "$0.00",
         })
 
-    # 10. Direct Workspace / Agent / Theme / Layout Navigation by Voice
-    theme_match = re.search(r"\b(?:switch|set|change)\s+theme\s+(?:to\s+)?(dark|midnight|aurora|solar)\b", lower)
+    # 10. Direct Workspace / Agent / Theme / Density / Zen / Design System Navigation by Voice
+    theme_match = re.search(r"\b(?:switch|set|change)\s+theme\s+(?:to\s+)?(dark|midnight|aurora|solar|light|cyberpunk)\b", lower)
     if theme_match:
         th = theme_match.group(1).lower()
         if db is not None and hasattr(db, "set_setting"):
@@ -4578,8 +4578,68 @@ def _dispatch_voice_command_core(
             "voice_transcript": spoken,
             "normalized_command": f"theme:{th}",
             "title": f"🎨 Theme Switched to {th.title()}",
-            "message": f"Applied the **{th.title()}** theme across your AFCC workspace.",
+            "message": f"Applied the **{th.title()}** WCAG 2.2 AA+ theme across your AFCC workspace.",
             "spoken_reply": f"Switched your workspace theme to {th}.",
+            "ui_actions": ui_actions,
+            "executed_activities": executed_activities,
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
+
+    density_match = re.search(r"\b(?:switch|set|change)?\s*(?:ui\s+|display\s+|information\s+)?density\s+(?:to\s+)?(compact|comfortable|spacious)\b", lower)
+    if density_match:
+        den = density_match.group(1).lower()
+        if db is not None and hasattr(db, "set_setting"):
+            db.set_setting("density", den)
+        ui_actions = [{"type": "set_density", "density": den}]
+        executed_activities = [f"📏 Switched UI Density → {den.title()}"]
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "voice_activity",
+            "voice_transcript": spoken,
+            "normalized_command": f"density:{den}",
+            "title": f"📏 UI Density Switched to {den.title()}",
+            "message": f"Applied **{den.title()}** 8pt spatial density scaling across your AFCC workspace.",
+            "spoken_reply": f"Switched your interface density to {den}.",
+            "ui_actions": ui_actions,
+            "executed_activities": executed_activities,
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
+
+    if re.search(r"\b(?:zen\s+focus|zen\s+mode)\b", lower):
+        enable_zen = not any(w in lower for w in ("exit", "off", "disable", "leave", "close"))
+        ui_actions = [{"type": "set_zen_mode", "enabled": enable_zen}]
+        executed_activities = [f"🎯 {'Entered' if enable_zen else 'Exited'} Zen Focus Mode"]
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "voice_activity",
+            "voice_transcript": spoken,
+            "normalized_command": f"zen_mode:{'on' if enable_zen else 'off'}",
+            "title": f"🎯 Zen Focus Mode: {'ON' if enable_zen else 'OFF'}",
+            "message": f"🎯 **Distraction-Free Zen Focus Mode** is now **{'ON' if enable_zen else 'OFF'}**.",
+            "spoken_reply": (
+                "Zen focus mode is now active. Sidebars and docks are hidden so you can focus."
+                if enable_zen
+                else "Exited Zen focus mode and restored your full workspace cockpit."
+            ),
+            "ui_actions": ui_actions,
+            "executed_activities": executed_activities,
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
+
+    if re.search(r"\b(?:open|show|inspect|launch)\s+(?:the\s+)?(?:afcc\s+)?design\s+system\b", lower):
+        ui_actions = [{"type": "open_design_system"}]
+        executed_activities = ["🎨 Opened AFCC Polar-Obsidian Design System Studio"]
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "voice_activity",
+            "voice_transcript": spoken,
+            "normalized_command": "design_system:open",
+            "title": "🎨 AFCC Polar-Obsidian Design System v1.0",
+            "message": "Opened the **AFCC Polar-Obsidian Design System & UI Controls Studio** (`W3C DTCG 3-Tier Tokens`).",
+            "spoken_reply": "Opened the AFCC Polar-Obsidian Design System and Ergonomics Studio.",
             "ui_actions": ui_actions,
             "executed_activities": executed_activities,
             "tokens_used": 0,

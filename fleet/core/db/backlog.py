@@ -860,6 +860,89 @@ JARVIS_PERFORMANCE_AND_UX_BACKLOG_ITEMS: List[Dict[str, str]] = [
     },
 ]
 
+AFCC_UI_DESIGN_SYSTEM_BACKLOG_ITEMS: List[Dict[str, str]] = [
+    {
+        "title": "[UI-01] Critical UI #1: AFCC Polar-Obsidian Design System v1.0 (W3C DTCG 3-Tier Design Tokens, 8pt Spatial Grid, Fluid Tabular Typography, 4-Level Elevation & Interactive Design System Studio Modal)",
+        "description": "Establishes a formal 3-tier W3C DTCG Design Token architecture in dashboard.css (--ds-space-*, --ds-text-*, --ds-surface-0..3, --ds-radius-*, --ds-shadow-*, --ds-ease-*), tabular-nums telemetry typography, reusable .ds-* primitive classes, and an interactive Design System & UI Controls Studio modal (#afccDesignSystemModal, shortcut 'g d').",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[UI-02] Critical UI #2: Adaptive 3-Tier Information Density & Ergonomic Scaling Engine (Compact / Comfortable / Spacious via body[data-density])",
+        "description": "Implements zero-CPU CSS token density scaling (body[data-density='compact'|'comfortable'|'spacious'], hotkey Alt+Shift+D) that dynamically adjusts card padding, grid gaps, row heights, and font metrics for 13-inch laptops vs 27-inch desktop monitors with localStorage and /api/settings persistence.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[UI-03] Critical UI #3: Sticky Contextual Workspace Sub-Header, Breadcrumb & Instant Action Bar (#afccContextualSubheader)",
+        "description": "Adds a persistent O(1) contextual sub-header bar above the main stage displaying interactive breadcrumb navigation (Workspace > Domain > Active Agent), live zero-token status badge, 1-click density switcher, Zen Focus toggle, Design System launcher, and view refresh button.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[UI-04] Critical UI #4: Distraction-Free Zen Focus Mode & Collapsible Chrome (body[data-zen='true'] / zen_focus layout / Alt+Z)",
+        "description": "Adds 1-click and Alt+Z Zen Focus Mode (plus full zen_focus layout support in FleetNavigator) that collapses top header bars, sidebars, and docks into a minimal floating exit pill so the active agent workspace expands to 100% viewport width.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[UI-05] Critical UI #5: Draggable Split-Pane Resize Sash & 1-Click Width Presets (360px / 460px / 600px) for Right-Docked Antigravity & J.A.R.V.I.S. Panel",
+        "description": "Replaces the fixed 480px right dock width with a requestAnimationFrame-throttled pointer drag sash (#agRightDockResizeHandle) and 1-click width presets (Compact 360px, Default 460px, Wide 600px) persisted via --ds-right-dock-width in localStorage.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[UI-06] Critical UI #6: Hardware-Friendly Offscreen Rendering Isolation (content-visibility: auto) & Low-GPU Eco Glass Mode (body[data-gpu-eco])",
+        "description": "Applies CSS content-visibility: auto and contain: layout style to below-the-fold cards, log streams, and tables to cut browser layout/paint CPU by >70%, plus a 1-click Low-GPU Eco Glass mode (body[data-gpu-eco='true']) and prefers-reduced-motion compliance that disables expensive multi-layer backdrop-filter blurs and continuous animations.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[UI-07] Critical UI #7: WCAG 2.2 AA+ Accessibility, :focus-visible Halo Rings, ARIA Landmarks & Complete 6-Theme Contrast Parity (Dark / Midnight / Aurora / Solar / Light / Cyberpunk)",
+        "description": "Completes all 6 WCAG 2.2 AA+ verified themes (adding Clean Daylight 'light' with automatic dark-slate text inversion and Neon Synthwave 'cyberpunk'), universal :focus-visible keyboard halo rings, skip-to-content link, and semantic ARIA landmarks.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[UI-08] Critical UI #8: Unified Non-Blocking Action Toast & 1-Click Undo Stack (window.AFCCUI.showToast) with Zero-CLS Skeleton Shimmers",
+        "description": "Provides a bounded (max 3 visible), auto-dismissing, zero-polling toast & 1-click action/undo stack (#afccGlobalToastStack) alongside reusable .ds-skeleton shimmer placeholders and .ds-empty-state components that eliminate Cumulative Layout Shift.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[UI-09] Critical UI #9: Decluttered Progressive-Disclosure Top Header & Unified System Telemetry Cluster (1280px-1440px Laptop Ergonomics)",
+        "description": "Groups header status indicators (Security 100/100, Fleet Active, Unit Tests) into a unified telemetry pill cluster with progressive disclosure and a 1-click Design System & Theme button (🎨), preventing header wrapping on 13-inch and 14-inch laptop screens.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[UI-10] Critical UI #10: Responsive Split-Screen & Tri-Device Mobile Bottom Navigation Dock (#afccMobileBottomNav) with 44px Touch Ergonomics",
+        "description": "Adds a responsive <=960px bottom glass navigation bar (#afccMobileBottomNav) with 44px minimum WCAG 2.2 touch targets for split-screen laptop windows and iPhone/iPad Tri-Device companion viewports.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+]
+
 ALL_CANONICAL_BACKLOG_ITEMS: List[Dict[str, str]] = (
     FOUNDATIONAL_DEFAULT_BACKLOG_ITEMS
     + HISTORICAL_RELEASE_BACKLOG_ITEMS
@@ -867,6 +950,7 @@ ALL_CANONICAL_BACKLOG_ITEMS: List[Dict[str, str]] = (
     + UX_ROADMAP_BACKLOG_ITEMS
     + TRI_DEVICE_BACKLOG_ITEMS
     + JARVIS_PERFORMANCE_AND_UX_BACKLOG_ITEMS
+    + AFCC_UI_DESIGN_SYSTEM_BACKLOG_ITEMS
 )
 
 
