@@ -25,3 +25,9 @@
 - Zero external socket calls during unit tests (enforced by `conftest.py` socket guard).
 - Never commit raw API keys or PII: use `get_secure_secret()` or the Windows DPAPI vault (`fleet/core/crypto_vault.py`).
 - Maintain a 100/100 score on the Fleet 12-layer security scanner (`python -m fleet.tools.preflight_gate`).
+
+## 4. Laptop Hardware & Resource Constraints (Mandatory Ultra-Low CPU & Bounded RAM)
+- **Zero-Polling First**: Prefer event-driven listeners, CSS attribute selectors (`[data-shortcut]::after`), and on-demand/lazy hydration over `setInterval` or continuous `requestAnimationFrame` loops.
+- **Hidden-Tab & Idle Suspension**: Any periodic background timer or WebAudio `AudioContext` MUST check `document.hidden` and auto-suspend (`audioCtx.suspend()`, `clearInterval`) when idle or when its panel/dock is closed (`0.0%` idle CPU).
+- **Silence & No-Op Short-Circuiting**: Real-time DSP, canvas visualizers, and telemetry loops MUST short-circuit on silence/unchanged state before running FFTs, autocorrelation, or DOM/canvas repaints, and deduplicate DOM text writes.
+- **Zero-GC Hot Loops & Strictly Bounded Ring Buffers**: Pre-allocate reusable `Float32Array` / scratch buffers at module scope instead of allocating inside timers, and cap all client/server history arrays (e.g., `MAX_UTTERANCE_FRAMES = 80`, chat turns `<= 40`) to prevent RAM growth over long sessions.
