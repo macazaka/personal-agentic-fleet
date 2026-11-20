@@ -638,21 +638,27 @@ def test_scalable_layouts_and_themes_for_100_agents(mock_fleet_env):
     assert res["status"] == "ok"
     assert res["settings"]["layout"] == "sidebar_dock"
     assert res["settings"]["theme"] == "dark"
-    assert len(res["available_layouts"]) == 3
+    assert res["settings"]["density"] == "comfortable"
+    assert res["settings"]["gpu_eco"] == "false"
+    assert len(res["available_layouts"]) == 4
     layout_ids = [item["id"] for item in res["available_layouts"]]
-    assert layout_ids == ["sidebar_dock", "command_deck", "launchpad_grid"]
-    assert len(res["available_themes"]) == 4
+    assert layout_ids == ["sidebar_dock", "command_deck", "launchpad_grid", "zen_focus"]
+    assert len(res["available_themes"]) == 6
+    theme_ids = [item["id"] for item in res["available_themes"]]
+    assert theme_ids == ["dark", "midnight", "aurora", "solar", "light", "cyberpunk"]
 
-    # Persist each of the 3 layouts
-    for layout_mode in ("sidebar_dock", "command_deck", "launchpad_grid"):
+    # Persist each of the 4 layouts plus density & gpu_eco
+    for layout_mode in ("sidebar_dock", "command_deck", "launchpad_grid", "zen_focus"):
         handler.reset_mock()
-        update_fleet_settings(handler, {"layout": layout_mode, "theme": "aurora"})
+        update_fleet_settings(handler, {"layout": layout_mode, "theme": "aurora", "density": "compact", "gpu_eco": "true"})
         upd_res = handler._send_json.call_args[0][0]
         assert upd_res["status"] == "success"
         assert upd_res["settings"]["layout"] == layout_mode
         assert upd_res["settings"]["theme"] == "aurora"
+        assert upd_res["settings"]["density"] == "compact"
+        assert upd_res["settings"]["gpu_eco"] == "true"
 
-    # Verify HTML & bundled JS include all 3 layout containers and non-duplicating nav logic
+    # Verify HTML & bundled JS include all 4 layout containers and non-duplicating nav logic
     standalone_html = get_dashboard_html(standalone=True)
     for required_token in (
         'data-layout="sidebar_dock"',
@@ -664,6 +670,9 @@ def test_scalable_layouts_and_themes_for_100_agents(mock_fleet_env):
         "layoutCard_sidebar_dock",
         "layoutCard_command_deck",
         "layoutCard_launchpad_grid",
+        "layoutCard_zen_focus",
+        "genSettingDensity",
+        "genSettingGpuEco",
         "STATIC_CORE_TAB_IDS",
         "setWorkspaceLayout",
     ):

@@ -33,7 +33,7 @@
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
               <h1 style="margin: 0; white-space: nowrap;">Personal Agentic Fleet</h1>
               <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.35); font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;" onclick="openReleaseNotesModal()" title="View Release Notes & Versions">
-                <span id="fleetHeaderVerBadge">v2.20.0</span>
+                <span id="fleetHeaderVerBadge">v2.21.0</span>
                 <span style="font-size: 9px; opacity: 0.8;">📜</span>
               </span>
             </div>
@@ -77,6 +77,49 @@
               <div class="pulse-dot"></div>
               <span>Fleet Active</span>
             </div>
+            <div class="header-health-test-wrapper" id="headerHealthTestWrapper">
+              <div class="status-badge" id="healthTestHeaderBadge" onclick="toggleHealthTestPopover(event)" style="cursor: pointer; border-color: rgba(16, 185, 129, 0.45); background: rgba(16, 185, 129, 0.12); padding: 4px 10px;" title="Automated Unit Test Suite &amp; Code Coverage (Hover for details &amp; Run Tests Now)">
+                <span>🧪</span>
+                <span id="healthTestHeaderBadgeText">Health: 99.68%</span>
+              </div>
+              <div class="health-test-hover-popover" id="healthTestHoverPopover">
+                <div class="health-test-popover-card">
+                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span style="font-size: 16px;">🧪</span>
+                      <div style="font-size: 13px; font-weight: 700; color: var(--text);">Automated Unit Test Suite &amp; Code Coverage</div>
+                    </div>
+                    <span id="testStatusBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 11px; padding: 2px 8px;">PASS</span>
+                  </div>
+                  <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 10px;">
+                    <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 8px 10px;">
+                      <div style="font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;">Pass Rate</div>
+                      <div id="testPassPct" style="font-size: 16px; font-weight: 800; color: var(--accent-cyan); margin-top: 2px;">100.0%</div>
+                    </div>
+                    <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 8px 10px;">
+                      <div style="font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;">Tests Run</div>
+                      <div id="testRunCount" style="font-size: 16px; font-weight: 800; color: var(--accent-blue); margin-top: 2px;">501 / 501</div>
+                    </div>
+                    <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 8px 10px;">
+                      <div style="font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;">Code Coverage</div>
+                      <div id="testCoveragePct" style="font-size: 16px; font-weight: 800; color: var(--accent-green); margin-top: 2px;">99.68%</div>
+                    </div>
+                    <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 8px 10px;">
+                      <div style="font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;">Execution Time</div>
+                      <div id="testDuration" style="font-size: 16px; font-weight: 800; color: var(--accent-purple); margin-top: 2px;">14.2s</div>
+                    </div>
+                  </div>
+                  <div style="font-size: 11px; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; padding: 7px 9px; border-radius: 7px; background: rgba(15, 23, 42, 0.55); border: 1px solid rgba(255, 255, 255, 0.04);">
+                    <div style="display: flex; justify-content: space-between; gap: 8px;">
+                      <span>⚡ Frequency: <strong style="color: var(--accent-cyan);">Every 30 Mins (Auto)</strong></span>
+                      <span>💰 Cost: <strong style="color: var(--accent-green);">$0.00 (0 Tokens)</strong></span>
+                    </div>
+                    <div>🕒 Last Run: <strong id="testLastRun" style="color: var(--text);">-</strong></div>
+                  </div>
+                  <button title="Run full automated test suite and calculate code coverage" class="btn btn-primary" id="btnRunTests" style="width: 100%; justify-content: center; font-size: 12px; padding: 7px 14px;" onclick="runTestsNow()">⚡ Run Tests Now</button>
+                </div>
+              </div>
+            </div>
           </div>
           <div id="headerUpdateBadge" class="status-badge" style="display: none; cursor: pointer; border-color: rgba(0, 242, 254, 0.4); background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan);" onclick="openSettingsModalToUpdates()" title="New version available on GitHub">
             <span>🚀</span>
@@ -98,50 +141,7 @@
           <button title="Trigger desktop notification alert" class="btn btn-primary" onclick="triggerNotification()" style="padding: 7px 12px; font-size: 12px;">
             🔔 Alert
           </button>
-          <div class="header-health-test-wrapper" id="headerHealthTestWrapper">
-            <div class="status-badge" id="healthTestHeaderBadge" onclick="toggleHealthTestPopover(event)" style="cursor: pointer; border-color: rgba(16, 185, 129, 0.45); background: rgba(16, 185, 129, 0.12);" title="Automated Unit Test Suite &amp; Code Coverage (Hover for details &amp; Run Tests Now)">
-              <span>🧪</span>
-              <span id="healthTestHeaderBadgeText">Health: 99.68%</span>
-            </div>
-            <div class="health-test-hover-popover" id="healthTestHoverPopover">
-              <div class="health-test-popover-card">
-                <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px;">
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 16px;">🧪</span>
-                    <div style="font-size: 13px; font-weight: 700; color: var(--text);">Automated Unit Test Suite &amp; Code Coverage</div>
-                  </div>
-                  <span id="testStatusBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 11px; padding: 2px 8px;">PASS</span>
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 10px;">
-                  <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 8px 10px;">
-                    <div style="font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;">Pass Rate</div>
-                    <div id="testPassPct" style="font-size: 16px; font-weight: 800; color: var(--accent-cyan); margin-top: 2px;">100.0%</div>
-                  </div>
-                  <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 8px 10px;">
-                    <div style="font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;">Tests Run</div>
-                    <div id="testRunCount" style="font-size: 16px; font-weight: 800; color: var(--accent-blue); margin-top: 2px;">501 / 501</div>
-                  </div>
-                  <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 8px 10px;">
-                    <div style="font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;">Code Coverage</div>
-                    <div id="testCoveragePct" style="font-size: 16px; font-weight: 800; color: var(--accent-green); margin-top: 2px;">99.68%</div>
-                  </div>
-                  <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 8px 10px;">
-                    <div style="font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;">Execution Time</div>
-                    <div id="testDuration" style="font-size: 16px; font-weight: 800; color: var(--accent-purple); margin-top: 2px;">14.2s</div>
-                  </div>
-                </div>
-                <div style="font-size: 11px; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; padding: 7px 9px; border-radius: 7px; background: rgba(15, 23, 42, 0.55); border: 1px solid rgba(255, 255, 255, 0.04);">
-                  <div style="display: flex; justify-content: space-between; gap: 8px;">
-                    <span>⚡ Frequency: <strong style="color: var(--accent-cyan);">Every 30 Mins (Auto)</strong></span>
-                    <span>💰 Cost: <strong style="color: var(--accent-green);">$0.00 (0 Tokens)</strong></span>
-                  </div>
-                  <div>🕒 Last Run: <strong id="testLastRun" style="color: var(--text);">-</strong></div>
-                </div>
-                <button title="Run full automated test suite and calculate code coverage" class="btn btn-primary" id="btnRunTests" style="width: 100%; justify-content: center; font-size: 12px; padding: 7px 14px;" onclick="runTestsNow()">⚡ Run Tests Now</button>
-              </div>
-            </div>
-          </div>
-          <button class="btn btn-icon settings-trigger-btn" id="btnFleetSettings" onclick="openSettingsModal()" title="Fleet Settings, Themes & 3 Scalable Layouts" aria-label="Settings" style="background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 7px 11px; cursor: pointer; font-size: 15px; color: var(--text-primary); transition: all 0.2s ease;">
+          <button class="btn btn-icon settings-trigger-btn" id="btnFleetSettings" onclick="openSettingsModal()" title="Fleet Settings, 6 Themes & 4 Scalable Layouts" aria-label="Settings" style="background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 7px 11px; cursor: pointer; font-size: 15px; color: var(--text-primary); transition: all 0.2s ease;">
             ⚙️
           </button>
           <button class="btn btn-icon create-agent-trigger-btn" id="btnCreateAgent" onclick="openCreateAgentModal()" title="Create New Agent (Workflow Wizard & Skill)" aria-label="Create New Agent" style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: var(--radius-sm); padding: 7px 11px; cursor: pointer; font-size: 15px; color: var(--accent-cyan); font-weight: 700; transition: all 0.2s ease;">
@@ -2676,7 +2676,7 @@
           <span style="font-size: 22px;">📜</span>
           <div>
             <strong style="font-size: 16px; color: var(--text);">Fleet Release Notes & Version History</strong>
-            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.20.0</div>
+            <div style="font-size: 11.5px; color: var(--accent-cyan); font-weight: 600;" id="currentReleaseVerLabel">Current Release: v2.21.0</div>
           </div>
         </div>
         <button title="Close Release Notes modal" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="closeReleaseNotesModal()">✕</button>
@@ -3109,7 +3109,7 @@
             <div class="form-group" style="padding: 14px; background: rgba(0, 242, 254, 0.04); border: 1px solid rgba(0, 242, 254, 0.22); border-radius: 10px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
                 <label style="font-size: 13.5px; font-weight: 700; color: var(--accent-cyan);">📐 Workspace Layout Mode (Engineered for 100+ Agents)</label>
-                <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); font-size: 10.5px;">3 Scalable Architectures</span>
+                <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); font-size: 10.5px;">4 Scalable Architectures</span>
               </div>
               <p style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 10px 0;">
                 Choose how the Agentic Fleet Control Center (AFCC) organizes navigation across 100+ concurrent agents without ever overflowing the top header bar.
@@ -3121,7 +3121,7 @@
                 <option value="zen_focus">4. Zen Focus Mode (Distraction-Free Single-Agent Canvas)</option>
               </select>
 
-              <!-- Interactive 3-Layout Visual Selector Cards -->
+              <!-- Interactive 4-Layout Visual Selector Cards -->
               <div id="layoutPreviewCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px;">
                 <div class="layout-option-card active" id="layoutCard_sidebar_dock" onclick="onSelectLayoutInSettings('sidebar_dock')">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
@@ -3152,6 +3152,16 @@
                     Persistent collapsible multi-column agent matrix at the top of the workspace with domain tabs &amp; live status chips.
                   </div>
                 </div>
+
+                <div class="layout-option-card" id="layoutCard_zen_focus" onclick="onSelectLayoutInSettings('zen_focus')">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <strong style="font-size: 12.5px; color: var(--text);">🎯 4. Zen Focus Mode</strong>
+                    <span class="badge" style="background: rgba(244, 114, 182, 0.15); color: #f472b6; font-size: 9.5px;">Deep Work</span>
+                  </div>
+                  <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+                    Distraction-free full-canvas mode hiding top headers and sidebars with a floating exit pill (Alt+Z).
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -3178,6 +3188,25 @@
                 <option value="light">Clean Daylight (WCAG AAA Light)</option>
                 <option value="cyberpunk">Neon Synthwave Cyberpunk</option>
               </select>
+            </div>
+
+            <div class="form-group" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+              <div>
+                <label style="font-size: 13px; font-weight: 600; color: var(--text);">📏 Adaptive Information Density</label>
+                <p style="font-size: 11.5px; color: var(--text-muted); margin: 2px 0 6px 0;">Scales padding &amp; typography for laptop vs desktop screens (Alt+Shift+D).</p>
+                <select id="genSettingDensity" class="form-control" onchange="if(window.AFCCUI){AFCCUI.setDensityMode(this.value, true);}">
+                  <option value="compact">Compact (13" Laptop High-Density)</option>
+                  <option value="comfortable">Comfortable (Balanced 8pt Grid)</option>
+                  <option value="spacious">Spacious (27" Desktop Monitor)</option>
+                </select>
+              </div>
+              <div style="display: flex; flex-direction: column; justify-content: center;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text);">
+                  <input type="checkbox" id="genSettingGpuEco" onchange="if(window.AFCCUI){AFCCUI.toggleGpuEcoMode(this.checked);}">
+                  ⚡ Low-GPU Eco Glass Mode
+                </label>
+                <p style="font-size: 11.5px; color: var(--text-muted); margin: 4px 0 0 24px;">Disables multi-layer backdrop blurs &amp; idle CSS animations for 0% GPU.</p>
+              </div>
             </div>
 
             <!-- Voice Profile, Speed (1.5x - 3x) & Wake Word ("Mahadev") Settings Section -->

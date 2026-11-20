@@ -1,6 +1,6 @@
 # ⚡ Personal Agentic Fleet
 
-[![Release: v2.20.0](https://img.shields.io/badge/Release-v2.20.0-00b4d8.svg?logo=github&logoColor=white)](CHANGELOG.md)
+[![Release: v2.21.0](https://img.shields.io/badge/Release-v2.21.0-00b4d8.svg?logo=github&logoColor=white)](CHANGELOG.md)
 [![GitHub Wiki: 17 Deep-Dive Guides](https://img.shields.io/badge/GitHub%20Wiki-17%20Deep--Dive%20Guides-0284c7.svg?logo=github&logoColor=white)](https://github.com/macazaka/personal-agentic-fleet/wiki)
 [![Python: 3.10 | 3.11 | 3.12 | 3.13 | 3.14](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-10b981.svg?logo=apache&logoColor=white)](https://opensource.org/licenses/Apache-2.0)
@@ -119,36 +119,36 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
 ## 🌟 Key Highlights
 
 <!-- AUTO-LATEST-RELEASE:START -->
-### 🆕 What's New in Release `v2.20.0` (Auto-Synchronized)
+### 🆕 What's New in Release `v2.21.0` (Auto-Synchronized)
 
 > **Live Telemetry**: `11` Core Agents • `206` REST API Endpoints • `36` Microkernel Engines • `22` Automation Tools • `560` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
 
 ### Added
-- **J.A.R.V.I.S. 10 Critical Performance Enhancements (`[JV-01]`..`[JV-10]`)**:
-  - **`[JV-01]` O(1) Frozenset Token Intersection & Pre-Compiled Multi-Word Regex (`_score_voice_candidate`)**: Replaced 66 dynamic per-candidate regex compilations with an O(1) frozenset intersection (`_JARVIS_SINGLE_WORD_SET`) and single compiled multi-word regex (`_JARVIS_MULTI_WORD_RE`), reducing N-best ASR candidate scoring CPU time by `>96%`.
-  - **`[JV-02]` 60s Memoized Wake-Word Setting & Compiled Regex Cache (`_get_compiled_wake_word_regex`)**: Eliminates redundant SQLite `get_setting('voice_wake_word')` reads and regex compilations on every voice turn.
-  - **`[JV-03]` Pre-Compiled Speech Sanitizer Pipeline & Bounded 32-Entry LRU Memo Cache (`_clean_for_speech` & `split_speech_into_stream_clauses`)**: Pre-compiles URL, account-masking, currency, Markdown, emoji, whitespace, and clause-boundary regexes at import time with a 32-entry memo cache (`_CLEAN_SPEECH_CACHE`).
-  - **`[JV-04]` Turn-Scoped SQLite Task List Coalescing (`_get_turn_cached_tasks` & `_invalidate_turn_task_cache`)**: Coalesces `db.list_tasks(limit=200)` across multi-question voice turns within a `1.2s` window with immediate write-through invalidation on task mutations.
-  - **`[JV-05]` O(1) Canonical Voice Intent Fast-Path Hash Table (`_FAST_INTENT_CANONICAL_ALIASES`)**: Resolves top 30+ high-frequency J.A.R.V.I.S. phrases in O(1) before regex cascade evaluation.
-  - **`[JV-06B]` Zero-Allocation Spectrum Canvas 32-Bit FNV Signature Diffing & Offscreen Skip (`renderJarvisLiveSpectrumCanvas`)**: Skips `<canvas>` 2D repaints when hidden (`!canvas.offsetParent`) or when the 32-bit 16-bar signature (`_lastSpectrumSig`) is unchanged.
-  - **`[JV-07]` In-Memory Decrypted AES-256-GCM Voiceprint & Sandbox History Cache (`_VOICEPRINT_MEM_CACHE`)**: Eliminates repeated AES-256-GCM decryption and JSON parsing on `GET /api/voice/voiceprint` and `POST /api/voice/voiceprint/verify`.
-  - **`[JV-08]` Client-Side Single-Flight Voice Turn Deduplicator & `AbortController` (`_activeVoiceFetchController`)**: Guards against `<150ms` duplicate turn dispatches and aborts superseded in-flight `/api/voice/stream` requests.
-  - **`[JV-09]` Non-Blocking `requestAnimationFrame` Post-Speech DOM Batching**: Defers visual badge, chat history, and context chip DOM mutations until after `SpeechSynthesis` audio starts.
-  - **`[JV-10]` Stale-While-Revalidate (SWR) Non-Blocking Background RSS News Refresh**: Returns cached news/Pune headlines in `0.05ms` within a 60-minute SWR window while refreshing Google News RSS asynchronously on a background daemon thread.
-- **J.A.R.V.I.S. 6 High/Medium/Low Feature Enhancements (`[JV-11]`..`[JV-16]`)**:
-  - **`[JV-11]` Conversational Voice Undo & Correction Reflex (`"Undo that"`, `"Scratch that"`)**: Reverses the last voice-triggered task completion, task creation, title/priority/note edit, or water log via `_LAST_VOICE_MUTATION_JOURNAL`.
-  - **`[JV-12]` Zero-Token Spoken Time, Date, Day & Schedule Context (`"What time is it?"`, `"What day is today?"`)**: Speaks current local time, date, day of week, today's FFD workout, and open action item count in `<1ms` at `$0.00`.
-  - **`[JV-13]` Interactive Voice Queue & Parked Topic Stack Verbal Inspector (`"What is in my voice queue?"`, `"Clear parked topics"`)**: Reads out or clears active and parked conversational topics.
-  - **`[JV-14]` Indian Currency (`Rs` / `₹` / `lakh` / `crore`) Phonetic Normalizer**: Converts `Rs. 40,000` → `40,000 rupees` and `₹35 lakh` → `35 lakh rupees` in `_clean_for_speech`.
-  - **`[JV-15]` Whisper / Late-Night Quiet Voice Mode (`"Whisper mode on"`, `"Whisper mode off"`)**: Softens TTS volume (`0.45`) and cadence (`0.85x`) for quiet environments.
-  - **`[JV-16]` Real-Time Voice Performance & Cache Diagnostics (`GET /api/voice/diagnostics` & `"Voice diagnostics"`)**: Reports live O(1) cache hit/miss counters, LRU sizes, SWR status, and topic stack depth.
-- **Multi-Question Sequential Audio Queue & Human-Like Conversational Topic Stack**:
-  - Decomposes compound multi-question utterances into priority-ordered `voice_queue_items` played sequentially via event-driven `utterance.onend` chaining (`playJarvisSequentialAudioQueue`).
-  - Arbitrates mid-conversation topic switches (`_VOICE_TOPIC_STACK_STATE`), parking unfinished discussions and auto-queuing a conversational resume bridge.
-- **Live News & City RSS Scraper + Automatic Zero-Token → Antigravity Live Fallback**:
-  - Added `_fetch_live_news_and_web_digest` for *"Tell me today's news"* and *"Tell me about latest updates of Pune"*, plus automatic fallback to Antigravity Live (`mode: "antigravity_auto_fallback"`).
-- **Comprehensive 12-Part J.A.R.V.I.S. Unit Test Suite ([`tests/test_jarvis_comprehensive_suite.py`](tests/test_jarvis_comprehensive_suite.py))**:
-  - Covers route parity, stale port `7890` listener eviction, live RSS & offline news, Antigravity fallback, action-item lifecycle, multi-question decomposition, topic-stack interruption/resume, 12-D biometric speaker verification, multilingual localization (`en`, `hi`, `te`, `mr`), all 22 voice macros, hardware CPU/RAM guardrails, and `[JV-01]`..`[JV-16]`.
+- **AFCC Polar-Obsidian Design System v1.0 & 10 Critical UI Enhancements (`[UI-01]`..`[UI-10]`)**:
+  - **`[UI-01]` W3C DTCG 3-Tier Design Token Architecture & Interactive Design System Studio Modal (`#afccDesignSystemModal`, `g d`)**: 8pt spatial grid (`--ds-space-*`), fluid tabular typography (`tabular-nums`), 4 elevation surface tokens (`--ds-surface-0..3`), and reusable `.ds-*` primitives in [`dashboard.css`](fleet/web/static/css/dashboard.css).
+  - **`[UI-02]` Adaptive 3-Tier Information Density Scaling (`body[data-density]`, `Alt+Shift+D`)**: Instant CSS token scaling (`compact`, `comfortable`, `spacious`) with `localStorage`, Settings modal selector (`#genSettingDensity`), and `/api/settings` persistence.
+  - **`[UI-03]` Sticky Contextual Workspace Sub-Header & Breadcrumb Bar (`#afccContextualSubheader`)**: Persistent O(1) breadcrumb bar showing `Workspace > Domain > Active Agent`, density pills, Eco Glass toggle, Zen Focus toggle, Design System button, and manual refresh trigger.
+  - **`[UI-04]` Distraction-Free Zen Focus Mode (`zen_focus` layout / `body[data-zen="true"]` / `Alt+Z`)**: Expands the active agent canvas to 100% viewport width with a minimal floating exit pill (`#afccZenExitFloatingPill`).
+  - **`[UI-05]` Draggable Split-Pane Resize Sash & Width Presets (`360px` / `460px` / `600px`)**: `requestAnimationFrame`-throttled pointer drag handle (`#agRightDockResizeHandle`) persisted via `--ds-right-dock-width`.
+  - **`[UI-06]` Hardware-Friendly Offscreen Isolation (`content-visibility: auto`) & Low-GPU Eco Glass Mode (`body[data-gpu-eco]`)**: Cuts offscreen layout/paint CPU and lets users toggle heavy multi-layer backdrop blurs/animations via UI (`#genSettingGpuEco`), sub-header pill, `/api/settings`, or voice command (*"Enable eco glass mode"*).
+  - **`[UI-07]` WCAG 2.2 AA+ Accessibility & Complete 6-Theme Parity**: Added Clean Daylight (`light`) and Neon Synthwave (`cyberpunk`) themes across Settings API, Settings modal, Design Studio, and Voice dispatch alongside `:focus-visible` halo rings, skip-to-content link, and semantic ARIA landmarks.
+  - **`[UI-08]` Non-Blocking Action Toast & Undo Stack (`AFCCUI.showToast`) + `.ds-skeleton` Shimmers**: Bounded (`<=3`), auto-dismissing toast queue (`#afccGlobalToastStack`) with zero-CLS skeletons.
+  - **`[UI-09]` Unified Top Header Telemetry Cluster (`.afcc-telemetry-cluster`)**: Groups Security (`100/100`), Fleet Active, and Automated Test Suite (`#headerHealthTestWrapper`) into a cohesive pill cluster preventing wrapping on 1280px–1440px laptop screens.
+  - **`[UI-10]` Responsive `<=960px` Bottom Navigation Dock (`#afccMobileBottomNav`)**: 44px WCAG 2.2 touch targets for split-screen and Tri-Device viewports.
+
+### Performance & Architecture
+- **10 Critical AFCC RAM & CPU Optimizations (`[PERF-01]`..`[PERF-10]`) with Zero Feature Loss**:
+  - **`[PERF-01]` Visibility-Aware Single-Flight Frontend Polling & Lazy Hidden-Tab Hydration**: Defers hidden tabs until activated, pauses all polling intervals (`app.js`, `core.js`, `backlog.js`) when `document.hidden`, prevents overlapping fetches via `_afccPollInFlight`, uses tiered `15s`/`60s` cadences, and catches up immediately on `visibilitychange`.
+  - **`[PERF-02]` Zero-Re-Render Payload Signature Diffing (`_afccHasPayloadChanged`)**: Skips unchanged DOM `innerHTML` rebuilds across briefing, tasks, routines, schedules, and activity logs.
+  - **`[PERF-03]` Memoized SQLite Schema Guard, Bounded Memory PRAGMAs & Dead-Thread Connection Pruning**: Eliminates per-query `sqlite_master` scans via `_VERIFIED_SCHEMA_PATHS`, bounds SQLite page cache (`PRAGMA cache_size = -4096`), skips redundant `SELECT 1` probes via O(1) `conn.in_transaction` + generation tracking, and prunes exited worker thread connections.
+  - **`[PERF-04]` Lazy `HTML_PAGE`, Static Asset Caching (`ETag`/`304`) & Conditional `gzip`**: Defers 1.2 MB standalone HTML allocation via PEP 562 `__getattr__`, fixes duplicate `GET /` encode, caches modular HTML by asset mtimes, and serves static assets via a 32-entry cache with `ETag`/`304` and `gzip`.
+  - **`[PERF-05]` Bounded HTTP `ThreadPoolExecutor` (`16` Workers) & `25s` Production SSE Heartbeat**: Replaces unbounded per-request thread spawning and reduces idle SSE keep-alive wakeups by >90%.
+  - **`[PERF-06]` TTL Read-Through Caching with Write-Through Invalidation**: Caches expensive `get_pc_performance_diagnostics()` collectors and `BriefingEngine.generate_daily_briefing()` (bypassed in test environments unless requested) with instant invalidation on mutations.
+  - **`[PERF-07]` Atomic OS Single-Instance Mutex & Exclusive Port Binding**: Enforces Windows `CreateMutexW` / POSIX `flock` (`fleet/app.py`) and `SO_EXCLUSIVEADDRUSE` (`fleet/server.py`) to eliminate duplicate port-`7890` daemon processes.
+  - **`[PERF-08]` Incremental Antigravity Transcript Delta Polling (`since_step`) & Bounded DOM Window**: Adds O(1) `unchanged: True` fast path (`parse_transcript`), caps `_TRANSCRIPT_MEM_CACHE` at 300 steps, and appends incremental DOM deltas up to 80 messages.
+  - **`[PERF-09]` Resource-Aware Daemon Pulse Deferral, Shared DB Instance & Working-Set Trim**: Reuses a single `FleetDatabase`, defers heavy pulses under RAM >= 85% / low battery / wake cooldown (with 3-deferral anti-starvation cap), and periodically runs `gc.collect(1)` + dead-thread pruning + Win32 working-set trim.
+  - **`[PERF-10]` Bounded Caches & Live Process Telemetry (`GET /api/diagnostics/resources`)**: Exposes zero-dependency process RSS MB, active threads, SQLite pool stats, ETag/gzip byte savings, and cache hit/miss ratios.
+- **Verification**: All **560/560** unit tests across `tests/` (including [`tests/test_afcc_ram_cpu_optimizations.py`](tests/test_afcc_ram_cpu_optimizations.py)), `node --check`, `0` Pyright/VS Code diagnostics, and `100/100` 12-layer security audit pass.
 <!-- AUTO-LATEST-RELEASE:END -->
 
 - **🔌 Modular Plug-and-Play Agents**: Every dashboard view is a standalone, self-contained agent package inside `fleet/agents/` with least-privilege capability manifests (`manifest.json`) enforced by `ScopedDatabaseProxy`. See **[Wiki: 7 Built-in Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Built-in-Agents)** and **[Wiki: Customizing Agents](https://github.com/macazaka/personal-agentic-fleet/wiki/Customizing-Agents)**.

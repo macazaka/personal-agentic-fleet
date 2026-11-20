@@ -92,6 +92,18 @@ const FleetNavigator = {
       if (s.theme && VALID_WORKSPACE_THEMES.includes(s.theme)) {
         this.themeMode = s.theme;
       }
+      if (typeof AFCCUI !== 'undefined') {
+        if (s.density && VALID_DENSITY_MODES.includes(s.density)) {
+          AFCCUI.densityMode = s.density;
+          try { localStorage.setItem('afcc_ui_density', s.density); } catch (err) {}
+          AFCCUI.applyDensityToDOM();
+        }
+        if (typeof s.gpu_eco !== 'undefined') {
+          AFCCUI.gpuEcoMode = String(s.gpu_eco) === 'true';
+          try { localStorage.setItem('afcc_ui_gpu_eco', AFCCUI.gpuEcoMode ? 'true' : 'false'); } catch (err) {}
+          AFCCUI.applyGpuEcoToDOM();
+        }
+      }
       this.savePersistedState();
       this.applyLayoutAndThemeToDOM();
     } catch (e) {}
@@ -130,7 +142,8 @@ const FleetNavigator = {
       const labels = {
         sidebar_dock: 'IDE Left Activity Dock & Sidebar',
         command_deck: 'Compact Pinned Bar + Spotlight Command Deck',
-        launchpad_grid: 'Mission Control Bento Matrix / Launchpad'
+        launchpad_grid: 'Mission Control Bento Matrix / Launchpad',
+        zen_focus: 'Zen Focus Mode (Distraction-Free Canvas)'
       };
       try {
         await fetch('/api/settings', {
@@ -3796,13 +3809,20 @@ const AFCCUI = {
     this.updateContextualSubheader(FleetNavigator.activeAgentId || 'overview');
   },
 
-  setDensityMode(mode, notify = false) {
+  setDensityMode(mode, notify = false, syncBackend = true) {
     if (!VALID_DENSITY_MODES.includes(mode)) return;
     this.densityMode = mode;
     try {
       localStorage.setItem('afcc_ui_density', mode);
     } catch (e) {}
     this.applyDensityToDOM();
+    if (syncBackend) {
+      fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ density: mode })
+      }).catch(() => {});
+    }
     if (notify) {
       const labels = { compact: 'Compact (13" Laptop High-Density)', comfortable: 'Comfortable (Balanced 8pt Grid)', spacious: 'Spacious (27" Desktop Monitor)' };
       this.showToast(`📏 UI Density: ${labels[mode] || mode}`);
@@ -3842,12 +3862,19 @@ const AFCCUI = {
     );
   },
 
-  toggleGpuEcoMode(forceState) {
+  toggleGpuEcoMode(forceState, syncBackend = true) {
     this.gpuEcoMode = typeof forceState === 'boolean' ? forceState : !this.gpuEcoMode;
     try {
       localStorage.setItem('afcc_ui_gpu_eco', this.gpuEcoMode ? 'true' : 'false');
     } catch (e) {}
     this.applyGpuEcoToDOM();
+    if (syncBackend) {
+      fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gpu_eco: this.gpuEcoMode ? 'true' : 'false' })
+      }).catch(() => {});
+    }
     this.showToast(
       this.gpuEcoMode
         ? '⚡ Low-GPU Eco Glass Mode ON — Backdrop blurs & continuous animations disabled (0% idle GPU)'

@@ -30,6 +30,8 @@ DEFAULT_SETTINGS = {
     "auto_backup_enabled": "true",
     "theme": "dark",
     "layout": "sidebar_dock",
+    "density": "comfortable",
+    "gpu_eco": "false",
     "default_agent": "overview",
     "voice_wake_word": "Mahadev",
     "voice_wake_word_required": "true",
@@ -60,6 +62,12 @@ AVAILABLE_LAYOUTS = [
         "badge": "Multi-Domain Matrix",
         "description": "Datadog / Launchpad style collapsible multi-column agent matrix dock at the top of the workspace with instant domain category tabs, live search, and high-density status chips.",
     },
+    {
+        "id": "zen_focus",
+        "name": "Zen Focus Mode (Distraction-Free Canvas)",
+        "badge": "Deep Work",
+        "description": "Collapses top header bars, sidebars, and docks into a minimal floating exit pill so the active agent workspace expands to 100% viewport width.",
+    },
 ]
 
 AVAILABLE_THEMES = [
@@ -67,6 +75,8 @@ AVAILABLE_THEMES = [
     {"id": "midnight", "name": "Deep Midnight Slate"},
     {"id": "aurora", "name": "Emerald Aurora Matrix"},
     {"id": "solar", "name": "High-Contrast Obsidian Gold"},
+    {"id": "light", "name": "Clean Daylight (WCAG AAA Light)"},
+    {"id": "cyberpunk", "name": "Neon Synthwave Cyberpunk"},
 ]
 
 

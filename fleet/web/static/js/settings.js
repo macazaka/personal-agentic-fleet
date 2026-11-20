@@ -577,6 +577,11 @@ function populateGeneralSettingsForm() {
   if (theme) theme.value = s.theme || 'dark';
   if (layout) layout.value = s.layout || 'sidebar_dock';
 
+  const densityEl = document.getElementById('genSettingDensity');
+  const gpuEcoEl = document.getElementById('genSettingGpuEco');
+  if (densityEl) densityEl.value = (window.AFCCUI && window.AFCCUI.densityMode) || s.density || 'comfortable';
+  if (gpuEcoEl) gpuEcoEl.checked = window.AFCCUI ? Boolean(window.AFCCUI.gpuEcoMode) : (s.gpu_eco === 'true');
+
   // Populate Voice Profile, Playback Speed (up to 3x) & Wake Word ("Mahadev") fields in General Settings
   const wakePhraseEl = document.getElementById('genSettingWakeWordPhrase');
   const wakeBadgeEl = document.getElementById('settingsWakeWordBadgeText');
@@ -617,7 +622,7 @@ function populateGeneralSettingsForm() {
   }
 
   // Highlight active layout option card
-  ['sidebar_dock', 'command_deck', 'launchpad_grid'].forEach(l => {
+  ['sidebar_dock', 'command_deck', 'launchpad_grid', 'zen_focus'].forEach(l => {
     const card = document.getElementById(`layoutCard_${l}`);
     if (card) card.classList.toggle('active', l === (s.layout || 'sidebar_dock'));
   });
@@ -627,7 +632,7 @@ function onSelectLayoutInSettings(layoutId) {
   const layoutSelect = document.getElementById('genSettingLayout');
   if (layoutSelect) layoutSelect.value = layoutId;
 
-  ['sidebar_dock', 'command_deck', 'launchpad_grid'].forEach(l => {
+  ['sidebar_dock', 'command_deck', 'launchpad_grid', 'zen_focus'].forEach(l => {
     const card = document.getElementById(`layoutCard_${l}`);
     if (card) card.classList.toggle('active', l === layoutId);
   });
@@ -646,6 +651,10 @@ function onSelectThemeInSettings(themeId) {
 async function saveGeneralSettings() {
   const selectedLayout = document.getElementById('genSettingLayout')?.value || 'sidebar_dock';
   const selectedTheme = document.getElementById('genSettingTheme')?.value || 'dark';
+  const selectedDensity = document.getElementById('genSettingDensity')?.value || (window.AFCCUI && window.AFCCUI.densityMode) || 'comfortable';
+  const selectedGpuEco = document.getElementById('genSettingGpuEco')
+    ? Boolean(document.getElementById('genSettingGpuEco').checked)
+    : Boolean(window.AFCCUI && window.AFCCUI.gpuEcoMode);
   const selectedDefaultAgent = document.getElementById('genSettingDefaultAgent')?.value || 'overview';
   const selectedWakeWord = (document.getElementById('genSettingWakeWordPhrase')?.value || 'Mahadev').trim() || 'Mahadev';
   const selectedWakeReq = Boolean(document.getElementById('genSettingWakeWordRequired')?.checked);
@@ -675,6 +684,8 @@ async function saveGeneralSettings() {
     cost_policy: document.getElementById('genSettingCostPolicy')?.value || 'PREFER_ZERO_TOKEN_CODE',
     theme: selectedTheme,
     layout: selectedLayout,
+    density: selectedDensity,
+    gpu_eco: selectedGpuEco,
     default_agent: selectedDefaultAgent,
     voice_wake_word: selectedWakeWord,
     voice_wake_word_required: selectedWakeReq,
@@ -702,6 +713,14 @@ async function saveGeneralSettings() {
       FleetNavigator.setWorkspaceTheme(selectedTheme, false);
       if (typeof FleetNavigator.fetchFleetData === 'function') {
         FleetNavigator.fetchFleetData();
+      }
+    }
+    if (window.AFCCUI) {
+      if (typeof window.AFCCUI.setDensityMode === 'function') {
+        window.AFCCUI.setDensityMode(selectedDensity, false, false);
+      }
+      if (typeof window.AFCCUI.toggleGpuEcoMode === 'function' && Boolean(window.AFCCUI.gpuEcoMode) !== selectedGpuEco) {
+        window.AFCCUI.toggleGpuEcoMode(selectedGpuEco, false);
       }
     }
     showSettingsToast('General fleet settings, default startup agent, layout & theme saved.');

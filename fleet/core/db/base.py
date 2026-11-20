@@ -59,7 +59,7 @@ def get_effective_db_path(custom_path: Optional[Path] = None) -> Path:
     return DB_PATH
 
 
-_VERIFIED_SCHEMA_PATHS: set = set()
+_VERIFIED_SCHEMA_PATHS: Dict[str, tuple] = {}
 _SCHEMA_CHECKS_SKIPPED: int = 0
 _SCHEMA_CHECKS_EXECUTED: int = 0
 
@@ -95,13 +95,16 @@ class BaseDatabase:
         self.db_path = effective
         conn = get_pooled_connection(self.db_path, timeout=10.0)
         try:
-            path_key = str(Path(self.db_path).resolve())
-            db_exists_nonempty = Path(self.db_path).exists() and Path(self.db_path).stat().st_size > 0
+            resolved = Path(self.db_path).resolve()
+            path_key = str(resolved)
+            st = resolved.stat() if resolved.exists() else None
+            sig = (id(conn), getattr(st, "st_ino", 0), getattr(st, "st_ctime_ns", 0)) if (st and st.st_size > 0) else None
         except Exception:
+            resolved = Path(self.db_path)
             path_key = str(self.db_path)
-            db_exists_nonempty = False
+            sig = None
 
-        if path_key in _VERIFIED_SCHEMA_PATHS and db_exists_nonempty:
+        if sig is not None and _VERIFIED_SCHEMA_PATHS.get(path_key) == sig:
             _SCHEMA_CHECKS_SKIPPED += 1
             return conn
 
@@ -124,9 +127,18 @@ class BaseDatabase:
         row = cursor.fetchone()
         if int(row[0] if row else 0) < 6:
             self._create_schema(conn)
-        if len(_VERIFIED_SCHEMA_PATHS) >= 64:
-            _VERIFIED_SCHEMA_PATHS.clear()
-        _VERIFIED_SCHEMA_PATHS.add(path_key)
+        try:
+            st_after = resolved.stat()
+            if st_after.st_size > 0:
+                if len(_VERIFIED_SCHEMA_PATHS) >= 64:
+                    _VERIFIED_SCHEMA_PATHS.clear()
+                _VERIFIED_SCHEMA_PATHS[path_key] = (
+                    id(conn),
+                    getattr(st_after, "st_ino", 0),
+                    getattr(st_after, "st_ctime_ns", 0),
+                )
+        except Exception:
+            pass
         return conn
 
     def _init_db(self):

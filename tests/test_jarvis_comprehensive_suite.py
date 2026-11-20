@@ -914,8 +914,17 @@ def test_afcc_10_critical_ui_and_design_system_enhancements_ui01_to_ui10(isolate
         "afccDesignSystemModal",
         "afccGlobalToastStack",
         "afccMobileBottomNav",
+        "layoutCard_zen_focus",
+        "genSettingDensity",
+        "genSettingGpuEco",
     ):
         assert html_sym in dash_html, f"Missing UI enhancement element in dashboard.html: {html_sym}"
+
+    # Verify #headerHealthTestWrapper is inside .afcc-telemetry-cluster
+    cluster_start = dash_html.index('class="afcc-telemetry-cluster"')
+    cluster_slice = dash_html[cluster_start : cluster_start + 4500]
+    assert 'id="headerHealthTestWrapper"' in cluster_slice
+    assert 'id="headerUpdateBadge"' not in dash_html[cluster_start:dash_html.index('id="headerHealthTestWrapper"')]
 
     # 13D. Verify AFCCUI Engine & 6-Theme / 4-Layout Support in fleet_navigator.js
     nav_js = (BASE_DIR / "web" / "static" / "js" / "fleet_navigator.js").read_text(encoding="utf-8")
@@ -955,5 +964,15 @@ def test_afcc_10_critical_ui_and_design_system_enhancements_ui01_to_ui10(isolate
     res_ds = transcribe_and_dispatch_voice_command("Open design system", db=isolated_db)
     assert res_ds["status"] == "ok"
     assert any(a.get("type") == "open_design_system" for a in res_ds["ui_actions"])
+
+    res_eco_on = transcribe_and_dispatch_voice_command("Enable eco glass mode", db=isolated_db)
+    assert res_eco_on["status"] == "ok"
+    assert any(a.get("type") == "set_gpu_eco" and a.get("enabled") is True for a in res_eco_on["ui_actions"])
+    assert isolated_db.get_setting("gpu_eco") == "true"
+
+    res_eco_off = transcribe_and_dispatch_voice_command("Disable eco glass mode", db=isolated_db)
+    assert res_eco_off["status"] == "ok"
+    assert any(a.get("type") == "set_gpu_eco" and a.get("enabled") is False for a in res_eco_off["ui_actions"])
+    assert isolated_db.get_setting("gpu_eco") == "false"
 
 

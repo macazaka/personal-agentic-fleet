@@ -4629,6 +4629,34 @@ def _dispatch_voice_command_core(
             "cost_usd": "$0.00",
         })
 
+    if re.search(r"\b(?:eco\s+glass|low[\s\-]+gpu(?:\s+mode)?|gpu\s+eco(?:\s+mode)?)\b", lower):
+        enable_eco = not any(w in lower for w in ("off", "disable", "exit", "standard", "normal", "stop"))
+        if db is not None and hasattr(db, "set_setting"):
+            db.set_setting("gpu_eco", "true" if enable_eco else "false")
+        ui_actions = [{"type": "set_gpu_eco", "enabled": enable_eco}]
+        executed_activities = [f"⚡ {'Enabled' if enable_eco else 'Disabled'} Low-GPU Eco Glass Mode"]
+        return _record_turn(spoken, {
+            "status": "ok",
+            "mode": "voice_activity",
+            "voice_transcript": spoken,
+            "normalized_command": f"gpu_eco:{'on' if enable_eco else 'off'}",
+            "title": f"⚡ Low-GPU Eco Glass Mode: {'ON' if enable_eco else 'OFF'}",
+            "message": (
+                "⚡ **Low-GPU Eco Glass Mode** is now **ON** (backdrop blurs and idle animations disabled for 0% GPU)."
+                if enable_eco
+                else "✨ **Standard Glassmorphism** restored across AFCC panels."
+            ),
+            "spoken_reply": (
+                "Low-GPU Eco Glass mode is now active, reducing GPU blur and animation overhead."
+                if enable_eco
+                else "Standard glassmorphism visuals have been restored."
+            ),
+            "ui_actions": ui_actions,
+            "executed_activities": executed_activities,
+            "tokens_used": 0,
+            "cost_usd": "$0.00",
+        })
+
     if re.search(r"\b(?:open|show|inspect|launch)\s+(?:the\s+)?(?:afcc\s+)?design\s+system\b", lower):
         ui_actions = [{"type": "open_design_system"}]
         executed_activities = ["🎨 Opened AFCC Polar-Obsidian Design System Studio"]

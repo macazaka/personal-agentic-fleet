@@ -169,6 +169,11 @@ class SQLiteConnectionPool:
         self._local.db_path = None
         self._local.last_probe_ts = 0.0
         self._local.generation = -1
+        try:
+            from fleet.core.db.base import clear_verified_schema_cache
+            clear_verified_schema_cache()
+        except Exception:
+            pass
 
 
 # Global singleton connection pool
