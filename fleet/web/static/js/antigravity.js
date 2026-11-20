@@ -1,87 +1,131 @@
 // --- Antigravity Live Stream, Models & Agent Control ---
 let lastRenderedStep = -1;
+let lastTranscriptSessionId = null;
+let _transcriptFetchInFlight = false;
+const MAX_TRANSCRIPT_DOM_MESSAGES = 80;
 let attachedImages = [];
 let activeModelId = 'gemini-3.8-flash-high';
 let availableModels = [];
 
+    function _renderTranscriptMessageHtml(m) {
+      let mediaHtml = '';
+      if (m.media && m.media.length > 0) {
+        mediaHtml = '<div class="ag-msg-media">' + m.media.map(med => `
+          <img src="${escapeHtml(med.url)}" title="${escapeHtml(med.name || 'Image')}" onclick="openImageLightbox('${escapeHtml(med.url)}')">
+        `).join('') + '</div>';
+      }
+
+      if (m.role === 'user') {
+        return `
+          <div class="ag-message ag-msg-user">
+            <div class="ag-msg-role">👤 User</div>
+            <div>${formatMarkdown(m.text)}</div>
+            ${mediaHtml}
+          </div>
+        `;
+      } else {
+        let thinkingHtml = '';
+        if (m.thinking) {
+          thinkingHtml = `
+            <details class="ag-thinking">
+              <summary>🧠 Thinking Process <span style="font-size:10.5px; opacity:0.7;">(Click to view reasoning)</span></summary>
+              <div class="ag-thinking-body">${escapeHtml(m.thinking)}</div>
+            </details>
+          `;
+        }
+
+        let toolsHtml = '';
+        if (m.tools && m.tools.length > 0) {
+          toolsHtml = '<div class="ag-tools-group">' + m.tools.map(t => `
+            <div class="ag-tool-card">
+              <span class="name">⚡ ${escapeHtml(t.name)}</span>
+              <span class="desc">${escapeHtml(t.summary)}</span>
+            </div>
+          `).join('') + '</div>';
+        }
+
+        return `
+          <div class="ag-message ag-msg-assistant">
+            <div class="ag-msg-role">🤖 Antigravity 2.0</div>
+            ${thinkingHtml}
+            ${toolsHtml}
+            <div>${formatMarkdown(m.text)}</div>
+            ${mediaHtml}
+          </div>
+        `;
+      }
+    }
+
     async function fetchTranscript(forceScroll = false) {
+      if (_transcriptFetchInFlight && !forceScroll) return;
+      _transcriptFetchInFlight = true;
       try {
-        const res = await fetch('/api/antigravity/transcript?limit=80');
+        const isDelta = (!forceScroll && lastRenderedStep >= 0 && lastTranscriptSessionId !== null);
+        const url = `/api/antigravity/transcript?limit=${MAX_TRANSCRIPT_DOM_MESSAGES}${isDelta ? '&since_step=' + encodeURIComponent(lastRenderedStep) : ''}`;
+        const res = await fetch(url);
         const data = await res.json();
         if (data.status !== 'success') return;
+
+        // If session rolled over, force a clean full load once
+        if (isDelta && data.session_id && data.session_id !== lastTranscriptSessionId) {
+          lastRenderedStep = -1;
+          lastTranscriptSessionId = data.session_id;
+          _transcriptFetchInFlight = false;
+          return await fetchTranscript(true);
+        }
 
         const sessionBadge = document.getElementById('agSessionBadge');
         if (sessionBadge && data.session_id) {
           sessionBadge.innerText = 'Session: ' + data.session_id.substring(0, 8);
         }
-        const countBadge = document.getElementById('agMsgCountBadge');
-        if (countBadge) {
-          countBadge.innerText = `${data.messages.length} Steps`;
-        }
 
         const container = document.getElementById('agChatScroll');
         if (!container) return;
 
+        if (isDelta) {
+          if (data.unchanged || !Array.isArray(data.messages) || data.messages.length === 0) {
+            return;
+          }
+          const deltaHtml = data.messages.map(_renderTranscriptMessageHtml).join('');
+          if (container.children.length === 1 && !container.firstElementChild.classList.contains('ag-message')) {
+            container.innerHTML = deltaHtml;
+          } else {
+            container.insertAdjacentHTML('beforeend', deltaHtml);
+          }
+          while (container.children.length > MAX_TRANSCRIPT_DOM_MESSAGES) {
+            container.removeChild(container.firstElementChild);
+          }
+          lastRenderedStep = data.latest_step;
+          const countBadge = document.getElementById('agMsgCountBadge');
+          if (countBadge) {
+            countBadge.innerText = `${data.total_steps || container.children.length} Steps`;
+          }
+          const autoScroll = document.getElementById('autoScrollCheck');
+          if (autoScroll && autoScroll.checked) {
+            container.scrollTop = container.scrollHeight;
+          }
+          return;
+        }
+
+        const countBadge = document.getElementById('agMsgCountBadge');
+        if (countBadge) {
+          countBadge.innerText = `${data.total_steps || data.messages.length} Steps`;
+        }
+
         if (data.messages.length === 0) {
+          lastTranscriptSessionId = data.session_id || null;
+          lastRenderedStep = data.latest_step ?? 0;
           container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 40px;">No messages in transcript yet.</div>';
           return;
         }
 
-        if (data.latest_step === lastRenderedStep && !forceScroll) {
+        if (data.latest_step === lastRenderedStep && data.session_id === lastTranscriptSessionId && !forceScroll) {
           return;
         }
+        lastTranscriptSessionId = data.session_id || null;
         lastRenderedStep = data.latest_step;
 
-        const html = data.messages.map(m => {
-          let mediaHtml = '';
-          if (m.media && m.media.length > 0) {
-            mediaHtml = '<div class="ag-msg-media">' + m.media.map(med => `
-              <img src="${escapeHtml(med.url)}" title="${escapeHtml(med.name || 'Image')}" onclick="openImageLightbox('${escapeHtml(med.url)}')">
-            `).join('') + '</div>';
-          }
-
-          if (m.role === 'user') {
-            return `
-              <div class="ag-message ag-msg-user">
-                <div class="ag-msg-role">👤 User</div>
-                <div>${formatMarkdown(m.text)}</div>
-                ${mediaHtml}
-              </div>
-            `;
-          } else {
-            let thinkingHtml = '';
-            if (m.thinking) {
-              thinkingHtml = `
-                <details class="ag-thinking">
-                  <summary>🧠 Thinking Process <span style="font-size:10.5px; opacity:0.7;">(Click to view reasoning)</span></summary>
-                  <div class="ag-thinking-body">${escapeHtml(m.thinking)}</div>
-                </details>
-              `;
-            }
-
-            let toolsHtml = '';
-            if (m.tools && m.tools.length > 0) {
-              toolsHtml = '<div class="ag-tools-group">' + m.tools.map(t => `
-                <div class="ag-tool-card">
-                  <span class="name">⚡ ${escapeHtml(t.name)}</span>
-                  <span class="desc">${escapeHtml(t.summary)}</span>
-                </div>
-              `).join('') + '</div>';
-            }
-
-            return `
-              <div class="ag-message ag-msg-assistant">
-                <div class="ag-msg-role">🤖 Antigravity 2.0</div>
-                ${thinkingHtml}
-                ${toolsHtml}
-                <div>${formatMarkdown(m.text)}</div>
-                ${mediaHtml}
-              </div>
-            `;
-          }
-        }).join('');
-
-        container.innerHTML = html;
+        container.innerHTML = data.messages.map(_renderTranscriptMessageHtml).join('');
 
         const autoScroll = document.getElementById('autoScrollCheck');
         if (autoScroll && autoScroll.checked) {
@@ -89,6 +133,8 @@ let availableModels = [];
         }
       } catch (e) {
         console.error('Transcript fetch error:', e);
+      } finally {
+        _transcriptFetchInFlight = false;
       }
     }
 

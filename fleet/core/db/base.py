@@ -59,6 +59,25 @@ def get_effective_db_path(custom_path: Optional[Path] = None) -> Path:
     return DB_PATH
 
 
+_VERIFIED_SCHEMA_PATHS: set = set()
+_SCHEMA_CHECKS_SKIPPED: int = 0
+_SCHEMA_CHECKS_EXECUTED: int = 0
+
+
+def clear_verified_schema_cache() -> None:
+    """Clears memoized DB schema paths (e.g. after recreating or migrating a DB file)."""
+    _VERIFIED_SCHEMA_PATHS.clear()
+
+
+def get_schema_cache_stats() -> Dict[str, Any]:
+    """Returns memoized schema verification counters."""
+    return {
+        "verified_paths_cached": len(_VERIFIED_SCHEMA_PATHS),
+        "schema_checks_skipped": _SCHEMA_CHECKS_SKIPPED,
+        "schema_checks_executed": _SCHEMA_CHECKS_EXECUTED,
+    }
+
+
 class BaseDatabase:
     def __init__(self, db_path: Optional[Path] = None):
         self._custom_db_path = db_path
@@ -70,11 +89,24 @@ class BaseDatabase:
         pass
 
     def _get_connection(self) -> sqlite3.Connection:
+        global _SCHEMA_CHECKS_SKIPPED, _SCHEMA_CHECKS_EXECUTED
         from fleet.core.db.pool import get_pooled_connection
         effective = get_effective_db_path(self._custom_db_path)
         self.db_path = effective
         conn = get_pooled_connection(self.db_path, timeout=10.0)
+        try:
+            path_key = str(Path(self.db_path).resolve())
+            db_exists_nonempty = Path(self.db_path).exists() and Path(self.db_path).stat().st_size > 0
+        except Exception:
+            path_key = str(self.db_path)
+            db_exists_nonempty = False
+
+        if path_key in _VERIFIED_SCHEMA_PATHS and db_exists_nonempty:
+            _SCHEMA_CHECKS_SKIPPED += 1
+            return conn
+
         # Self-healing schema: auto-create any missing core or Studio tables idempotently
+        _SCHEMA_CHECKS_EXECUTED += 1
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -92,6 +124,9 @@ class BaseDatabase:
         row = cursor.fetchone()
         if int(row[0] if row else 0) < 6:
             self._create_schema(conn)
+        if len(_VERIFIED_SCHEMA_PATHS) >= 64:
+            _VERIFIED_SCHEMA_PATHS.clear()
+        _VERIFIED_SCHEMA_PATHS.add(path_key)
         return conn
 
     def _init_db(self):

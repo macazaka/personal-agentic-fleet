@@ -3,6 +3,9 @@
       try {
         const res = await fetch('/api/routines');
         const routines = await res.json();
+        if (typeof window._afccHasPayloadChanged === 'function' && !window._afccHasPayloadChanged('routines', routines)) {
+          return;
+        }
         const list = document.getElementById('routineList');
         list.innerHTML = routines.map(r => `
           <div class="routine-item">

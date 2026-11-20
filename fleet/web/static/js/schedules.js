@@ -6,6 +6,9 @@ async function fetchSchedules() {
     if (!data || !data.schedules) return;
 
     const schedules = data.schedules;
+    if (typeof window._afccHasPayloadChanged === 'function' && !window._afccHasPayloadChanged('schedules', schedules)) {
+      return;
+    }
     const list = document.getElementById('scheduleList');
     const countBadge = document.getElementById('activeSchedulesCount');
 

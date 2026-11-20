@@ -14,10 +14,16 @@ Modular Architecture:
 """
 
 from __future__ import annotations
+from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
+import gzip
 import re
 import base64
 import json
 import logging
+import socket
+import threading
+import time
 from typing import Any, Dict, List, Optional
 import mimetypes
 import os
@@ -26,11 +32,12 @@ import sys
 import urllib.parse
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 
 from fleet.config import BASE_DIR, CHANGELOG_PATH, VERSION, get_live_release_date, get_live_version
-from fleet.core.briefing import BriefingEngine
+from fleet.core.briefing import BriefingEngine, get_briefing_cache_stats, invalidate_briefing_cache
 from fleet.core.database import FleetDatabase
+from fleet.core.db.base import get_schema_cache_stats, is_test_environment
+from fleet.core.db.pool import get_pool_stats
 from fleet.core.event_bus import FleetEvent, bus
 from fleet.core.antigravity_mirror import (
     AGENT_STATE,
@@ -48,6 +55,7 @@ from fleet.core.antigravity_mirror import (
     get_max_parallel_agents,
     get_parallel_agents,
     get_token_health,
+    get_transcript_cache_stats,
     handle_token_exhaustion,
     parse_transcript,
     resume_token_exhaustion,
@@ -60,16 +68,18 @@ from fleet.core.optimizer import (
     check_os_and_software_upgrades,
     clean_temp_files,
     flush_dns_cache,
+    get_optimizer_cache_stats,
     get_pc_performance_diagnostics,
     get_upgrade_policy,
     install_software_upgrades,
+    invalidate_optimizer_diag_cache,
     open_startup_settings,
     optimize_ram,
     purge_dev_caches,
     run_automatic_upgrade_manager,
     set_upgrade_policy,
 )
-from fleet.web.builder import STATIC_DIR, get_dashboard_html
+from fleet.web.builder import STATIC_DIR, get_builder_cache_stats, get_dashboard_html
 
 
 
@@ -78,8 +88,17 @@ server_logger = logging.getLogger("fleet.server")
 db = FleetDatabase()
 briefing_engine = BriefingEngine(db)
 
-# Backwards-compatible standalone HTML_PAGE export for external consumers & offline tests
-HTML_PAGE = get_dashboard_html(standalone=True)
+# Backwards-compatible lazy HTML_PAGE export (~1.2MB RAM saved when not accessed)
+_LAZY_HTML_PAGE: Optional[str] = None
+
+
+def __getattr__(name: str) -> Any:
+    global _LAZY_HTML_PAGE
+    if name == "HTML_PAGE":
+        if _LAZY_HTML_PAGE is None:
+            _LAZY_HTML_PAGE = get_dashboard_html(standalone=True)
+        return _LAZY_HTML_PAGE
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 if __name__ == "__main__" and "fleet.server" not in sys.modules:
     sys.modules["fleet.server"] = sys.modules[__name__]
@@ -117,6 +136,131 @@ def _find_safe_file_in_dir(base_dir: Path, target_rel: str, recursive: bool = Fa
             except ValueError:
                 continue
     return None
+
+
+_STATIC_INDEX_LOCK = threading.Lock()
+_STATIC_INDEX: Dict[str, Any] = {"built_at": 0.0, "map": {}}
+_STATIC_INDEX_TTL_SEC = 30.0
+_STATIC_ASSET_CACHE_MAX = 32
+_STATIC_ASSET_CACHE: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+_HTTP_CACHE_STATS: Dict[str, int] = {
+    "static_hits": 0,
+    "static_misses": 0,
+    "etag_304": 0,
+    "gzip_responses": 0,
+    "bytes_saved_gzip": 0,
+}
+
+
+def _rebuild_static_index() -> Dict[str, Path]:
+    mapping: Dict[str, Path] = {}
+    if STATIC_DIR.is_dir():
+        for entry in STATIC_DIR.rglob("*"):
+            if entry.is_file():
+                try:
+                    mapping[entry.relative_to(STATIC_DIR).as_posix()] = entry
+                except ValueError:
+                    continue
+    with _STATIC_INDEX_LOCK:
+        _STATIC_INDEX["built_at"] = time.monotonic()
+        _STATIC_INDEX["map"] = mapping
+    return mapping
+
+
+def _lookup_cached_static_file(target_rel: str) -> Optional[Path]:
+    """Looks up a static asset strictly via a pre-enumerated dict of trusted STATIC_DIR files."""
+    norm_target = target_rel.replace("\\", "/").lstrip("/")
+    now_mono = time.monotonic()
+    with _STATIC_INDEX_LOCK:
+        built_at = float(_STATIC_INDEX.get("built_at", 0.0))
+        mapping = _STATIC_INDEX.get("map") or {}
+        if mapping and (now_mono - built_at) < _STATIC_INDEX_TTL_SEC:
+            found = mapping.get(norm_target)
+            if found is not None:
+                return found
+    mapping = _rebuild_static_index()
+    return mapping.get(norm_target)
+
+
+def _client_accepts_gzip(headers: Any) -> bool:
+    if not headers or not hasattr(headers, "get"):
+        return False
+    return "gzip" in str(headers.get("Accept-Encoding", "") or "").lower()
+
+
+def _get_process_rss_mb() -> float:
+    """Zero-dependency cross-platform process resident memory helper (in MB)."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            class PROCESS_MEMORY_COUNTERS(ctypes.Structure):
+                _fields_ = [
+                    ("cb", wintypes.DWORD),
+                    ("PageFaultCount", wintypes.DWORD),
+                    ("PeakWorkingSetSize", ctypes.c_size_t),
+                    ("WorkingSetSize", ctypes.c_size_t),
+                    ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                    ("PagefileUsage", ctypes.c_size_t),
+                    ("PeakPagefileUsage", ctypes.c_size_t),
+                ]
+
+            pmc = PROCESS_MEMORY_COUNTERS()
+            pmc.cb = ctypes.sizeof(PROCESS_MEMORY_COUNTERS)
+            kernel32 = ctypes.windll.kernel32
+            h_proc = kernel32.GetCurrentProcess()
+            ok = False
+            try:
+                ok = bool(ctypes.windll.psapi.GetProcessMemoryInfo(h_proc, ctypes.byref(pmc), pmc.cb))
+            except Exception:
+                ok = False
+            if not ok and hasattr(kernel32, "K32GetProcessMemoryInfo"):
+                ok = bool(kernel32.K32GetProcessMemoryInfo(h_proc, ctypes.byref(pmc), pmc.cb))
+            if ok:
+                return round(float(pmc.WorkingSetSize) / (1024 * 1024), 2)
+        except Exception:
+            pass
+    else:
+        try:
+            import resource
+            rss = float(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+            if sys.platform == "darwin":
+                return round(rss / (1024 * 1024), 2)
+            return round(rss / 1024.0, 2)
+        except Exception:
+            pass
+    return 0.0
+
+
+def get_process_resource_telemetry() -> Dict[str, Any]:
+    """Aggregates live RAM, thread, SQLite pool, HTTP cache, and backend cache telemetry."""
+    with _STATIC_INDEX_LOCK:
+        http_cache_stats: Dict[str, Any] = {
+            **_HTTP_CACHE_STATS,
+            "static_cached_entries": len(_STATIC_ASSET_CACHE),
+            "static_cache_max": _STATIC_ASSET_CACHE_MAX,
+            "builder_cache": get_builder_cache_stats(),
+        }
+
+    return {
+        "status": "ok",
+        "pid": os.getpid(),
+        "process_rss_mb": _get_process_rss_mb(),
+        "active_threads": threading.active_count(),
+        "http_pool_max_workers": RobustThreadingHTTPServer.max_workers,
+        "sqlite_pool": {
+            **get_pool_stats(),
+            **get_schema_cache_stats(),
+        },
+        "http_cache": http_cache_stats,
+        "optimizer_cache": get_optimizer_cache_stats(),
+        "briefing_cache": get_briefing_cache_stats(),
+        "transcript_cache": get_transcript_cache_stats(),
+    }
 ALLOWED_ORIGINS = {
     f"http://127.0.0.1:{PORT}",
     f"http://localhost:{PORT}",
@@ -165,12 +309,26 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
     def _send_json(self, data: Any, status: int = 200):
         try:
             body = json.dumps(data).encode("utf-8")
+            use_gzip = False
+            payload = body
+            if len(body) >= 2048 and _client_accepts_gzip(getattr(self, "headers", None)):
+                gz_body = gzip.compress(body, compresslevel=5)
+                if len(gz_body) < len(body):
+                    use_gzip = True
+                    payload = gz_body
+                    with _STATIC_INDEX_LOCK:
+                        _HTTP_CACHE_STATS["gzip_responses"] += 1
+                        _HTTP_CACHE_STATS["bytes_saved_gzip"] += len(body) - len(gz_body)
+
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
+            if use_gzip:
+                self.send_header("Content-Encoding", "gzip")
+                self.send_header("Vary", "Accept-Encoding")
             self._send_security_headers()
-            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
-            self.wfile.write(body)
+            self.wfile.write(payload)
         except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
             pass
 
@@ -212,14 +370,25 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
-        if path in ("/", "/index.html"):
-            body = HTML_PAGE.encode("utf-8")
         # 1. Main HTML Dashboard
         if path == "/" or path == "/index.html":
             # Serve modular dashboard linking to /static/ assets
-            body = get_dashboard_html(standalone=False).encode("utf-8")
+            raw_html = get_dashboard_html(standalone=False).encode("utf-8")
+            use_gzip = False
+            body = raw_html
+            if len(raw_html) >= 2048 and _client_accepts_gzip(getattr(self, "headers", None)):
+                gz_html = gzip.compress(raw_html, compresslevel=5)
+                if len(gz_html) < len(raw_html):
+                    use_gzip = True
+                    body = gz_html
+                    with _STATIC_INDEX_LOCK:
+                        _HTTP_CACHE_STATS["gzip_responses"] += 1
+                        _HTTP_CACHE_STATS["bytes_saved_gzip"] += len(raw_html) - len(gz_html)
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            if use_gzip:
+                self.send_header("Content-Encoding", "gzip")
+                self.send_header("Vary", "Accept-Encoding")
             self._send_security_headers(set_session_cookie=True)
             self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
             self.send_header("Content-Length", str(len(body)))
@@ -410,28 +579,93 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
                 self.send_error(404, "Media file not found")
                 return
 
-        # 2. Static Assets (/static/css/*, /static/js/*)
+        # 2. Static Assets (/static/css/*, /static/js/*) with ETag/304 & Bounded Cache
         elif path.startswith("/static/"):
             rel_path = os.path.normpath(urllib.parse.unquote(path[len("/static/"):]).lstrip("/\\"))
             if ".." in rel_path or not re.fullmatch(r"^[a-zA-Z0-9_./\\-]+$", rel_path):
                 self.send_error(400, "Invalid static asset path")
                 return
-            file_path = _find_safe_file_in_dir(STATIC_DIR, rel_path, recursive=True)
-            if file_path is not None:
-                if file_path.suffix == ".css":
-                    content_type = "text/css; charset=utf-8"
-                elif file_path.suffix == ".js":
-                    content_type = "application/javascript; charset=utf-8"
-                else:
-                    content_type = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
-                data = file_path.read_bytes()
+            file_path = _lookup_cached_static_file(rel_path)
+            if file_path is not None and file_path.is_file():
+                try:
+                    st = file_path.stat()
+                    mtime_ns = st.st_mtime_ns
+                    f_size = st.st_size
+                except OSError:
+                    self.send_error(404, "Static asset not found")
+                    return
+
+                etag = f'"{mtime_ns:x}-{f_size:x}"'
+                cache_key = file_path.relative_to(STATIC_DIR).as_posix()
+                req_if_none_match = (
+                    str(self.headers.get("If-None-Match", "") or "").strip()
+                    if hasattr(self, "headers") and self.headers
+                    else ""
+                )
+                if req_if_none_match and (req_if_none_match == etag or etag in [t.strip() for t in req_if_none_match.split(",")]):
+                    with _STATIC_INDEX_LOCK:
+                        _HTTP_CACHE_STATS["etag_304"] += 1
+                    self.send_response(304)
+                    self.send_header("ETag", etag)
+                    self.send_header("Cache-Control", "public, max-age=60, must-revalidate")
+                    self._send_security_headers()
+                    self.end_headers()
+                    return
+
+                with _STATIC_INDEX_LOCK:
+                    entry = _STATIC_ASSET_CACHE.get(cache_key)
+                    if entry is not None and entry.get("mtime_ns") == mtime_ns and entry.get("size") == f_size:
+                        _STATIC_ASSET_CACHE.move_to_end(cache_key)
+                        _HTTP_CACHE_STATS["static_hits"] += 1
+                    else:
+                        entry = None
+
+                if entry is None:
+                    if file_path.suffix == ".css":
+                        content_type = "text/css; charset=utf-8"
+                    elif file_path.suffix == ".js":
+                        content_type = "application/javascript; charset=utf-8"
+                    else:
+                        content_type = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
+                    raw_data = file_path.read_bytes()
+                    gz_data = None
+                    if len(raw_data) >= 2048 and file_path.suffix.lower() in (".js", ".css", ".json", ".svg", ".html", ".txt"):
+                        candidate_gz = gzip.compress(raw_data, compresslevel=5)
+                        if len(candidate_gz) < len(raw_data):
+                            gz_data = candidate_gz
+                    entry = {
+                        "mtime_ns": mtime_ns,
+                        "size": f_size,
+                        "etag": etag,
+                        "content_type": content_type,
+                        "raw": raw_data,
+                        "gzip": gz_data,
+                    }
+                    with _STATIC_INDEX_LOCK:
+                        _STATIC_ASSET_CACHE[cache_key] = entry
+                        _STATIC_ASSET_CACHE.move_to_end(cache_key)
+                        while len(_STATIC_ASSET_CACHE) > _STATIC_ASSET_CACHE_MAX:
+                            _STATIC_ASSET_CACHE.popitem(last=False)
+                        _HTTP_CACHE_STATS["static_misses"] += 1
+
+                use_gzip = bool(entry.get("gzip")) and _client_accepts_gzip(getattr(self, "headers", None))
+                payload = entry["gzip"] if use_gzip else entry["raw"]
+                if use_gzip:
+                    with _STATIC_INDEX_LOCK:
+                        _HTTP_CACHE_STATS["gzip_responses"] += 1
+                        _HTTP_CACHE_STATS["bytes_saved_gzip"] += len(entry["raw"]) - len(payload)
+
                 self.send_response(200)
-                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Type", entry["content_type"])
+                self.send_header("ETag", entry["etag"])
+                if use_gzip:
+                    self.send_header("Content-Encoding", "gzip")
+                    self.send_header("Vary", "Accept-Encoding")
                 self._send_security_headers()
-                self.send_header("Content-Length", str(len(data)))
-                self.send_header("Cache-Control", "no-cache")
+                self.send_header("Content-Length", str(len(payload)))
+                self.send_header("Cache-Control", "public, max-age=60, must-revalidate")
                 self.end_headers()
-                self.wfile.write(data)
+                self.wfile.write(payload)
                 return
             else:
                 self.send_error(404, "Static asset not found")
@@ -491,7 +725,7 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
                 self.wfile.write(f"event: ready\ndata: {init_msg}\n\n".encode("utf-8"))
                 self.wfile.flush()
 
-                timeout = 0.2 if getattr(self, "_sse_test_mode", False) else 2.0
+                timeout = 0.2 if getattr(self, "_sse_test_mode", False) else 25.0
                 max_ticks = 1 if getattr(self, "_sse_test_mode", False) else None
                 ticks = 0
 
@@ -563,6 +797,9 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             from fleet.tools.crash_reporter import list_crash_reports
             reports = list_crash_reports()
             self._send_json({"status": "success", "reports": reports, "count": len(reports)})
+
+        elif path == "/api/diagnostics/resources":
+            self._send_json(get_process_resource_telemetry())
 
         else:
             # 3. Dispatch to Domain API Routers
@@ -902,16 +1139,58 @@ class FleetDashboardHandler(BaseHTTPRequestHandler):
             if not handled:
                 self.send_error(404, "Not Found")
 
+        # Write-through cache invalidation across both inline and router POST mutations
+        if path.startswith(("/api/tasks", "/api/routines", "/api/health", "/api/emails/sync", "/api/agents/custom")):
+            invalidate_briefing_cache()
+        elif path.startswith("/api/optimizer/"):
+            invalidate_optimizer_diag_cache()
+
     def log_message(self, format, *args):
         # Silence standard HTTP access logging in console for clean terminal output
         return
 
 
 class RobustThreadingHTTPServer(ThreadingHTTPServer):
-    """Threading HTTP/HTTPS dual-stack server that auto-detects TLS ClientHello (0x16) vs plain HTTP on the same port."""
-    allow_reuse_address = True
+    """Threading HTTP/HTTPS dual-stack server with bounded ThreadPoolExecutor and exclusive Windows port binding."""
+    allow_reuse_address = (os.name != "nt")
     daemon_threads = True
     ssl_context: Optional[Any] = None
+    max_workers = max(4, min(32, int(os.environ.get("AFCC_HTTP_MAX_WORKERS", "16"))))
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        self._executor: Optional[ThreadPoolExecutor] = ThreadPoolExecutor(
+            max_workers=self.max_workers,
+            thread_name_prefix="afcc-http",
+        )
+        super().__init__(*args, **kwargs)
+
+    def server_bind(self) -> None:
+        if os.name == "nt" and not is_test_environment() and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            try:
+                self.socket.setsockopt(socket.SOL_SOCKET, getattr(socket, "SO_EXCLUSIVEADDRUSE"), 1)
+            except Exception:
+                pass
+        super().server_bind()
+
+    def process_request(self, request: Any, client_address: Any) -> None:
+        executor = getattr(self, "_executor", None)
+        if executor is not None:
+            try:
+                executor.submit(self.process_request_thread, request, client_address)
+                return
+            except RuntimeError:
+                pass
+        super().process_request(request, client_address)
+
+    def server_close(self) -> None:
+        executor = getattr(self, "_executor", None)
+        if executor is not None:
+            self._executor = None
+            try:
+                executor.shutdown(wait=False, cancel_futures=True)
+            except Exception:
+                pass
+        super().server_close()
 
     def get_request(self):
         import socket as _socket

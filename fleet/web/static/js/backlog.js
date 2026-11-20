@@ -885,7 +885,15 @@ async function triggerAppleWatchDemoSync() {
           </div>
         `;
         if (_triDeviceLivePollTimer) clearInterval(_triDeviceLivePollTimer);
+        let _triPollTicks = 0;
         _triDeviceLivePollTimer = setInterval(async () => {
+          if (document.hidden) return;
+          _triPollTicks += 1;
+          if (_triPollTicks > 300) {
+            clearInterval(_triDeviceLivePollTimer);
+            _triDeviceLivePollTimer = null;
+            return;
+          }
           try {
             const stRes = await fetch('/api/mobile/health/status');
             if (stRes.ok) {

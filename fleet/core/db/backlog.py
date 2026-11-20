@@ -943,6 +943,89 @@ AFCC_UI_DESIGN_SYSTEM_BACKLOG_ITEMS: List[Dict[str, str]] = [
     },
 ]
 
+AFCC_RAM_CPU_OPTIMIZATION_BACKLOG_ITEMS: List[Dict[str, str]] = [
+    {
+        "title": "[PERF-01] Critical Perf #1: Visibility-Aware Single-Flight Frontend Polling & Lazy Hidden-Tab Hydration",
+        "description": "Defers hidden-tab API hydration (backlog, optimizer, health, exercises, emails) until first view activation, pauses all polling loops when document.hidden is true, prevents overlapping slow fetches via a single-flight lock, uses tiered 15s/60s cadences, and runs an immediate catch-up sync on visibilitychange.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[PERF-02] Critical Perf #2: Zero-Re-Render Payload Signature Diffing Across Briefing, Tasks, Routines, Schedules & Logs",
+        "description": "Adds lightweight payload signature tracking (window._afccRenderSigs) across fetchBriefing, fetchTasks, fetchRoutines, fetchSchedules, and fetchLogs so identical poll responses skip DOM innerHTML rebuilds, preventing layout reflows and V8 GC churn.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[PERF-03] Critical Perf #3: Memoized SQLite Schema Guard, Bounded Memory PRAGMAs & Dead-Thread Connection Pruning",
+        "description": "Memoizes verified database schema paths in BaseDatabase._get_connection() to eliminate per-query sqlite_master scans, applies bounded cache_size (-4096 / ~4MB), temp_store=MEMORY, and wal_autocheckpoint=400 PRAGMAs in SQLiteConnectionPool, skips redundant SELECT 1 probes within 15s, and automatically prunes connections belonging to exited worker threads.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[PERF-04] Critical Perf #4: Lazy Standalone HTML_PAGE, Cached Static Asset Index with ETag/304 & Conditional Gzip Compression",
+        "description": "Converts fleet.server.HTML_PAGE to lazy PEP 562 module loading (~1.2MB startup RAM savings), removes the duplicate GET / encoding bug, memoizes modular HTML assembly in builder.py by asset mtimes, and adds a bounded 32-entry static asset cache with ETag/If-None-Match 304 responses and conditional gzip compression.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[PERF-05] Critical Perf #5: Bounded HTTP ThreadPoolExecutor (16 Workers) & 25s Production SSE Keep-Alive Heartbeat",
+        "description": "Replaces unbounded per-request OS thread spawning in RobustThreadingHTTPServer with a bounded 16-worker ThreadPoolExecutor (cleanly drained on server_close) and increases production /api/events/stream SSE heartbeat intervals from 2s to 25s.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[PERF-06] Critical Perf #6: TTL Read-Through Caching with Write-Through Invalidation for PC Optimizer & Daily Briefing",
+        "description": "Adds bounded TTL sub-caching in get_pc_performance_diagnostics() and BriefingEngine.generate_daily_briefing() (automatically bypassed under test environments unless explicitly requested) with immediate write-through invalidation on task, routine, health, email, and optimizer mutations.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[PERF-07] Critical Perf #7: Atomic OS Single-Instance Mutex & Windows Exclusive Socket Binding (Eliminate Duplicate Port-7890 Daemons)",
+        "description": "Implements atomic Windows CreateMutexW / POSIX flock single-instance enforcement in fleet.app and Windows SO_EXCLUSIVEADDRUSE socket binding in RobustThreadingHTTPServer to prevent duplicate port-7890 servers from doubling RAM and daemon CPU.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[PERF-08] Critical Perf #8: Incremental Antigravity Transcript Delta Polling (since_step), O(1) Unchanged Fast Path & Bounded DOM Window",
+        "description": "Adds an O(1) unchanged fast path in parse_transcript() when since_step >= latest_step, trims _TRANSCRIPT_MEM_CACHE to 300 steps, eliminates wasted list allocations, and updates antigravity.js fetchTranscript() to append incremental deltas while capping DOM messages at 80.",
+        "category": "AI/LLM",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[PERF-09] Critical Perf #9: Resource-Aware Daemon Pulse Deferral, Shared DB Instance & Periodic Idle Working-Set Trim",
+        "description": "Reuses a single shared FleetDatabase instance across FleetDaemon pulses, defers heavy pytest/security/dream pulses when system RAM >= 85% or battery/cooldown is active (with bounded anti-starvation cap), and periodically trims idle heap + Win32 working set.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[PERF-10] Critical Perf #10: Unified Bounded Cache Ceilings & Live Process RAM/Thread/Pool Telemetry Endpoint (GET /api/diagnostics/resources)",
+        "description": "Enforces explicit upper bounds across all server and client caches and exposes GET /api/diagnostics/resources with zero-dependency OS RSS memory, active threads, SQLite pool health, HTTP ETag/gzip savings, and cache hit/miss ratios.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+]
+
 ALL_CANONICAL_BACKLOG_ITEMS: List[Dict[str, str]] = (
     FOUNDATIONAL_DEFAULT_BACKLOG_ITEMS
     + HISTORICAL_RELEASE_BACKLOG_ITEMS
@@ -951,6 +1034,7 @@ ALL_CANONICAL_BACKLOG_ITEMS: List[Dict[str, str]] = (
     + TRI_DEVICE_BACKLOG_ITEMS
     + JARVIS_PERFORMANCE_AND_UX_BACKLOG_ITEMS
     + AFCC_UI_DESIGN_SYSTEM_BACKLOG_ITEMS
+    + AFCC_RAM_CPU_OPTIMIZATION_BACKLOG_ITEMS
 )
 
 

@@ -601,6 +601,12 @@
           captureEditTaskDraft(window._editingTaskId);
           return;
         }
+        if (typeof window._afccHasPayloadChanged === 'function') {
+          const changed = window._afccHasPayloadChanged('tasks', window._cachedTasksList);
+          if (!forceRender && !changed) {
+            return;
+          }
+        }
         renderTasksList();
       } catch (e) {
         console.error(e);

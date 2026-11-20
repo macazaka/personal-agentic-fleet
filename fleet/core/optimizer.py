@@ -15,14 +15,57 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from fleet.config import BASE_DIR, DATA_DIR
 from fleet.tools.system_tools import get_disk_usage
 
 _SAFE_PACKAGE_ID_RE = re.compile(r"^[A-Za-z0-9._+\-]+$")
 _UPGRADE_SCAN_CACHE: Dict[str, Any] = {"timestamp": 0.0, "data": None}
+_DIAG_SUBCACHE: Dict[str, Dict[str, Any]] = {}
+_DIAG_SUBCACHE_MAX = 16
+_DIAG_CACHE_LOCK = threading.Lock()
+_DIAG_CACHE_STATS: Dict[str, int] = {"hits": 0, "misses": 0, "invalidations": 0}
+
+
+def invalidate_optimizer_diag_cache() -> None:
+    """Immediately invalidates cached optimizer telemetry after any cleanup/RAM sweep mutation."""
+    with _DIAG_CACHE_LOCK:
+        _DIAG_SUBCACHE.clear()
+        _DIAG_CACHE_STATS["invalidations"] += 1
+
+
+def get_optimizer_cache_stats() -> Dict[str, Any]:
+    """Returns optimizer sub-cache hit/miss telemetry."""
+    with _DIAG_CACHE_LOCK:
+        return {
+            "entries": len(_DIAG_SUBCACHE),
+            "max_entries": _DIAG_SUBCACHE_MAX,
+            "hits": _DIAG_CACHE_STATS["hits"],
+            "misses": _DIAG_CACHE_STATS["misses"],
+            "invalidations": _DIAG_CACHE_STATS["invalidations"],
+        }
+
+
+def _cached_diag_call(key: str, ttl_sec: float, fn: Callable[[], Any], use_cache: bool) -> Any:
+    if not use_cache:
+        return fn()
+    now_mono = time.monotonic()
+    with _DIAG_CACHE_LOCK:
+        entry = _DIAG_SUBCACHE.get(key)
+        if entry is not None and (now_mono - float(entry.get("ts", 0.0))) < ttl_sec:
+            _DIAG_CACHE_STATS["hits"] += 1
+            return entry["value"]
+    val = fn()
+    with _DIAG_CACHE_LOCK:
+        _DIAG_CACHE_STATS["misses"] += 1
+        if key not in _DIAG_SUBCACHE and len(_DIAG_SUBCACHE) >= _DIAG_SUBCACHE_MAX:
+            oldest_key = min(_DIAG_SUBCACHE.keys(), key=lambda k: float(_DIAG_SUBCACHE[k].get("ts", 0.0)))
+            _DIAG_SUBCACHE.pop(oldest_key, None)
+        _DIAG_SUBCACHE[key] = {"ts": now_mono, "value": val}
+    return val
 DEFAULT_UPGRADE_POLICY: Dict[str, Any] = {
     "auto_check_enabled": True,
     "auto_install_security_and_patch": True,
@@ -511,6 +554,7 @@ def clean_temp_files() -> Dict[str, Any]:
     """Safely cleans stale files from the user temp directory."""
     import tempfile
     if os.environ.get("FLEET_TEST_MODE") == "1" and not hasattr(tempfile.gettempdir, "assert_called"):
+        invalidate_optimizer_diag_cache()
         return {
             "status": "success",
             "deleted_files": 0,
@@ -549,6 +593,7 @@ def clean_temp_files() -> Dict[str, Any]:
                 except Exception:
                     pass
     reclaimed_mb = round(reclaimed_bytes / (1024 * 1024), 2)
+    invalidate_optimizer_diag_cache()
     return {
         "status": "success",
         "deleted_files": deleted_files,
@@ -590,6 +635,7 @@ def flush_dns_cache() -> Dict[str, Any]:
 def purge_dev_caches(target_path: Optional[str] = None) -> Dict[str, Any]:
     """Purges __pycache__, .pytest_cache, and *.pyc artifacts from workspace."""
     if target_path is None and os.environ.get("FLEET_TEST_MODE") == "1":
+        invalidate_optimizer_diag_cache()
         return {
             "status": "success",
             "dirs_removed": 0,
@@ -628,6 +674,7 @@ def purge_dev_caches(target_path: Optional[str] = None) -> Dict[str, Any]:
             except Exception:
                 pass
     reclaimed_mb = round(reclaimed_bytes / (1024 * 1024), 2)
+    invalidate_optimizer_diag_cache()
     return {
         "status": "success",
         "dirs_removed": removed_dirs,
@@ -665,6 +712,7 @@ def optimize_ram() -> Dict[str, Any]:
             pass
     mem_after = get_memory_status()
     freed_mb = round(max(0.0, (mem_after["avail_gb"] - mem_before["avail_gb"]) * 1024), 1)
+    invalidate_optimizer_diag_cache()
     return {
         "status": "success",
         "memory_load": mem_after["percent_used"],
@@ -1548,17 +1596,23 @@ def run_automatic_upgrade_manager(force_scan: bool = True, dry_run: bool = False
     return auto_summary
 
 
-def get_pc_performance_diagnostics() -> Dict[str, Any]:
+def get_pc_performance_diagnostics(use_cache: Optional[bool] = None) -> Dict[str, Any]:
     """
     Synthesizes complete system diagnostics and actionable optimization recommendations.
-    Tier 0: Pure deterministic calculations (0 Tokens / $0.00).
+    Tier 0: Pure deterministic calculations (0 Tokens / $0.00) with TTL sub-caching.
     """
-    mem = get_memory_status()
-    disk = get_disk_usage(None)
-    temp = get_temp_bloat_info()
-    dev_cache = get_dev_cache_info()
-    startup_apps = get_startup_apps()
-    top_procs = get_top_processes(limit=5)
+    if use_cache is None:
+        from fleet.core.db.base import is_test_environment
+        cache_enabled = not is_test_environment()
+    else:
+        cache_enabled = bool(use_cache)
+
+    mem = _cached_diag_call("mem", 5.0, get_memory_status, cache_enabled)
+    disk = _cached_diag_call("disk", 30.0, lambda: get_disk_usage(None), cache_enabled)
+    temp = _cached_diag_call("temp", 120.0, get_temp_bloat_info, cache_enabled)
+    dev_cache = _cached_diag_call("dev_cache", 180.0, get_dev_cache_info, cache_enabled)
+    startup_apps = _cached_diag_call("startup_apps", 300.0, get_startup_apps, cache_enabled)
+    top_procs = _cached_diag_call("top_procs", 15.0, lambda: get_top_processes(limit=5), cache_enabled)
     upgrades = check_os_and_software_upgrades(force_refresh=False)
 
     # Calculate overall Performance Health Score (100 is best)

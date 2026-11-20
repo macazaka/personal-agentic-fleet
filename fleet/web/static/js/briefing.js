@@ -3,6 +3,9 @@ async function fetchBriefing() {
   try {
     const res = await fetch('/api/briefing');
     const data = await res.json();
+    if (typeof window._afccHasPayloadChanged === 'function' && !window._afccHasPayloadChanged('briefing', data)) {
+      return;
+    }
     document.getElementById('greetingText').innerText = `${data.greeting} • ${data.date} (${data.time})`;
     document.getElementById('briefingHeadline').innerText = data.headline;
 

@@ -1,6 +1,47 @@
-// --- Fleet Dashboard Application Bootstrapper & Polling Loop ---
+// --- Fleet Dashboard Application Bootstrapper & Visibility-Aware Single-Flight Polling Loop ---
+let _afccPollInFlight = false;
+let _afccPollTick = 0;
+
+async function runAfccPollTick(forceAll = false) {
+  if ((typeof document !== 'undefined' && document.hidden && !forceAll) || _afccPollInFlight) {
+    return;
+  }
+  _afccPollInFlight = true;
+  try {
+    _afccPollTick += 1;
+    const tasks = [];
+    if (typeof fetchBriefing === 'function') tasks.push(fetchBriefing());
+    if (typeof fetchTasks === 'function' && (typeof isTaskEditingActive !== 'function' || !isTaskEditingActive())) {
+      tasks.push(fetchTasks());
+    }
+    if (typeof fetchRoutines === 'function') tasks.push(fetchRoutines());
+    if (typeof fetchLogs === 'function') tasks.push(fetchLogs());
+    if (typeof fetchAgentQueue === 'function') tasks.push(fetchAgentQueue());
+
+    if (typeof currentTab !== 'undefined') {
+      if (currentTab === 'backlog' && typeof fetchBacklog === 'function') {
+        tasks.push(fetchBacklog());
+      } else if (currentTab === 'optimizer' && typeof fetchOptimizerDiagnostics === 'function') {
+        tasks.push(fetchOptimizerDiagnostics());
+      } else if ((currentTab === 'health' || currentTab === 'tri_device') && typeof fetchHealthDashboard === 'function') {
+        tasks.push(fetchHealthDashboard());
+      }
+    }
+
+    // Slow-changing metadata runs every 4th tick (~60s) or on focus resume
+    if (forceAll || (_afccPollTick % 4 === 0)) {
+      if (typeof fetchSchedules === 'function') tasks.push(fetchSchedules());
+      if (typeof fetchTestResults === 'function') tasks.push(fetchTestResults());
+    }
+
+    await Promise.allSettled(tasks);
+  } finally {
+    _afccPollInFlight = false;
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  // Initial load
+  // Initial visible-shell load (deferring hidden tabs: backlog, optimizer, health, exercise videos until selected)
   if (typeof fetchVersion === 'function') fetchVersion();
   if (typeof fetchBriefing === 'function') fetchBriefing();
   if (typeof fetchTasks === 'function') fetchTasks();
@@ -12,33 +53,24 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof fetchModels === 'function') fetchModels();
   if (typeof fetchAgentQueue === 'function') fetchAgentQueue();
   if (typeof fetchTokenHealth === 'function') fetchTokenHealth();
-  if (typeof fetchBacklog === 'function') fetchBacklog();
-  if (typeof fetchOptimizerDiagnostics === 'function') fetchOptimizerDiagnostics();
-  if (typeof fetchHealthDashboard === 'function') fetchHealthDashboard();
-  if (typeof fetchExerciseVideos === 'function') fetchExerciseVideos();
   if (typeof openAntigravityRightDock === 'function') openAntigravityRightDock();
   if (typeof initDynamicAgentTabs === 'function') initDynamicAgentTabs();
   else if (typeof switchTab === 'function') switchTab('overview');
 
-  // Auto poll updates every 8 seconds
+  // Tiered visibility-aware auto poll every 15 seconds (0% background polling CPU when tab is hidden)
   setInterval(() => {
-    if (typeof fetchBriefing === 'function') fetchBriefing();
-    if (typeof fetchTasks === 'function' && (typeof isTaskEditingActive !== 'function' || !isTaskEditingActive())) {
-      fetchTasks();
+    runAfccPollTick(false);
+  }, 15000);
+
+  // Instant catch-up refresh when user returns focus to AFCC
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      runAfccPollTick(true);
+      if (typeof fetchTranscript === 'function' && window.agChatEngineMode !== 'fleet_zero_token') {
+        fetchTranscript(false);
+      }
     }
-    if (typeof fetchRoutines === 'function') fetchRoutines();
-    if (typeof fetchSchedules === 'function') fetchSchedules();
-    if (typeof fetchLogs === 'function') fetchLogs();
-    if (typeof fetchTestResults === 'function') fetchTestResults();
-    if (typeof fetchAgentQueue === 'function') fetchAgentQueue();
-    if (currentTab === 'backlog' && typeof fetchBacklog === 'function') {
-      fetchBacklog();
-    } else if (currentTab === 'optimizer' && typeof fetchOptimizerDiagnostics === 'function') {
-      fetchOptimizerDiagnostics();
-    } else if (currentTab === 'health' && typeof fetchHealthDashboard === 'function') {
-      fetchHealthDashboard();
-    }
-  }, 8000);
+  });
 });
 
 

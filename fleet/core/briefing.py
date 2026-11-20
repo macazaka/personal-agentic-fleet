@@ -1,8 +1,43 @@
 import re
+import threading
+import time
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from fleet.config import TIMEZONE_NAME
 from fleet.core.database import FleetDatabase
+
+_BRIEFING_CACHE: Dict[str, Dict[str, Any]] = {}
+_BRIEFING_CACHE_TTL_SEC = 10.0
+_MEETINGS_PREP_CACHE: Dict[str, Any] = {"ts": 0.0, "data": None}
+_MEETINGS_PREP_TTL_SEC = 60.0
+_BRIEFING_CACHE_LOCK = threading.Lock()
+_BRIEFING_CACHE_STATS: Dict[str, int] = {
+    "hits": 0,
+    "misses": 0,
+    "meetings_hits": 0,
+    "invalidations": 0,
+}
+
+
+def invalidate_briefing_cache() -> None:
+    """Write-through invalidation for cached daily briefings after task/routine/health/email updates."""
+    with _BRIEFING_CACHE_LOCK:
+        _BRIEFING_CACHE.clear()
+        _MEETINGS_PREP_CACHE["ts"] = 0.0
+        _MEETINGS_PREP_CACHE["data"] = None
+        _BRIEFING_CACHE_STATS["invalidations"] += 1
+
+
+def get_briefing_cache_stats() -> Dict[str, Any]:
+    """Returns briefing cache hit/miss telemetry."""
+    with _BRIEFING_CACHE_LOCK:
+        return {
+            "entries": len(_BRIEFING_CACHE),
+            "hits": _BRIEFING_CACHE_STATS["hits"],
+            "misses": _BRIEFING_CACHE_STATS["misses"],
+            "meetings_hits": _BRIEFING_CACHE_STATS["meetings_hits"],
+            "invalidations": _BRIEFING_CACHE_STATS["invalidations"],
+        }
 
 
 def extract_meeting_agenda(subject: str, snippet: str = "", sender: str = "") -> Dict[str, Any]:
@@ -56,7 +91,22 @@ class BriefingEngine:
         self.db = db or FleetDatabase()
         self.agent_registry = agent_registry
 
-    def generate_daily_briefing(self, agent_registry: Any = None) -> Dict[str, Any]:
+    def generate_daily_briefing(self, agent_registry: Any = None, use_cache: Optional[bool] = None) -> Dict[str, Any]:
+        if use_cache is None:
+            from fleet.core.db.base import is_test_environment
+            cache_enabled = not is_test_environment()
+        else:
+            cache_enabled = bool(use_cache)
+
+        cache_key = str(getattr(self.db, "db_path", "default"))
+        now_mono = time.monotonic()
+        if cache_enabled:
+            with _BRIEFING_CACHE_LOCK:
+                entry = _BRIEFING_CACHE.get(cache_key)
+                if entry is not None and (now_mono - float(entry.get("ts", 0.0))) < _BRIEFING_CACHE_TTL_SEC:
+                    _BRIEFING_CACHE_STATS["hits"] += 1
+                    return dict(entry["data"])
+
         tasks = self.db.list_tasks(exclude_tests=True)
         routines = self.db.list_routines()
 
@@ -132,17 +182,31 @@ class BriefingEngine:
                 badge = "🔴" if t["priority"] == "P1" else ("🟡" if t["priority"] == "P2" else "🟢")
                 briefing_text += f"{idx}. {badge} **{t['title']}**\n"
 
-        # Check calendar / meeting emails and auto-agenda prep
+        # Check calendar / meeting emails and auto-agenda prep (60s cached to avoid re-scanning inbox on every 8-15s poll)
         meetings_prep = []
-        try:
-            from fleet.integrations.gmail_client import gmail_manager
-            sample_emails = gmail_manager.sync_and_classify(dry_run=True).get("classified_sample", [])
-            for em in sample_emails:
-                if em.get("category_id") == 0 or em.get("has_calendar_part"):
-                    prep = extract_meeting_agenda(em.get("subject", ""), em.get("snippet", ""), em.get("from", ""))
-                    meetings_prep.append(prep)
-        except Exception:
-            meetings_prep = []
+        cached_meetings = None
+        if cache_enabled:
+            with _BRIEFING_CACHE_LOCK:
+                m_ts = float(_MEETINGS_PREP_CACHE.get("ts", 0.0))
+                if _MEETINGS_PREP_CACHE.get("data") is not None and (now_mono - m_ts) < _MEETINGS_PREP_TTL_SEC:
+                    cached_meetings = list(_MEETINGS_PREP_CACHE["data"])
+                    _BRIEFING_CACHE_STATS["meetings_hits"] += 1
+        if cached_meetings is not None:
+            meetings_prep = cached_meetings
+        else:
+            try:
+                from fleet.integrations.gmail_client import gmail_manager
+                sample_emails = gmail_manager.sync_and_classify(dry_run=True).get("classified_sample", [])
+                for em in sample_emails:
+                    if em.get("category_id") == 0 or em.get("has_calendar_part"):
+                        prep = extract_meeting_agenda(em.get("subject", ""), em.get("snippet", ""), em.get("from", ""))
+                        meetings_prep.append(prep)
+            except Exception:
+                meetings_prep = []
+            if cache_enabled:
+                with _BRIEFING_CACHE_LOCK:
+                    _MEETINGS_PREP_CACHE["ts"] = now_mono
+                    _MEETINGS_PREP_CACHE["data"] = list(meetings_prep)
 
         if meetings_prep:
             briefing_text += "\n**📅 Scheduled Meetings & Auto-Agenda Prep:**\n"
@@ -189,7 +253,7 @@ class BriefingEngine:
                 else:
                     briefing_text += f"- {al.get('agent_icon', '✨')} **{al.get('agent_name')}**: {al.get('title')}\n"
 
-        return {
+        result = {
             "date": date_str,
             "time": time_str,
             "greeting": greeting,
@@ -214,3 +278,11 @@ class BriefingEngine:
             "custom_agent_alerts": custom_alerts,
             "custom_agents_rollup": custom_rollup,
         }
+        if cache_enabled:
+            with _BRIEFING_CACHE_LOCK:
+                _BRIEFING_CACHE_STATS["misses"] += 1
+                if cache_key not in _BRIEFING_CACHE and len(_BRIEFING_CACHE) >= 4:
+                    oldest_key = min(_BRIEFING_CACHE.keys(), key=lambda k: float(_BRIEFING_CACHE[k].get("ts", 0.0)))
+                    _BRIEFING_CACHE.pop(oldest_key, None)
+                _BRIEFING_CACHE[cache_key] = {"ts": now_mono, "data": result}
+        return dict(result) if cache_enabled else result

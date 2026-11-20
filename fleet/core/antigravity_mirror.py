@@ -1201,6 +1201,26 @@ _TRANSCRIPT_MEM_CACHE: Dict[str, Any] = {
     "raw_steps": [],
     "line_count": 0,
 }
+_TRANSCRIPT_TAIL_CACHE_MAX = 300
+_TRANSCRIPT_CACHE_STATS: Dict[str, int] = {
+    "cache_hits": 0,
+    "incremental_reads": 0,
+    "full_reads": 0,
+    "delta_unchanged_hits": 0,
+}
+
+
+def get_transcript_cache_stats() -> Dict[str, Any]:
+    """Returns Antigravity transcript cache & delta fast-path telemetry."""
+    return {
+        "cached_steps": len(_TRANSCRIPT_MEM_CACHE.get("raw_steps") or []),
+        "max_tail_steps": _TRANSCRIPT_TAIL_CACHE_MAX,
+        "line_count": int(_TRANSCRIPT_MEM_CACHE.get("line_count", 0)),
+        "cache_hits": _TRANSCRIPT_CACHE_STATS["cache_hits"],
+        "incremental_reads": _TRANSCRIPT_CACHE_STATS["incremental_reads"],
+        "full_reads": _TRANSCRIPT_CACHE_STATS["full_reads"],
+        "delta_unchanged_hits": _TRANSCRIPT_CACHE_STATS["delta_unchanged_hits"],
+    }
 
 
 _AFCC_CLI_CONVERSATION_ID: Optional[str] = None
@@ -1536,8 +1556,24 @@ def parse_transcript(limit: int = 50, since_step: Optional[int] = None) -> Dict[
             and _TRANSCRIPT_MEM_CACHE["mtime_ns"] == st.st_mtime_ns
             and cached_size == st.st_size
         ):
-            raw_steps = list(_TRANSCRIPT_MEM_CACHE["raw_steps"])
-            total_lines = _TRANSCRIPT_MEM_CACHE["line_count"]
+            _TRANSCRIPT_CACHE_STATS["cache_hits"] += 1
+            cached_steps = _TRANSCRIPT_MEM_CACHE["raw_steps"]
+            total_lines = int(_TRANSCRIPT_MEM_CACHE.get("line_count", len(cached_steps)))
+            cached_latest = max(
+                (s.get("step_index", 0) for s in cached_steps if isinstance(s.get("step_index"), int)),
+                default=0,
+            )
+            if since_step is not None and cached_steps and cached_latest > 0 and since_step >= cached_latest:
+                _TRANSCRIPT_CACHE_STATS["delta_unchanged_hits"] += 1
+                return {
+                    "status": "success",
+                    "session_id": session_id,
+                    "total_steps": total_lines,
+                    "latest_step": cached_latest,
+                    "unchanged": True,
+                    "messages": [],
+                }
+            raw_steps = list(cached_steps)
         else:
             loaded_incrementally = False
             if (
@@ -1563,8 +1599,8 @@ def parse_transcript(limit: int = 50, since_step: Optional[int] = None) -> Dict[
                             except Exception:
                                 continue
                         combined_steps = list(_TRANSCRIPT_MEM_CACHE["raw_steps"]) + new_steps
-                        if _TRANSCRIPT_MEM_CACHE.get("tail_only") and len(combined_steps) > 600:
-                            combined_steps = combined_steps[-600:]
+                        if _TRANSCRIPT_MEM_CACHE.get("tail_only") and len(combined_steps) > _TRANSCRIPT_TAIL_CACHE_MAX:
+                            combined_steps = combined_steps[-_TRANSCRIPT_TAIL_CACHE_MAX:]
                         total_lines = _TRANSCRIPT_MEM_CACHE["line_count"] + len(delta_lines)
                         _TRANSCRIPT_MEM_CACHE["mtime_ns"] = st.st_mtime_ns
                         _TRANSCRIPT_MEM_CACHE["size"] = st.st_size
@@ -1572,8 +1608,10 @@ def parse_transcript(limit: int = 50, since_step: Optional[int] = None) -> Dict[
                         _TRANSCRIPT_MEM_CACHE["line_count"] = total_lines
                         raw_steps = list(combined_steps)
                         loaded_incrementally = True
+                        _TRANSCRIPT_CACHE_STATS["incremental_reads"] += 1
 
             if not loaded_incrementally:
+                _TRANSCRIPT_CACHE_STATS["full_reads"] += 1
                 tail_window_bytes = min(1572864, max(262144, int(limit or 80) * 6144))
                 if st_size > 2 * 1024 * 1024 and not need_full_history and limit <= 250 and since_step is None:
                     with open(transcript_path, "rb") as fb:
@@ -1595,21 +1633,24 @@ def parse_transcript(limit: int = 50, since_step: Optional[int] = None) -> Dict[
                     except Exception:
                         continue
                 total_lines = len(lines)
+                cached_list = list(raw_steps)
+                if not need_full_history and len(cached_list) > _TRANSCRIPT_TAIL_CACHE_MAX:
+                    cached_list = cached_list[-_TRANSCRIPT_TAIL_CACHE_MAX:]
+                    is_tail_only = True
                 _TRANSCRIPT_MEM_CACHE["path"] = str(transcript_path)
                 _TRANSCRIPT_MEM_CACHE["mtime_ns"] = st.st_mtime_ns
                 _TRANSCRIPT_MEM_CACHE["size"] = st.st_size
                 _TRANSCRIPT_MEM_CACHE["first_sig"] = first_sig
                 _TRANSCRIPT_MEM_CACHE["tail_only"] = is_tail_only
-                _TRANSCRIPT_MEM_CACHE["raw_steps"] = list(raw_steps)
+                _TRANSCRIPT_MEM_CACHE["raw_steps"] = cached_list
                 _TRANSCRIPT_MEM_CACHE["line_count"] = total_lines
-                lines = [None] * total_lines
     except Exception as e:
         return {
             "status": "error",
             "message": f"Error reading transcript: {e}",
             "messages": []
         }
-    lines = [None] * _TRANSCRIPT_MEM_CACHE.get("line_count", len(raw_steps))
+    total_lines = int(_TRANSCRIPT_MEM_CACHE.get("line_count", len(raw_steps)))
 
     if since_step is not None:
         raw_steps = [s for s in raw_steps if s.get("step_index", 0) > since_step]
@@ -1698,13 +1739,17 @@ def parse_transcript(limit: int = 50, since_step: Optional[int] = None) -> Dict[
             pass
 
 
-    max_step = raw_steps[-1].get("step_index", 0) if raw_steps else 0
+    max_step = max(
+        (s.get("step_index", 0) for s in raw_steps if isinstance(s.get("step_index"), int)),
+        default=(since_step if since_step is not None else 0),
+    )
 
     return {
         "status": "success",
         "session_id": session_id,
-        "total_steps": len(lines),
+        "total_steps": total_lines,
         "latest_step": max_step,
+        "unchanged": False,
         "messages": formatted_messages
     }
 

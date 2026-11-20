@@ -10,6 +10,7 @@ import socket
 import sys
 import threading
 import time
+from typing import Any, Optional, Tuple
 import webbrowser
 from pathlib import Path
 
@@ -20,6 +21,79 @@ if str(PROJECT_ROOT) not in sys.path:
 DATA_DIR = Path(__file__).resolve().parent / "data"
 LOG_FILE = DATA_DIR / "fleet_app.log"
 PID_FILE = DATA_DIR / "fleet.pid"
+
+
+def acquire_single_instance_lock(
+    lock_name: str = "Local\\AFCC_PersonalAgenticFleet_7890",
+) -> Tuple[bool, Any]:
+    """
+    Acquires an atomic OS-level single-instance lock so two AFCC processes
+    never co-bind port 7890 or run parallel daemons doubling RAM & CPU usage.
+    Returns (acquired, handle).
+    """
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel32.CreateMutexW.argtypes = [wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR]
+            kernel32.CreateMutexW.restype = wintypes.HANDLE
+            kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+            kernel32.CloseHandle.restype = wintypes.BOOL
+
+            handle = kernel32.CreateMutexW(None, False, lock_name)
+            err = ctypes.get_last_error()
+            if handle:
+                if err == 183:  # ERROR_ALREADY_EXISTS
+                    kernel32.CloseHandle(handle)
+                    return False, None
+                return True, int(handle)
+        except Exception:
+            return True, None
+        return True, None
+
+    # POSIX fallback using non-blocking flock
+    try:
+        import fcntl
+        safe_key = "".join(c if c.isalnum() or c in "-_" else "_" for c in lock_name)
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        lock_path = DATA_DIR / f"{safe_key}.lock"
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return True, fd
+        except OSError:
+            os.close(fd)
+            return False, None
+    except Exception:
+        return True, None
+
+
+def release_single_instance_lock(handle: Any) -> None:
+    """Releases a previously acquired OS single-instance lock handle safely."""
+    if handle is None:
+        return
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            from ctypes import wintypes
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+            kernel32.CloseHandle.restype = wintypes.BOOL
+            kernel32.CloseHandle(wintypes.HANDLE(handle))
+        except Exception:
+            pass
+        return
+    try:
+        import fcntl
+        fcntl.flock(handle, fcntl.LOCK_UN)
+    except Exception:
+        pass
+    try:
+        os.close(handle)
+    except Exception:
+        pass
 
 def setup_streams():
     """Configure stdout/stderr for console or headless pythonw background execution."""
@@ -128,6 +202,17 @@ def main():
             if not no_browser:
                 webbrowser.open(f"http://127.0.0.1:{PORT}")
             return
+
+    # 3. Acquire atomic OS single-instance lock so duplicate daemons/servers never double RAM/CPU
+    if "pytest" not in sys.modules and not os.environ.get("FLEET_TEST_MODE"):
+        acquired, lock_handle = acquire_single_instance_lock()
+        if not acquired:
+            print(f"[Single-Instance] Another AFCC instance already holds the OS mutex; skipping duplicate launch.")
+            if not no_browser:
+                webbrowser.open(f"http://127.0.0.1:{PORT}")
+            return
+        if lock_handle is not None:
+            atexit.register(release_single_instance_lock, lock_handle)
 
     # Write PID file for process management
     try:

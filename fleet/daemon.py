@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Dict, Optional
 """
 Background Routine Daemon for Personal Agentic Fleet.
 Monitors daily times to trigger proactive Windows Toast notifications for:
@@ -7,6 +7,7 @@ Monitors daily times to trigger proactive Windows Toast notifications for:
 Runs quietly in the background on your Windows laptop.
 """
 
+import gc
 import logging
 import sys
 import time
@@ -32,6 +33,7 @@ class FleetDaemon:
     def __init__(self):
         from fleet.core.event_bus import bus
         self.bus = bus
+        self.db = getattr(self.bus, "db", None) or FleetDatabase()
         from fleet.core.scheduler import get_fleet_scheduler
         self.scheduler = get_fleet_scheduler()
         self.last_briefing_date = ""
@@ -58,6 +60,115 @@ class FleetDaemon:
         self.last_pipeline_timeout_check = time.time() - 60
         self.pipeline_timeout_check_interval_sec = 90
         self.last_sentinel_triggered_sha = ""
+        # Resource-Aware Pulse Deferral & Periodic Working-Set Memory Trim
+        self.last_memory_trim_time = time.time()
+        self.memory_trim_interval_sec = 900  # 15 minutes
+        self._pulse_deferrals: Dict[str, int] = {}
+
+    def _get_db(self) -> FleetDatabase:
+        """Returns the shared FleetDatabase instance without redundant constructor/migration overhead."""
+        return getattr(self.bus, "db", None) or self.db
+
+    @staticmethod
+    def _is_battery_power_low() -> bool:
+        """Checks Windows battery/power-saver state without external packages (POSIX returns False)."""
+        if sys.platform != "win32":
+            return False
+        try:
+            import ctypes
+            class SYSTEM_POWER_STATUS(ctypes.Structure):
+                _fields_ = [
+                    ("ACLineStatus", ctypes.c_byte),
+                    ("BatteryFlag", ctypes.c_byte),
+                    ("BatteryLifePercent", ctypes.c_byte),
+                    ("SystemStatusFlag", ctypes.c_byte),
+                    ("BatteryLifeTime", ctypes.c_ulong),
+                    ("BatteryFullLifeTime", ctypes.c_ulong),
+                ]
+            sps = SYSTEM_POWER_STATUS()
+            windll = getattr(ctypes, "windll", None)
+            if windll and windll.kernel32.GetSystemPowerStatus(ctypes.byref(sps)):
+                ac_offline = int(sps.ACLineStatus) == 0
+                pct = int(sps.BatteryLifePercent)
+                saver_on = int(sps.SystemStatusFlag) == 1
+                if saver_on:
+                    return True
+                if ac_offline and 0 < pct <= 25:
+                    return True
+        except Exception:
+            pass
+        return False
+
+    def _should_defer_heavy_pulse(
+        self,
+        task_key: str,
+        ram_threshold_pct: float = 85.0,
+        max_deferrals: int = 3,
+    ) -> bool:
+        """
+        Defers heavy background pulses (pytest, security scan, dream cycle) when system RAM >= threshold
+        or battery saver / low battery / wake cooldown is active, with an anti-starvation cap.
+        """
+        defer_count = int(self._pulse_deferrals.get(task_key, 0))
+        if defer_count >= max_deferrals:
+            self._pulse_deferrals[task_key] = 0
+            return False
+
+        under_pressure = False
+        try:
+            from fleet.core.optimizer import get_memory_status
+            mem = get_memory_status()
+            if float(mem.get("percent_used", 0)) >= ram_threshold_pct:
+                under_pressure = True
+        except Exception:
+            pass
+
+        if not under_pressure:
+            try:
+                from fleet.core.power import power_manager
+                if getattr(power_manager, "is_in_cooldown", False):
+                    under_pressure = True
+            except Exception:
+                pass
+
+        if not under_pressure and self._is_battery_power_low():
+            under_pressure = True
+
+        if under_pressure:
+            self._pulse_deferrals[task_key] = defer_count + 1
+            return True
+
+        self._pulse_deferrals[task_key] = 0
+        return False
+
+    def _trim_idle_working_set(self) -> Dict[str, Any]:
+        """Collects generational garbage, prunes dead-thread SQLite pools, and trims OS working set."""
+        collected = 0
+        pruned_conns = 0
+        ws_trimmed = False
+        try:
+            collected = int(gc.collect(1))
+        except Exception:
+            pass
+        try:
+            from fleet.core.db.pool import prune_dead_thread_connections
+            pruned_conns = int(prune_dead_thread_connections())
+        except Exception:
+            pass
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                windll = getattr(ctypes, "windll", None)
+                if windll:
+                    handle = windll.kernel32.GetCurrentProcess()
+                    ws_trimmed = bool(windll.kernel32.SetProcessWorkingSetSize(handle, ctypes.c_size_t(-1), ctypes.c_size_t(-1)))
+            except Exception:
+                pass
+        return {
+            "gc_collected": collected,
+            "pruned_connections": pruned_conns,
+            "working_set_trimmed": ws_trimmed,
+        }
 
     def check_and_trigger(self):
         now = datetime.now()
@@ -164,19 +275,26 @@ class FleetDaemon:
         # 4. Scheduled Unit Test Suite & Code Coverage Pulse (Every 30 mins)
         now_ts = time.time()
         if (now_ts - self.last_test_run_time) >= self.test_run_interval_sec:
-            try:
-                from fleet.tools.test_runner import run_test_suite_isolated
-                print(f"[{now.strftime('%H:%M:%S')}] Running scheduled unit test suite and coverage pulse in isolated child process...")
-                db_inst = getattr(self.bus, "db", None) or FleetDatabase()
-                run_test_suite_isolated(db_inst)
-                self.last_test_run_time = now_ts
-            except Exception as e:
-                print(f"[{now.strftime('%H:%M:%S')}] Test runner daemon error: {e}")
+            if self._should_defer_heavy_pulse("test_suite"):
+                logger.info("[FleetDaemon] Deferring heavy test_suite pulse by 5m due to high RAM / low power.")
+                self.last_test_run_time = now_ts - self.test_run_interval_sec + 300
+            else:
+                try:
+                    from fleet.tools.test_runner import run_test_suite_isolated
+                    print(f"[{now.strftime('%H:%M:%S')}] Running scheduled unit test suite and coverage pulse in isolated child process...")
+                    run_test_suite_isolated(self._get_db())
+                    self.last_test_run_time = now_ts
+                except Exception as e:
+                    print(f"[{now.strftime('%H:%M:%S')}] Test runner daemon error: {e}")
 
         # 5. Scheduled Automated Security & Privacy Audit Pulse (Every 60 mins by default)
         if (now_ts - self.last_security_scan_time) >= self.security_scan_interval_sec:
-            self.run_scheduled_security_scan(now)
-            self.last_security_scan_time = now_ts
+            if self._should_defer_heavy_pulse("security_scan"):
+                logger.info("[FleetDaemon] Deferring heavy security_scan pulse by 5m due to high RAM / low power.")
+                self.last_security_scan_time = now_ts - self.security_scan_interval_sec + 300
+            else:
+                self.run_scheduled_security_scan(now)
+                self.last_security_scan_time = now_ts
 
         # 6. Scheduled Admin PR Review & CI Quality Gate Pulse (Every 60 mins)
         if (now_ts - self.last_pr_review_time) >= self.pr_review_interval_sec:
@@ -213,20 +331,23 @@ class FleetDaemon:
 
         # 10. Subconscious Memory Consolidation Dream Cycle (Nightly during 23:00 - 06:00 window)
         if (now.hour >= 23 or now.hour < 6) and getattr(self, "last_dream_date", "") != today_date:
-            try:
-                from fleet.core.mind import fleet_mind
-                fleet_mind.set_db(getattr(self.bus, "db", None) or FleetDatabase())
-                dream_report = fleet_mind.dream()
-                self.last_dream_date = today_date
-                print(f"[{now.strftime('%H:%M:%S')}] Subconscious Dream Cycle complete ({dream_report.get('insights_synthesized_count', 0)} insights synthesized).")
-            except Exception as e:
-                logger.debug("Dream cycle daemon warning: %s", e)
+            if self._should_defer_heavy_pulse("dream_cycle"):
+                logger.info("[FleetDaemon] Deferring dream_cycle due to high RAM / low power.")
+            else:
+                try:
+                    from fleet.core.mind import fleet_mind
+                    fleet_mind.set_db(self._get_db())
+                    dream_report = fleet_mind.dream()
+                    self.last_dream_date = today_date
+                    print(f"[{now.strftime('%H:%M:%S')}] Subconscious Dream Cycle complete ({dream_report.get('insights_synthesized_count', 0)} insights synthesized).")
+                except Exception as e:
+                    logger.debug("Dream cycle daemon warning: %s", e)
 
         # 11. Soul Moral Alignment Audit (Every 2 hours)
         if (now_ts - getattr(self, "last_soul_audit_time", 0.0)) >= getattr(self, "soul_audit_interval_sec", 7200):
             try:
                 from fleet.core.mind import fleet_mind
-                fleet_mind.set_db(getattr(self.bus, "db", None) or FleetDatabase())
+                fleet_mind.set_db(self._get_db())
                 audit = fleet_mind.audit_soul()
                 self.last_soul_audit_time = now_ts
                 if audit.status in ("DRIFTING", "DISCORDANT"):
@@ -234,14 +355,18 @@ class FleetDaemon:
             except Exception as e:
                 logger.debug("Soul audit daemon warning: %s", e)
 
+        # 12. Periodic Idle Working-Set Memory Trim & Dead-Thread Pool Prune (Every 15 mins)
+        if (now_ts - getattr(self, "last_memory_trim_time", 0.0)) >= getattr(self, "memory_trim_interval_sec", 900):
+            self._trim_idle_working_set()
+            self.last_memory_trim_time = now_ts
+
     def run_scheduled_log_scan_and_heal(self, now: Optional[datetime] = None):
         """Proactively scans logs, ring buffer and crash dumps, executing autonomous improvements."""
         if now is None:
             now = datetime.now()
         try:
             from fleet.core.auto_healer import run_proactive_log_scan_and_heal
-            db_inst = getattr(self.bus, "db", None) or FleetDatabase()
-            report = run_proactive_log_scan_and_heal(db=db_inst)
+            report = run_proactive_log_scan_and_heal(db=self._get_db())
             imp_count = report.get("improvements_applied_count", 0)
             if imp_count > 0:
                 print(f"[{now.strftime('%H:%M:%S')}] Proactive Auto-Healer: {imp_count} autonomous improvement(s) applied.")
@@ -329,8 +454,7 @@ class FleetDaemon:
             score = report.get("score", 0)
             status = report.get("status", "UNKNOWN")
             findings_count = report.get("total_findings", 0)
-            db_inst = getattr(self.bus, "db", None) or FleetDatabase()
-            db_inst.log_activity(
+            self._get_db().log_activity(
                 "SecurityScanner",
                 "scheduled_scan",
                 f"Automated Security Audit: Score {score}/100 [{status}] ({findings_count} findings)"

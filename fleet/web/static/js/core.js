@@ -1,4 +1,18 @@
 // --- Core Navigation, Utilities & Modals ---
+    window._afccRenderSigs = window._afccRenderSigs || {};
+    window._afccHasPayloadChanged = function(key, payload) {
+      try {
+        const sig = JSON.stringify(payload);
+        if (window._afccRenderSigs[key] === sig) {
+          return false;
+        }
+        window._afccRenderSigs[key] = sig;
+        return true;
+      } catch (e) {
+        return true;
+      }
+    };
+
     async function fetchLogs() {
       try {
         const res = await fetch('/api/logs');
@@ -8,6 +22,7 @@
           const d = (l.details || '').toLowerCase();
           return !a.includes('test') && !d.includes('test task') && !d.includes('e2e deep') && !d.includes('ran test') && !d.includes('passed test');
         });
+        if (!window._afccHasPayloadChanged('logs', logs)) return;
         const stream = document.getElementById('logStream');
         stream.innerHTML = logs.map(l => `
           <div class="log-entry">
@@ -101,18 +116,29 @@
         fetchAgentQueue();
         if (!agInterval) {
           agInterval = setInterval(() => {
-            fetchTranscript(false);
+            if (document.hidden) return;
+            if (window.agChatEngineMode !== 'fleet_zero_token') {
+              fetchTranscript(false);
+            }
             fetchAgentQueue();
-          }, 2500);
+          }, 6000);
         }
       } else if (tab === 'health') {
         if (tabHealth) tabHealth.classList.add('active');
         if (viewHealth) viewHealth.style.display = 'flex';
         fetchHealthDashboard();
+        if (!window._exerciseVideosHydrated && typeof fetchExerciseVideos === 'function') {
+          window._exerciseVideosHydrated = true;
+          fetchExerciseVideos();
+        }
       } else if (tab === 'tri_device') {
         if (tabTriDevice) tabTriDevice.classList.add('active');
         if (viewTriDevice) viewTriDevice.style.display = 'flex';
         fetchHealthDashboard();
+        if (!window._exerciseVideosHydrated && typeof fetchExerciseVideos === 'function') {
+          window._exerciseVideosHydrated = true;
+          fetchExerciseVideos();
+        }
       } else if (tab === 'backlog') {
         if (tabBacklog) tabBacklog.classList.add('active');
         if (viewBacklog) viewBacklog.style.display = 'flex';
