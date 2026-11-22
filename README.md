@@ -121,7 +121,7 @@ Personal Agentic Fleet is engineered with first-class native Windows architectur
 <!-- AUTO-LATEST-RELEASE:START -->
 ### 🆕 What's New in Release `v2.21.0` (Auto-Synchronized)
 
-> **Live Telemetry**: `11` Core Agents • `206` REST API Endpoints • `36` Microkernel Engines • `22` Automation Tools • `560` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
+> **Live Telemetry**: `11` Core Agents • `206` REST API Endpoints • `36` Microkernel Engines • `22` Automation Tools • `561` Automated Unit Tests (`100%` Pass) • **[Full Release Notes (`CHANGELOG.md`)](CHANGELOG.md)** | **[Wiki Release Notes](https://github.com/macazaka/personal-agentic-fleet/wiki/Release-Notes)**
 
 ### Added
 - **AFCC Polar-Obsidian Design System v1.0 & 10 Critical UI Enhancements (`[UI-01]`..`[UI-10]`)**:

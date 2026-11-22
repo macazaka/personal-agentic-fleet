@@ -17,7 +17,7 @@ By uniting all three into a **Zero-Cloud Personal Mesh**, AFCC transforms from a
 flowchart TB
     subgraph Wearable["⌚ Layer 1: Apple Watch (watchOS Sensor & Haptic Wrist Node)"]
         W_Sens["Biometric Sensors<br/>HR, HRV (SDNN), SpO2, ECG,<br/>Wrist Temp, Sleep Stages, Workout Swings"]
-        W_Comp["Watch Face Complication & Siri<br/>1-Tap Jarvis Voice / Quick Log"]
+        W_Comp["Watch Face Complication & Siri<br/>1-Tap Mahadev Voice / Quick Log"]
         W_Hap["Taptic Engine Alerts<br/>Hypo Guard, Posture, Payment Ready"]
     end
 
@@ -91,11 +91,11 @@ Below are the **7 core problem statements** that are impossible (or high-frictio
   2. AFCC computes a deterministic **Readiness Score (0–100)** at `$0.00` token cost.
   3. On **High Readiness Days ($\ge 80$)**, the Daily Briefing Engine schedules complex architecture/coding and P0 deep-work backlog items for the morning block. On **Low Readiness Days ($< 55$)**, AFCC automatically defers non-urgent heavy tasks, inserts a 20-minute afternoon NSDR/recovery block, and tightens late-evening screen-time cutoffs.
 
-### Problem 4: Zero-Friction Ubiquitous Capture & Wrist J.A.R.V.I.S. Voice Control
+### Problem 4: Zero-Friction Ubiquitous Capture & Wrist Mahadev Voice Control
 - **The Problem**: High-value ideas, urgent tasks, or quick status queries happen while walking, commuting, cooking, or working out—when your laptop is closed and even pulling out a phone is inconvenient.
 - **How the Tri-Device Architecture Solves It**:
-  1. Raise your wrist and tap the **AFCC J.A.R.V.I.S. Watch Complication** (or press the iPhone Action Button).
-  2. Speak naturally in English, Hindi, Telugu, or Marathi (e.g., *"Jarvis, add task renew car insurance next Friday"* or *"Jarvis, what are my pending P1 tasks?"*).
+  1. Raise your wrist and tap the **AFCC Mahadev Watch Complication** (or press the iPhone Action Button).
+  2. Speak naturally in English, Hindi, Telugu, or Marathi (e.g., *"Mahadev, add task renew car insurance next Friday"* or *"Mahadev, what are my pending P1 tasks?"*).
   3. The audio/transcript is sent over the encrypted WireGuard mesh to AFCC's Tier-0 Omnibar Dispatcher (`POST /api/omnibar/voice`), verified against your enrolled biometric voiceprint, executed at `$0.00`, and spoken back on your Apple Watch / AirPods.
 
 ### Problem 5: Context-Aware Sedentary, Posture & Hydration Micro-Interventions
@@ -242,7 +242,7 @@ flowchart LR
 ```
 
 ### 4.1 Mode 1: Installable iOS Progressive Web App (PWA) over P2P WireGuard
-1. **Local Root CA Trust on iOS**: Install `fleet/data/certs/afcc_root_ca.crt` on the iPhone (*Settings $\rightarrow$ General $\rightarrow$ VPN & Device Management $\rightarrow$ Install Profile*, then enable full trust in *Settings $\rightarrow$ General $\rightarrow$ About $\rightarrow$ Certificate Trust Settings*). This gives iOS Safari and the Home Screen Web App full green-padlock `HTTPS` trust, unlocking **secure-context Web APIs** on the iPhone (`navigator.mediaDevices.getUserMedia` for J.A.R.V.I.S. microphone voiceprints, `WebCrypto`, and Service Workers).
+1. **Local Root CA Trust on iOS**: Install `fleet/data/certs/afcc_root_ca.crt` on the iPhone (*Settings $\rightarrow$ General $\rightarrow$ VPN & Device Management $\rightarrow$ Install Profile*, then enable full trust in *Settings $\rightarrow$ General $\rightarrow$ About $\rightarrow$ Certificate Trust Settings*). This gives iOS Safari and the Home Screen Web App full green-padlock `HTTPS` trust, unlocking **secure-context Web APIs** on the iPhone (`navigator.mediaDevices.getUserMedia` for Mahadev microphone voiceprints, `WebCrypto`, and Service Workers).
 2. **Zero-Cloud Global Connectivity via Tailscale (Peer-to-Peer WireGuard)**:
    - Install **Tailscale** on both the Windows Laptop and the iPhone using your private identity.
    - Tailscale assigns a stable private IP (`100.x.y.z`) and MagicDNS hostname (`https://laptop-afcc:7890`) to your laptop using direct peer-to-peer NAT traversal encrypted with **WireGuard (`ChaCha20-Poly1305`)**.
@@ -342,5 +342,5 @@ Every byte flowing between the Apple Watch, iPhone, and Laptop adheres to the **
 ### Phase 3: Native Swift / WatchOS Companion (`AFCC-Bridge`) & Offline CRDT Sync
 1. **Lightweight SwiftUI iOS + watchOS Target**:
    - Background `HKObserverQuery` delivery for real-time Apple Watch workout & heart-rate streaming during Mudgar/Samtola/Bhim Gadha sessions.
-   - Apple Watch complication for 1-tap J.A.R.V.I.S. voice commands (`WCSession` $\rightarrow$ `/api/omnibar/voice`).
+   - Apple Watch complication for 1-tap Mahadev voice commands (`WCSession` $\rightarrow$ `/api/omnibar/voice`).
    - Offline `SQLCipher` CRDT store on iPhone with automatic delta sync (`POST /api/mobile/sync`).

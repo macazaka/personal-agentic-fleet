@@ -255,7 +255,7 @@ const FleetNavigator = {
         return;
       }
 
-      // 3. Ctrl+\ or Alt+D -> Toggle Right Chat / J.A.R.V.I.S. Panel
+      // 3. Ctrl+\ or Alt+D -> Toggle Right Chat / Mahadev Panel
       if (((e.ctrlKey || e.metaKey) && e.key === '\\') || (e.altKey && !e.ctrlKey && (e.key === 'd' || e.key === 'D'))) {
         e.preventDefault();
         if (typeof window.toggleAntigravityRightDock === 'function') {
@@ -490,12 +490,12 @@ const FleetNavigator = {
           ],
         },
         {
-          title: '🎙️ J.A.R.V.I.S. Voice & Ambient Reflexes (From Any Tab)',
+          title: '🎙️ Mahadev Voice & Ambient Reflexes (From Any Tab)',
           items: [
-            { keys: 'Alt + V', label: 'Toggle J.A.R.V.I.S. Voice Listening (with Floating Pill)', act: 'toggle_voice' },
+            { keys: 'Alt + V', label: 'Toggle Mahadev Voice Listening (with Floating Pill)', act: 'toggle_voice' },
             { keys: 'Hold Right-Ctrl', label: 'Push-to-Talk Voice Command (release to auto-send)', act: 'toggle_voice' },
             { keys: 'Alt + W', label: '💧 Log +1 Glass of Water (250 ml) immediately', act: 'log_water' },
-            { keys: 'Alt + D  /  Ctrl + \\', label: '◨ Toggle Right J.A.R.V.I.S. & Chat Panel', act: 'toggle_dock' },
+            { keys: 'Alt + D  /  Ctrl + \\', label: '◨ Toggle Right Mahadev & Chat Panel', act: 'toggle_dock' },
             { keys: 'Alt + M', label: '🙈 Toggle Sensitive Account & Consumer ID Masking', act: 'toggle_mask' },
             { keys: 'Alt + N', label: '⏭️ Step to Next Action Item in Voice Review', act: 'next_action_item' },
             { keys: 'Alt + C', label: '✅ Close / Complete Focused Action Item', act: 'close_action_item' },
@@ -3904,7 +3904,7 @@ const AFCCUI = {
       localStorage.setItem('afcc_right_dock_width', String(clamped));
     } catch (e) {}
     if (notify) {
-      this.showToast(`◨ Right Chat & J.A.R.V.I.S. Panel width set to ${clamped}px`);
+      this.showToast(`◨ Right Chat & Mahadev Panel width set to ${clamped}px`);
     }
   },
 
@@ -3954,7 +3954,7 @@ const AFCCUI = {
       overview: { domain: 'Command & Operations', label: '⚡ Overview & Tasks', status: '● $0.00 Zero-Token Ready' },
       health: { domain: 'Health & Lifestyle', label: '🌿 Health & Wellness (FFD & 6-Day Split)', status: '● Local Vault Encrypted' },
       tri_device: { domain: 'Connection Agents', label: '⌚ Tri-Device & Hardware Hub', status: '● LAN & iPhone Relay Ready' },
-      antigravity: { domain: 'AI & Research', label: '🤖 Antigravity 2.0 Live & J.A.R.V.I.S.', status: '● Dual-Brain Router Online' },
+      antigravity: { domain: 'AI & Research', label: '🤖 Antigravity 2.0 Live & Mahadev', status: '● Dual-Brain Router Online' },
       backlog: { domain: 'Governance & Roadmap', label: '📋 Feature Backlog & Evolution', status: '● SQLite WAL Synced' },
       optimizer: { domain: 'DevOps & System', label: '🚀 PC Performance Optimizer', status: '● Win32 PSAPI 0-Token' },
     };

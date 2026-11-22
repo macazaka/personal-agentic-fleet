@@ -728,7 +728,7 @@ TRI_DEVICE_BACKLOG_ITEMS: List[Dict[str, str]] = [
 ]
 
 JARVIS_PERFORMANCE_AND_UX_BACKLOG_ITEMS: List[Dict[str, str]] = [
-    # --- 10 Critical (P1/Critical) J.A.R.V.I.S. Performance Enhancements ---
+    # --- 10 Critical (P1/Critical) Mahadev Voice Performance Enhancements ---
     {
         "title": "[JV-01] Critical Perf #1: O(1) Frozenset Token Intersection & Pre-Compiled Multi-Word Regex for N-Best ASR Scoring (_score_voice_candidate)",
         "description": "Eliminates 330 dynamic re.search() regex compilations per voice turn in _score_voice_candidate by replacing the 66-keyword loop with an O(1) frozenset token intersection (_JARVIS_SINGLE_WORD_SET) and a single pre-compiled _JARVIS_MULTI_WORD_RE, cutting N-best candidate scoring CPU time by >96%.",
@@ -763,7 +763,7 @@ JARVIS_PERFORMANCE_AND_UX_BACKLOG_ITEMS: List[Dict[str, str]] = [
     },
     {
         "title": "[JV-06] Critical Perf #5: O(1) Canonical Fast-Intent Hash Dispatch Table (_FAST_INTENT_CANONICAL_ALIASES)",
-        "description": "Normalizes the 25 highest-frequency J.A.R.V.I.S. voice phrases ('can you hear me', 'lets discuss action items', 'next action item', 'close it', 'good morning', 'tell me todays news', 'tell me about latest updates of pune', etc.) via an O(1) hash lookup table before evaluating 40+ regex branches.",
+        "description": "Normalizes the 25 highest-frequency Mahadev voice phrases ('can you hear me', 'lets discuss action items', 'next action item', 'close it', 'good morning', 'tell me todays news', 'tell me about latest updates of pune', etc.) via an O(1) hash lookup table before evaluating 40+ regex branches.",
         "category": "AI/LLM",
         "priority": "P1",
         "status": "Completed",
@@ -809,7 +809,7 @@ JARVIS_PERFORMANCE_AND_UX_BACKLOG_ITEMS: List[Dict[str, str]] = [
         "status": "Completed",
         "target_version": "v2.20.0",
     },
-    # --- 6 Non-Conflicting High (P1), Medium (P2), and Low (P3) J.A.R.V.I.S. Feature Enhancements ---
+    # --- 6 Non-Conflicting High (P1), Medium (P2), and Low (P3) Mahadev Voice Feature Enhancements ---
     {
         "title": "[JV-11] High Crit #11: Conversational Voice Undo & Correction Reflex ('Undo that', 'Scratch that') with Mutation Journal",
         "description": "Maintains a bounded in-memory _LAST_VOICE_MUTATION_JOURNAL recording the last voice-triggered task closure, task creation, title/priority edit, or water log so saying 'Undo that' or 'Scratch that' reverses the mutation in <5ms at $0.00.",
@@ -851,8 +851,8 @@ JARVIS_PERFORMANCE_AND_UX_BACKLOG_ITEMS: List[Dict[str, str]] = [
         "target_version": "v2.20.0",
     },
     {
-        "title": "[JV-16] Low Crit #16: Real-Time J.A.R.V.I.S. Performance & Cache Telemetry Diagnostics Endpoint (GET /api/voice/diagnostics & 'Voice diagnostics')",
-        "description": "Exposes GET /api/voice/diagnostics and voice command 'Jarvis performance report' returning real-time hit/miss counters, cache sizes (_CLEAN_SPEECH_CACHE, _LIVE_NEWS_CACHE, _WAKE_WORD_MEMO_CACHE), topic stack depth, and sub-5ms dispatch latency.",
+        "title": "[JV-16] Low Crit #16: Real-Time Mahadev Voice Performance & Cache Telemetry Diagnostics Endpoint (GET /api/voice/diagnostics & 'Voice diagnostics')",
+        "description": "Exposes GET /api/voice/diagnostics and voice command 'Mahadev performance report' returning real-time hit/miss counters, cache sizes (_CLEAN_SPEECH_CACHE, _LIVE_NEWS_CACHE, _WAKE_WORD_MEMO_CACHE), topic stack depth, and sub-5ms dispatch latency.",
         "category": "Core",
         "priority": "P3",
         "status": "Completed",
@@ -894,7 +894,7 @@ AFCC_UI_DESIGN_SYSTEM_BACKLOG_ITEMS: List[Dict[str, str]] = [
         "target_version": "v2.21.0",
     },
     {
-        "title": "[UI-05] Critical UI #5: Draggable Split-Pane Resize Sash & 1-Click Width Presets (360px / 460px / 600px) for Right-Docked Antigravity & J.A.R.V.I.S. Panel",
+        "title": "[UI-05] Critical UI #5: Draggable Split-Pane Resize Sash & 1-Click Width Presets (360px / 460px / 600px) for Right-Docked Antigravity & Mahadev Panel",
         "description": "Replaces the fixed 480px right dock width with a requestAnimationFrame-throttled pointer drag sash (#agRightDockResizeHandle) and 1-click width presets (Compact 360px, Default 460px, Wide 600px) persisted via --ds-right-dock-width in localStorage.",
         "category": "UI/UX",
         "priority": "P1",
@@ -1045,6 +1045,28 @@ class BacklogMixin(_DbBase):
         now = datetime.now().isoformat()
         with self._get_connection() as conn:
             cursor = conn.cursor()
+            # Idempotently rename legacy J.A.R.V.I.S. UI/backlog titles to Mahadev in existing SQLite DBs
+            for old_t, new_t in (
+                (
+                    "[JV-16] Low Crit #16: Real-Time J.A.R.V.I.S. Performance & Cache Telemetry Diagnostics Endpoint (GET /api/voice/diagnostics & 'Voice diagnostics')",
+                    "[JV-16] Low Crit #16: Real-Time Mahadev Voice Performance & Cache Telemetry Diagnostics Endpoint (GET /api/voice/diagnostics & 'Voice diagnostics')",
+                ),
+                (
+                    "[UI-05] Critical UI #5: Draggable Split-Pane Resize Sash & 1-Click Width Presets (360px / 460px / 600px) for Right-Docked Antigravity & J.A.R.V.I.S. Panel",
+                    "[UI-05] Critical UI #5: Draggable Split-Pane Resize Sash & 1-Click Width Presets (360px / 460px / 600px) for Right-Docked Antigravity & Mahadev Panel",
+                ),
+            ):
+                cursor.execute(
+                    "SELECT id FROM feature_backlog WHERE title = ?",
+                    (new_t,),
+                )
+                if cursor.fetchone() is None:
+                    cursor.execute(
+                        "UPDATE feature_backlog SET title = ?, updated_at = ? WHERE title = ?",
+                        (new_t, now, old_t),
+                    )
+                else:
+                    cursor.execute("DELETE FROM feature_backlog WHERE title = ?", (old_t,))
             cursor.execute("SELECT title FROM feature_backlog")
             existing_titles = {str(row["title"]).strip() for row in cursor.fetchall()}
             for item in ALL_CANONICAL_BACKLOG_ITEMS:

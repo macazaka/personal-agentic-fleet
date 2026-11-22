@@ -1243,7 +1243,7 @@ window.toggleAntigravityFullPageOrDock = toggleAntigravityFullPageOrDock;
 window.closeAntigravityRightDock = closeAntigravityRightDock;
 window.dockFleetChatToRightPanel = dockFleetChatToRightPanel;
 
-// --- J.A.R.V.I.S. Bi-Directional Audio Conversation, Biometric Speaker Lock & Live Activity Engine ---
+// --- Mahadev Bi-Directional Audio Conversation, Biometric Speaker Lock & Live Activity Engine ---
 let _initialVoiceprint = null;
 try {
   const rawVp = localStorage.getItem('afcc_jarvis_voiceprint');
@@ -1311,8 +1311,8 @@ window.AFCCVoice = {
   lastVerificationResult: null,
   sandboxHistory: [],
   sandboxMetrics: null,
-  lastSpokenReply: 'Loud and clear! I am J.A.R.V.I.S., your Personal Agentic Fleet Voice Copilot. Tell me what you would like to do.',
-  lastSpokenPhonetic: 'Loud and clear! I am Jarvis, your Personal Agentic Fleet Voice Copilot. Tell me what you would like to do.',
+  lastSpokenReply: 'Loud and clear! I am Mahadev, your Personal Agentic Fleet Voice Copilot. Tell me what you would like to do.',
+  lastSpokenPhonetic: 'Loud and clear! I am Mahadev, your Personal Agentic Fleet Voice Copilot. Tell me what you would like to do.',
   recognition: null
 };
 
@@ -1438,7 +1438,7 @@ function setAfccVoiceWakeWord(word) {
   } catch (e) {}
 }
 
-// Pre-allocated zero-GC scratch buffers and constants for J.A.R.V.I.S. WebAudio DSP
+// Pre-allocated zero-GC scratch buffers and constants for Mahadev WebAudio DSP
 const _SHARED_NSDF_BUF = new Float32Array(1024);
 const _STATIC_BARK_BANDS = [
   [85, 200],
@@ -1797,7 +1797,7 @@ async function ensureJarvisAudioDspPipeline() {
         window.AFCCVoice.isSandboxTesting
       );
       if (!window.AFCCVoice.analyser || !isVoiceActiveMode) {
-        // Auto-suspend AudioContext when J.A.R.V.I.S. is idle so browser audio thread uses 0.0% CPU
+        // Auto-suspend AudioContext when Mahadev is idle so browser audio thread uses 0.0% CPU
         if (
           ctx &&
           ctx.state === 'running' &&
@@ -1867,9 +1867,9 @@ async function ensureJarvisAudioDspPipeline() {
         window.AFCCVoice.liveVtlCm = fineFeat.vtlCm;
         window.AFCCVoice.lastVoiceActivityAtMs = Date.now();
 
-        // Optimization 5: Real-Time Hot-Mic Barge-In Detection while J.A.R.V.I.S. is speaking
+        // Optimization 5: Real-Time Hot-Mic Barge-In Detection while Mahadev is speaking
         // Guarded by a 1100ms post-speech-start grace window and 27dB SNR threshold so your own sentence tail
-        // or laptop speaker onset never self-cancels J.A.R.V.I.S.'s spoken reply!
+        // or laptop speaker onset never self-cancels Mahadev's spoken reply!
         if (
           window.AFCCVoice.isSpeaking &&
           window.AFCCVoice.userWantsListening &&
@@ -2737,7 +2737,7 @@ function verifySpeakerBiometrics(transcript, alternatives) {
   }
 
   // 2. Wake Word Gate: if Wake Word Lock is ON, require the wake word UNLESS the verified owner
-  // is speaking a direct, unambiguous built-in Jarvis command (e.g. "Let's discuss action items", "Close it", "Next action item")
+  // is speaking a direct, unambiguous built-in Mahadev command (e.g. "Let's discuss action items", "Close it", "Next action item")
   if (window.AFCCVoice.wakeWordRequired && !hasWakeWord && !(biometricVerifiedOwner && isKnownCommand)) {
     return {
       allowed: false,
@@ -4108,7 +4108,7 @@ function tryInstantClientVoiceFastPath(spokenText) {
   if (!lower || window.AFCCVoice.voiceLanguage !== 'en') return null;
 
   if (/^(mahadev|har har mahadev|jarvis|can you hear me|hear me|are you there|mic check)$/i.test(lower)) {
-    return 'Loud and clear! Jarvis online. How can I help?';
+    return 'Loud and clear! Mahadev online. How can I help?';
   }
   const cache = window.AFCCVoice.actionItemsCache;
   if (cache && Array.isArray(cache.open) && cache.open.length > 0 && (Date.now() - (cache.lastSyncedAt || 0) < 900000)) {
@@ -4372,7 +4372,7 @@ async function executeVoiceTurnText(transcriptText, alternativesList) {
   if (transcriptEl) {
     transcriptEl.innerHTML = `<strong style="color: #fff;">"${escapeHtml(spoken)}"</strong>`;
   }
-  updateVoiceCopilotUI('⚡ J.A.R.V.I.S. Streaming...', 'executing');
+  updateVoiceCopilotUI('⚡ Mahadev Streaming...', 'executing');
 
   // Optimization 3: Check Zero-Network Client Reflex Cache for <15ms pre-speech start
   // Only use single-turn fast cache when no parked topic or multi-part connector is present
@@ -4674,7 +4674,7 @@ async function startBrowserSpeechRecognition() {
   const transcriptEl = document.getElementById('voiceTranscriptText');
   if (!SpeechRec) {
     if (transcriptEl) {
-      transcriptEl.innerHTML = `<span style="color: #fbbf24;">Browser SpeechRecognition unavailable — click any Jarvis chip below or type in the console!</span>`;
+      transcriptEl.innerHTML = `<span style="color: #fbbf24;">Browser SpeechRecognition unavailable — click any Mahadev chip below or type in the console!</span>`;
     }
     window.AFCCVoice.isListening = false;
     window.AFCCVoice.userWantsListening = false;
@@ -4755,9 +4755,9 @@ async function startBrowserSpeechRecognition() {
 
     rec.onstart = () => {
       window.AFCCVoice.isListening = true;
-      updateVoiceCopilotUI(`🎙️ J.A.R.V.I.S. Listening (${targetBcp47})...`, 'listening');
+      updateVoiceCopilotUI(`🎙️ Mahadev Listening (${targetBcp47})...`, 'listening');
       if (transcriptEl) {
-        transcriptEl.innerHTML = `<span style="color: #c084fc; font-style: italic;">J.A.R.V.I.S. listening (${escapeHtml(getVoiceProfileDisplayLabel())})... Speak your command now.</span>`;
+        transcriptEl.innerHTML = `<span style="color: #c084fc; font-style: italic;">Mahadev listening (${escapeHtml(getVoiceProfileDisplayLabel())})... Speak your command now.</span>`;
       }
     };
 
@@ -4808,7 +4808,7 @@ async function startBrowserSpeechRecognition() {
         // Final chunk arrived from SpeechRecognition: commit immediately in 40ms instead of waiting 1.8s for rec.onend
         earlyEndpointTimer = setTimeout(commitVoiceUtteranceNow, 40);
       } else if (preview && (isExplicitJarvisCommandPhrase(preview) || matchesConfiguredWakeWord(preview))) {
-        // Unambiguous Jarvis command phrase detected in streaming interim results:
+        // Unambiguous Mahadev command phrase detected in streaming interim results:
         // If WebAudio VAD shows vocal cords stopped vibrating (>130ms silence), commit in 180ms; otherwise 260ms
         const silenceMs = Date.now() - (window.AFCCVoice.lastVoiceActivityAtMs || 0);
         const waitMs = silenceMs >= 130 ? 180 : 260;
@@ -4830,13 +4830,13 @@ async function startBrowserSpeechRecognition() {
         window.AFCCVoice.userWantsListening = false;
         stopJarvisAudioDspPipeline();
         if (transcriptEl) {
-          transcriptEl.innerHTML = `<span style="color: #fb7185;">Microphone permission blocked (${escapeHtml(event.error)}). Allow microphone access in browser settings or click any Jarvis command chip below.</span>`;
+          transcriptEl.innerHTML = `<span style="color: #fb7185;">Microphone permission blocked (${escapeHtml(event.error)}). Allow microphone access in browser settings or click any Mahadev command chip below.</span>`;
         }
       } else if (event && event.error === 'audio-capture') {
         window.AFCCVoice.userWantsListening = false;
         stopJarvisAudioDspPipeline();
         if (transcriptEl) {
-          transcriptEl.innerHTML = `<span style="color: #fbbf24;">No active microphone hardware detected by Windows. Connect a microphone or click any Jarvis command chip below.</span>`;
+          transcriptEl.innerHTML = `<span style="color: #fbbf24;">No active microphone hardware detected by Windows. Connect a microphone or click any Mahadev command chip below.</span>`;
         }
       }
       updateVoiceCopilotUI();
@@ -4897,7 +4897,7 @@ window.addEventListener('keydown', (ev) => {
   const tag = (ev.target && ev.target.tagName) ? ev.target.tagName.toUpperCase() : '';
   const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || (ev.target && ev.target.isContentEditable);
 
-  // Alt+V toggles J.A.R.V.I.S. Voice Listening globally from any tab
+  // Alt+V toggles Mahadev Voice Listening globally from any tab
   if (ev.altKey && !ev.ctrlKey && !ev.metaKey && String(ev.key || '').toLowerCase() === 'v') {
     ev.preventDefault();
     const toast = document.getElementById('voiceGlobalFloatingToast');
@@ -4905,7 +4905,7 @@ window.addEventListener('keydown', (ev) => {
     const nextState = !window.AFCCVoice.isListening;
     if (toast) {
       toast.style.display = nextState ? 'inline-flex' : 'none';
-      if (toastTxt && nextState) toastTxt.textContent = '🎙️ J.A.R.V.I.S. Listening (Alt+V)... Speak now';
+      if (toastTxt && nextState) toastTxt.textContent = '🎙️ Mahadev Listening (Alt+V)... Speak now';
     }
     toggleVoiceMicListening(nextState);
     return;

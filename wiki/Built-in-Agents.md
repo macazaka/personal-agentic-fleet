@@ -10,7 +10,7 @@ Personal Agentic Fleet ships with **13 production-grade built-in agents**, each 
 
 | Agent ID | Display Name | Default Order | Declared `manifest.json` Permissions | Primary Storage Tables & Subsystems |
 | :--- | :--- | :---: | :--- | :--- |
-| `overview` | **⚡ Daily Briefing, Tasks & Habits** | `10` | `db:read`, `db:write`, `ui:render`, `notifications:send` | `tasks`, `routines`, `notes`, `activity_logs`, `DailyBriefingEngine`, J.A.R.V.I.S. 9-D Voice Cockpit |
+| `overview` | **⚡ Daily Briefing, Tasks & Habits** | `10` | `db:read`, `db:write`, `ui:render`, `notifications:send` | `tasks`, `routines`, `notes`, `activity_logs`, `DailyBriefingEngine`, Mahadev Voice Command & Biometric Speaker Cockpit |
 | `health` | **🌿 Health & Wellness Command Center** | `20` | `db:read`, `db:write`, `ui:render`, `notifications:send` | `health_metrics`, `routines`, `ExerciseManager`, HTTP 206 Video Streamer & Playlists |
 | `tri_device` | **⌚📱💻 Tri-Device & Connections Hub** | `25` | `db:read`, `db:write`, `ui:render`, `network:http`, `notifications:send`, `secrets:read` | Apple Watch + iPhone 15 + Windows Laptop Relay (`TD-01`..`TD-12`), Encrypted Hardware Vault (`EC-01`..`EC-10`) |
 | `optimizer` | **🚀 Silent PC & System Optimizer** | `30` | `db:read`, `db:write`, `ui:render`, `system:read`, `system:execute` | `activity_logs`, `SystemOptimizer` (Win32 `PSAPI.dll` / `Kernel32.dll`) |

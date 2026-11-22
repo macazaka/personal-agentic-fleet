@@ -976,3 +976,58 @@ def test_afcc_10_critical_ui_and_design_system_enhancements_ui01_to_ui10(isolate
     assert isolated_db.get_setting("gpu_eco") == "false"
 
 
+# =========================================================================
+# 14. Mahadev Voice Command & Biometric Speaker Cockpit Rebrand Regression
+# =========================================================================
+def test_mahadev_voice_command_and_biometric_cockpit_branding(isolated_db, monkeypatch):
+    import fleet.server as srv
+    from fleet.core.omnibar_dispatcher import (
+        get_mahadev_voice_diagnostics,
+        reset_voice_topic_stack,
+        transcribe_and_dispatch_voice_command,
+    )
+
+    monkeypatch.setattr(srv, "db", isolated_db)
+    reset_voice_topic_stack()
+
+    dash_html = (BASE_DIR / "web" / "templates" / "dashboard.html").read_text(encoding="utf-8")
+    nav_js = (BASE_DIR / "web" / "static" / "js" / "fleet_navigator.js").read_text(encoding="utf-8")
+    ag_js = (BASE_DIR / "web" / "static" / "js" / "antigravity.js").read_text(encoding="utf-8")
+
+    # 14A. UI templates & navigator labels display Mahadev Voice Command & Biometric Speaker Cockpit (zero J.A.R.V.I.S.)
+    for required_ui in (
+        "Mahadev Voice Command &amp; Biometric Speaker Cockpit",
+        ">Mahadev:</strong>",
+        "Zero-Token Mahadev (All Fleet Agents)",
+        "Mahadev Voice Commands",
+        "Mahadev Listening (Alt+V)...",
+    ):
+        assert required_ui in dash_html, f"Missing Mahadev cockpit UI string in dashboard.html: {required_ui}"
+
+    assert "J.A.R.V.I.S." not in dash_html
+    assert "J.A.R.V.I.S." not in nav_js
+    assert "Mahadev Voice & Ambient Reflexes" in nav_js
+    assert "Toggle Right Mahadev & Chat Panel" in nav_js
+    assert "Antigravity 2.0 Live & Mahadev" in nav_js
+    assert "Loud and clear! I am Mahadev, your Personal Agentic Fleet Voice Copilot." in ag_js
+    assert "Loud and clear! Mahadev online. How can I help?" in ag_js
+    assert "J.A.R.V.I.S." not in ag_js
+
+    # 14B. Backend voice responses & diagnostics report Mahadev
+    res_hear = transcribe_and_dispatch_voice_command("Can you hear me?", db=isolated_db)
+    assert res_hear["status"] == "ok"
+    assert "Mahadev" in res_hear["title"]
+    assert "Zero-Token Local Mahadev Engine" in res_hear["message"]
+
+    res_diag = transcribe_and_dispatch_voice_command("Mahadev performance report", db=isolated_db)
+    assert res_diag["status"] == "ok"
+    assert res_diag["mode"] == "voice_performance_diagnostics"
+    assert "Mahadev" in res_diag["spoken_reply"]
+    assert "Mahadev" in res_diag["title"]
+    assert get_mahadev_voice_diagnostics()["status"] == "ok"
+
+    # 14C. Existing biometric vault storage keys preserved intact for enrolled users
+    assert 'localStorage.getItem(\'afcc_jarvis_voiceprint\')' in ag_js
+
+
+

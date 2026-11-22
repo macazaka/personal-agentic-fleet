@@ -41,18 +41,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.20.0] - 2026-11-19
 
 ### Added
-- **J.A.R.V.I.S. 10 Critical Performance Enhancements (`[JV-01]`..`[JV-10]`)**:
+- **Mahadev Voice Cockpit 10 Critical Performance Enhancements (`[JV-01]`..`[JV-10]`)**:
   - **`[JV-01]` O(1) Frozenset Token Intersection & Pre-Compiled Multi-Word Regex (`_score_voice_candidate`)**: Replaced 66 dynamic per-candidate regex compilations with an O(1) frozenset intersection (`_JARVIS_SINGLE_WORD_SET`) and single compiled multi-word regex (`_JARVIS_MULTI_WORD_RE`), reducing N-best ASR candidate scoring CPU time by `>96%`.
   - **`[JV-02]` 60s Memoized Wake-Word Setting & Compiled Regex Cache (`_get_compiled_wake_word_regex`)**: Eliminates redundant SQLite `get_setting('voice_wake_word')` reads and regex compilations on every voice turn.
   - **`[JV-03]` Pre-Compiled Speech Sanitizer Pipeline & Bounded 32-Entry LRU Memo Cache (`_clean_for_speech` & `split_speech_into_stream_clauses`)**: Pre-compiles URL, account-masking, currency, Markdown, emoji, whitespace, and clause-boundary regexes at import time with a 32-entry memo cache (`_CLEAN_SPEECH_CACHE`).
   - **`[JV-04]` Turn-Scoped SQLite Task List Coalescing (`_get_turn_cached_tasks` & `_invalidate_turn_task_cache`)**: Coalesces `db.list_tasks(limit=200)` across multi-question voice turns within a `1.2s` window with immediate write-through invalidation on task mutations.
-  - **`[JV-05]` O(1) Canonical Voice Intent Fast-Path Hash Table (`_FAST_INTENT_CANONICAL_ALIASES`)**: Resolves top 30+ high-frequency J.A.R.V.I.S. phrases in O(1) before regex cascade evaluation.
+  - **`[JV-05]` O(1) Canonical Voice Intent Fast-Path Hash Table (`_FAST_INTENT_CANONICAL_ALIASES`)**: Resolves top 30+ high-frequency Mahadev voice phrases in O(1) before regex cascade evaluation.
   - **`[JV-06B]` Zero-Allocation Spectrum Canvas 32-Bit FNV Signature Diffing & Offscreen Skip (`renderJarvisLiveSpectrumCanvas`)**: Skips `<canvas>` 2D repaints when hidden (`!canvas.offsetParent`) or when the 32-bit 16-bar signature (`_lastSpectrumSig`) is unchanged.
   - **`[JV-07]` In-Memory Decrypted AES-256-GCM Voiceprint & Sandbox History Cache (`_VOICEPRINT_MEM_CACHE`)**: Eliminates repeated AES-256-GCM decryption and JSON parsing on `GET /api/voice/voiceprint` and `POST /api/voice/voiceprint/verify`.
   - **`[JV-08]` Client-Side Single-Flight Voice Turn Deduplicator & `AbortController` (`_activeVoiceFetchController`)**: Guards against `<150ms` duplicate turn dispatches and aborts superseded in-flight `/api/voice/stream` requests.
   - **`[JV-09]` Non-Blocking `requestAnimationFrame` Post-Speech DOM Batching**: Defers visual badge, chat history, and context chip DOM mutations until after `SpeechSynthesis` audio starts.
   - **`[JV-10]` Stale-While-Revalidate (SWR) Non-Blocking Background RSS News Refresh**: Returns cached news/Pune headlines in `0.05ms` within a 60-minute SWR window while refreshing Google News RSS asynchronously on a background daemon thread.
-- **J.A.R.V.I.S. 6 High/Medium/Low Feature Enhancements (`[JV-11]`..`[JV-16]`)**:
+- **Mahadev Voice Cockpit 6 High/Medium/Low Feature Enhancements (`[JV-11]`..`[JV-16]`)**:
   - **`[JV-11]` Conversational Voice Undo & Correction Reflex (`"Undo that"`, `"Scratch that"`)**: Reverses the last voice-triggered task completion, task creation, title/priority/note edit, or water log via `_LAST_VOICE_MUTATION_JOURNAL`.
   - **`[JV-12]` Zero-Token Spoken Time, Date, Day & Schedule Context (`"What time is it?"`, `"What day is today?"`)**: Speaks current local time, date, day of week, today's FFD workout, and open action item count in `<1ms` at `$0.00`.
   - **`[JV-13]` Interactive Voice Queue & Parked Topic Stack Verbal Inspector (`"What is in my voice queue?"`, `"Clear parked topics"`)**: Reads out or clears active and parked conversational topics.
@@ -64,7 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Arbitrates mid-conversation topic switches (`_VOICE_TOPIC_STACK_STATE`), parking unfinished discussions and auto-queuing a conversational resume bridge.
 - **Live News & City RSS Scraper + Automatic Zero-Token → Antigravity Live Fallback**:
   - Added `_fetch_live_news_and_web_digest` for *"Tell me today's news"* and *"Tell me about latest updates of Pune"*, plus automatic fallback to Antigravity Live (`mode: "antigravity_auto_fallback"`).
-- **Comprehensive 12-Part J.A.R.V.I.S. Unit Test Suite ([`tests/test_jarvis_comprehensive_suite.py`](tests/test_jarvis_comprehensive_suite.py))**:
+- **Comprehensive 12-Part Mahadev Voice Cockpit Unit Test Suite ([`tests/test_jarvis_comprehensive_suite.py`](tests/test_jarvis_comprehensive_suite.py))**:
   - Covers route parity, stale port `7890` listener eviction, live RSS & offline news, Antigravity fallback, action-item lifecycle, multi-question decomposition, topic-stack interruption/resume, 12-D biometric speaker verification, multilingual localization (`en`, `hi`, `te`, `mr`), all 22 voice macros, hardware CPU/RAM guardrails, and `[JV-01]`..`[JV-16]`.
 
 ---
@@ -112,11 +112,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.17.0] - 2026-11-14
 
 ### Added
-- **J.A.R.V.I.S. 5-Layer Voice Command & Biometric Speaker Cockpit**:
+- **Mahadev 5-Layer Voice Command & Biometric Speaker Cockpit**:
   - **Layer 1 — Persistent WebAudio DSP Bandpass (`85 Hz` High-Pass → `3800 Hz` Low-Pass)**: Strips fan rumble, AC hum, and high-frequency clatter while keeping the microphone stream open so Windows WASAPI never clips the first syllable of speech.
   - **Layer 2 — Biometric Speaker Voiceprint Lock (`🧬 Calibrate My Voice (3s)`, `GET/POST /api/voice/voiceprint`)**: Extracts real-time 2048-FFT autocorrelation fundamental vocal pitch ($F_0$ in Hz, `75–360 Hz`), spectral formant centroid, and RMS SNR (`dB`) to verify speaker identity (`🛡️ My Voice Only: ON`) and reject background voices or low-SNR room chatter at `$0.00`.
-  - **Layer 3 — 5-Alternative N-Best `SpeechRecognition` Candidate Scoring**: Scores all 5 recognition alternatives (`rec.maxAlternatives = 5`) against Jarvis grammar and phonetic mic-check patterns (`_select_best_voice_candidate`).
-  - **Layer 4 — Dual-Mode Brain Router (`⚡ $0.00 Zero-Token Jarvis` ⇄ `🤖 Direct Antigravity Live Bridge`)**: Supports `$0.00` local execution across all 10 Fleet agents, full agent roster & per-agent capability/telemetry queries (*"What agents do I have?"*, *"Tell me about the Health agent"*), recent agent activity queries (*"What did my agents do recently?"*), voice video/playlist playback (*"Play my workout playlist"*), 4-stage PC auto-tuning (*"Auto tune my PC"*), and direct bridging to Antigravity Live (*"Ask Antigravity to ..."*).
+  - **Layer 3 — 5-Alternative N-Best `SpeechRecognition` Candidate Scoring**: Scores all 5 recognition alternatives (`rec.maxAlternatives = 5`) against Mahadev grammar and phonetic mic-check patterns (`_select_best_voice_candidate`).
+  - **Layer 4 — Dual-Mode Brain Router (`⚡ $0.00 Zero-Token Mahadev` ⇄ `🤖 Direct Antigravity Live Bridge`)**: Supports `$0.00` local execution across all 10 Fleet agents, full agent roster & per-agent capability/telemetry queries (*"What agents do I have?"*, *"Tell me about the Health agent"*), recent agent activity queries (*"What did my agents do recently?"*), voice video/playlist playback (*"Play my workout playlist"*), 4-stage PC auto-tuning (*"Auto tune my PC"*), and direct bridging to Antigravity Live (*"Ask Antigravity to ..."*).
   - **Layer 5 — Neural Speech Sanitizer**: Hardened `_clean_for_speech()` and `HyperscalerGateway._call_antigravity_cli()` so raw JSON telemetry envelopes (`{"conversation_id":...}`) are never returned or spoken aloud.
 - **Dual-Stack Local HTTPS (`https://127.0.0.1:7890`) & Root CA Generator (`fleet/core/local_tls.py`)**:
   - Generates a 10-year local Root CA (`afcc_root_ca.crt`) and 365-day SAN leaf server certificate (`localhost_fullchain.crt` covering `IP:127.0.0.1`, `DNS:localhost`, `IP:::1`) in gitignored `fleet/data/certs/`.

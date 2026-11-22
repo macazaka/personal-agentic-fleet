@@ -2130,12 +2130,12 @@
             </div>
           </div>
 
-          <!-- J.A.R.V.I.S. Bi-Directional Audio Conversation, Speaker Biometric Lock & Live Activity HUD -->
+          <!-- Mahadev Bi-Directional Audio Conversation, Speaker Biometric Lock & Live Activity HUD -->
           <div id="afccVoiceCopilotHud" style="display: block; margin-top: 6px; margin-bottom: 6px; padding: 12px 14px; border-radius: 12px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(15, 23, 42, 0.92) 55%, rgba(16, 185, 129, 0.1) 100%); border: 1px solid rgba(168, 85, 247, 0.38); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
               <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <span id="voiceHudOrb" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(168, 85, 247, 0.25); border: 1px solid rgba(168, 85, 247, 0.55); font-size: 14px;">🎙️</span>
-                <strong style="font-size: 12.5px; color: #f8fafc;">J.A.R.V.I.S. Voice Command &amp; Biometric Speaker Cockpit</strong>
+                <strong style="font-size: 12.5px; color: #f8fafc;">Mahadev Voice Command &amp; Biometric Speaker Cockpit</strong>
                 <span id="voiceStateBadge" class="badge" style="background: rgba(16, 185, 129, 0.16); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 10.5px;">● Ready to Listen &amp; Speak</span>
               </div>
               <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
@@ -2178,12 +2178,12 @@
 
             <!-- UX Improvement #3: Collapsible Voice Studio & Biometric Tuning Drawer -->
             <div id="voiceStudioTuningDrawer" style="display: none;">
-            <!-- Jarvis Engine Routing & Biometric Speaker Isolation Controls -->
+            <!-- Mahadev Engine Routing & Biometric Speaker Isolation Controls -->
             <div id="voiceJarvisArchitectureBar" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; padding: 6px 10px; border-radius: 8px; background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(56, 189, 248, 0.28);">
               <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                 <span style="font-size: 10.5px; color: var(--accent-cyan); font-weight: 700;">🧠 Brain Target:</span>
-                <select id="voiceRoutingModeSelect" title="Choose whether voice commands execute via $0.00 Zero-Token Jarvis or bridge directly to Antigravity Live" onchange="setAfccVoiceRoutingMode(this.value)" style="background: rgba(15, 23, 42, 0.92); border: 1px solid rgba(56, 189, 248, 0.45); color: #f8fafc; border-radius: 6px; padding: 3px 8px; font-size: 10.5px; font-weight: 600;">
-                  <option value="zero_token" selected>⚡ $0.00 Zero-Token Jarvis (All Fleet Agents)</option>
+                <select id="voiceRoutingModeSelect" title="Choose whether voice commands execute via $0.00 Zero-Token Mahadev or bridge directly to Antigravity Live" onchange="setAfccVoiceRoutingMode(this.value)" style="background: rgba(15, 23, 42, 0.92); border: 1px solid rgba(56, 189, 248, 0.45); color: #f8fafc; border-radius: 6px; padding: 3px 8px; font-size: 10.5px; font-weight: 600;">
+                  <option value="zero_token" selected>⚡ $0.00 Zero-Token Mahadev (All Fleet Agents)</option>
                   <option value="antigravity">🤖 Direct Antigravity Live Bridge (Console)</option>
                 </select>
                 <button id="btnVoiceSpeakerLock" type="button" title="Toggle Biometric Speaker Isolation &amp; Background Noise Shield (85-3800Hz DSP + Vocal Pitch Lock)" class="btn" onclick="toggleVoiceSpeakerLock()" style="font-size: 10px; padding: 3px 8px; border-color: rgba(16, 185, 129, 0.45); color: #34d399; background: rgba(16, 185, 129, 0.14);">
@@ -2203,11 +2203,10 @@
                 </button>
                 <div style="display: inline-flex; align-items: center; gap: 4px; background: rgba(15, 23, 42, 0.92); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; padding: 2px 6px;">
                   <span style="font-size: 9.5px; color: #fbbf24; font-weight: 600;">🔱 Word:</span>
-                  <input id="voiceWakeWordInput" type="text" list="voiceWakeWordPresetsDatalist" value="Mahadev" title="Change the active voice wake word (e.g. Mahadev, Jarvis, Shiva, AFCC)" onchange="setAfccVoiceWakeWord(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();setAfccVoiceWakeWord(this.value);}" style="background: transparent; border: none; color: #fde68a; font-size: 10.5px; font-weight: 700; width: 76px; outline: none;" />
+                  <input id="voiceWakeWordInput" type="text" list="voiceWakeWordPresetsDatalist" value="Mahadev" title="Change the active voice wake word (e.g. Mahadev, Har Har Mahadev, Shiva, AFCC)" onchange="setAfccVoiceWakeWord(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();setAfccVoiceWakeWord(this.value);}" style="background: transparent; border: none; color: #fde68a; font-size: 10.5px; font-weight: 700; width: 76px; outline: none;" />
                   <datalist id="voiceWakeWordPresetsDatalist">
                     <option value="Mahadev"></option>
                     <option value="Har Har Mahadev"></option>
-                    <option value="Jarvis"></option>
                     <option value="Shiva"></option>
                     <option value="AFCC"></option>
                   </datalist>
@@ -2395,12 +2394,12 @@
               </div>
               <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
                 <div id="voiceUserSaidLine" style="color: var(--text-muted); line-height: 1.4;">
-                  🎙️ <strong>You:</strong> <span id="voiceTranscriptText">Click "🎙️ Speak Now", press <strong>Alt+V</strong>, or click any Jarvis command chip below...</span>
+                  🎙️ <strong>You:</strong> <span id="voiceTranscriptText">Click "🎙️ Speak Now", press <strong>Alt+V</strong>, or click any Mahadev command chip below...</span>
                 </div>
                 <button title="Replay AFCC's last spoken response aloud" class="btn" onclick="replayLastAfccVoiceReply()" style="font-size: 10px; padding: 2px 7px; white-space: nowrap;">🔊 Replay</button>
               </div>
               <div id="voiceAssistantReplyLine" style="color: #e2e8f0; margin-top: 4px; line-height: 1.4; display: none;">
-                🔊 <strong style="color: #34d399;">J.A.R.V.I.S.:</strong> <span id="voiceSpokenReplyText"></span>
+                🔊 <strong style="color: #34d399;">Mahadev:</strong> <span id="voiceSpokenReplyText"></span>
               </div>
               <div id="voiceExecutedActivitiesStrip" style="display: none; gap: 6px; flex-wrap: wrap; margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.1);"></div>
 
@@ -2444,7 +2443,7 @@
 
             <!-- Linked Activities You Can Trigger While Speaking -->
             <div style="font-size: 10.5px; color: var(--text-muted); margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
-              <span>⚡ <strong>Jarvis Voice Commands</strong> (say aloud or click — $0.00 Zero-Token or Direct Antigravity):</span>
+              <span>⚡ <strong>Mahadev Voice Commands</strong> (say aloud or click — $0.00 Zero-Token or Direct Antigravity):</span>
               <span style="color: #34d399;">🛡️ Noise Shield Active</span>
             </div>
             <div id="voiceQuickActivitiesGrid" style="display: flex; gap: 5px; flex-wrap: wrap;">
@@ -2476,7 +2475,7 @@
           <!-- UX Improvement #5: Global Push-to-Talk (Alt+V / Hold Right-Ctrl) Floating Mini Voice Pill -->
           <div id="voiceGlobalFloatingToast" style="display: none; position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 9999; padding: 8px 16px; border-radius: 999px; background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 27, 75, 0.96)); border: 1px solid rgba(168, 85, 247, 0.65); box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55); align-items: center; gap: 10px; font-size: 11.5px; color: #f8fafc;">
             <span id="voiceGlobalFloatingOrb" style="font-size: 14px;">🎙️</span>
-            <span id="voiceGlobalFloatingText" style="font-weight: 600; max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">J.A.R.V.I.S. Listening (Alt+V)...</span>
+            <span id="voiceGlobalFloatingText" style="font-weight: 600; max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Mahadev Listening (Alt+V)...</span>
             <button type="button" class="btn" onclick="toggleVoiceMicListening(false); document.getElementById('voiceGlobalFloatingToast').style.display='none';" style="font-size: 9.5px; padding: 2px 7px;" title="Close dialog">✕</button>
           </div>
 
@@ -3231,13 +3230,13 @@
                 <div>
                   <label style="font-size: 11.5px; font-weight: 600; color: #fde68a;">🔱 Wake Word Phrase</label>
                   <div style="display: flex; gap: 6px; margin-top: 4px;">
-                    <input type="text" id="genSettingWakeWordPhrase" list="voiceWakeWordPresetsDatalist" class="form-control" value="Mahadev" placeholder="e.g. Mahadev, Jarvis, Shiva" onchange="setAfccVoiceWakeWord(this.value)" style="font-size: 12.5px; font-weight: 700; color: #fde68a;">
+                    <input type="text" id="genSettingWakeWordPhrase" list="voiceWakeWordPresetsDatalist" class="form-control" value="Mahadev" placeholder="e.g. Mahadev, Har Har Mahadev, Shiva, AFCC" onchange="setAfccVoiceWakeWord(this.value)" style="font-size: 12.5px; font-weight: 700; color: #fde68a;">
                   </div>
                   <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px;">
                     <button type="button" title="Set wake word to Mahadev" class="quick-chip" onclick="setAfccVoiceWakeWord('Mahadev')" style="font-size: 10px; padding: 2px 7px; border-color: rgba(245, 158, 11, 0.45); color: #fde68a;">🔱 Mahadev</button>
                     <button type="button" title="Set wake word to Har Har Mahadev" class="quick-chip" onclick="setAfccVoiceWakeWord('Har Har Mahadev')" style="font-size: 10px; padding: 2px 7px;">🕉️ Har Har Mahadev</button>
                     <button type="button" title="Set wake word to Shiva" class="quick-chip" onclick="setAfccVoiceWakeWord('Shiva')" style="font-size: 10px; padding: 2px 7px;">🔱 Shiva</button>
-                    <button type="button" title="Set wake word to Jarvis" class="quick-chip" onclick="setAfccVoiceWakeWord('Jarvis')" style="font-size: 10px; padding: 2px 7px;">🤖 Jarvis</button>
+                    <button type="button" title="Set wake word to AFCC" class="quick-chip" onclick="setAfccVoiceWakeWord('AFCC')" style="font-size: 10px; padding: 2px 7px;">⚡ AFCC</button>
                   </div>
                 </div>
 

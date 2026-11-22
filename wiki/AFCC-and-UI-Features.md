@@ -79,7 +79,7 @@ Clicking the **`+` Create Agent** button in the AFCC header opens the interactiv
 
 ---
 
-## 6. J.A.R.V.I.S. Voice Cockpit (`v2.20.0`) — 10 Critical Performance Enhancements, Sequential Audio Queue & Conversational Topic Stack
+## 6. Mahadev Voice Command & Biometric Speaker Cockpit (`v2.20.0`) — 10 Critical Performance Enhancements, Sequential Audio Queue & Conversational Topic Stack
 
 1. **10 Critical Performance Enhancements (`[JV-01]`..`[JV-10]`)**:
    - **`[JV-01]` O(1) Frozenset Token Intersection (`_JARVIS_SINGLE_WORD_SET`) & Single Multi-Word Regex (`_JARVIS_MULTI_WORD_RE`)**: Cuts N-best ASR candidate scoring CPU time by `>96%`.

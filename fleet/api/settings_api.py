@@ -2164,7 +2164,7 @@ def get_voice_activities_endpoint(handler: Any, parsed_url: urllib.parse.ParseRe
 
 @router.get("/api/voice/action_items")
 def get_voice_action_items_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
-    """Returns open and closed action items for the J.A.R.V.I.S. <15ms Client Reflex Cache."""
+    """Returns open and closed action items for the Mahadev <15ms Client Reflex Cache."""
     db_inst = getattr(srv, "db", None)
     all_tasks: List[Dict[str, Any]] = []
     if db_inst and hasattr(db_inst, "list_tasks"):
@@ -3163,7 +3163,7 @@ def post_verify_voiceprint_sandbox_endpoint(handler: Any, body: Dict[str, Any]):
 
 @router.get("/api/voice/diagnostics")
 def get_voice_diagnostics_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
-    """[JV-16] Returns J.A.R.V.I.S. zero-token performance & cache diagnostics."""
+    """[JV-16] Returns Mahadev zero-token performance & cache diagnostics."""
     from fleet.core.omnibar_dispatcher import get_jarvis_voice_diagnostics
 
     diag = get_jarvis_voice_diagnostics()

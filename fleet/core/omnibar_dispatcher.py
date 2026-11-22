@@ -784,7 +784,7 @@ def dispatch_omnibar_query(
             "cost_usd": "$0.00",
         })
 
-    # 12. Automatic Fallback from Zero-Token Jarvis to Antigravity Live (with Web/News Scraping for Open-Ended Questions)
+    # 12. Automatic Fallback from Zero-Token Mahadev to Antigravity Live (with Web/News Scraping for Open-Ended Questions)
     snap = _gather_live_fleet_snapshot(agent_registry=agent_registry, db=db)
     is_open_question = bool(
         len(raw.split()) >= 3
@@ -802,7 +802,7 @@ def dispatch_omnibar_query(
     if is_open_question and cleaned_topic:
         digest = _fetch_live_news_and_web_digest(cleaned_topic, cleaned_topic.title())
         fallback_msg = (
-            f"🚀 **Auto-Escalated from Zero-Token Jarvis → Antigravity Live Web Intelligence**:\n\n"
+            f"🚀 **Auto-Escalated from Zero-Token Mahadev → Antigravity Live Web Intelligence**:\n\n"
             f"{digest['markdown']}\n\n"
             f"*Dispatched **\"{raw}\"** to **Antigravity Live** for deep synthesis.*"
         )
@@ -812,7 +812,7 @@ def dispatch_omnibar_query(
     else:
         fallback_msg = (
             f"🚀 **Auto-Fallback to Antigravity Live** for: **\"{raw}\"**\n"
-            f"• Zero-Token local agents (`{snap['active_agents']}` online) did not match a deterministic local rule, so J.A.R.V.I.S. automatically escalated your request to **Antigravity Live**."
+            f"• Zero-Token local agents (`{snap['active_agents']}` online) did not match a deterministic local rule, so Mahadev automatically escalated your request to **Antigravity Live**."
         )
         fallback_spoken = (
             f"Zero-token local agents don't have a built-in rule for {_clean_for_speech(raw)}, "
@@ -825,7 +825,7 @@ def dispatch_omnibar_query(
         "unhandled_zero_token": True,
         "escalated_to_antigravity": True,
         "agent_id": "antigravity",
-        "title": "🚀 Auto-Fallback: Zero-Token Jarvis → Antigravity Live",
+        "title": "🚀 Auto-Fallback: Zero-Token Mahadev → Antigravity Live",
         "message": fallback_msg,
         "spoken_reply": fallback_spoken,
         "ui_actions": [
@@ -833,7 +833,7 @@ def dispatch_omnibar_query(
             {"type": "send_to_antigravity", "command": raw},
         ],
         "executed_activities": [
-            "🔄 Zero-Token Jarvis Auto-Fallback Triggered",
+            "🔄 Zero-Token Mahadev Auto-Fallback Triggered",
             f"🚀 Escalated to Antigravity Live: \"{raw[:60]}\"",
         ],
         "suggestions": [
@@ -1137,7 +1137,7 @@ def build_concise_spoken_reply(res: Dict[str, Any], full_spoken: str) -> str:
     active_item = res.get("active_action_item") if isinstance(res.get("active_action_item"), dict) else None
 
     if mode == "jarvis_presence" or cmd == "jarvis:mic_check":
-        return "Loud and clear! Jarvis online. How can I help?"
+        return "Loud and clear! Mahadev online. How can I help?"
     if mode == "voice_action_items_open_review" or cmd == "action_items:review_open":
         p_cnt = int(res.get("pending_count") or 0)
         if p_cnt > 0 and active_item:
@@ -1843,6 +1843,7 @@ def _fetch_live_news_and_web_digest(topic_query: str, display_topic: str) -> Dic
 _PHONETIC_MIC_CHECK_PATTERNS: Tuple[str, ...] = (
     "can you hear me", "can u hear me", "do you hear me", "are you hearing me",
     "you hear me", "hear me", "can you listen", "are you listening", "are you there",
+    "mahadev are you there", "hey mahadev", "hello mahadev", "hi mahadev", "ok mahadev",
     "jarvis are you there", "hey jarvis", "hello jarvis", "hi jarvis", "ok jarvis",
     "testing microphone", "mic check", "microphone check", "am i audible", "loud and clear",
     "kya aap mujhe sun sakte", "meri aawaz aa rahi", "naa maata vinipistunda", "majha aawaz yeto",
@@ -1851,7 +1852,7 @@ _PHONETIC_MIC_CHECK_PATTERNS: Tuple[str, ...] = (
 
 def _score_voice_candidate(text: str) -> int:
     """
-    [JV-01] Scores a SpeechRecognition alternative against known Jarvis intents in O(1) time
+    [JV-01] Scores a SpeechRecognition alternative against known Mahadev voice intents in O(1) time
     using frozenset token intersection (_JARVIS_SINGLE_WORD_SET) and a single pre-compiled
     multi-word regex (_JARVIS_MULTI_WORD_RE), eliminating 330 dynamic regex compilations per turn.
     """
@@ -2171,13 +2172,13 @@ def transcribe_and_dispatch_voice_command(
     concise_mode: bool = False,
 ) -> Dict[str, Any]:
     """
-    UX-10 & Jarvis Bi-Directional Audio Conversation, Multi-Question Audio Queue & Topic Stack Engine:
+    UX-10 & Mahadev Bi-Directional Audio Conversation, Multi-Question Audio Queue & Topic Stack Engine:
     1. Selects the highest-intent transcript from N-best SpeechRecognition alternatives.
     2. Normalizes spoken natural-language voice commands (in English, Hindi, Telugu, or Marathi).
     3. Decomposes multi-part questions/actions into an ordered, priority-scored `voice_queue_items` array
        so the client speaks each answer one after the other as sequential audio messages.
     4. Tracks ongoing multi-turn conversations in `_VOICE_TOPIC_STACK_STATE`: when a new topic interrupts
-       an unfinished conversation, J.A.R.V.I.S. prioritizes which topic to finish now, parks the unfinished
+       an unfinished conversation, Mahadev prioritizes which topic to finish now, parks the unfinished
        conversation, and automatically resumes it via a follow-up audio message!
     """
     raw_spoken = _select_best_voice_candidate(transcript, alternatives)
@@ -2728,11 +2729,11 @@ def _record_voice_mutation(mutation_entry: Dict[str, Any]) -> None:
 
 
 def get_jarvis_voice_diagnostics() -> Dict[str, Any]:
-    """[JV-16] Returns O(1) snapshot of J.A.R.V.I.S. performance caches, SWR status, and topic stack depth."""
+    """[JV-16] Returns O(1) snapshot of Mahadev voice performance caches, SWR status, and topic stack depth."""
     topic_snap = get_voice_topic_stack_snapshot()
     return {
         "status": "ok",
-        "version": "v2.20.0",
+        "version": "v2.21.0",
         "telemetry": dict(_JARVIS_PERF_TELEMETRY),
         "caches": {
             "clean_speech_lru_size": len(_CLEAN_SPEECH_CACHE),
@@ -2748,6 +2749,9 @@ def get_jarvis_voice_diagnostics() -> Dict[str, Any]:
             "parked_count": int(topic_snap.get("parked_count", 0)),
         },
     }
+
+
+get_mahadev_voice_diagnostics = get_jarvis_voice_diagnostics
 
 
 def _dispatch_voice_command_core(
@@ -2916,7 +2920,7 @@ def _dispatch_voice_command_core(
                 "voice_transcript": spoken,
                 "normalized_command": "jarvis:clear_topic_stack",
                 "title": "🧹 Cleared Voice Queue & Parked Topic Stack",
-                "message": "🧹 Cleared all active and parked topics from your J.A.R.V.I.S. conversational stack.",
+                "message": "🧹 Cleared all active and parked topics from your Mahadev conversational stack.",
                 "spoken_reply": "I have cleared all active and parked topics from your conversational queue.",
                 "ui_actions": [],
                 "executed_activities": ["🧹 Cleared Conversational Topic Stack"],
@@ -2981,25 +2985,28 @@ def _dispatch_voice_command_core(
             "agent_id": "overview",
             "voice_transcript": spoken,
             "normalized_command": f"jarvis:whisper_mode:{'on' if enable_whisper else 'off'}",
-            "title": f"🌙 J.A.R.V.I.S. Whisper Mode: {state_lbl}",
+            "title": f"🌙 Mahadev Whisper Mode: {state_lbl}",
             "message": f"🌙 **Whisper / Quiet Mode**: `{state_lbl}`",
             "spoken_reply": spoken_reply,
             "ui_actions": [{"type": "set_whisper_mode", "enabled": enable_whisper}],
-            "executed_activities": [f"🌙 Toggled J.A.R.V.I.S. Whisper Mode → {'ON' if enable_whisper else 'OFF'}"],
+            "executed_activities": [f"🌙 Toggled Mahadev Whisper Mode → {'ON' if enable_whisper else 'OFF'}"],
             "tokens_used": 0,
             "cost_usd": "$0.00",
         })
 
-    # 0A-5. [JV-16] Zero-Token Voice Performance & Cache Diagnostics ("Voice diagnostics", "Jarvis performance report", "Voice telemetry")
-    if re.search(
-        r"\b(?:voice\s+diagnostics|jarvis\s+diagnostics|jarvis\s+performance|voice\s+telemetry|voice\s+cache\s+stats|voice\s+latency\s+report)\b",
-        lower,
+    # 0A-5. [JV-16] Zero-Token Voice Performance & Cache Diagnostics ("Voice diagnostics", "Mahadev performance report", "Voice telemetry")
+    if (
+        re.search(
+            r"\b(?:voice\s+diagnostics|mahadev\s+diagnostics|mahadev\s+performance|jarvis\s+diagnostics|jarvis\s+performance|performance\s+report|voice\s+telemetry|voice\s+cache\s+stats|voice\s+latency\s+report)\b",
+            lower,
+        )
+        or (had_wake_word and cleaned_alpha in ("diagnostics", "telemetry", "cache stats", "performance", "performance report"))
     ):
         diag = get_jarvis_voice_diagnostics()
         tel = diag["telemetry"]
         caches = diag["caches"]
         msg = (
-            f"⚡ **J.A.R.V.I.S. Zero-Token Performance & Cache Diagnostics (`v2.20.0`)**\n"
+            f"⚡ **Mahadev Zero-Token Performance & Cache Diagnostics (`v2.21.0`)**\n"
             f"• **Turn Task Cache Hits / Misses**: `{tel['turn_task_cache_hits']}` / `{tel['turn_task_cache_misses']}`\n"
             f"• **Speech Sanitizer LRU Hits**: `{tel['clean_speech_cache_hits']}` (`{caches['clean_speech_lru_size']}/{caches['clean_speech_lru_max']}` entries)\n"
             f"• **Wake-Word Memo Cache Hits**: `{tel['wake_word_cache_hits']}`\n"
@@ -3007,7 +3014,7 @@ def _dispatch_voice_command_core(
             f"• **News SWR Instant Hits / Refreshes**: `{tel['news_swr_cache_hits']}` / `{tel['news_swr_bg_refreshes']}`"
         )
         spoken_reply = (
-            f"Jarvis performance diagnostics are nominal at zero token cost. "
+            f"Mahadev performance diagnostics are nominal at zero token cost. "
             f"Task cache hits: {tel['turn_task_cache_hits']}. "
             f"Speech sanitizer cache hits: {tel['clean_speech_cache_hits']}. "
             f"Fast intent table hits: {tel['fast_intent_hits']}."
@@ -3019,18 +3026,18 @@ def _dispatch_voice_command_core(
             "agent_id": "optimizer",
             "voice_transcript": spoken,
             "normalized_command": "jarvis:diagnostics",
-            "title": "⚡ J.A.R.V.I.S. Voice Performance & Cache Diagnostics ($0.00)",
+            "title": "⚡ Mahadev Voice Performance & Cache Diagnostics ($0.00)",
             "message": msg,
             "spoken_reply": spoken_reply,
             "ui_actions": [],
-            "executed_activities": ["⚡ Inspected J.A.R.V.I.S. O(1) Cache & Latency Counters"],
+            "executed_activities": ["⚡ Inspected Mahadev O(1) Cache & Latency Counters"],
             "tokens_used": 0,
             "cost_usd": "$0.00",
         })
 
-    # 0A. Microphone Check, Presence & Wake-Word Greeting ("Mahadev", "Can you hear me?", "Jarvis", "Are you there?")
+    # 0A. Microphone Check, Presence & Wake-Word Greeting ("Mahadev", "Can you hear me?", "Are you there?")
     if (
-        cleaned_alpha in ("mahadev", "har har mahadev", "jai mahadev", "shiva", "jarvis", "afcc", "hey jarvis", "hello jarvis", "hi jarvis", "can you hear me", "hear me", "are you there", "testing", "mic check", "test")
+        cleaned_alpha in ("mahadev", "har har mahadev", "jai mahadev", "hey mahadev", "hello mahadev", "hi mahadev", "ok mahadev", "shiva", "jarvis", "afcc", "hey jarvis", "hello jarvis", "hi jarvis", "can you hear me", "hear me", "are you there", "testing", "mic check", "test")
         or spoken.strip() in ("महादेव", "हर हर महादेव", "మహాదేవ్")
         or any(pat in cleaned_alpha for pat in _PHONETIC_MIC_CHECK_PATTERNS)
         or re.search(r"\b(?:can|do)\s+(?:you|u)\s+(?:hear|listen|understand)\b", cleaned_alpha)
@@ -3046,7 +3053,7 @@ def _dispatch_voice_command_core(
             f"• **Active Fleet Agents**: {snap['active_agents']} autonomous agents standing by\n"
             f"• **Pending Tasks**: {snap['pending_count']} item(s) on your board\n"
             f"• **Today's Hydration**: {snap['hydration'].get('amount_ml', 0)} / {snap['hydration'].get('goal_ml', 2500)} ml\n"
-            f"• **Token Cost**: `$0.00` (Zero-Token Local Jarvis Engine)"
+            f"• **Token Cost**: `$0.00` (Zero-Token Local Mahadev Engine)"
         )
         spoken_reply = (
             f"Loud and clear! I can hear you perfectly. All {snap['active_agents']} autonomous Fleet agents are online and standing by at zero token cost. "
@@ -3058,7 +3065,7 @@ def _dispatch_voice_command_core(
             "agent_id": "overview",
             "voice_transcript": spoken,
             "normalized_command": "jarvis:mic_check",
-            "title": "🟢 J.A.R.V.I.S. Online — Loud & Clear ($0.00)",
+            "title": "🟢 Mahadev Online — Loud & Clear ($0.00)",
             "message": msg,
             "spoken_reply": spoken_reply,
             "ui_actions": ui_actions,
@@ -3068,7 +3075,7 @@ def _dispatch_voice_command_core(
         })
 
     # 0B. Direct Antigravity Live Console Bridge (Explicit "Ask Antigravity to ...", "Tell Antigravity ...")
-    # Note: General routing_mode == "antigravity" fallback runs at Step 10C AFTER built-in deterministic Jarvis
+    # Note: General routing_mode == "antigravity" fallback runs at Step 10C AFTER built-in deterministic Mahadev
     # voice conversations (Action Items review, Health, Optimizer, Email, etc.) so built-in voice commands always speak back!
     ag_direct_match = re.match(
         r"^(?:please\s+)?(?:ask\s+antigravity(?:\s+to)?|tell\s+antigravity(?:\s+to)?|send\s+to\s+antigravity|antigravity)\b[\s,.:;-]*(.+)$",
@@ -4730,7 +4737,7 @@ def _dispatch_voice_command_core(
             "voice_transcript": spoken,
             "normalized_command": "noise:ignored",
             "title": "🛡️ Filtered Background Noise / Chatter",
-            "message": f"Ignored isolated background word **\"{spoken}\"** ($0.00). Say **\"Jarvis, ...\"** or speak a command phrase.",
+            "message": f"Ignored isolated background word **\"{spoken}\"** ($0.00). Say **\"Mahadev, ...\"** or speak a command phrase.",
             "spoken_reply": "",
             "ui_actions": [],
             "executed_activities": ["🛡️ Acoustic Noise Gate Filtered Background Fragment ($0.00)"],
