@@ -1030,4 +1030,59 @@ def test_mahadev_voice_command_and_biometric_cockpit_branding(isolated_db, monke
     assert 'localStorage.getItem(\'afcc_jarvis_voiceprint\')' in ag_js
 
 
+# =========================================================================
+# 15. 60-Second Speaker Voiceprint Calibration Standard Regression
+# =========================================================================
+def test_mahadev_voiceprint_60s_speaker_calibration_standard(isolated_db, monkeypatch):
+    import urllib.parse
+    import fleet.server as srv
+    from fleet.api.settings_api import get_voiceprint_profile_endpoint
+
+    monkeypatch.setattr(srv, "db", isolated_db)
+
+    class _DummyHandler:
+        def __init__(self):
+            self.last_json: dict = {}
+            self.last_status = 200
+
+        def _send_json(self, data: dict, status: int = 200):
+            self.last_json = data
+            self.last_status = status
+
+    h = _DummyHandler()
+    get_voiceprint_profile_endpoint(h, urllib.parse.urlparse("/api/voice/voiceprint"))
+    assert h.last_json["recommended_duration_sec"] == 60
+    assert h.last_json["supported_durations_sec"] == [10, 12, 15, 20, 25, 30, 45, 60]
+    phases = h.last_json["calibration_script"]["phases"]
+    assert phases[0]["window"] == "0s – 12s"
+    assert phases[-1]["window"] == "48s – 60s"
+
+    dash_html = (BASE_DIR / "web" / "templates" / "dashboard.html").read_text(encoding="utf-8")
+    ag_js = (BASE_DIR / "web" / "static" / "js" / "antigravity.js").read_text(encoding="utf-8")
+
+    for html_token in (
+        'id="btnVpDur45"',
+        'id="btnVpDur60"',
+        "60s ★",
+        "Start 60s Recording",
+        "Calibrate My Voice (60s)",
+        'id="vpPhaseWindow1"',
+        'id="vpPhaseWindow2"',
+        'id="vpPhaseWindow3"',
+        'id="vpPhaseWindow4"',
+        'id="vpPhaseWindow5"',
+    ):
+        assert html_token in dash_html, f"Missing 60s calibration UI token in dashboard.html: {html_token}"
+
+    for js_token in (
+        "const MAX_UTTERANCE_FRAMES = 80;",
+        "const MAX_CALIBRATION_PCM_CHUNKS = 120;",
+        "const MAX_CALIBRATION_UTTERANCE_FRAMES = 600;",
+        "function _resolveInitialVoiceprintDurationSec()",
+        "afcc_voiceprint_duration_60s_v1",
+        "[10, 12, 15, 20, 25, 30, 45, 60]",
+    ):
+        assert js_token in ag_js, f"Missing 60s calibration JS token in antigravity.js: {js_token}"
+
+
 

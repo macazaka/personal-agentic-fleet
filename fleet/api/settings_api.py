@@ -2759,8 +2759,8 @@ def get_voiceprint_profile_endpoint(handler: Any, parsed_url: urllib.parse.Parse
             "audio_data_url": audio_rec.get("audio_data_url", ""),
             "wake_word": wake_word,
             "speech_rate": speech_rate,
-            "recommended_duration_sec": 20,
-            "supported_durations_sec": [10, 12, 15, 20, 25, 30],
+            "recommended_duration_sec": 60,
+            "supported_durations_sec": [10, 12, 15, 20, 25, 30, 45, 60],
             "sandbox_history": sandbox_history[:15],
             "sandbox_metrics": sandbox_metrics,
             "calibration_script": {
@@ -2768,31 +2768,31 @@ def get_voiceprint_profile_endpoint(handler: Any, parsed_url: urllib.parse.Parse
                 "phases": [
                     {
                         "phase": 1,
-                        "window": "0s – 4s",
+                        "window": "0s – 12s",
                         "focus": "Wake Word, Deep Chest Resonance & Nasal Attack (85–180 Hz)",
                         "text": f"{wake_word}, lock my personal biometric voiceprint and verify my deep chest resonance.",
                     },
                     {
                         "phase": 2,
-                        "window": "4s – 8s",
+                        "window": "12s – 24s",
                         "focus": "Rising Question Inflection & Upper Pitch Ceiling (F0 Dynamic Envelope)",
                         "text": "Can you hear my voice clearly right now? What are my top priority action items and readiness score today?",
                     },
                     {
                         "phase": 3,
-                        "window": "8s – 12s",
+                        "window": "24s – 36s",
                         "focus": "Full Cardinal Vowel Triangle & Sibilant Fricatives (F1/F2/F3 & Vocal Tract Length)",
                         "text": "Blue ocean, bright morning sun, fresh green smoothie, warm golden light, and zero cloud data.",
                     },
                     {
                         "phase": 4,
-                        "window": "12s – 16s",
+                        "window": "36s – 48s",
                         "focus": "Rapid Numerals, Plosives & Cadence Variation (Dynamic Articulation)",
                         "text": "Count one, two, three, five, seven, nine, zero — close item number four and log two fifty milliliters of water.",
                     },
                     {
                         "phase": 5,
-                        "window": "16s – 20s+",
+                        "window": "48s – 60s",
                         "focus": "Soft-to-Firm Projection & Declarative Glottal Closure (SNR Floor & Timbre Lock)",
                         "text": f"Speaking softly first, then firm and clear: only my voice commands this fleet. Har Har {wake_word}.",
                     },

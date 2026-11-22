@@ -504,12 +504,15 @@ def test_fine_12d_voiceprint_child_rejection_auto_refine_and_sandbox(isolated_db
             self.last_json = data
             self.last_status = status
 
-    # 1. Verify GET /api/voice/voiceprint returns 20s default, [10,12,15,20,25,30] durations, and 5-Phase Script
+    # 1. Verify GET /api/voice/voiceprint returns 60s default, [10,12,15,20,25,30,45,60] durations, and 5-Phase Script
     h = _DummyHandler()
     get_voiceprint_profile_endpoint(h, urllib.parse.urlparse("/api/voice/voiceprint"))
-    assert h.last_json["recommended_duration_sec"] == 20
-    assert h.last_json["supported_durations_sec"] == [10, 12, 15, 20, 25, 30]
-    assert len(h.last_json["calibration_script"]["phases"]) == 5
+    assert h.last_json["recommended_duration_sec"] == 60
+    assert h.last_json["supported_durations_sec"] == [10, 12, 15, 20, 25, 30, 45, 60]
+    phases = h.last_json["calibration_script"]["phases"]
+    assert len(phases) == 5
+    assert phases[0]["window"] == "0s – 12s"
+    assert phases[4]["window"] == "48s – 60s"
 
     # 2. Enroll a 12-D adult owner voiceprint profile
     owner_profile = {

@@ -1250,6 +1250,25 @@ try {
   if (rawVp) _initialVoiceprint = JSON.parse(rawVp);
 } catch (e) {}
 
+const _VOICEPRINT_SUPPORTED_DURATIONS = [10, 12, 15, 20, 25, 30, 45, 60];
+
+function _resolveInitialVoiceprintDurationSec() {
+  try {
+    const rawStored = localStorage.getItem('afcc_voiceprint_duration_sec');
+    const parsed = parseInt(rawStored || '60', 10) || 60;
+    if (!localStorage.getItem('afcc_voiceprint_duration_60s_v1')) {
+      localStorage.setItem('afcc_voiceprint_duration_60s_v1', '1');
+      if (!rawStored || parsed <= 30) {
+        localStorage.setItem('afcc_voiceprint_duration_sec', '60');
+        return 60;
+      }
+    }
+    return _VOICEPRINT_SUPPORTED_DURATIONS.includes(parsed) ? parsed : 60;
+  } catch (e) {
+    return 60;
+  }
+}
+
 window.AFCCVoice = {
   isListening: false,
   userWantsListening: false,
@@ -1276,7 +1295,7 @@ window.AFCCVoice = {
   autoRefineEnabled: localStorage.getItem('afcc_voiceprint_auto_refine') !== 'false',
   isCalibrating: false,
   isSandboxTesting: false,
-  calibrationDurationSec: parseInt(localStorage.getItem('afcc_voiceprint_duration_sec') || '20', 10) || 20,
+  calibrationDurationSec: _resolveInitialVoiceprintDurationSec(),
   calibrationCountdownTimer: null,
   calibrationTimeoutId: null,
   calibrationFinishCallback: null,
@@ -1451,6 +1470,7 @@ const _STATIC_BARK_BANDS = [
   [2700, 3800]
 ];
 const MAX_UTTERANCE_FRAMES = 80;
+const MAX_CALIBRATION_UTTERANCE_FRAMES = 600;
 const MAX_CALIBRATION_PCM_CHUNKS = 120;
 
 function computeAutocorrelationPitchHz(floatBuf, sampleRate, precomputedRms) {
@@ -1896,19 +1916,20 @@ async function ensureJarvisAudioDspPipeline() {
           window.AFCCVoice.calibrationPcmChunks.push(new Float32Array(timeBuf));
         }
         if (pitchHz >= 65 && pitchHz <= 450 && snrDb >= 10) {
-          if (window.AFCCVoice.utterancePitchSamples.length >= MAX_UTTERANCE_FRAMES) {
+          const activeFrameCap = window.AFCCVoice.isCalibrating ? MAX_CALIBRATION_UTTERANCE_FRAMES : MAX_UTTERANCE_FRAMES;
+          if (window.AFCCVoice.utterancePitchSamples.length >= activeFrameCap) {
             window.AFCCVoice.utterancePitchSamples.shift();
           }
           window.AFCCVoice.utterancePitchSamples.push(pitchHz);
 
           if (centroidHz > 0) {
-            if (window.AFCCVoice.utteranceCentroidSamples.length >= MAX_UTTERANCE_FRAMES) {
+            if (window.AFCCVoice.utteranceCentroidSamples.length >= activeFrameCap) {
               window.AFCCVoice.utteranceCentroidSamples.shift();
             }
             window.AFCCVoice.utteranceCentroidSamples.push(centroidHz);
           }
 
-          if (window.AFCCVoice.utteranceFineFrameSamples.length >= MAX_UTTERANCE_FRAMES) {
+          if (window.AFCCVoice.utteranceFineFrameSamples.length >= activeFrameCap) {
             window.AFCCVoice.utteranceFineFrameSamples.shift();
           }
           window.AFCCVoice.utteranceFineFrameSamples.push(fineFeat);
@@ -2019,7 +2040,7 @@ function showVoiceprintConfirmationGate(profile, audioDataUrl, savedFilePath) {
     fileBadge.textContent = `Saved: ${savedFilePath || 'fleet/data/user/voiceprint_sample.wav'}`;
   }
   if (summaryEl && profile) {
-    const durSec = profile.durationSec || window.AFCCVoice.calibrationDurationSec || 20;
+    const durSec = profile.durationSec || window.AFCCVoice.calibrationDurationSec || 60;
     const minHz = profile.pitchMinHz || Math.max(65, (profile.pitchMeanHz || 135) - (profile.pitchStdHz || 16));
     const maxHz = profile.pitchMaxHz || ((profile.pitchMeanHz || 135) + (profile.pitchStdHz || 16));
     const qual = profile.qualityScore || 96;
@@ -2043,11 +2064,13 @@ function showVoiceprintConfirmationGate(profile, audioDataUrl, savedFilePath) {
 }
 
 function setVoiceprintCalibrationDuration(sec) {
-  const supported = [10, 12, 15, 20, 25, 30];
-  const cleanSec = supported.includes(Number(sec)) ? Number(sec) : 20;
+  const supported = _VOICEPRINT_SUPPORTED_DURATIONS;
+  const cleanSec = supported.includes(Number(sec)) ? Number(sec) : 60;
+  const prevSec = window.AFCCVoice.calibrationDurationSec;
   window.AFCCVoice.calibrationDurationSec = cleanSec;
   try {
     localStorage.setItem('afcc_voiceprint_duration_sec', String(cleanSec));
+    localStorage.setItem('afcc_voiceprint_duration_60s_v1', '1');
   } catch (e) {}
 
   supported.forEach(val => {
@@ -2060,6 +2083,15 @@ function setVoiceprintCalibrationDuration(sec) {
     }
   });
 
+  [1, 2, 3, 4, 5].forEach(p => {
+    const winEl = document.getElementById(`vpPhaseWindow${p}`);
+    if (winEl) {
+      const s = Math.round(((p - 1) * cleanSec) / 5);
+      const e = Math.round((p * cleanSec) / 5);
+      winEl.textContent = `${s}s – ${e}s`;
+    }
+  });
+
   const startBtn = document.getElementById('btnStartGuidedVoiceprintRec');
   if (startBtn && !window.AFCCVoice.isCalibrating) {
     startBtn.innerHTML = `🎙️ Start ${cleanSec}s Recording`;
@@ -2069,6 +2101,10 @@ function setVoiceprintCalibrationDuration(sec) {
     cdBadge.textContent = `Ready • ${cleanSec}.0s`;
   }
   syncVoiceProfileSelectors();
+
+  if (window.AFCCVoice.isCalibrating && prevSec !== cleanSec) {
+    calibrateJarvisVoiceprint(cleanSec);
+  }
 }
 
 function updateVoiceprintTeleprompterPhaseHighlight(elapsedSec, totalSec) {
@@ -2121,7 +2157,7 @@ function openVoiceprintGuidedTeleprompter(autoStartRecording) {
   if (panel) {
     panel.style.display = 'block';
   }
-  const dur = window.AFCCVoice.calibrationDurationSec || 20;
+  const dur = window.AFCCVoice.calibrationDurationSec || 60;
   setVoiceprintCalibrationDuration(dur);
   updateVoiceprintTeleprompterPhaseHighlight(0, dur);
 
@@ -2262,7 +2298,7 @@ async function cancelJarvisVoiceprintSave() {
 
   syncVoiceProfileSelectors();
   if (transcriptEl) {
-    const durSec = window.AFCCVoice.calibrationDurationSec || 20;
+    const durSec = window.AFCCVoice.calibrationDurationSec || 60;
     transcriptEl.innerHTML = `<span style="color: var(--text-muted);">✕ Pending voiceprint processing cancelled. Click "🧬 Calibrate My Voice (${durSec}s)" anytime to record a new sample.</span>`;
   }
 }
@@ -2281,10 +2317,10 @@ async function calibrateJarvisVoiceprint(customDurationSec) {
   if (confirmPanel) confirmPanel.style.display = 'none';
   if (guidedPanel) guidedPanel.style.display = 'block';
 
-  const supported = [10, 12, 15, 20, 25, 30];
+  const supported = _VOICEPRINT_SUPPORTED_DURATIONS;
   const durationSec = supported.includes(Number(customDurationSec))
     ? Number(customDurationSec)
-    : (window.AFCCVoice.calibrationDurationSec || 20);
+    : (window.AFCCVoice.calibrationDurationSec || 60);
   window.AFCCVoice.calibrationDurationSec = durationSec;
 
   const activeWake = String(window.AFCCVoice.wakeWordPhrase || 'Mahadev').trim() || 'Mahadev';
@@ -2299,6 +2335,12 @@ async function calibrateJarvisVoiceprint(customDurationSec) {
   if (window.AFCCVoice.calibrationTimeoutId) {
     clearTimeout(window.AFCCVoice.calibrationTimeoutId);
     window.AFCCVoice.calibrationTimeoutId = null;
+  }
+  if (window.AFCCVoice.mediaRecorder && window.AFCCVoice.mediaRecorder.state !== 'inactive') {
+    try {
+      window.AFCCVoice.mediaRecorder.onstop = null;
+      window.AFCCVoice.mediaRecorder.stop();
+    } catch (e) {}
   }
 
   window.AFCCVoice.isCalibrating = true;
@@ -2441,7 +2483,7 @@ async function calibrateJarvisVoiceprint(customDurationSec) {
     }
 
     const dynamicRangeHz = Math.max(0, summaryVec.pitchMaxHz - summaryVec.pitchMinHz);
-    const frameCoverageScore = Math.min(50, Math.round((pitches.length / Math.max(24, durationSec * 4)) * 50));
+    const frameCoverageScore = Math.min(50, Math.round((pitches.length / Math.max(24, Math.min(180, durationSec * 3))) * 50));
     const prosodyScore = Math.min(30, Math.round((Math.min(dynamicRangeHz, 55) / 55) * 30));
     const snrScore = Math.min(20, Math.round((Math.min(window.AFCCVoice.utterancePeakSnrDb || 18, 25) / 25) * 20));
     const qualityScore = Math.max(82, Math.min(99, frameCoverageScore + prosodyScore + snrScore));
@@ -3081,7 +3123,7 @@ function renderVoiceprintSandboxPanel() {
         <span class="badge" style="background: rgba(236, 72, 153, 0.16); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.35);">Auto-Refinements: ${vp.autoRefinementCount || 0}</span>
       `;
     } else {
-      sigSummaryEl.innerHTML = `<span style="color: #fbbf24;">⚠️ Using Default Adult Baseline (134 Hz, VTL 17.1 cm) — Click "🎙️ Calibrate 20s 5-Phase Voiceprint" to lock your personal 12-D voiceprint.</span>`;
+      sigSummaryEl.innerHTML = `<span style="color: #fbbf24;">⚠️ Using Default Adult Baseline (134 Hz, VTL 17.1 cm) — Click "🎙️ Calibrate 60s 5-Phase Voiceprint" to lock your personal 12-D voiceprint.</span>`;
     }
   }
 
@@ -3253,7 +3295,7 @@ function syncVoiceProfileSelectors() {
   if (btnEnroll && !window.AFCCVoice.isCalibrating) {
     const pendingVp = window.AFCCVoice.pendingVoiceprint;
     const vp = window.AFCCVoice.voiceprint;
-    const durSec = window.AFCCVoice.calibrationDurationSec || 20;
+    const durSec = window.AFCCVoice.calibrationDurationSec || 60;
     if (pendingVp && pendingVp.pitchMeanHz) {
       btnEnroll.innerHTML = `⏳ Confirm Voiceprint (${pendingVp.pitchMeanHz}Hz)`;
       btnEnroll.style.borderColor = 'rgba(251, 191, 36, 0.55)';
