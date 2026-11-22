@@ -1736,8 +1736,11 @@ def post_mobile_voice_relay_endpoint(handler: Any, body: Dict[str, Any]):
     routes them through the stateful Omnibar & Action-Item Conversational Engine at $0.00,
     and returns a clean plain-text `spoken_reply` for watchOS `Speak Text` and iOS TTS.
     """
-    import re
-    from fleet.core.omnibar_dispatcher import transcribe_and_dispatch_voice_command
+    from fleet.core.omnibar_dispatcher import (
+        _clean_for_speech,
+        _get_compiled_wake_word_regex,
+        transcribe_and_dispatch_voice_command,
+    )
 
     payload = body if isinstance(body, dict) else {}
     raw_transcript = str(payload.get("transcript") or payload.get("query") or payload.get("text") or "").strip()
@@ -1753,22 +1756,23 @@ def post_mobile_voice_relay_endpoint(handler: Any, body: Dict[str, Any]):
         else "Mahadev"
     ) or "Mahadev"
 
-    cleaned = re.sub(
-        rf"^(?:hey\s+|hi\s+|ok\s+|namaste\s+|jai\s+|om\s+)?(?:{re.escape(str(wake_word))}|mahadev|jarvis|fleet)\b[\s,.:;!\-]*",
-        "",
-        raw_transcript,
-        flags=re.IGNORECASE,
-    ).strip() or raw_transcript
+    wake_regex = _get_compiled_wake_word_regex(db_inst)
+    cleaned = wake_regex.sub("", raw_transcript).strip() or raw_transcript
+    language = str(payload.get("language") or "en").strip().lower()
+    concise_mode = bool(payload.get("concise_mode", False))
+    whisper_mode: Optional[bool] = bool(payload["whisper_mode"]) if "whisper_mode" in payload and payload["whisper_mode"] is not None else None
 
     dispatch_res = transcribe_and_dispatch_voice_command(
         cleaned,
         agent_registry=getattr(srv, "agent_registry", None),
         db=db_inst,
+        language=language,
+        concise_mode=concise_mode,
+        whisper_mode=whisper_mode,
+        channel="mobile_relay",
     )
     raw_msg = str(dispatch_res.get("spoken_reply") or dispatch_res.get("message") or "Command executed.").strip()
-    # Strip markdown formatting so watchOS 'Speak Text' reads natural prose
-    plain_spoken = re.sub(r"[*_`#~>]+", "", raw_msg)
-    plain_spoken = re.sub(r"\s+", " ", plain_spoken).strip()
+    plain_spoken = _clean_for_speech(raw_msg) or raw_msg
 
     handler._send_json({
         "status": "ok",
@@ -1780,6 +1784,11 @@ def post_mobile_voice_relay_endpoint(handler: Any, body: Dict[str, Any]):
         "spoken_reply": plain_spoken,
         "dispatch": dispatch_res,
     })
+    if db_inst and hasattr(db_inst, "log_activity") and not dispatch_res.get("ignored_noise"):
+        try:
+            db_inst.log_activity("VoiceCopilot", "mobile_voice_relay", f"{device_name}: '{raw_transcript[:70]}' -> {dispatch_res.get('title', 'OK')}")
+        except Exception:
+            pass
 
 
 def _get_mobile_outbox_vault_path() -> Path:

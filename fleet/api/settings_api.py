@@ -6,15 +6,21 @@ hyperscaler defaults, and runtime activation/deactivation of agents.
 
 from datetime import datetime
 import json
+import os
 from pathlib import Path
 import re
 import shutil
+import threading
 from typing import Any, Dict, List, Optional
 import urllib.parse
 
 from fleet.api.router import router
 from fleet.config import DATA_DIR, load_fleet_config
 import fleet.server as srv
+
+_VOICEPRINT_CACHE_LOCK = threading.RLock()
+MAX_VOICEPRINT_AUDIO_BYTES = 12 * 1024 * 1024
+_ALLOWED_VOICEPRINT_AUDIO_MIMES = frozenset({"audio/wav", "audio/webm", "audio/ogg"})
 
 
 DEFAULT_SETTINGS = {
@@ -2191,41 +2197,101 @@ def get_voice_action_items_endpoint(handler: Any, parsed_url: urllib.parse.Parse
     })
 
 
-@router.post("/api/voice/converse")
-def post_voice_converse_endpoint(handler: Any, body: Dict[str, Any]):
-    """Bi-Directional Audio Conversation endpoint: executes linked activities and returns spoken reply + streaming clauses."""
-    from fleet.core.omnibar_dispatcher import transcribe_and_dispatch_voice_command
+def _execute_voice_turn_request(handler: Any, body: Dict[str, Any], channel: str, default_concise: bool = False) -> Optional[Dict[str, Any]]:
+    """Shared request parser, optional server-side 12-D biometric enforcement, and dispatcher for voice endpoints."""
+    from fleet.core.omnibar_dispatcher import (
+        record_voice_dispatch_telemetry,
+        transcribe_and_dispatch_voice_command,
+    )
 
     payload = body if isinstance(body, dict) else {}
     transcript = str(payload.get("transcript") or payload.get("query") or "").strip()
     if not transcript:
         handler._send_json({"status": "error", "message": "Field 'transcript' is required"}, status=400)
-        return
+        return None
+
+    db_inst = getattr(srv, "db", None)
+    bio_audit: Optional[Dict[str, Any]] = None
+    bio_sample = payload.get("biometric_sample")
+    enforce_bio = bool(payload.get("enforce_biometric", False))
+    if isinstance(bio_sample, dict):
+        enrolled = _get_cached_decrypted_voiceprint(db_inst, "jarvis_voiceprint_profile")
+        if enrolled:
+            bio_audit = evaluate_speaker_biometric_match(
+                enrolled_profile=enrolled,
+                candidate_sample=bio_sample,
+                strictness_threshold=int(enrolled.get("strictnessThreshold") or 78),
+            )
+            if enforce_bio and not bio_audit.get("allowed"):
+                record_voice_dispatch_telemetry(0.0, channel=channel, biometric_rejected=True)
+                handler._send_json(
+                    {
+                        "status": "rejected",
+                        "biometric_rejected": True,
+                        "verification": bio_audit,
+                        "message": bio_audit.get("reason", "Speaker biometric verification rejected."),
+                    },
+                    status=403,
+                )
+                return None
+
     language = str(payload.get("language") or "en").strip().lower()
     gender = str(payload.get("gender") or "female").strip().lower()
     accent = str(payload.get("accent") or "IN").strip().upper()
     routing_mode = str(payload.get("routing_mode") or "zero_token").strip().lower()
-    concise_mode = bool(payload.get("concise_mode", False))
+    concise_mode = bool(payload.get("concise_mode", default_concise))
+    whisper_mode: Optional[bool] = bool(payload["whisper_mode"]) if "whisper_mode" in payload and payload["whisper_mode"] is not None else None
     raw_alts = payload.get("alternatives")
     alternatives = [str(a).strip() for a in raw_alts if str(a).strip()] if isinstance(raw_alts, list) else []
+
     res = transcribe_and_dispatch_voice_command(
         transcript=transcript,
         agent_registry=getattr(srv, "agent_registry", None),
-        db=getattr(srv, "db", None),
+        db=db_inst,
         language=language,
         gender=gender,
         accent=accent,
         routing_mode=routing_mode,
         alternatives=alternatives,
         concise_mode=concise_mode,
+        whisper_mode=whisper_mode,
+        channel=channel,
     )
-    # Send response immediately so browser TTS begins on the very first microtask before SQLite log_activity fsync
-    handler._send_json(res)
+    if bio_audit is not None:
+        res["biometric_audit"] = bio_audit
+    return {
+        "res": res,
+        "transcript": transcript,
+        "language": language,
+        "gender": gender,
+        "accent": accent,
+        "concise_mode": concise_mode,
+    }
+
+
+def _log_voice_turn_activity(meta: Dict[str, Any], action_name: str = "voice_turn") -> None:
+    """Best-effort post-send SQLite activity log skipped on filtered background chatter."""
+    res = meta["res"]
     if hasattr(srv, "db") and srv.db and not res.get("ignored_noise"):
         try:
-            srv.db.log_activity("VoiceCopilot", "voice_turn", f"Voice ({language}/{gender}/{accent}): '{transcript[:80]}' -> {res.get('title', 'OK')}")
+            srv.db.log_activity(
+                "VoiceCopilot",
+                action_name,
+                f"Voice ({meta['language']}/{meta['gender']}/{meta['accent']}): '{meta['transcript'][:80]}' -> {res.get('title', 'OK')}",
+            )
         except Exception:
             pass
+
+
+@router.post("/api/voice/converse")
+def post_voice_converse_endpoint(handler: Any, body: Dict[str, Any]):
+    """Bi-Directional Audio Conversation endpoint: executes linked activities and returns spoken reply + streaming clauses."""
+    meta = _execute_voice_turn_request(handler, body, channel="converse", default_concise=False)
+    if meta is None:
+        return
+    # Send response immediately so browser TTS begins on the very first microtask before SQLite log_activity fsync
+    handler._send_json(meta["res"])
+    _log_voice_turn_activity(meta, action_name="voice_turn")
 
 
 @router.post("/api/voice/stream")
@@ -2235,35 +2301,14 @@ def post_voice_stream_endpoint(handler: Any, body: Dict[str, Any]):
     Returns ordered streaming speech clauses (`events: [ack, clause_0, clause_1, ..., complete]`)
     so the client audio engine can play Clause #0 within <15ms while subsequent clauses stream/queue.
     """
-    from fleet.core.omnibar_dispatcher import (
-        split_speech_into_stream_clauses,
-        transcribe_and_dispatch_voice_command,
-    )
+    from fleet.core.omnibar_dispatcher import split_speech_into_stream_clauses
 
-    payload = body if isinstance(body, dict) else {}
-    transcript = str(payload.get("transcript") or payload.get("query") or "").strip()
-    if not transcript:
-        handler._send_json({"status": "error", "message": "Field 'transcript' is required"}, status=400)
+    meta = _execute_voice_turn_request(handler, body, channel="stream", default_concise=True)
+    if meta is None:
         return
-    language = str(payload.get("language") or "en").strip().lower()
-    gender = str(payload.get("gender") or "female").strip().lower()
-    accent = str(payload.get("accent") or "IN").strip().upper()
-    routing_mode = str(payload.get("routing_mode") or "zero_token").strip().lower()
-    concise_mode = bool(payload.get("concise_mode", True))
-    raw_alts = payload.get("alternatives")
-    alternatives = [str(a).strip() for a in raw_alts if str(a).strip()] if isinstance(raw_alts, list) else []
-
-    res = transcribe_and_dispatch_voice_command(
-        transcript=transcript,
-        agent_registry=getattr(srv, "agent_registry", None),
-        db=getattr(srv, "db", None),
-        language=language,
-        gender=gender,
-        accent=accent,
-        routing_mode=routing_mode,
-        alternatives=alternatives,
-        concise_mode=concise_mode,
-    )
+    res = meta["res"]
+    transcript = meta["transcript"]
+    concise_mode = meta["concise_mode"]
     active_speech = (
         res.get("spoken_reply_concise")
         if concise_mode and res.get("spoken_reply_concise")
@@ -2307,6 +2352,7 @@ def post_voice_stream_endpoint(handler: Any, body: Dict[str, Any]):
             "stream_events": stream_events,
         }
     )
+    _log_voice_turn_activity(meta, action_name="voice_stream_turn")
 
 
 def _get_voiceprint_storage_paths() -> Dict[str, Path]:
@@ -2320,49 +2366,68 @@ def _get_voiceprint_storage_paths() -> Dict[str, Path]:
     }
 
 
+def _atomic_write_bytes(path: Path, data: bytes) -> None:
+    """[MV-01] Writes encrypted bytes atomically via sibling temp file and os.replace."""
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    with _VOICEPRINT_CACHE_LOCK:
+        tmp_path.write_bytes(data)
+        os.replace(tmp_path, path)
+
+
 def _save_voiceprint_audio_data_url(audio_data_url: str, profile: Optional[Dict[str, Any]] = None, staged: bool = False) -> Dict[str, Any]:
-    """Saves a base64 data:audio/... URL to disk (both raw audio file for replay and AES-256-GCM encrypted vault)."""
+    """[MV-01] Validates MIME/12MB ceiling and writes ONLY encrypted audio & vault files atomically (zero plaintext disk touch)."""
     import base64
 
     paths = _get_voiceprint_storage_paths()
     clean_url = str(audio_data_url or "").strip()
-    if not clean_url.startswith("data:audio"):
-        return {"audio_saved": False, "audio_file": "", "mime_type": ""}
+    if not clean_url.startswith("data:audio/"):
+        return {"audio_saved": False, "audio_file": "", "mime_type": "", "error": "Unsupported audio data URL.", "status_code": 400}
 
     header, _, b64_data = clean_url.partition(",")
     if not b64_data:
-        return {"audio_saved": False, "audio_file": "", "mime_type": ""}
+        return {"audio_saved": False, "audio_file": "", "mime_type": "", "error": "Empty base64 audio payload.", "status_code": 400}
 
-    mime_type = "audio/wav"
-    if "webm" in header.lower():
+    header_low = header.lower()
+    if "webm" in header_low:
         mime_type = "audio/webm"
-    elif "ogg" in header.lower():
+    elif "ogg" in header_low:
         mime_type = "audio/ogg"
+    elif "wav" in header_low or "wave" in header_low:
+        mime_type = "audio/wav"
+    else:
+        return {"audio_saved": False, "audio_file": "", "mime_type": "", "error": "Unsupported audio MIME type (allowed: wav, webm, ogg).", "status_code": 400}
+
+    if mime_type not in _ALLOWED_VOICEPRINT_AUDIO_MIMES:
+        return {"audio_saved": False, "audio_file": "", "mime_type": mime_type, "error": "Audio MIME not permitted.", "status_code": 400}
+
+    try:
+        raw_bytes = base64.b64decode(b64_data, validate=False)
+    except Exception:
+        return {"audio_saved": False, "audio_file": "", "mime_type": mime_type, "error": "Invalid base64 audio payload.", "status_code": 400}
+
+    if len(raw_bytes) > MAX_VOICEPRINT_AUDIO_BYTES:
+        return {"audio_saved": False, "audio_file": "", "mime_type": mime_type, "error": "Voiceprint audio exceeds 12MB limit.", "status_code": 413}
 
     target_file = paths["webm_file"] if "webm" in mime_type else paths["wav_file"]
     try:
-        from fleet.core.crypto_vault import encrypt_binary_bytes_at_rest
-        raw_bytes = base64.b64decode(b64_data)
-        target_file.write_bytes(raw_bytes)
-        target_file.write_bytes(encrypt_binary_bytes_at_rest(raw_bytes))
-    except Exception:
-        raw_bytes = b""
+        from fleet.core.crypto_vault import encrypt_binary_bytes_at_rest, write_encrypted_json_file
 
-    vault_record = {
-        "audio_data_url": clean_url,
-        "mime_type": mime_type,
-        "byte_length": len(raw_bytes),
-        "audio_file": f"fleet/data/user/{target_file.name}",
-        "staged": bool(staged),
-        "profile": profile or {},
-        "saved_at": datetime.now().isoformat(),
-    }
-    try:
-        from fleet.core.crypto_vault import write_encrypted_json_file
+        encrypted_audio = encrypt_binary_bytes_at_rest(raw_bytes)
+        _atomic_write_bytes(target_file, encrypted_audio)
 
-        write_encrypted_json_file(paths["vault_json"], vault_record)
-    except Exception:
-        paths["vault_json"].write_text(json.dumps(vault_record, indent=2), encoding="utf-8")
+        vault_record = {
+            "audio_data_url": clean_url,
+            "mime_type": mime_type,
+            "byte_length": len(raw_bytes),
+            "audio_file": f"fleet/data/user/{target_file.name}",
+            "staged": bool(staged),
+            "profile": profile or {},
+            "saved_at": datetime.now().isoformat(),
+        }
+        with _VOICEPRINT_CACHE_LOCK:
+            write_encrypted_json_file(paths["vault_json"], vault_record)
+    except Exception as exc:
+        return {"audio_saved": False, "audio_file": "", "mime_type": mime_type, "error": f"Encrypted vault write failed: {exc}", "status_code": 500}
 
     return {
         "audio_saved": True,
@@ -2375,18 +2440,19 @@ def _save_voiceprint_audio_data_url(audio_data_url: str, profile: Optional[Dict[
 def _load_voiceprint_audio_record() -> Dict[str, Any]:
     paths = _get_voiceprint_storage_paths()
     vault_path = paths["vault_json"]
-    if not vault_path.exists():
-        return {}
-    try:
-        from fleet.core.crypto_vault import read_encrypted_json_file
-
-        data = read_encrypted_json_file(vault_path, default={})
-        return data if isinstance(data, dict) else {}
-    except Exception:
-        try:
-            return json.loads(vault_path.read_text(encoding="utf-8"))
-        except Exception:
+    with _VOICEPRINT_CACHE_LOCK:
+        if not vault_path.exists():
             return {}
+        try:
+            from fleet.core.crypto_vault import read_encrypted_json_file
+
+            data = read_encrypted_json_file(vault_path, default={})
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            try:
+                return json.loads(vault_path.read_text(encoding="utf-8"))
+            except Exception:
+                return {}
 
 
 def evaluate_speaker_biometric_match(
@@ -2559,6 +2625,39 @@ def evaluate_speaker_biometric_match(
     }
 
 
+_VOICEPRINT_ANCHOR_KEYS = (
+    "pitchMeanHz",
+    "pitchStdHz",
+    "pitchMinHz",
+    "pitchMaxHz",
+    "centroidMeanHz",
+    "f1MeanHz",
+    "f2MeanHz",
+    "f3MeanHz",
+    "vtlCm",
+    "chestResonanceRatio",
+    "rolloffMeanHz",
+    "subBandVector",
+    "strictnessThreshold",
+)
+
+
+def _build_enrolled_anchor(profile: Dict[str, Any]) -> Dict[str, Any]:
+    """[MV-09] Builds an immutable baseline biometric anchor preventing long-term EMA drift."""
+    anchor: Dict[str, Any] = {}
+    for k in _VOICEPRINT_ANCHOR_KEYS:
+        if k in profile:
+            val = profile[k]
+            anchor[k] = list(val) if isinstance(val, list) else val
+    anchor.setdefault("pitchMeanHz", 135)
+    anchor.setdefault("pitchStdHz", 15)
+    anchor.setdefault("vtlCm", 17.0)
+    anchor.setdefault("chestResonanceRatio", 1.35)
+    anchor.setdefault("strictnessThreshold", 78)
+    anchor["anchoredAt"] = str(profile.get("confirmedAt") or datetime.now().isoformat())
+    return anchor
+
+
 def auto_refine_voiceprint_profile(
     enrolled_profile: Dict[str, Any],
     observation: Dict[str, Any],
@@ -2566,11 +2665,14 @@ def auto_refine_voiceprint_profile(
     negative_feedback: bool = False,
 ) -> Dict[str, Any]:
     """
-    Continuous Adaptive EMA Voiceprint Refinement Engine.
+    [MV-09] Continuous Adaptive EMA Voiceprint Refinement Engine with immutable anchor drift clamps.
     """
     import math
 
     updated = dict(enrolled_profile)
+    existing_anchor = enrolled_profile.get("enrolledAnchor")
+    anchor = dict(existing_anchor) if isinstance(existing_anchor, dict) else _build_enrolled_anchor(enrolled_profile)
+    updated["enrolledAnchor"] = anchor
     alpha = max(0.02, min(0.25, float(learning_rate)))
 
     if negative_feedback:
@@ -2587,7 +2689,11 @@ def auto_refine_voiceprint_profile(
     if obs_f0 <= 0 or abs(obs_f0 - base_f0) > 28.0:
         return updated
 
-    updated["pitchMeanHz"] = int(round((1.0 - alpha) * base_f0 + alpha * obs_f0))
+    anchor_f0 = float(anchor.get("pitchMeanHz") or base_f0)
+    next_f0 = (1.0 - alpha) * base_f0 + alpha * obs_f0
+    next_f0 = max(anchor_f0 - 14.0, min(anchor_f0 + 14.0, next_f0))
+    updated["pitchMeanHz"] = int(round(next_f0))
+
     cur_std = float(updated.get("pitchStdHz") or 16.0)
     obs_dev = abs(obs_f0 - base_f0)
     updated["pitchStdHz"] = int(round(max(11.0, min(20.0, (1.0 - alpha * 0.5) * cur_std + (alpha * 0.5) * max(11.0, obs_dev)))))
@@ -2604,11 +2710,19 @@ def auto_refine_voiceprint_profile(
         if obs_v > 0:
             updated[key] = int(round((1.0 - alpha) * base_v + alpha * obs_v))
 
-    for fkey, fdef in (("vtlCm", 17.0), ("chestResonanceRatio", 1.35)):
-        obs_fv = float(observation.get(fkey) or 0.0)
-        base_fv = float(updated.get(fkey) or fdef)
-        if obs_fv > 0:
-            updated[fkey] = round((1.0 - alpha) * base_fv + alpha * obs_fv, 2)
+    anchor_vtl = float(anchor.get("vtlCm") or updated.get("vtlCm") or 17.0)
+    obs_vtl = float(observation.get("vtlCm") or 0.0)
+    base_vtl = float(updated.get("vtlCm") or 17.0)
+    if obs_vtl > 0:
+        next_vtl = (1.0 - alpha) * base_vtl + alpha * obs_vtl
+        updated["vtlCm"] = round(max(anchor_vtl - 0.9, min(anchor_vtl + 0.9, next_vtl)), 2)
+
+    anchor_chest = float(anchor.get("chestResonanceRatio") or updated.get("chestResonanceRatio") or 1.35)
+    obs_chest = float(observation.get("chestResonanceRatio") or 0.0)
+    base_chest = float(updated.get("chestResonanceRatio") or 1.35)
+    if obs_chest > 0:
+        next_chest = (1.0 - alpha) * base_chest + alpha * obs_chest
+        updated["chestResonanceRatio"] = round(max(max(0.2, anchor_chest - 0.25), min(anchor_chest + 0.25, next_chest)), 2)
 
     obs_vec = observation.get("subBandVector")
     base_vec = updated.get("subBandVector")
@@ -2624,7 +2738,7 @@ def auto_refine_voiceprint_profile(
     return updated
 
 
-# [JV-07] In-Memory AES-256-GCM Voiceprint Profile & Sandbox History Memoization Cache
+# [JV-07] & [MV-05] Thread-safe In-Memory AES-256-GCM Voiceprint Profile & Sandbox History Memoization Cache
 _VOICEPRINT_MEM_CACHE: Dict[str, Any] = {
     "profile_raw": None,
     "profile_parsed": None,
@@ -2638,17 +2752,18 @@ _VOICEPRINT_MEM_CACHE: Dict[str, Any] = {
 
 
 def _invalidate_voiceprint_mem_cache() -> None:
-    """[JV-07] Invalidates in-memory decrypted voiceprint cache on write/update/clear."""
-    _VOICEPRINT_MEM_CACHE["profile_raw"] = None
-    _VOICEPRINT_MEM_CACHE["profile_parsed"] = None
-    _VOICEPRINT_MEM_CACHE["pending_raw"] = None
-    _VOICEPRINT_MEM_CACHE["pending_parsed"] = None
-    _VOICEPRINT_MEM_CACHE["history_raw"] = None
-    _VOICEPRINT_MEM_CACHE["history_parsed"] = None
+    """[JV-07] & [MV-05] Invalidates in-memory decrypted voiceprint cache on write/update/clear."""
+    with _VOICEPRINT_CACHE_LOCK:
+        _VOICEPRINT_MEM_CACHE["profile_raw"] = None
+        _VOICEPRINT_MEM_CACHE["profile_parsed"] = None
+        _VOICEPRINT_MEM_CACHE["pending_raw"] = None
+        _VOICEPRINT_MEM_CACHE["pending_parsed"] = None
+        _VOICEPRINT_MEM_CACHE["history_raw"] = None
+        _VOICEPRINT_MEM_CACHE["history_parsed"] = None
 
 
 def _get_cached_decrypted_voiceprint(db_inst: Any, setting_key: str = "jarvis_voiceprint_profile") -> Optional[Dict[str, Any]]:
-    """[JV-07] Returns decrypted voiceprint dict from in-memory cache if raw ciphertext is unchanged."""
+    """[JV-07] & [MV-05] Thread-safely returns decrypted voiceprint dict from in-memory cache if raw ciphertext is unchanged."""
     if not db_inst or not hasattr(db_inst, "get_setting"):
         return None
     raw = db_inst.get_setting(setting_key, "")
@@ -2656,17 +2771,19 @@ def _get_cached_decrypted_voiceprint(db_inst: Any, setting_key: str = "jarvis_vo
         return None
     raw_key = "profile_raw" if setting_key == "jarvis_voiceprint_profile" else "pending_raw"
     parsed_key = "profile_parsed" if setting_key == "jarvis_voiceprint_profile" else "pending_parsed"
-    if _VOICEPRINT_MEM_CACHE.get(raw_key) == raw and isinstance(_VOICEPRINT_MEM_CACHE.get(parsed_key), dict):
-        _VOICEPRINT_MEM_CACHE["cache_hits"] = int(_VOICEPRINT_MEM_CACHE.get("cache_hits", 0)) + 1
-        return dict(_VOICEPRINT_MEM_CACHE[parsed_key])
+    with _VOICEPRINT_CACHE_LOCK:
+        if _VOICEPRINT_MEM_CACHE.get(raw_key) == raw and isinstance(_VOICEPRINT_MEM_CACHE.get(parsed_key), dict):
+            _VOICEPRINT_MEM_CACHE["cache_hits"] = int(_VOICEPRINT_MEM_CACHE.get("cache_hits", 0)) + 1
+            return dict(_VOICEPRINT_MEM_CACHE[parsed_key])
     try:
         from fleet.core.crypto_vault import decrypt_sensitive_text
 
         parsed = json.loads(decrypt_sensitive_text(str(raw)))
         if isinstance(parsed, dict):
-            _VOICEPRINT_MEM_CACHE[raw_key] = raw
-            _VOICEPRINT_MEM_CACHE[parsed_key] = dict(parsed)
-            _VOICEPRINT_MEM_CACHE["cache_misses"] = int(_VOICEPRINT_MEM_CACHE.get("cache_misses", 0)) + 1
+            with _VOICEPRINT_CACHE_LOCK:
+                _VOICEPRINT_MEM_CACHE[raw_key] = raw
+                _VOICEPRINT_MEM_CACHE[parsed_key] = dict(parsed)
+                _VOICEPRINT_MEM_CACHE["cache_misses"] = int(_VOICEPRINT_MEM_CACHE.get("cache_misses", 0)) + 1
             return parsed
     except Exception:
         pass
@@ -2679,17 +2796,19 @@ def _load_voiceprint_sandbox_history(db_inst: Any) -> List[Dict[str, Any]]:
     raw = db_inst.get_setting("jarvis_voiceprint_sandbox_history", "")
     if not raw:
         return []
-    if _VOICEPRINT_MEM_CACHE.get("history_raw") == raw and isinstance(_VOICEPRINT_MEM_CACHE.get("history_parsed"), list):
-        _VOICEPRINT_MEM_CACHE["cache_hits"] = int(_VOICEPRINT_MEM_CACHE.get("cache_hits", 0)) + 1
-        return list(_VOICEPRINT_MEM_CACHE["history_parsed"])
+    with _VOICEPRINT_CACHE_LOCK:
+        if _VOICEPRINT_MEM_CACHE.get("history_raw") == raw and isinstance(_VOICEPRINT_MEM_CACHE.get("history_parsed"), list):
+            _VOICEPRINT_MEM_CACHE["cache_hits"] = int(_VOICEPRINT_MEM_CACHE.get("cache_hits", 0)) + 1
+            return list(_VOICEPRINT_MEM_CACHE["history_parsed"])
     try:
         from fleet.core.crypto_vault import decrypt_sensitive_text
 
         parsed = json.loads(decrypt_sensitive_text(str(raw)))
         if isinstance(parsed, list):
-            _VOICEPRINT_MEM_CACHE["history_raw"] = raw
-            _VOICEPRINT_MEM_CACHE["history_parsed"] = list(parsed)
-            _VOICEPRINT_MEM_CACHE["cache_misses"] = int(_VOICEPRINT_MEM_CACHE.get("cache_misses", 0)) + 1
+            with _VOICEPRINT_CACHE_LOCK:
+                _VOICEPRINT_MEM_CACHE["history_raw"] = raw
+                _VOICEPRINT_MEM_CACHE["history_parsed"] = list(parsed)
+                _VOICEPRINT_MEM_CACHE["cache_misses"] = int(_VOICEPRINT_MEM_CACHE.get("cache_misses", 0)) + 1
             return parsed
         return []
     except Exception:
@@ -2731,6 +2850,10 @@ def _compute_sandbox_accuracy_metrics(history: List[Dict[str, Any]]) -> Dict[str
 def get_voiceprint_profile_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
     """Returns the user's enrolled biometric speaker voiceprint profile, 5-phase script, and sandbox accuracy metrics."""
     db_inst = getattr(srv, "db", None)
+    qs = urllib.parse.parse_qs(parsed_url.query or "") if parsed_url else {}
+    include_audio_raw = str((qs.get("include_audio") or ["1"])[0] or "1").strip().lower()
+    include_audio = include_audio_raw not in ("0", "false", "no")
+
     profile = _get_cached_decrypted_voiceprint(db_inst, "jarvis_voiceprint_profile")
     pending_profile = _get_cached_decrypted_voiceprint(db_inst, "jarvis_voiceprint_pending")
 
@@ -2756,7 +2879,7 @@ def get_voiceprint_profile_endpoint(handler: Any, parsed_url: urllib.parse.Parse
             "audio_saved": has_audio,
             "audio_file": audio_rec.get("audio_file", ""),
             "audio_url": "/api/voice/voiceprint/audio" if has_audio else "",
-            "audio_data_url": audio_rec.get("audio_data_url", ""),
+            "audio_data_url": audio_rec.get("audio_data_url", "") if include_audio else "",
             "wake_word": wake_word,
             "speech_rate": speech_rate,
             "recommended_duration_sec": 60,
@@ -2836,6 +2959,7 @@ def get_voiceprint_audio_replay_endpoint(handler: Any, parsed_url: urllib.parse.
     handler.send_response(200)
     handler.send_header("Content-Type", mime_type)
     handler.send_header("Content-Length", str(len(raw_bytes)))
+    handler.send_header("X-Content-Type-Options", "nosniff")
     handler.send_header("Cache-Control", "no-store")
     handler.end_headers()
     handler.wfile.write(raw_bytes)
@@ -2872,6 +2996,41 @@ def save_voiceprint_profile_endpoint(handler: Any, body: Dict[str, Any]):
         handler._send_json({"status": "pending_cancelled", "awaiting_confirmation": False})
         return
 
+    if payload.get("reset_to_anchor"):
+        existing_profile = _get_cached_decrypted_voiceprint(db_inst, "jarvis_voiceprint_profile")
+        if not existing_profile:
+            handler._send_json({"status": "not_enrolled", "enrolled": False}, status=400)
+            return
+        anchor = existing_profile.get("enrolledAnchor")
+        if not isinstance(anchor, dict) or not anchor.get("pitchMeanHz"):
+            anchor = _build_enrolled_anchor(existing_profile)
+        restored = dict(existing_profile)
+        for k in _VOICEPRINT_ANCHOR_KEYS:
+            if k in anchor:
+                restored[k] = list(anchor[k]) if isinstance(anchor[k], list) else anchor[k]
+        restored["enrolledAnchor"] = dict(anchor)
+        restored["autoRefinementCount"] = 0
+        restored["negativeTightenCount"] = 0
+        restored["resetToAnchorAt"] = datetime.now().isoformat()
+        if db_inst and hasattr(db_inst, "set_setting"):
+            from fleet.core.crypto_vault import encrypt_aes256_gcm
+
+            enc_val = encrypt_aes256_gcm(json.dumps(restored))
+            db_inst.set_setting("jarvis_voiceprint_profile", enc_val)
+            with _VOICEPRINT_CACHE_LOCK:
+                _VOICEPRINT_MEM_CACHE["profile_raw"] = enc_val
+                _VOICEPRINT_MEM_CACHE["profile_parsed"] = dict(restored)
+        handler._send_json(
+            {
+                "status": "reset_to_anchor",
+                "enrolled": True,
+                "voiceprint": restored,
+                "profile": restored,
+                "strictness_threshold": int(restored.get("strictnessThreshold") or 78),
+            }
+        )
+        return
+
     if payload.get("auto_refine") or payload.get("negative_tighten"):
         existing_profile = _get_cached_decrypted_voiceprint(db_inst, "jarvis_voiceprint_profile")
         if not existing_profile:
@@ -2900,8 +3059,9 @@ def save_voiceprint_profile_endpoint(handler: Any, body: Dict[str, Any]):
 
             enc_val = encrypt_aes256_gcm(json.dumps(refined_vp))
             db_inst.set_setting("jarvis_voiceprint_profile", enc_val)
-            _VOICEPRINT_MEM_CACHE["profile_raw"] = enc_val
-            _VOICEPRINT_MEM_CACHE["profile_parsed"] = dict(refined_vp)
+            with _VOICEPRINT_CACHE_LOCK:
+                _VOICEPRINT_MEM_CACHE["profile_raw"] = enc_val
+                _VOICEPRINT_MEM_CACHE["profile_parsed"] = dict(refined_vp)
         handler._send_json(
             {
                 "status": "auto_refined" if not payload.get("negative_tighten") else "boundary_tightened",
@@ -2922,15 +3082,21 @@ def save_voiceprint_profile_endpoint(handler: Any, body: Dict[str, Any]):
     # Strip large audio payload out of the lightweight profile dict itself
     vp: Dict[str, Any] = {
         k: v for k, v in (raw_vp if isinstance(raw_vp, dict) else {}).items()
-        if k not in ("audio_data_url", "stage_only", "confirmed", "clear", "cancel_pending", "auto_refine", "negative_tighten")
+        if k not in ("audio_data_url", "stage_only", "confirmed", "clear", "cancel_pending", "auto_refine", "negative_tighten", "reset_to_anchor")
     }
 
     audio_data_url = str(payload.get("audio_data_url") or "")
     stage_only = bool(payload.get("stage_only", False))
 
-    audio_meta = {"audio_saved": False, "audio_file": ""}
-    if audio_data_url.startswith("data:audio"):
+    audio_meta: Dict[str, Any] = {"audio_saved": False, "audio_file": ""}
+    if audio_data_url:
         audio_meta = _save_voiceprint_audio_data_url(audio_data_url, profile=vp, staged=stage_only)
+        if audio_meta.get("error"):
+            handler._send_json(
+                {"status": "error", "message": audio_meta["error"], "audio_saved": False},
+                status=int(audio_meta.get("status_code") or 400),
+            )
+            return
     else:
         existing_rec = _load_voiceprint_audio_record()
         if existing_rec.get("audio_data_url"):
@@ -2944,7 +3110,8 @@ def save_voiceprint_profile_endpoint(handler: Any, body: Dict[str, Any]):
                 try:
                     from fleet.core.crypto_vault import write_encrypted_json_file
 
-                    write_encrypted_json_file(paths["vault_json"], existing_rec)
+                    with _VOICEPRINT_CACHE_LOCK:
+                        write_encrypted_json_file(paths["vault_json"], existing_rec)
                 except Exception:
                     pass
 
@@ -2957,8 +3124,9 @@ def save_voiceprint_profile_endpoint(handler: Any, body: Dict[str, Any]):
             from fleet.core.crypto_vault import encrypt_aes256_gcm
             enc_pending = encrypt_aes256_gcm(json.dumps(vp))
             db_inst.set_setting("jarvis_voiceprint_pending", enc_pending)
-            _VOICEPRINT_MEM_CACHE["pending_raw"] = enc_pending
-            _VOICEPRINT_MEM_CACHE["pending_parsed"] = dict(vp)
+            with _VOICEPRINT_CACHE_LOCK:
+                _VOICEPRINT_MEM_CACHE["pending_raw"] = enc_pending
+                _VOICEPRINT_MEM_CACHE["pending_parsed"] = dict(vp)
         existing_enrolled = False
         if db_inst and hasattr(db_inst, "get_setting"):
             existing_enrolled = bool(db_inst.get_setting("jarvis_voiceprint_profile", ""))
@@ -2977,15 +3145,18 @@ def save_voiceprint_profile_endpoint(handler: Any, body: Dict[str, Any]):
         )
         return
 
+    # [MV-09] Stamp immutable baseline anchor whenever an enrollment is confirmed
+    vp["enrolledAnchor"] = _build_enrolled_anchor(vp)
     if db_inst and hasattr(db_inst, "set_setting"):
         from fleet.core.crypto_vault import encrypt_aes256_gcm
         enc_prof = encrypt_aes256_gcm(json.dumps(vp))
         db_inst.set_setting("jarvis_voiceprint_profile", enc_prof)
         db_inst.set_setting("jarvis_voiceprint_pending", "")
-        _VOICEPRINT_MEM_CACHE["profile_raw"] = enc_prof
-        _VOICEPRINT_MEM_CACHE["profile_parsed"] = dict(vp)
-        _VOICEPRINT_MEM_CACHE["pending_raw"] = None
-        _VOICEPRINT_MEM_CACHE["pending_parsed"] = None
+        with _VOICEPRINT_CACHE_LOCK:
+            _VOICEPRINT_MEM_CACHE["profile_raw"] = enc_prof
+            _VOICEPRINT_MEM_CACHE["profile_parsed"] = dict(vp)
+            _VOICEPRINT_MEM_CACHE["pending_raw"] = None
+            _VOICEPRINT_MEM_CACHE["pending_parsed"] = None
     handler._send_json(
         {
             "status": "ok",
@@ -3016,8 +3187,9 @@ def post_verify_voiceprint_sandbox_endpoint(handler: Any, body: Dict[str, Any]):
     from fleet.core.crypto_vault import decrypt_sensitive_text, encrypt_aes256_gcm
 
     if payload.get("clear_history"):
-        _VOICEPRINT_MEM_CACHE["history_raw"] = None
-        _VOICEPRINT_MEM_CACHE["history_parsed"] = None
+        with _VOICEPRINT_CACHE_LOCK:
+            _VOICEPRINT_MEM_CACHE["history_raw"] = None
+            _VOICEPRINT_MEM_CACHE["history_parsed"] = None
         if db_inst and hasattr(db_inst, "set_setting"):
             db_inst.set_setting("jarvis_voiceprint_sandbox_history", "")
         handler._send_json(
@@ -3061,7 +3233,11 @@ def post_verify_voiceprint_sandbox_endpoint(handler: Any, body: Dict[str, Any]):
             ar_val = payload.get("auto_refine_enabled") if "auto_refine_enabled" in payload else payload.get("autoRefineEnabled")
             enrolled_profile["autoRefineEnabled"] = bool(ar_val)
         if db_inst and hasattr(db_inst, "set_setting"):
-            db_inst.set_setting("jarvis_voiceprint_profile", encrypt_aes256_gcm(json.dumps(enrolled_profile)))
+            enc_upd = encrypt_aes256_gcm(json.dumps(enrolled_profile))
+            db_inst.set_setting("jarvis_voiceprint_profile", enc_upd)
+            with _VOICEPRINT_CACHE_LOCK:
+                _VOICEPRINT_MEM_CACHE["profile_raw"] = enc_upd
+                _VOICEPRINT_MEM_CACHE["profile_parsed"] = dict(enrolled_profile)
         handler._send_json(
             {
                 "status": "settings_updated",
@@ -3124,7 +3300,11 @@ def post_verify_voiceprint_sandbox_endpoint(handler: Any, body: Dict[str, Any]):
         )
         auto_refined = True
         if db_inst and hasattr(db_inst, "set_setting"):
-            db_inst.set_setting("jarvis_voiceprint_profile", encrypt_aes256_gcm(json.dumps(enrolled_profile)))
+            enc_ref = encrypt_aes256_gcm(json.dumps(enrolled_profile))
+            db_inst.set_setting("jarvis_voiceprint_profile", enc_ref)
+            with _VOICEPRINT_CACHE_LOCK:
+                _VOICEPRINT_MEM_CACHE["profile_raw"] = enc_ref
+                _VOICEPRINT_MEM_CACHE["profile_parsed"] = dict(enrolled_profile)
 
     history = _load_voiceprint_sandbox_history(db_inst)
     trial_entry = {
@@ -3144,8 +3324,9 @@ def post_verify_voiceprint_sandbox_endpoint(handler: Any, body: Dict[str, Any]):
     if db_inst and hasattr(db_inst, "set_setting"):
         enc_hist = encrypt_aes256_gcm(json.dumps(history))
         db_inst.set_setting("jarvis_voiceprint_sandbox_history", enc_hist)
-        _VOICEPRINT_MEM_CACHE["history_raw"] = enc_hist
-        _VOICEPRINT_MEM_CACHE["history_parsed"] = list(history)
+        with _VOICEPRINT_CACHE_LOCK:
+            _VOICEPRINT_MEM_CACHE["history_raw"] = enc_hist
+            _VOICEPRINT_MEM_CACHE["history_parsed"] = list(history)
 
     metrics = _compute_sandbox_accuracy_metrics(history)
     handler._send_json(
@@ -3163,14 +3344,37 @@ def post_verify_voiceprint_sandbox_endpoint(handler: Any, body: Dict[str, Any]):
 
 @router.get("/api/voice/diagnostics")
 def get_voice_diagnostics_endpoint(handler: Any, parsed_url: urllib.parse.ParseResult):
-    """[JV-16] Returns Mahadev zero-token performance & cache diagnostics."""
+    """[JV-16] & [MV-10] Returns Mahadev zero-token performance, latency, channel, and biometric security diagnostics."""
     from fleet.core.omnibar_dispatcher import get_jarvis_voice_diagnostics
 
     diag = get_jarvis_voice_diagnostics()
-    diag["voiceprint_mem_cache"] = {
-        "cache_hits": int(_VOICEPRINT_MEM_CACHE.get("cache_hits", 0)),
-        "cache_misses": int(_VOICEPRINT_MEM_CACHE.get("cache_misses", 0)),
-        "has_cached_profile": _VOICEPRINT_MEM_CACHE.get("profile_parsed") is not None,
+    db_inst = getattr(srv, "db", None)
+    profile = _get_cached_decrypted_voiceprint(db_inst, "jarvis_voiceprint_profile")
+    sandbox_history = _load_voiceprint_sandbox_history(db_inst)
+    sandbox_metrics = _compute_sandbox_accuracy_metrics(sandbox_history)
+    audio_rec = _load_voiceprint_audio_record()
+
+    anchor = profile.get("enrolledAnchor") if isinstance(profile, dict) and isinstance(profile.get("enrolledAnchor"), dict) else None
+    drift_hz = (
+        abs(int(round(float(profile.get("pitchMeanHz") or 0))) - int(round(float(anchor.get("pitchMeanHz") or 0))))
+        if (isinstance(profile, dict) and anchor)
+        else 0
+    )
+
+    with _VOICEPRINT_CACHE_LOCK:
+        diag["voiceprint_mem_cache"] = {
+            "cache_hits": int(_VOICEPRINT_MEM_CACHE.get("cache_hits", 0)),
+            "cache_misses": int(_VOICEPRINT_MEM_CACHE.get("cache_misses", 0)),
+            "has_cached_profile": _VOICEPRINT_MEM_CACHE.get("profile_parsed") is not None,
+        }
+    diag["biometric_security"] = {
+        "enrolled": bool(profile),
+        "has_anchor": bool(anchor),
+        "strictness_threshold": int(profile.get("strictnessThreshold") or 78) if isinstance(profile, dict) else 78,
+        "auto_refinement_count": int(profile.get("autoRefinementCount") or 0) if isinstance(profile, dict) else 0,
+        "drift_from_anchor_hz": drift_hz,
+        "sandbox_metrics": sandbox_metrics,
+        "encrypted_audio_bytes": int(audio_rec.get("byte_length") or 0),
     }
     handler._send_json(diag)
 

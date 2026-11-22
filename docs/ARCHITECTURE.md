@@ -331,5 +331,6 @@ Users can instantiate custom agents visually or via the Antigravity workflow:
 
 For deep technical specifications, design patterns, and operational runbooks covering the 6 pillars of framework robustness (Thread Supervision, Signal & WAL Traps, Connection Pooling, Online Backups, Resource Quotas, Socket Egress Gating, Circuit Breakers, Rate Limiting, and Power Awareness) and the interactive Antigravity Live runtime:
 - **[Antigravity Live via AFCC — Deep Architecture & Critique](ANTIGRAVITY_LIVE_AFCC_ARCHITECTURE.md)**: Detailed step-by-step interaction walkthroughs, 7 Mermaid diagrams, laptop constraint analysis, and the `[AGL-01]`–`[AGL-10]` hardening review.
+- **[Mahadev Voice & Biometric Cockpit — Deep Architecture & Critique](MAHADEV_VOICE_BIOMETRIC_ARCHITECTURE.md)**: End-to-end WebAudio DSP, 12-D speaker biometric verification, clause-streamed TTS, 7 Mermaid diagrams, laptop acoustic/battery analysis, and the `[MV-01]`–`[MV-10]` hardening review.
 - **[Robustness Architecture & Operations Guide](ROBUSTNESS_GUIDE.md)**: Architecture, operational procedures, diagnostic REST APIs, and troubleshooting matrix.
 - **[Native Robustness Engineering Backlog](ROBUSTNESS_BACKLOG.md)**: Prioritized engineering backlog, failure models, and verification tracking.

@@ -1383,6 +1383,8 @@ try {
 } catch (e) {}
 
 const _VOICEPRINT_SUPPORTED_DURATIONS = [10, 12, 15, 20, 25, 30, 45, 60];
+const MIN_CALIBRATION_VOICED_FRAMES = 8;
+const MIC_IDLE_RELEASE_MS = 15000;
 
 function _resolveInitialVoiceprintDurationSec() {
   try {
@@ -1415,6 +1417,13 @@ window.AFCCVoice = {
   _lastDispatchedTurnSig: '',
   _lastDispatchedTurnAtMs: 0,
   _activeVoiceFetchController: null,
+  _speechEpoch: 0,
+  _ttsKeepaliveTimer: null,
+  _recConsecutiveErrors: 0,
+  _recBackoffTimer: null,
+  _wasListeningBeforeHidden: false,
+  ambientNoiseRms: 0.004,
+  lastDiagnostics: null,
   voiceLanguage: localStorage.getItem('afcc_voice_lang') || 'en',
   voiceGender: localStorage.getItem('afcc_voice_gender') || 'female',
   voiceAccent: localStorage.getItem('afcc_voice_accent') || 'IN',
@@ -1469,14 +1478,17 @@ window.AFCCVoice = {
 
 async function loadJarvisVoiceprintFromServer() {
   try {
-    const res = await fetch('/api/voice/voiceprint');
+    // [MV-01] Lightweight boot hydration: skip multi-MB base64 audio payload and stream replay on demand
+    const res = await fetch('/api/voice/voiceprint?include_audio=0');
     if (!res.ok) return;
     const data = await res.json();
-    if (data && data.audio_data_url) {
-      window.AFCCVoice.voiceprintAudioDataUrl = data.audio_data_url;
+    if (data && data.audio_saved) {
+      window.AFCCVoice.voiceprintAudioDataUrl = data.audio_data_url || '';
       window.AFCCVoice.voiceprintAudioFile = data.audio_file || 'fleet/data/user/voiceprint_sample.wav';
       const player = document.getElementById('voiceprintPreviewPlayer');
-      if (player) player.src = data.audio_data_url;
+      if (player) {
+        player.src = data.audio_data_url || data.audio_url || '/api/voice/voiceprint/audio';
+      }
     }
     if (data && data.enrolled && data.profile && data.profile.pitchMeanHz) {
       window.AFCCVoice.voiceprint = data.profile;
@@ -1737,10 +1749,10 @@ function extractFineAcousticFrameFeatures(freqByteBuf, sampleRate, fftSize) {
   const f2Hz = findBandPeakHz(920, 2350, 1480);
   const f3Hz = findBandPeakHz(2350, 3600, 2580);
 
-  // Quarter-wave resonant tube Vocal Tract Length (cm): VTL = (2k-1)*c / (4*Fk), c = 35000 cm/s
-  const vtl1 = 35000 / (4 * Math.max(250, f1Hz));
-  const vtl2 = (3 * 35000) / (4 * Math.max(900, f2Hz));
-  const vtl3 = (5 * 35000) / (4 * Math.max(1800, f3Hz));
+  // Quarter-wave resonant tube Vocal Tract Length (cm): VTL = (2k-1)*c / (4*Fk), c = 34300 cm/s (harmonized with server)
+  const vtl1 = 34300 / (4 * Math.max(250, f1Hz));
+  const vtl2 = (3 * 34300) / (4 * Math.max(900, f2Hz));
+  const vtl3 = (5 * 34300) / (4 * Math.max(1800, f3Hz));
   const rawVtl = 0.25 * vtl1 + 0.40 * vtl2 + 0.35 * vtl3;
   const vtlCm = Number(Math.max(10.5, Math.min(21.5, rawVtl)).toFixed(2));
 
@@ -1933,6 +1945,7 @@ async function ensureJarvisAudioDspPipeline() {
     window.AFCCVoice.audioCtx = ctx;
     window.AFCCVoice.mediaStream = stream;
     window.AFCCVoice.analyser = analyser;
+    window.AFCCVoice.lastVoiceActivityAtMs = Date.now();
 
     if (window.AFCCVoice.dspTimer) clearInterval(window.AFCCVoice.dspTimer);
     const timeBuf = new Float32Array(analyser.fftSize);
@@ -1940,6 +1953,24 @@ async function ensureJarvisAudioDspPipeline() {
 
     window.AFCCVoice._lastDspBadgeText = '';
     window.AFCCVoice._canvasIsIdleFlat = false;
+
+    const _applySilenceShortCircuit = (snrDbVal, rmsVal, floorVal) => {
+      window.AFCCVoice.ambientNoiseRms = Math.min(0.025, Math.max(0.0015, floorVal * 0.95 + rmsVal * 0.05));
+      window.AFCCVoice.livePitchHz = 0;
+      window.AFCCVoice.liveCentroidHz = 0;
+      window.AFCCVoice.bargeInFrames = 0;
+
+      const idleBadgeText = `SNR ${snrDbVal}dB • 85-3800Hz`;
+      if (window.AFCCVoice._lastDspBadgeText !== idleBadgeText) {
+        window.AFCCVoice._lastDspBadgeText = idleBadgeText;
+        const dspBadge = document.getElementById('voiceDspStatusBadge');
+        if (dspBadge) dspBadge.textContent = idleBadgeText;
+      }
+      if (!window.AFCCVoice._canvasIsIdleFlat && typeof renderJarvisLiveSpectrumCanvas === 'function') {
+        window.AFCCVoice._canvasIsIdleFlat = true;
+        renderJarvisLiveSpectrumCanvas(null, 0, snrDbVal);
+      }
+    };
 
     window.AFCCVoice.dspTimer = setInterval(() => {
       const isVoiceActiveMode = Boolean(
@@ -1949,13 +1980,14 @@ async function ensureJarvisAudioDspPipeline() {
         window.AFCCVoice.isSandboxTesting
       );
       if (!window.AFCCVoice.analyser || !isVoiceActiveMode) {
-        // Auto-suspend AudioContext when Mahadev is idle so browser audio thread uses 0.0% CPU
-        if (
-          ctx &&
-          ctx.state === 'running' &&
-          !isVoiceActiveMode &&
-          Date.now() - (window.AFCCVoice.lastVoiceActivityAtMs || 0) > 2500
-        ) {
+        const idleMs = Date.now() - (window.AFCCVoice.lastVoiceActivityAtMs || 0);
+        // [MV-03] Release hardware MediaStream completely after 15s idle when user is not actively listening so mic LED turns off
+        if (!window.AFCCVoice.userWantsListening && idleMs > MIC_IDLE_RELEASE_MS) {
+          stopJarvisAudioDspPipeline();
+          return;
+        }
+        // Auto-suspend AudioContext when Mahadev is briefly idle so browser audio thread uses 0.0% CPU
+        if (ctx && ctx.state === 'running' && !isVoiceActiveMode && idleMs > 2500) {
           try { ctx.suspend(); } catch (e) {}
         }
         return;
@@ -1978,30 +2010,19 @@ async function ensureJarvisAudioDspPipeline() {
           sampleCount++;
         }
         const rms = sampleCount > 0 ? Math.sqrt(sumSq / sampleCount) : 0;
-        const snrDb = Math.max(0, Math.round(20 * Math.log10((rms + 1e-6) / 0.002)));
+        // [MV-08] Adaptive ambient laptop-fan noise floor EMA & relative SNR
+        const noiseFloor = Math.max(0.0015, Math.min(0.025, Number(window.AFCCVoice.ambientNoiseRms || 0.004)));
+        const dynamicSilenceGate = Math.max(0.013, noiseFloor * 2.2);
+        const snrDb = Math.max(0, Math.round(20 * Math.log10((rms + 1e-6) / noiseFloor)));
         window.AFCCVoice.liveSnrDb = snrDb;
 
-        // Silence Short-Circuit: when room is silent (rms < 0.013), skip FFT, NSDF pitch autocorrelation,
-        // formant extraction, object allocations, and redundant canvas/DOM redraws (0% idle CPU & 0 GC churn)
+        // Silence Short-Circuit: update ambient floor EMA and skip FFT/NSDF/formants during room/fan silence
         if (rms < 0.013) {
-          window.AFCCVoice.livePitchHz = 0;
-          window.AFCCVoice.liveCentroidHz = 0;
-          window.AFCCVoice.bargeInFrames = 0;
-
-          if (window.AFCCVoice.isCalibrating && window.AFCCVoice.calibrationPcmChunks.length < MAX_CALIBRATION_PCM_CHUNKS) {
-            window.AFCCVoice.calibrationPcmChunks.push(new Float32Array(timeBuf));
-          }
-
-          const idleBadgeText = `SNR ${snrDb}dB • 85-3800Hz`;
-          if (window.AFCCVoice._lastDspBadgeText !== idleBadgeText) {
-            window.AFCCVoice._lastDspBadgeText = idleBadgeText;
-            const dspBadge = document.getElementById('voiceDspStatusBadge');
-            if (dspBadge) dspBadge.textContent = idleBadgeText;
-          }
-          if (!window.AFCCVoice._canvasIsIdleFlat && typeof renderJarvisLiveSpectrumCanvas === 'function') {
-            window.AFCCVoice._canvasIsIdleFlat = true;
-            renderJarvisLiveSpectrumCanvas(null, 0, snrDb);
-          }
+          _applySilenceShortCircuit(snrDb, rms, noiseFloor);
+          return;
+        }
+        if (rms < dynamicSilenceGate) {
+          _applySilenceShortCircuit(snrDb, rms, noiseFloor);
           return;
         }
 
@@ -2019,16 +2040,26 @@ async function ensureJarvisAudioDspPipeline() {
         window.AFCCVoice.liveVtlCm = fineFeat.vtlCm;
         window.AFCCVoice.lastVoiceActivityAtMs = Date.now();
 
-        // Optimization 5: Real-Time Hot-Mic Barge-In Detection while Mahadev is speaking
-        // Guarded by a 1100ms post-speech-start grace window and 27dB SNR threshold so your own sentence tail
-        // or laptop speaker onset never self-cancels Mahadev's spoken reply!
+        // Optimization 5 + [MV-07]: Voiceprint-Aware Real-Time Hot-Mic Barge-In Detection while Mahadev is speaking
+        // Adapts F0 & VTL envelope to the enrolled owner voiceprint instead of hardcoded male bands
         if (
           window.AFCCVoice.isSpeaking &&
           window.AFCCVoice.userWantsListening &&
           window.AFCCVoice.continuousMode &&
           (Date.now() - (window.AFCCVoice.speakingStartedAtMs || 0) > 1100)
         ) {
-          if (snrDb >= 27 && pitchHz >= 65 && pitchHz <= 195) {
+          const vpBarge = window.AFCCVoice.voiceprint;
+          let bargeMatched = false;
+          if (vpBarge && vpBarge.pitchMeanHz) {
+            const minBargeF0 = Math.max(65, Number(vpBarge.pitchMinHz || (vpBarge.pitchMeanHz - 22)) - 15);
+            const maxBargeF0 = Math.min(350, Number(vpBarge.pitchMaxHz || (vpBarge.pitchMeanHz + 24)) + 20);
+            const vtlBargeOk = !vpBarge.vtlCm || Math.abs(fineFeat.vtlCm - Number(vpBarge.vtlCm)) <= 1.6;
+            const bargeSnrGate = window.AFCCVoice.voiceGender === 'male' ? 30 : 27;
+            bargeMatched = Boolean(snrDb >= bargeSnrGate && pitchHz >= minBargeF0 && pitchHz <= maxBargeF0 && vtlBargeOk);
+          } else {
+            bargeMatched = Boolean(snrDb >= 27 && pitchHz >= 65 && pitchHz <= 195);
+          }
+          if (bargeMatched) {
             window.AFCCVoice.bargeInFrames = (window.AFCCVoice.bargeInFrames || 0) + 1;
             if (window.AFCCVoice.bargeInFrames >= 3) {
               window.AFCCVoice.bargeInFrames = 0;
@@ -2044,7 +2075,9 @@ async function ensureJarvisAudioDspPipeline() {
         if (snrDb > window.AFCCVoice.utterancePeakSnrDb) {
           window.AFCCVoice.utterancePeakSnrDb = snrDb;
         }
-        if (window.AFCCVoice.isCalibrating && window.AFCCVoice.calibrationPcmChunks.length < MAX_CALIBRATION_PCM_CHUNKS) {
+        // [MV-03] Avoid duplicating raw Float32Array PCM buffers when MediaRecorder is actively capturing compressed Opus/WebM
+        const recorderActive = Boolean(window.AFCCVoice.mediaRecorder && window.AFCCVoice.mediaRecorder.state === 'recording');
+        if (window.AFCCVoice.isCalibrating && !recorderActive && window.AFCCVoice.calibrationPcmChunks.length < MAX_CALIBRATION_PCM_CHUNKS) {
           window.AFCCVoice.calibrationPcmChunks.push(new Float32Array(timeBuf));
         }
         if (pitchHz >= 65 && pitchHz <= 450 && snrDb >= 10) {
@@ -2379,6 +2412,7 @@ async function confirmJarvisVoiceprintSave() {
   } catch (e) {}
 
   let savedFile = window.AFCCVoice.voiceprintAudioFile || 'fleet/data/user/voiceprint_sample.wav';
+  let savedAudioUrl = '';
   try {
     const res = await fetch('/api/voice/voiceprint', {
       method: 'POST',
@@ -2392,12 +2426,26 @@ async function confirmJarvisVoiceprintSave() {
     });
     if (res.ok) {
       const data = await res.json();
+      if (data && data.profile) {
+        window.AFCCVoice.voiceprint = data.profile;
+        try { localStorage.setItem('afcc_jarvis_voiceprint', JSON.stringify(data.profile)); } catch (e) {}
+      }
       if (data && data.audio_file) {
         savedFile = data.audio_file;
         window.AFCCVoice.voiceprintAudioFile = savedFile;
       }
+      if (data && data.audio_url) {
+        savedAudioUrl = String(data.audio_url);
+      }
     }
   } catch (e) {}
+
+  // [MV-07] Stream replay from encrypted backend URL instead of retaining multi-MB base64 strings in JS heap
+  if (savedAudioUrl) {
+    window.AFCCVoice.voiceprintAudioDataUrl = '';
+    const player = document.getElementById('voiceprintPreviewPlayer');
+    if (player) player.src = `${savedAudioUrl}?t=${Date.now()}`;
+  }
 
   if (panel) panel.style.display = 'none';
   if (guidedPanel) guidedPanel.style.display = 'none';
@@ -2602,6 +2650,25 @@ async function calibrateJarvisVoiceprint(customDurationSec) {
     const pitches = window.AFCCVoice.utterancePitchSamples.slice();
     const centroids = window.AFCCVoice.utteranceCentroidSamples.slice();
     const fineFrames = window.AFCCVoice.utteranceFineFrameSamples.slice();
+
+    // [MV-02] Reject empty/silent calibration so muted microphones cannot enroll a fabricated voiceprint
+    if (pitches.length < MIN_CALIBRATION_VOICED_FRAMES) {
+      window.AFCCVoice.calibrationPcmChunks = [];
+      window.AFCCVoice.recordedChunks = [];
+      if (!window.AFCCVoice.userWantsListening) {
+        stopJarvisAudioDspPipeline();
+      }
+      if (btnEnroll) btnEnroll.innerHTML = `🧬 Calibrate My Voice (${durationSec}s)`;
+      if (startRecBtn) startRecBtn.innerHTML = `🎙️ Start ${durationSec}s Recording`;
+      if (cdBadge) cdBadge.textContent = `⚠️ ${pitches.length}/${MIN_CALIBRATION_VOICED_FRAMES} voiced frames`;
+      const warnMsg = `Calibration aborted: captured only ${pitches.length} voiced frames (minimum ${MIN_CALIBRATION_VOICED_FRAMES} required). Unmute your microphone or speak closer and retry.`;
+      if (transcriptEl) {
+        transcriptEl.innerHTML = `<span style="color: #fb7185; font-weight: 600;">⚠️ ${escapeHtml(warnMsg)}</span>`;
+      }
+      speakAfccVoiceText(`Too few voiced frames captured, only ${pitches.length}. Please check your microphone and try calibration again.`);
+      return;
+    }
+
     const summaryVec = summarizeUtteranceBiometricVector(
       pitches,
       centroids,
@@ -2614,11 +2681,18 @@ async function calibrateJarvisVoiceprint(customDurationSec) {
       recordedDataUrl = encodePcmChunksToWavDataUrl(window.AFCCVoice.calibrationPcmChunks, sr, summaryVec.pitchMeanHz);
     }
 
+    // [MV-03] Release bulky PCM & MediaRecorder chunks immediately after encoding & release idle mic
+    window.AFCCVoice.calibrationPcmChunks = [];
+    window.AFCCVoice.recordedChunks = [];
+    if (!window.AFCCVoice.userWantsListening) {
+      stopJarvisAudioDspPipeline();
+    }
+
     const dynamicRangeHz = Math.max(0, summaryVec.pitchMaxHz - summaryVec.pitchMinHz);
     const frameCoverageScore = Math.min(50, Math.round((pitches.length / Math.max(24, Math.min(180, durationSec * 3))) * 50));
     const prosodyScore = Math.min(30, Math.round((Math.min(dynamicRangeHz, 55) / 55) * 30));
     const snrScore = Math.min(20, Math.round((Math.min(window.AFCCVoice.utterancePeakSnrDb || 18, 25) / 25) * 20));
-    const qualityScore = Math.max(82, Math.min(99, frameCoverageScore + prosodyScore + snrScore));
+    const qualityScore = Math.max(45, Math.min(99, frameCoverageScore + prosodyScore + snrScore));
 
     const profile = Object.assign({}, summaryVec, {
       durationSec,
@@ -2874,6 +2948,22 @@ function verifySpeakerBiometrics(transcript, alternatives) {
   let biometricVerifiedOwner = !window.AFCCVoice.speakerLockEnabled;
   let lastMatchPct = vp ? 96 : 100;
 
+  // [MV-02] Fail closed when Speaker Lock is active on a live audio pipeline with insufficient voiced frames
+  if (window.AFCCVoice.speakerLockEnabled && vp && vp.pitchMeanHz && pitches.length < 2) {
+    if (window.AFCCVoice.audioCtx || window.AFCCVoice.mediaStream) {
+      const bioBadge = document.getElementById('voiceBiometricMatchBadge');
+      if (bioBadge) {
+        bioBadge.textContent = `Rejected: ${pitches.length} voiced frames`;
+        bioBadge.style.color = '#fb7185';
+      }
+      return {
+        allowed: false,
+        matchPct: 0,
+        reason: 'Speaker Lock requires voiced acoustic frames — speak clearly closer to the microphone.'
+      };
+    }
+  }
+
   if (window.AFCCVoice.speakerLockEnabled && vp && vp.pitchMeanHz && pitches.length >= 2) {
     const uttSample = summarizeUtteranceBiometricVector(pitches, centroids, fineFrames, peakSnr);
     window.AFCCVoice.lastUtteranceSample = uttSample;
@@ -2944,6 +3034,9 @@ function openVoiceprintAccuracySandbox() {
   }
   setTimeout(() => {
     renderVoiceprintSandboxPanel();
+    if (typeof refreshVoiceEngineDiagnosticsPanel === 'function') {
+      refreshVoiceEngineDiagnosticsPanel();
+    }
     const card = document.getElementById('voiceprintSettingsSandboxCard');
     if (card && typeof card.scrollIntoView === 'function') {
       card.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -3132,6 +3225,9 @@ async function runVoiceprintSandboxLiveTest(expectedRole) {
   const pitches = window.AFCCVoice.utterancePitchSamples.slice();
   const centroids = window.AFCCVoice.utteranceCentroidSamples.slice();
   const fineFrames = window.AFCCVoice.utteranceFineFrameSamples.slice();
+  if (!window.AFCCVoice.userWantsListening) {
+    stopJarvisAudioDspPipeline();
+  }
 
   if (pitches.length < 2) {
     if (statusEl) {
@@ -3229,7 +3325,61 @@ async function clearVoiceprintSandboxHistory() {
       window.AFCCVoice.sandboxHistory = data.sandbox_history || [];
       window.AFCCVoice.sandboxMetrics = data.sandbox_metrics || null;
       renderVoiceprintSandboxPanel();
+      if (typeof refreshVoiceEngineDiagnosticsPanel === 'function') {
+        refreshVoiceEngineDiagnosticsPanel();
+      }
     }
+  } catch (e) {}
+}
+
+async function resetVoiceprintToAnchor() {
+  const statusEl = document.getElementById('sandboxLiveTestStatusText');
+  try {
+    const res = await fetch('/api/voice/voiceprint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reset_to_anchor: true })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.profile) {
+        window.AFCCVoice.voiceprint = data.profile;
+        window.AFCCVoice.strictnessThreshold = data.profile.strictnessThreshold || 78;
+        try { localStorage.setItem('afcc_jarvis_voiceprint', JSON.stringify(data.profile)); } catch (e) {}
+        syncVoiceProfileSelectors();
+        renderVoiceprintSandboxPanel();
+        refreshVoiceEngineDiagnosticsPanel();
+        if (statusEl) {
+          statusEl.innerHTML = `<span style="color: #34d399; font-weight: 700;">⚓ Restored enrolled 60s baseline anchor (F0 ${data.profile.pitchMeanHz} Hz, VTL ${data.profile.vtlCm} cm, Strictness ${data.profile.strictnessThreshold}%).</span>`;
+        }
+      }
+    }
+  } catch (e) {}
+}
+
+async function refreshVoiceEngineDiagnosticsPanel() {
+  const box = document.getElementById('voiceEngineDiagnosticsBox');
+  if (!box) return;
+  try {
+    const res = await fetch('/api/voice/diagnostics');
+    if (!res.ok) return;
+    const d = await res.json();
+    window.AFCCVoice.lastDiagnostics = d;
+    const lat = d.latency || {};
+    const ch = d.channels || {};
+    const tel = d.telemetry || {};
+    const bio = d.biometric_security || {};
+    const noiseMv = Math.round((window.AFCCVoice.ambientNoiseRms || 0.004) * 1000);
+    const micState = window.AFCCVoice.mediaStream ? 'Active (DSP 85–3800Hz)' : 'Idle Released (LED Off)';
+    box.innerHTML = `
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 6px; font-size: 10.5px;">
+        <div style="background: rgba(15,23,42,0.7); padding: 5px 8px; border-radius: 6px;">⏱️ Avg / p95 Dispatch: <strong>${lat.avg_dispatch_ms || 0} / ${lat.p95_dispatch_ms || 0} ms</strong></div>
+        <div style="background: rgba(15,23,42,0.7); padding: 5px 8px; border-radius: 6px;">🎙️ Turns (Str / Conv / Mob): <strong>${ch.stream || 0} / ${ch.converse || 0} / ${ch.mobile_relay || 0}</strong></div>
+        <div style="background: rgba(15,23,42,0.7); padding: 5px 8px; border-radius: 6px;">⚓ Anchor Drift / Refines: <strong>${bio.drift_from_anchor_hz || 0} Hz / ${bio.auto_refinement_count || 0}x</strong></div>
+        <div style="background: rgba(15,23,42,0.7); padding: 5px 8px; border-radius: 6px;">🔇 Noise Floor / Mic: <strong>${noiseMv}mV • ${escapeHtml(micState)}</strong></div>
+        <div style="background: rgba(15,23,42,0.7); padding: 5px 8px; border-radius: 6px;">⚡ Total Turns / 403 Rej: <strong>${tel.total_voice_turns || 0} / ${tel.biometric_rejections || 0}</strong></div>
+      </div>
+    `;
   } catch (e) {}
 }
 
@@ -3923,6 +4073,12 @@ function setAfccVoiceRate(val) {
 }
 
 function stopAfccVoiceSpeaking() {
+  // [MV-04] Advance _speechEpoch so stale Chromium TTS callbacks & watchdogs never trigger after stop
+  window.AFCCVoice._speechEpoch = (window.AFCCVoice._speechEpoch || 0) + 1;
+  if (window.AFCCVoice._ttsKeepaliveTimer) {
+    clearInterval(window.AFCCVoice._ttsKeepaliveTimer);
+    window.AFCCVoice._ttsKeepaliveTimer = null;
+  }
   if ('speechSynthesis' in window) {
     try {
       window.speechSynthesis.cancel();
@@ -3947,6 +4103,12 @@ function speakAfccVoiceText(text, onDoneCallback, altPhoneticText, streamClauses
   }
 
   try {
+    window.AFCCVoice._speechEpoch = (window.AFCCVoice._speechEpoch || 0) + 1;
+    const myEpoch = window.AFCCVoice._speechEpoch;
+    if (window.AFCCVoice._ttsKeepaliveTimer) {
+      clearInterval(window.AFCCVoice._ttsKeepaliveTimer);
+      window.AFCCVoice._ttsKeepaliveTimer = null;
+    }
     window.AFCCVoice.speakingStartedAtMs = Date.now();
     window.AFCCVoice.bargeInFrames = 0;
     if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
@@ -3979,8 +4141,6 @@ function speakAfccVoiceText(text, onDoneCallback, altPhoneticText, streamClauses
     }
 
     // Optimization 2: Clause-by-Clause Streaming TTS
-    // Split multi-sentence text into short clauses so Clause #0 (<= 10 words) starts speaking in <15ms
-    // while subsequent clauses queue seamlessly in the browser speech engine!
     const clauses = (
       window.AFCCVoice.audioStreamMode &&
       !usePhoneticFallback &&
@@ -4005,12 +4165,31 @@ function speakAfccVoiceText(text, onDoneCallback, altPhoneticText, streamClauses
     let started = false;
     let finished = false;
     const finishOnce = () => {
-      if (finished) return;
+      if (finished || myEpoch !== window.AFCCVoice._speechEpoch) return;
       finished = true;
+      if (window.AFCCVoice._ttsKeepaliveTimer) {
+        clearInterval(window.AFCCVoice._ttsKeepaliveTimer);
+        window.AFCCVoice._ttsKeepaliveTimer = null;
+      }
       window.AFCCVoice.isSpeaking = false;
       updateVoiceCopilotUI();
       if (typeof onDoneCallback === 'function') onDoneCallback();
     };
+
+    // [MV-04] 10s Chromium SpeechSynthesis pause/resume keepalive prevents >14s utterance stalls
+    window.AFCCVoice._ttsKeepaliveTimer = setInterval(() => {
+      if (finished || myEpoch !== window.AFCCVoice._speechEpoch) {
+        clearInterval(window.AFCCVoice._ttsKeepaliveTimer);
+        window.AFCCVoice._ttsKeepaliveTimer = null;
+        return;
+      }
+      try {
+        if ('speechSynthesis' in window && window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+          window.speechSynthesis.pause();
+          window.speechSynthesis.resume();
+        }
+      } catch (e) {}
+    }, 10000);
 
     clauses.forEach((clauseText, idx) => {
       const u = new SpeechSynthesisUtterance(clauseText);
@@ -4025,6 +4204,7 @@ function speakAfccVoiceText(text, onDoneCallback, altPhoneticText, streamClauses
 
       if (idx === 0) {
         u.onstart = () => {
+          if (myEpoch !== window.AFCCVoice._speechEpoch) return;
           started = true;
           window.AFCCVoice.isSpeaking = true;
           updateVoiceCopilotUI(`🔊 Streaming (${getVoiceProfileDisplayLabel()})...`, 'speaking');
@@ -4034,6 +4214,7 @@ function speakAfccVoiceText(text, onDoneCallback, altPhoneticText, streamClauses
         u.onend = () => finishOnce();
       }
       u.onerror = () => {
+        if (myEpoch !== window.AFCCVoice._speechEpoch) return;
         if (!started && !finished && idx === 0) {
           try {
             window.speechSynthesis.cancel();
@@ -4052,9 +4233,10 @@ function speakAfccVoiceText(text, onDoneCallback, altPhoneticText, streamClauses
       window.speechSynthesis.speak(u);
     });
 
-    // Optimization 4: Fast 220ms Local Voice Watchdog (down from 650ms)
+    // Optimization 4 + [MV-04]: Epoch-guarded 450ms Local Voice Watchdog
     setTimeout(() => {
-      if (!started && !finished && 'speechSynthesis' in window) {
+      if (myEpoch !== window.AFCCVoice._speechEpoch) return;
+      if (!started && !finished && 'speechSynthesis' in window && !window.speechSynthesis.speaking) {
         try {
           window.speechSynthesis.cancel();
           if (typeof window.speechSynthesis.resume === 'function') window.speechSynthesis.resume();
@@ -4066,6 +4248,7 @@ function speakAfccVoiceText(text, onDoneCallback, altPhoneticText, streamClauses
           }
           fallbackUtter.rate = Math.min(1.75, window.AFCCVoice.speechRate || 1.35);
           fallbackUtter.onstart = () => {
+            if (myEpoch !== window.AFCCVoice._speechEpoch) return;
             started = true;
             window.AFCCVoice.isSpeaking = true;
             updateVoiceCopilotUI(`🔊 Speaking (${getVoiceProfileDisplayLabel()})...`, 'speaking');
@@ -4077,8 +4260,12 @@ function speakAfccVoiceText(text, onDoneCallback, altPhoneticText, streamClauses
           finishOnce();
         }
       }
-    }, 220);
+    }, 450);
   } catch (e) {
+    if (window.AFCCVoice._ttsKeepaliveTimer) {
+      clearInterval(window.AFCCVoice._ttsKeepaliveTimer);
+      window.AFCCVoice._ttsKeepaliveTimer = null;
+    }
     window.AFCCVoice.isSpeaking = false;
     updateVoiceCopilotUI();
     if (typeof onDoneCallback === 'function') onDoneCallback();
@@ -4111,6 +4298,14 @@ function renderVoiceFocusedActionItem(taskObj) {
   const btnReopen = document.getElementById('btnVoiceReopenFocusedTask');
 
   window.AFCCVoice.activeActionItem = taskObj || null;
+  if (
+    taskObj &&
+    typeof taskObj.cursor_position === 'number' &&
+    window.AFCCVoice.actionItemsCache
+  ) {
+    // [MV-06] Keep client <15ms fast-path cursor synchronized with authoritative server focus
+    window.AFCCVoice.actionItemsCache.cursorIdx = Math.max(0, taskObj.cursor_position - 1);
+  }
   if (!bar) return;
   if (!taskObj || !taskObj.id) {
     bar.style.display = 'none';
@@ -4583,15 +4778,23 @@ async function executeVoiceTurnText(transcriptText, alternativesList) {
     const burstBarEarly = document.getElementById('voiceAcousticBurstFallbackBar');
     if (burstBarEarly) burstBarEarly.style.display = 'none';
 
-    const reqBody = JSON.stringify({
+    const payloadObj = {
       transcript: spoken,
       alternatives: rawAlts,
       routing_mode: window.AFCCVoice.routingMode || 'zero_token',
       language: window.AFCCVoice.voiceLanguage || 'en',
       gender: window.AFCCVoice.voiceGender || 'female',
       accent: window.AFCCVoice.voiceAccent || 'IN',
-      concise_mode: Boolean(window.AFCCVoice.conciseMode)
-    });
+      concise_mode: Boolean(window.AFCCVoice.conciseMode),
+      whisper_mode: Boolean(window.AFCCVoice.whisperMode)
+    };
+    if (
+      window.AFCCVoice.lastUtteranceSample &&
+      (Date.now() - (window.AFCCVoice.lastTurnDispatchedAtMs || 0) < 4000)
+    ) {
+      payloadObj.biometric_sample = window.AFCCVoice.lastUtteranceSample;
+    }
+    const reqBody = JSON.stringify(payloadObj);
     const endpointUrl = window.AFCCVoice.audioStreamMode ? '/api/voice/stream' : '/api/voice/converse';
     const fetchOpts = {
       method: 'POST',
@@ -4869,6 +5072,11 @@ async function startBrowserSpeechRecognition() {
   window.AFCCVoice.utteranceFineFrameSamples = [];
   window.AFCCVoice.utterancePeakSnrDb = 0;
 
+  if (window.AFCCVoice._recBackoffTimer) {
+    clearTimeout(window.AFCCVoice._recBackoffTimer);
+    window.AFCCVoice._recBackoffTimer = null;
+  }
+
   try {
     if (window.AFCCVoice.recognition) {
       try { window.AFCCVoice.recognition.abort(); } catch (e) {}
@@ -4937,6 +5145,7 @@ async function startBrowserSpeechRecognition() {
 
     rec.onresult = (event) => {
       if (uttrDispatched) return;
+      window.AFCCVoice._recConsecutiveErrors = 0;
       let interim = '';
       let sawFinal = false;
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -5000,18 +5209,23 @@ async function startBrowserSpeechRecognition() {
         earlyEndpointTimer = null;
       }
       window.AFCCVoice.isListening = false;
-      if (event && (event.error === 'not-allowed' || event.error === 'service-not-allowed')) {
+      const errCode = event && event.error ? String(event.error) : '';
+      if (errCode === 'not-allowed' || errCode === 'service-not-allowed') {
         window.AFCCVoice.userWantsListening = false;
+        window.AFCCVoice._recConsecutiveErrors = 0;
         stopJarvisAudioDspPipeline();
         if (transcriptEl) {
-          transcriptEl.innerHTML = `<span style="color: #fb7185;">Microphone permission blocked (${escapeHtml(event.error)}). Allow microphone access in browser settings or click any Mahadev command chip below.</span>`;
+          transcriptEl.innerHTML = `<span style="color: #fb7185;">Microphone permission blocked (${escapeHtml(errCode)}). Allow microphone access in browser settings or click any Mahadev command chip below.</span>`;
         }
-      } else if (event && event.error === 'audio-capture') {
+      } else if (errCode === 'audio-capture') {
         window.AFCCVoice.userWantsListening = false;
+        window.AFCCVoice._recConsecutiveErrors = 0;
         stopJarvisAudioDspPipeline();
         if (transcriptEl) {
           transcriptEl.innerHTML = `<span style="color: #fbbf24;">No active microphone hardware detected by Windows. Connect a microphone or click any Mahadev command chip below.</span>`;
         }
+      } else if (errCode === 'network' || errCode === 'aborted') {
+        window.AFCCVoice._recConsecutiveErrors = (window.AFCCVoice._recConsecutiveErrors || 0) + 1;
       }
       updateVoiceCopilotUI();
     };
@@ -5031,12 +5245,33 @@ async function startBrowserSpeechRecognition() {
         commitVoiceUtteranceNow();
       } else {
         handleAcousticShortBurstFallback();
+        if (document.hidden) {
+          if (window.AFCCVoice.userWantsListening) {
+            window.AFCCVoice._wasListeningBeforeHidden = true;
+          }
+          return;
+        }
+        const errCnt = window.AFCCVoice._recConsecutiveErrors || 0;
+        if (errCnt >= 5) {
+          window.AFCCVoice.userWantsListening = false;
+          window.AFCCVoice._recConsecutiveErrors = 0;
+          stopJarvisAudioDspPipeline();
+          if (transcriptEl) {
+            transcriptEl.innerHTML = `<span style="color: #fbbf24;">⚠️ Speech recognition paused after ${errCnt} offline/network drops. Click Speak Now or Alt+V to resume.</span>`;
+          }
+          updateVoiceCopilotUI('⚠️ ASR Paused (Check Network)', 'ready');
+          return;
+        }
         if (window.AFCCVoice.userWantsListening && window.AFCCVoice.continuousMode && !window.AFCCVoice.isSpeaking) {
-          setTimeout(() => {
-            if (window.AFCCVoice.userWantsListening && !window.AFCCVoice.isListening && !window.AFCCVoice.isSpeaking) {
+          const backoffSchedule = [70, 250, 750, 1800, 4000];
+          const delayMs = backoffSchedule[Math.min(errCnt, backoffSchedule.length - 1)];
+          if (window.AFCCVoice._recBackoffTimer) clearTimeout(window.AFCCVoice._recBackoffTimer);
+          window.AFCCVoice._recBackoffTimer = setTimeout(() => {
+            window.AFCCVoice._recBackoffTimer = null;
+            if (!document.hidden && window.AFCCVoice.userWantsListening && !window.AFCCVoice.isListening && !window.AFCCVoice.isSpeaking) {
               startBrowserSpeechRecognition();
             }
-          }, 70);
+          }, delayMs);
         }
       }
     };
@@ -5150,6 +5385,8 @@ window.runVoiceprintSandboxLiveTest = runVoiceprintSandboxLiveTest;
 window.submitVoiceprintSandboxFeedback = submitVoiceprintSandboxFeedback;
 window.clearVoiceprintSandboxHistory = clearVoiceprintSandboxHistory;
 window.renderVoiceprintSandboxPanel = renderVoiceprintSandboxPanel;
+window.resetVoiceprintToAnchor = resetVoiceprintToAnchor;
+window.refreshVoiceEngineDiagnosticsPanel = refreshVoiceEngineDiagnosticsPanel;
 window.testAfccSelectedVoice = testAfccSelectedVoice;
 window.resolveBestSpeechVoice = resolveBestSpeechVoice;
 window.getTargetVoiceLocale = getTargetVoiceLocale;
@@ -5163,3 +5400,40 @@ window.processNextJarvisAudioQueueItem = processNextJarvisAudioQueueItem;
 window.skipCurrentJarvisAudioQueuePart = skipCurrentJarvisAudioQueuePart;
 window.clearJarvisAudioQueue = clearJarvisAudioQueue;
 window.resumeParkedJarvisTopicNow = resumeParkedJarvisTopicNow;
+
+// [MV-03] Lifecycle battery & hardware microphone guards across hidden tabs & page unload
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      window.AFCCVoice._wasListeningBeforeHidden = Boolean(window.AFCCVoice.userWantsListening);
+      if (window.AFCCVoice.recognition && window.AFCCVoice.isListening) {
+        try { window.AFCCVoice.recognition.stop(); } catch (e) {}
+      }
+    } else if (
+      window.AFCCVoice._wasListeningBeforeHidden &&
+      window.AFCCVoice.userWantsListening &&
+      window.AFCCVoice.continuousMode &&
+      !window.AFCCVoice.isListening &&
+      !window.AFCCVoice.isSpeaking
+    ) {
+      window.AFCCVoice._wasListeningBeforeHidden = false;
+      setTimeout(() => {
+        if (!document.hidden && window.AFCCVoice.userWantsListening && !window.AFCCVoice.isListening && !window.AFCCVoice.isSpeaking) {
+          startBrowserSpeechRecognition();
+        }
+      }, 250);
+    }
+  });
+}
+
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  const _cleanupMahadevVoiceHardware = () => {
+    try {
+      if (window.AFCCVoice.recognition) window.AFCCVoice.recognition.abort();
+    } catch (e) {}
+    try { stopAfccVoiceSpeaking(); } catch (e) {}
+    try { stopJarvisAudioDspPipeline(); } catch (e) {}
+  };
+  window.addEventListener('pagehide', _cleanupMahadevVoiceHardware);
+  window.addEventListener('beforeunload', _cleanupMahadevVoiceHardware);
+}

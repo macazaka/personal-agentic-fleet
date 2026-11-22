@@ -3327,6 +3327,9 @@
                     <button type="button" class="btn" title="Open the 60s 5-Phase Voiceprint Calibration Teleprompter" onclick="if(typeof closeSettingsModal==='function'){closeSettingsModal();}openVoiceprintGuidedTeleprompter(true);" style="font-size: 10.5px; padding: 4px 10px; border-color: rgba(168, 85, 247, 0.55); color: #d8b4fe; background: rgba(168, 85, 247, 0.16); font-weight: 700;">
                       🎙️ Calibrate 60s 5-Phase Voiceprint
                     </button>
+                    <button type="button" class="btn" title="Restore enrolled 60s baseline anchor (undoes cumulative EMA drift and over-tightening)" onclick="resetVoiceprintToAnchor()" style="font-size: 10px; padding: 4px 8px; border-color: rgba(56, 189, 248, 0.45); color: #7dd3fc;">
+                      ⚓ Reset Anchor
+                    </button>
                     <button type="button" class="btn" title="Clear sandbox test log" onclick="clearVoiceprintSandboxHistory()" style="font-size: 10px; padding: 4px 8px; color: var(--text-muted);">
                       🗑️ Reset Log
                     </button>
@@ -3431,6 +3434,17 @@
                       <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 10px;">No sandbox verification tests run yet — click a Live 5s Test or Simulated Child/Owner Benchmark button above!</td></tr>
                     </tbody>
                   </table>
+                </div>
+
+                <!-- [MV-10] Live Mahadev Voice & Biometric Engine Health Panel -->
+                <div style="margin-top: 10px; padding: 9px 11px; border-radius: 8px; background: rgba(15, 23, 42, 0.72); border: 1px solid rgba(56, 189, 248, 0.28);">
+                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px;">
+                    <span style="font-size: 11px; font-weight: 700; color: #7dd3fc;">⚡ Mahadev Voice &amp; Biometric Engine Health</span>
+                    <button type="button" class="btn" title="Refresh live voice dispatch latency, channel breakdown, anchor drift, and noise-floor telemetry" onclick="refreshVoiceEngineDiagnosticsPanel()" style="font-size: 10px; padding: 2px 8px;">🔄 Refresh Telemetry</button>
+                  </div>
+                  <div id="voiceEngineDiagnosticsBox" style="font-size: 10.5px; color: #94a3b8;">
+                    Click Refresh Telemetry to inspect real-time dispatch avg/p95 latency, stream/converse/mobile turns, anchor drift, and mic noise floor.
+                  </div>
                 </div>
               </div>
             </div>

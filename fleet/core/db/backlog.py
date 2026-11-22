@@ -1109,6 +1109,89 @@ ANTIGRAVITY_LIVE_ARCHITECTURE_BACKLOG_ITEMS: List[Dict[str, str]] = [
     },
 ]
 
+MAHADEV_VOICE_ARCHITECTURE_BACKLOG_ITEMS: List[Dict[str, str]] = [
+    {
+        "title": "[MV-01] Critical Voice #1: Zero-Plaintext Atomic Biometric Audio Encryption, 12MB/MIME Validation, nosniff Replay Headers & Lightweight ?include_audio=0 Boot Hydration",
+        "description": "Eliminates plaintext pre-writes and JSON fallback in _save_voiceprint_audio_data_url() via in-memory AES-256-GCM encryption + atomic temp-replace, enforces audio MIME whitelist (400) and 12MB cap (413), sets X-Content-Type-Options: nosniff on /api/voice/voiceprint/audio, and skips MBs of base64 audio on startup via ?include_audio=0.",
+        "category": "Security",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[MV-02] Critical Voice #2: Harmonized 12-D Biometric Constants (34300 cm/s), Minimum Voiced-Frame Calibration Gate (8 Frames), Fail-Closed Live Speaker Lock & Server Biometric Enforcement",
+        "description": "Synchronizes client VTL speed of sound to 34300 cm/s, blocks 0-frame/silent microphone enrollment via MIN_CALIBRATION_VOICED_FRAMES = 8, makes live verifySpeakerBiometrics() fail closed when Speaker Lock is enabled with <2 voiced frames, and adds server-side biometric_sample verification with optional enforce_biometric HTTP 403 rejection.",
+        "category": "Security",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[MV-03] Critical Voice #3: Zero-Leak Hardware Mic Lifecycle (15s Idle Auto-Release), MediaRecorder PCM Dedup & visibilitychange/pagehide Guards",
+        "description": "Automatically stops hardware MediaStream tracks after MIC_IDLE_RELEASE_MS (15s) or completed calibration/sandbox tests so laptop mic LEDs turn off, avoids duplicate PCM capture while MediaRecorder is active, and pauses/cleans ASR and mic resources on hidden tabs or pagehide.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[MV-04] Critical Voice #4: Epoch-Guarded SpeechSynthesis Watchdog (_speechEpoch), 10s Chromium TTS Keepalive & Exponential SpeechRecognition Error Backoff",
+        "description": "Guards speakAfccVoiceText() callbacks and its fallback watchdog with monotonic _speechEpoch tokens to eliminate ghost audio overlap after stop/cancel, adds a 10s Chromium pause/resume TTS keepalive for long replies, and applies exponential backoff (150ms..4000ms) pausing after 5 consecutive ASR network errors.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[MV-05] Critical Voice #5: Thread-Safe Voice Engine & Biometric Cache Locks (_VOICE_STATE_LOCK, _VOICEPRINT_CACHE_LOCK) & Stale-Cache Write Coherency",
+        "description": "Serializes shared Mahadev dispatcher caches, telemetry, topic stack, and action-item cursor under _VOICE_STATE_LOCK and protects _VOICEPRINT_MEM_CACHE + atomic file writes under _VOICEPRINT_CACHE_LOCK, fixing stale cache state across sandbox threshold updates and delayed auto-refinements.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[MV-06] High Voice #6: Real Dispatch Latency Histogram (avg/p95), Channel Turn Telemetry, /api/voice/stream Activity Logging & Action-Item Cursor Cache Sync",
+        "description": "Records true microsecond-timed dispatch latencies (last/avg/p95 over a 50-turn sliding window), increments total_voice_turns and per-channel counters (stream/converse/mobile_relay), adds async activity logging on /api/voice/stream, and syncs actionItemsCache.cursorIdx from server responses.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[MV-07] High Voice #7: Voiceprint-Aware Hot-Mic Barge-In Corridor, Server-Client Whisper Mode Parity & Streamed Replay Audio URLs",
+        "description": "Adapts DSP barge-in pitch/VTL corridors to the enrolled owner voiceprint instead of hardcoded male bands, passes whisper_mode to /api/voice/stream and /converse for single-clause server clamping, and clears large client base64 audio copies after confirmation.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[MV-08] High Voice #8: Adaptive Ambient Laptop-Fan Noise Floor EMA Gate (ambientNoiseRms) & Tri-Device /api/mobile/voice/relay Shared Wake-Word/Sanitizer Parity",
+        "description": "Tracks background laptop fan/AC RMS with an exponential moving average (ambientNoiseRms) to scale dynamic DSP silence gating and relative SNR, and refactors /api/mobile/voice/relay to reuse shared compiled wake-word stripping, speech sanitization, and channel telemetry.",
+        "category": "AI/LLM",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[MV-09] Critical Voice #9: Anti-Drift Immutable Enrolled Voiceprint Anchor (enrolledAnchor), Bounded EMA Drift Clamps (±14Hz/±0.9cm/±0.25) & 1-Click reset_to_anchor Recovery",
+        "description": "Stamps an immutable enrolledAnchor snapshot upon biometric confirmation, bounds cumulative auto-refinement drift strictly to ±14 Hz F0, ±0.9 cm VTL, and ±0.25 chest ratio around the anchor, and exposes POST /api/voice/voiceprint {reset_to_anchor: true} plus a Sandbox restore button.",
+        "category": "Security",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[MV-10] Medium Voice #10: Enriched GET /api/voice/diagnostics Telemetry (Latency, Channels, Biometric Security & Anchor Drift) & Live Sandbox Engine Health Card",
+        "description": "Extends GET /api/voice/diagnostics with real dispatch avg/p95 latency, channel turn breakdown, cache hit percentages, anchor drift, and encrypted audio size, and renders a live Engine Health Card (#voiceEngineDiagnosticsBox) inside #voiceprintSettingsSandboxCard.",
+        "category": "UI/UX",
+        "priority": "P2",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+]
+
 ALL_CANONICAL_BACKLOG_ITEMS: List[Dict[str, str]] = (
     FOUNDATIONAL_DEFAULT_BACKLOG_ITEMS
     + HISTORICAL_RELEASE_BACKLOG_ITEMS
@@ -1119,6 +1202,7 @@ ALL_CANONICAL_BACKLOG_ITEMS: List[Dict[str, str]] = (
     + AFCC_UI_DESIGN_SYSTEM_BACKLOG_ITEMS
     + AFCC_RAM_CPU_OPTIMIZATION_BACKLOG_ITEMS
     + ANTIGRAVITY_LIVE_ARCHITECTURE_BACKLOG_ITEMS
+    + MAHADEV_VOICE_ARCHITECTURE_BACKLOG_ITEMS
 )
 
 
