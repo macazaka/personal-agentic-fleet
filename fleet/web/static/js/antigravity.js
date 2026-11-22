@@ -2,10 +2,54 @@
 let lastRenderedStep = -1;
 let lastTranscriptSessionId = null;
 let _transcriptFetchInFlight = false;
+let _agQueueFetchInFlight = false;
+let _agTokenFetchInFlight = false;
+let _agCommandSubmitting = false;
+let _agActiveAgentsCount = 0;
+let _agQueueLength = 0;
+let _agIdleTicks = 0;
 const MAX_TRANSCRIPT_DOM_MESSAGES = 80;
 let attachedImages = [];
 let activeModelId = 'gemini-3.8-flash-high';
 let availableModels = [];
+
+    function scheduleAgPoll(immediateWake = false) {
+      if (typeof agInterval !== 'undefined' && agInterval) {
+        clearTimeout(agInterval);
+        clearInterval(agInterval);
+        agInterval = null;
+      }
+      const isVisibleUi = !document.hidden && (Boolean(window.isAgRightDocked) || (typeof currentTab !== 'undefined' && currentTab === 'antigravity'));
+      if (!isVisibleUi) {
+        return;
+      }
+      if (immediateWake) {
+        _agIdleTicks = 0;
+        if (window.agChatEngineMode !== 'fleet_zero_token') {
+          fetchTranscript(lastRenderedStep < 0);
+        }
+        fetchAgentQueue();
+        return;
+      }
+      const hasWork = (_agActiveAgentsCount > 0 || _agQueueLength > 0);
+      const delayMs = hasWork ? 2500 : (_agIdleTicks >= 3 ? 20000 : 12000);
+      agInterval = setTimeout(async () => {
+        agInterval = null;
+        if (document.hidden || (!window.isAgRightDocked && (typeof currentTab === 'undefined' || currentTab !== 'antigravity'))) {
+          return;
+        }
+        if (window.agChatEngineMode !== 'fleet_zero_token') {
+          await fetchTranscript(false);
+        }
+        await fetchAgentQueue();
+        if (_agActiveAgentsCount === 0 && _agQueueLength === 0) {
+          _agIdleTicks += 1;
+        } else {
+          _agIdleTicks = 0;
+        }
+        scheduleAgPoll(false);
+      }, delayMs);
+    }
 
     function _renderTranscriptMessageHtml(m) {
       let mediaHtml = '';
@@ -408,11 +452,12 @@ let availableModels = [];
       modal.style.display = 'flex';
       content.innerHTML = '<div style="color:var(--text-muted); padding:10px;">Loading usage metrics...</div>';
       try {
-        const [usageRes, tokenRes, provRes, toolsRes] = await Promise.all([
+        const [usageRes, tokenRes, provRes, toolsRes, diagRes] = await Promise.all([
           fetch('/api/antigravity/usage'),
           fetch('/api/antigravity/tokens'),
           fetch('/api/hyperscalers/providers'),
-          fetch('/api/hyperscalers/dev_tools')
+          fetch('/api/hyperscalers/dev_tools'),
+          fetch('/api/antigravity/diagnostics').catch(() => null)
         ]);
         if (!usageRes.ok) throw new Error('HTTP ' + usageRes.status + ' loading usage');
         if (!tokenRes.ok) throw new Error('HTTP ' + tokenRes.status + ' loading token health');
@@ -420,11 +465,16 @@ let availableModels = [];
         const t = await tokenRes.json();
         const provData = provRes.ok ? await provRes.json() : { providers: [] };
         const toolsData = toolsRes.ok ? await toolsRes.json() : { tools: {} };
+        const diagData = (diagRes && diagRes.ok) ? await diagRes.json() : null;
         const provList = provData.providers || [];
         const toolsList = Object.values(toolsData.tools || {});
 
         const pct = t.percent_used || 0;
         const barColor = t.status === 'exhausted' ? '#ef4444' : (t.status === 'warning' ? '#f59e0b' : 'var(--accent-cyan)');
+        const cbState = diagData && diagData.cli_circuit_breaker ? diagData.cli_circuit_breaker.state : 'CLOSED';
+        const hitRate = diagData && diagData.transcript_cache ? diagData.transcript_cache.hit_rate_pct : 100;
+        const ramPct = diagData && diagData.ram_admission ? diagData.ram_admission.host_ram_pct : 0;
+        const orphanRec = diagData && diagData.orphan_recovery ? diagData.orphan_recovery.recovered_count : 0;
 
         content.innerHTML = `
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
@@ -436,7 +486,7 @@ let availableModels = [];
             <div style="background:rgba(0,0,0,0.3); padding:12px; border-radius:8px; border:1px solid var(--card-border);">
               <div style="font-size:11px; color:var(--text-muted);">SESSION COST</div>
               <div style="font-size:15px; font-weight:700; color:var(--accent-green); margin-top:4px;">${escapeHtml(d.cost_usd)}</div>
-              <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${escapeHtml(d.tier)}</div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${escapeHtml(d.tier)} (${d.tier0_calls || 0} Tier-0 / ${d.llm_calls || 0} LLM)</div>
             </div>
             <div style="background:rgba(0,0,0,0.3); padding:12px; border-radius:8px; border:1px solid var(--card-border);">
               <div style="font-size:11px; color:var(--text-muted);">CONTEXT CAPACITY</div>
@@ -455,14 +505,21 @@ let availableModels = [];
             </div>
           </div>
 
+          <div style="background:rgba(15,23,42,0.55); border:1px solid rgba(56,189,248,0.28); border-radius:8px; padding:10px 12px; margin-top:6px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:11px;">
+            <span><strong>⚡ Engine Health:</strong> Transcript Cache <code>${hitRate}%</code></span>
+            <span><strong>🛡️ CLI Breaker:</strong> <code>${escapeHtml(cbState)}</code></span>
+            <span><strong>💻 RAM Guard:</strong> <code>${ramPct ? ramPct + '%' : 'Ready'}</code></span>
+            <span><strong>🔄 Recovered:</strong> <code>${orphanRec}</code></span>
+          </div>
+
           <div style="background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:8px; padding:12px; margin-top:6px;">
             <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
               🛡️ Token Exhaustion & Fail-Safe Controls
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
-              <button class="btn" style="font-size:11.5px; padding:6px 12px;" onclick="openVaultModal()">📦 Open Vault (${t.vaulted_count})</button>
-              <button class="btn" style="font-size:11.5px; padding:6px 12px; background:rgba(239,68,68,0.15); border-color:rgba(239,68,68,0.3); color:#fca5a5;" onclick="simulateTokenExhaustion()">⚠️ Simulate Token Exhaustion</button>
-              <button class="btn" style="font-size:11.5px; padding:6px 12px; background:rgba(16,185,129,0.15); border-color:rgba(16,185,129,0.3); color:#6ee7b7;" onclick="clearSimulatedTokenExhaustion()">✅ Reset Normal Health</button>
+              <button title="Inspect all vaulted prompts saved during token exhaustion" class="btn" style="font-size:11.5px; padding:6px 12px;" onclick="openVaultModal()">📦 Open Vault (${t.vaulted_count})</button>
+              <button title="Simulate token exhaustion to verify vault preservation" class="btn" style="font-size:11.5px; padding:6px 12px; background:rgba(239,68,68,0.15); border-color:rgba(239,68,68,0.3); color:#fca5a5;" onclick="simulateTokenExhaustion()">⚠️ Simulate Token Exhaustion</button>
+              <button title="Clear simulated token exhaustion and resume normal state" class="btn" style="font-size:11.5px; padding:6px 12px; background:rgba(16,185,129,0.15); border-color:rgba(16,185,129,0.3); color:#6ee7b7;" onclick="clearSimulatedTokenExhaustion()">✅ Reset Normal Health</button>
             </div>
           </div>
 
@@ -471,7 +528,7 @@ let availableModels = [];
               <span style="font-size:11px; font-weight:700; color:var(--accent-cyan); text-transform:uppercase; letter-spacing:0.5px;">
                 ☁️ Multi-Hyperscaler Gateway & AI Developer Tools
               </span>
-              <button class="btn" style="font-size:10.5px; padding:3px 9px;" onclick="syncAllDevToolInstructions()">🔄 Sync Copilot / Claude / Gemini Rules</button>
+              <button title="Synchronize Copilot, Claude Code, and Gemini CLI instruction rules" class="btn" style="font-size:10.5px; padding:3px 9px;" onclick="syncAllDevToolInstructions()">🔄 Sync Copilot / Claude / Gemini Rules</button>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
               ${provList.map(p => `<span class="ag-pill-badge ${p.is_configured ? 'green' : 'gray'}" style="font-size:10px;" title="${escapeHtml((p.methods||[]).join(', '))}">${p.is_configured ? '●' : '○'} ${escapeHtml(p.hyperscaler)}</span>`).join('')}
@@ -633,9 +690,21 @@ let availableModels = [];
     // --- Release Notes & Version History Modal ---
 
     async function fetchTokenHealth() {
+      if (_agTokenFetchInFlight) return;
+      _agTokenFetchInFlight = true;
       try {
         const res = await fetch('/api/antigravity/tokens');
         const data = await res.json();
+        const sigPayload = {
+          s: data.status,
+          p: data.percent_used,
+          v: data.vaulted_count,
+          m: data.active_model_id,
+          fb: data.recommended_fallback
+        };
+        if (typeof window._afccHasPayloadChanged === 'function' && !window._afccHasPayloadChanged('ag_tokens', sigPayload)) {
+          return;
+        }
         
         // Update header gauge
         const fill = document.getElementById('agTokenFill');
@@ -683,11 +752,33 @@ let availableModels = [];
         }
       } catch (e) {
         console.error('Error fetching token health:', e);
+      } finally {
+        _agTokenFetchInFlight = false;
       }
     }
 
     // --- Message Queue & Parallel Agent Fleet State ---
+    async function cancelRunningAgent(agentId) {
+      if (!agentId) return;
+      try {
+        await fetch('/api/antigravity/agents/cancel', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ agent_id: agentId })
+        });
+        await fetchAgentQueue();
+        if (window.agChatEngineMode !== 'fleet_zero_token') {
+          await fetchTranscript(false);
+        }
+        if (typeof scheduleAgPoll === 'function') scheduleAgPoll(false);
+      } catch (e) {
+        console.error('Error cancelling running agent:', e);
+      }
+    }
+
     async function fetchAgentQueue() {
+      if (_agQueueFetchInFlight) return;
+      _agQueueFetchInFlight = true;
       try {
         const res = await fetch('/api/antigravity/queue');
         const data = await res.json();
@@ -695,6 +786,20 @@ let availableModels = [];
         const activeCount = data.active_agents_count || 0;
         const maxSlots = data.max_parallel_agents || 4;
         const activeAgents = data.parallel_agents || [];
+        const qItems = data.queue || [];
+
+        _agActiveAgentsCount = activeCount;
+        _agQueueLength = qItems.length;
+
+        const changed = (
+          activeCount > 0 ||
+          typeof window._afccHasPayloadChanged !== 'function' ||
+          window._afccHasPayloadChanged('ag_queue', { st: data.status, ac: activeCount, mx: maxSlots, q: qItems.map(i => i.id) })
+        );
+        if (!changed) {
+          fetchTokenHealth();
+          return;
+        }
 
         // Parallel Capacity Meter & Slots
         const capacityBadge = document.getElementById('agParallelCapacityBadge');
@@ -724,8 +829,34 @@ let availableModels = [];
               <span class="ag-pill-badge cyan" style="font-size: 10.5px; display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px;" title="${escapeHtml(a.task || '')}">
                 <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#10b981;"></span>
                 <strong>${escapeHtml(a.agent_id)}:</strong> ${escapeHtml((a.task || '').substring(0, 22))}...
+                <button type="button" title="Stop ${escapeHtml(a.agent_id)}" onclick="cancelRunningAgent('${escapeHtml(a.agent_id)}')" style="background:none; border:none; color:#fca5a5; cursor:pointer; font-size:10px; padding:0 2px; line-height:1;">✕</button>
               </span>
             `).join('');
+          }
+        }
+
+        const liveBar = document.getElementById('agLiveWorkingIndicator');
+        if (liveBar) {
+          if (activeAgents.length > 0) {
+            liveBar.style.display = 'block';
+            liveBar.innerHTML = activeAgents.map(a => {
+              const sec = typeof a.elapsed_sec === 'number' ? `${a.elapsed_sec}s` : 'running';
+              return `
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:11.5px; padding:2px 0;">
+                  <div style="display:flex; align-items:center; gap:6px; overflow:hidden;">
+                    <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--accent-cyan);"></span>
+                    <strong style="color:var(--accent-cyan);">${escapeHtml(a.agent_id)}</strong>
+                    <span class="badge" style="font-size:9.5px; padding:1px 6px; background:rgba(168,85,247,0.16); color:#d8b4fe;">${escapeHtml(a.model || '')}</span>
+                    <span style="color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:260px;">${escapeHtml(a.task || '')}</span>
+                    <span style="color:var(--text-muted); font-family:monospace; font-size:10px;">(${sec})</span>
+                  </div>
+                  <button type="button" title="Stop running agent ${escapeHtml(a.agent_id)}" class="btn" style="font-size:10px; padding:2px 8px; border-color:rgba(244,63,94,0.45); color:#fda4af; background:rgba(244,63,94,0.14);" onclick="cancelRunningAgent('${escapeHtml(a.agent_id)}')">⏹ Stop</button>
+                </div>
+              `;
+            }).join('');
+          } else {
+            liveBar.style.display = 'none';
+            liveBar.innerHTML = '';
           }
         }
 
@@ -743,7 +874,7 @@ let availableModels = [];
             stateBadge.style.color = '#f87171';
             stateBadge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
           }
-          if (sendBtn) {
+          if (sendBtn && !_agCommandSubmitting) {
             sendBtn.innerHTML = '📦 Vault Prompt';
             sendBtn.style.background = 'linear-gradient(135deg, #ef4444, #b91c1c)';
           }
@@ -754,7 +885,7 @@ let availableModels = [];
             stateBadge.style.color = '#fbbf24';
             stateBadge.style.borderColor = 'rgba(245, 158, 11, 0.35)';
           }
-          if (sendBtn) {
+          if (sendBtn && !_agCommandSubmitting) {
             sendBtn.innerHTML = '📥 Queue for Slot';
             sendBtn.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
           }
@@ -765,7 +896,7 @@ let availableModels = [];
             stateBadge.style.color = 'var(--accent-cyan)';
             stateBadge.style.borderColor = 'rgba(0, 242, 254, 0.35)';
           }
-          if (sendBtn) {
+          if (sendBtn && !_agCommandSubmitting) {
             sendBtn.innerHTML = '🚀 Launch Parallel Agent';
             sendBtn.style.background = 'linear-gradient(135deg, var(--accent-cyan), var(--accent-blue))';
           }
@@ -776,7 +907,7 @@ let availableModels = [];
             stateBadge.style.color = 'var(--accent-green)';
             stateBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
           }
-          if (sendBtn) {
+          if (sendBtn && !_agCommandSubmitting) {
             sendBtn.innerHTML = '🚀 Launch Parallel Agent';
             sendBtn.style.background = 'linear-gradient(135deg, var(--accent-cyan), var(--accent-blue))';
           }
@@ -786,7 +917,6 @@ let availableModels = [];
         const list = document.getElementById('agQueueList');
         const countBadge = document.getElementById('agQueueCountBadge');
         const fastTrackBtn = document.getElementById('agFastTrackBtn');
-        const qItems = data.queue || [];
 
         if (fastTrackBtn) {
           fastTrackBtn.style.display = qItems.length > 0 ? 'inline-block' : 'none';
@@ -804,7 +934,7 @@ let availableModels = [];
                   <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:380px;">${escapeHtml(item.prompt || '(Image Attachment)')}</span>
                   <span class="ag-pill-badge gray" style="font-size:10px;">${escapeHtml(item.model || 'Default')}</span>
                 </div>
-                <button class="ag-queue-cancel" onclick="cancelQueueItem(${item.id})">✕ Cancel</button>
+                <button type="button" title="Cancel queued prompt #${item.id}" class="ag-queue-cancel" onclick="cancelQueueItem(${item.id})">✕ Cancel</button>
               </div>
             `).join('');
           }
@@ -816,6 +946,8 @@ let availableModels = [];
         fetchTokenHealth();
       } catch (e) {
         console.error('Error fetching agent queue:', e);
+      } finally {
+        _agQueueFetchInFlight = false;
       }
     }
 
@@ -1053,15 +1185,7 @@ let availableModels = [];
       fetchTranscript(true);
       fetchModels();
       fetchAgentQueue();
-      if (!agInterval) {
-        agInterval = setInterval(() => {
-          if (document.hidden) return;
-          if (window.agChatEngineMode !== 'fleet_zero_token') {
-            fetchTranscript(false);
-          }
-          fetchAgentQueue();
-        }, 6000);
-      }
+      scheduleAgPoll(false);
 
       // If user was on the full-page antigravity tab, restore the left main stage to their previous agent tab
       if (typeof currentTab !== 'undefined' && currentTab === 'antigravity') {
@@ -1094,6 +1218,7 @@ let availableModels = [];
         if (typeof currentTab !== 'undefined' && currentTab !== 'antigravity') {
           viewAg.style.display = 'none';
           if (agInterval) {
+            clearTimeout(agInterval);
             clearInterval(agInterval);
             agInterval = null;
           }
@@ -1144,6 +1269,7 @@ let availableModels = [];
     }
 
     async function submitAgCommand() {
+      if (_agCommandSubmitting) return;
       const input = document.getElementById('agCommandInput');
       const cmd = input.value.trim();
       const images = attachedImages.map(img => img.path || img.filename);
@@ -1155,6 +1281,7 @@ let availableModels = [];
         return;
       }
 
+      _agCommandSubmitting = true;
       const toast = document.getElementById('cmdToast');
       toast.style.display = 'block';
       toast.className = 'cmd-toast';
@@ -1178,12 +1305,13 @@ let availableModels = [];
           if (input.style) input.style.height = '';
           attachedImages = [];
           renderAttachmentStrip();
-          fetchTranscript(true);
-          fetchAgentQueue();
-          fetchTasks();
-          fetchBriefing();
-          fetchLogs();
-          fetchEmails();
+          await fetchTranscript(lastRenderedStep < 0);
+          await fetchAgentQueue();
+          scheduleAgPoll(false);
+          if (result.type === 'task_created' && typeof fetchTasks === 'function') fetchTasks();
+          else if (result.type === 'briefing' && typeof fetchBriefing === 'function') fetchBriefing();
+          else if (result.type === 'email_sync' && typeof fetchEmails === 'function') fetchEmails();
+          else if (result.type === 'agent_dispatched' && typeof fetchLogs === 'function') fetchLogs();
         } else if (result.status === 'vaulted') {
           toast.className = 'cmd-toast';
           toast.style.background = 'rgba(239, 68, 68, 0.95)';
@@ -1201,6 +1329,8 @@ let availableModels = [];
       } catch (e) {
         toast.className = 'cmd-toast error';
         toast.innerText = `Error: ${e.message}`;
+      } finally {
+        _agCommandSubmitting = false;
       }
 
       setTimeout(() => {
@@ -1210,6 +1340,7 @@ let availableModels = [];
 
 
 window.fetchTranscript = fetchTranscript;
+window.scheduleAgPoll = scheduleAgPoll;
 window.fillCommand = fillCommand;
 window.uploadImageBlob = uploadImageBlob;
 window.handleImageFileSelect = handleImageFileSelect;
@@ -1229,6 +1360,7 @@ window.simulateTokenExhaustion = simulateTokenExhaustion;
 window.clearSimulatedTokenExhaustion = clearSimulatedTokenExhaustion;
 window.fetchTokenHealth = fetchTokenHealth;
 window.fetchAgentQueue = fetchAgentQueue;
+window.cancelRunningAgent = cancelRunningAgent;
 window.fastTrackAgentQueue = fastTrackAgentQueue;
 window.changeConcurrencyLimit = changeConcurrencyLimit;
 window.cancelQueueItem = cancelQueueItem;

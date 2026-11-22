@@ -16,7 +16,8 @@ async function runAfccPollTick(forceAll = false) {
     }
     if (typeof fetchRoutines === 'function') tasks.push(fetchRoutines());
     if (typeof fetchLogs === 'function') tasks.push(fetchLogs());
-    if (typeof fetchAgentQueue === 'function') tasks.push(fetchAgentQueue());
+    const agPollManagedByDock = Boolean(window.isAgRightDocked || (typeof currentTab !== 'undefined' && currentTab === 'antigravity'));
+    if (typeof fetchAgentQueue === 'function' && !agPollManagedByDock) tasks.push(fetchAgentQueue());
 
     if (typeof currentTab !== 'undefined') {
       if (currentTab === 'backlog' && typeof fetchBacklog === 'function') {
@@ -50,10 +51,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof fetchEmails === 'function') fetchEmails();
   if (typeof fetchLogs === 'function') fetchLogs();
   if (typeof fetchTestResults === 'function') fetchTestResults();
-  if (typeof fetchModels === 'function') fetchModels();
-  if (typeof fetchAgentQueue === 'function') fetchAgentQueue();
-  if (typeof fetchTokenHealth === 'function') fetchTokenHealth();
-  if (typeof openAntigravityRightDock === 'function') openAntigravityRightDock();
+  if (typeof openAntigravityRightDock === 'function') {
+    openAntigravityRightDock();
+  } else {
+    if (typeof fetchModels === 'function') fetchModels();
+    if (typeof fetchAgentQueue === 'function') fetchAgentQueue();
+  }
   if (typeof initDynamicAgentTabs === 'function') initDynamicAgentTabs();
   else if (typeof switchTab === 'function') switchTab('overview');
 
@@ -66,7 +69,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       runAfccPollTick(true);
-      if (typeof fetchTranscript === 'function' && window.agChatEngineMode !== 'fleet_zero_token') {
+      if (typeof scheduleAgPoll === 'function') {
+        scheduleAgPoll(true);
+      } else if (typeof fetchTranscript === 'function' && window.agChatEngineMode !== 'fleet_zero_token') {
         fetchTranscript(false);
       }
     }

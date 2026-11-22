@@ -4,16 +4,17 @@ Parses local Antigravity transcript logs in real-time (0 Tokens / Tier 0)
 and provides deterministic command execution for the Control Center Web Dashboard.
 """
 
+import atexit
 import json
 import logging
 import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
-
 import subprocess
 import threading
+import time
+from typing import Any, Dict, List, Optional, Set, Tuple
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -465,8 +466,70 @@ def get_active_agent_count() -> int:
 
 
 def get_parallel_agents() -> List[Dict[str, Any]]:
+    now_ts = time.time()
     with _agent_lock:
-        return list(ACTIVE_PARALLEL_AGENTS.values())
+        out: List[Dict[str, Any]] = []
+        for agent in ACTIVE_PARALLEL_AGENTS.values():
+            copy_agent = dict(agent)
+            started_ts = float(copy_agent.get("started_at_ts") or now_ts)
+            copy_agent["elapsed_sec"] = round(max(0.0, now_ts - started_ts), 1)
+            out.append(copy_agent)
+        return out
+
+
+_ACTIVE_SUBPROCESSES: Dict[str, Any] = {}
+_ACTIVE_CANCEL_EVENTS: Dict[str, threading.Event] = {}
+MAX_HOST_RAM_PCT_FOR_PARALLEL = 88.0
+
+
+class _AgentCancelledError(Exception):
+    """Raised cleanly when a running parallel agent is cancelled by the user or server shutdown."""
+
+
+def _terminate_process_tree(proc: Any) -> None:
+    """Terminates a subprocess and any child workers cleanly without orphan leaks on Windows/POSIX."""
+    if proc is None:
+        return
+    pid = getattr(proc, "pid", None)
+    if os.name == "nt" and pid:
+        try:
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(pid)],
+                capture_output=True,
+                timeout=3,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
+            )
+            return
+        except Exception:
+            pass
+    try:
+        proc.terminate()
+        proc.wait(timeout=1.5)
+    except Exception:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+
+
+def _get_system_ram_percent() -> float:
+    """Returns host RAM usage percentage outside test mode so admission control guards personal laptops."""
+    if os.environ.get("FLEET_TEST_MODE") == "1":
+        return 0.0
+    try:
+        from fleet.core.optimizer import get_memory_status
+        mem = get_memory_status()
+        return float(mem.get("percent_used", 0.0) or 0.0)
+    except Exception:
+        return 0.0
+
+
+def _is_ram_admission_blocked(active_count: int) -> Tuple[bool, float]:
+    """Allows at least 1 active CLI worker, then queues additional parallel workers if RAM >= 88%."""
+    pct = _get_system_ram_percent()
+    if active_count >= 1 and pct >= MAX_HOST_RAM_PCT_FOR_PARALLEL:
+        return True, pct
+    return False, pct
 
 
 def sync_agent_state():
@@ -490,7 +553,14 @@ def sync_agent_state():
         AGENT_STATE["current_queue_id"] = next((a["queue_id"] for a in ACTIVE_PARALLEL_AGENTS.values() if a.get("queue_id")), None)
         AGENT_STATE["active_agents_count"] = active_count
         AGENT_STATE["max_parallel_agents"] = max_slots
-        AGENT_STATE["parallel_agents"] = list(ACTIVE_PARALLEL_AGENTS.values())
+        now_ts = time.time()
+        AGENT_STATE["parallel_agents"] = [
+            {
+                **a,
+                "elapsed_sec": round(max(0.0, now_ts - float(a.get("started_at_ts") or now_ts)), 1),
+            }
+            for a in ACTIVE_PARALLEL_AGENTS.values()
+        ]
 
 
 _AGY_MODELS_SYNC_LOCK = threading.RLock()
@@ -706,6 +776,74 @@ MODEL_TOKEN_LIMITS = {
 }
 
 
+_SESSION_USAGE_LOCK = threading.RLock()
+_SESSION_USAGE_TELEMETRY: Dict[str, Any] = {
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "total_tokens": 0,
+    "llm_calls": 0,
+    "tier0_calls": 0,
+    "estimated_cost_usd": 0.0,
+    "last_provider": "tier0_local",
+    "last_context_tokens": 0,
+}
+
+
+def record_llm_turn_usage(
+    provider: str = "tier0_local",
+    model_id: str = "",
+    total_tokens: int = 0,
+    input_tokens: int = 0,
+    output_tokens: int = 0,
+    tier0: bool = False,
+) -> None:
+    """Tracks cumulative Tier-0 vs real LLM calls, token counts, and estimated session cost."""
+    in_tok = max(0, int(input_tokens or 0))
+    out_tok = max(0, int(output_tokens or 0))
+    tot_tok = max(0, int(total_tokens or (in_tok + out_tok)))
+    if tot_tok > 0 and in_tok == 0 and out_tok == 0:
+        in_tok = int(tot_tok * 0.65)
+        out_tok = tot_tok - in_tok
+
+    low_prov = (provider or "").lower()
+    low_mod = (model_id or "").lower()
+    turn_cost = 0.0
+    if not tier0 and tot_tok > 0 and "ollama" not in low_prov and "antigravity cli" not in low_prov and "tier0" not in low_prov:
+        rate_per_1m = 0.35 if ("flash" in low_mod or "mini" in low_mod or "haiku" in low_mod) else 3.00
+        turn_cost = round((tot_tok / 1_000_000.0) * rate_per_1m, 6)
+
+    with _SESSION_USAGE_LOCK:
+        if tier0 or "tier0" in low_prov:
+            _SESSION_USAGE_TELEMETRY["tier0_calls"] += 1
+        else:
+            _SESSION_USAGE_TELEMETRY["llm_calls"] += 1
+        _SESSION_USAGE_TELEMETRY["input_tokens"] += in_tok
+        _SESSION_USAGE_TELEMETRY["output_tokens"] += out_tok
+        _SESSION_USAGE_TELEMETRY["total_tokens"] += tot_tok
+        _SESSION_USAGE_TELEMETRY["estimated_cost_usd"] = round(
+            float(_SESSION_USAGE_TELEMETRY["estimated_cost_usd"]) + turn_cost, 6
+        )
+        if provider:
+            _SESSION_USAGE_TELEMETRY["last_provider"] = provider
+        if tot_tok > 0:
+            _SESSION_USAGE_TELEMETRY["last_context_tokens"] = tot_tok
+
+
+def _estimate_transcript_active_tokens(t_path: Path) -> int:
+    """Estimates current context tokens from the post-compaction transcript tail (bounded 512KB read)."""
+    if not t_path or not t_path.exists():
+        return 18450
+    tail_window = 524288
+    st_size = t_path.stat().st_size
+    with open(t_path, "rb") as fb:
+        if st_size > tail_window:
+            fb.seek(st_size - tail_window)
+        chunk = fb.read()
+    marker_idx = chunk.rfind(b"<CONTEXT_SUMMARY>")
+    active_bytes = chunk[marker_idx:] if marker_idx >= 0 else chunk
+    return max(18450, len(active_bytes) // 6)
+
+
 def get_token_health(simulated_status: Optional[str] = None) -> Dict[str, Any]:
     active_id = get_active_model()
     model_obj = next((m for m in AVAILABLE_MODELS if m["id"] == active_id), AVAILABLE_MODELS[0])
@@ -715,15 +853,18 @@ def get_token_health(simulated_status: Optional[str] = None) -> Dict[str, Any]:
     stored_override = db.get_setting("token_exhaustion_override")
     effective_status = simulated_status or stored_override
 
-    # Calculate token count from transcript size if active
+    # Estimate post-compaction active context tokens instead of dividing full historical file size by 4
     t_path = get_active_transcript_path()
     approx_tokens = 18450
     if t_path and t_path.exists():
         try:
-            file_size = t_path.stat().st_size
-            approx_tokens = max(18450, file_size // 4)
+            approx_tokens = _estimate_transcript_active_tokens(t_path)
         except Exception:
             pass
+    with _SESSION_USAGE_LOCK:
+        last_ctx_tok = int(_SESSION_USAGE_TELEMETRY.get("last_context_tokens") or 0)
+    if last_ctx_tok > approx_tokens:
+        approx_tokens = last_ctx_tok
 
     if effective_status == "exhausted":
         used_tokens = limit
@@ -824,6 +965,19 @@ def get_llm_usage_details() -> Dict[str, Any]:
     active_id = get_active_model()
     model_obj = next((m for m in AVAILABLE_MODELS if m["id"] == active_id), AVAILABLE_MODELS[0])
     th = get_token_health()
+    with _SESSION_USAGE_LOCK:
+        usage_snap = dict(_SESSION_USAGE_TELEMETRY)
+    est_cost = float(usage_snap.get("estimated_cost_usd") or 0.0)
+    cost_str = "$0.00" if est_cost <= 0.0 else f"${est_cost:.4f}"
+    billed_tokens = int(usage_snap.get("total_tokens") or 0)
+    llm_calls = int(usage_snap.get("llm_calls") or 0)
+    tier0_calls = int(usage_snap.get("tier0_calls") or 0)
+    last_provider = str(usage_snap.get("last_provider") or "Tier 0 Local")
+    tier_label = (
+        "Tier 0 Fleet Governance ($0.00)"
+        if est_cost <= 0.0 and llm_calls == 0
+        else f"Tier 0 + {last_provider} Hybrid"
+    )
     return {
         "active_model": model_obj["name"],
         "model_id": model_obj["id"],
@@ -834,10 +988,15 @@ def get_llm_usage_details() -> Dict[str, Any]:
         "percent_used": th["percent_used"],
         "health_status": th["status"],
         "is_exhausted": th["is_exhausted"],
-        "input_tokens": int(th["tokens_used"] * 0.65),
-        "output_tokens": int(th["tokens_used"] * 0.35),
-        "cost_usd": "$0.00",
-        "tier": "Tier 0 Fleet Governance ($0.00)",
+        "input_tokens": int(usage_snap.get("input_tokens") or int(th["tokens_used"] * 0.65)),
+        "output_tokens": int(usage_snap.get("output_tokens") or int(th["tokens_used"] * 0.35)),
+        "real_tokens_billed": billed_tokens,
+        "llm_calls": llm_calls,
+        "tier0_calls": tier0_calls,
+        "last_provider": last_provider,
+        "cost_usd": cost_str,
+        "estimated_cost_usd": round(est_cost, 6),
+        "tier": tier_label,
         "provider": "Google DeepMind / Antigravity Multi-Model Hub",
         "status": "Exhausted (Prompts Vaulted)" if th["is_exhausted"] else ("Warning (Near Limit)" if th["is_warning"] else "Operational"),
         "vaulted_count": th["vaulted_count"],
@@ -846,9 +1005,52 @@ def get_llm_usage_details() -> Dict[str, Any]:
 
 
 
+MAX_UPLOAD_IMAGE_BYTES = 10 * 1024 * 1024
+_ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
+
+
+def _prune_old_uploads(uploads_dir: Path, max_files: int = 200, max_bytes: int = 250 * 1024 * 1024) -> int:
+    """Enforces LRU disk quota bounds on local uploaded image artifacts."""
+    if not uploads_dir.is_dir():
+        return 0
+    entries: List[Tuple[float, int, Path]] = []
+    total_bytes = 0
+    for p in uploads_dir.iterdir():
+        if p.is_file():
+            try:
+                st = p.stat()
+                total_bytes += st.st_size
+                entries.append((st.st_mtime, st.st_size, p))
+            except OSError:
+                continue
+    if len(entries) <= max_files and total_bytes <= max_bytes:
+        return 0
+    entries.sort(key=lambda x: x[0])  # oldest first
+    removed = 0
+    remaining = len(entries)
+    for _, f_size, p in entries:
+        if remaining <= max_files and total_bytes <= max_bytes:
+            break
+        try:
+            p.unlink(missing_ok=True)
+            remaining -= 1
+            total_bytes -= f_size
+            removed += 1
+        except OSError:
+            pass
+    return removed
+
+
 def save_uploaded_image(filename: str, file_bytes: bytes) -> Dict[str, Any]:
-    """Saves an image to fleet/data/uploads with SHA-256 deduplication to prevent duplicate vision token billing."""
+    """Saves an image to fleet/data/uploads with 10MB/extension validation and SHA-256 deduplication."""
     from fleet.core.token_optimizer import deduplicate_uploaded_image
+
+    if len(file_bytes) > MAX_UPLOAD_IMAGE_BYTES:
+        raise ValueError(f"Uploaded image exceeds maximum allowed size ({MAX_UPLOAD_IMAGE_BYTES // (1024 * 1024)} MB).")
+
+    ext = Path(filename or "upload.png").suffix.lower()
+    if ext and ext not in _ALLOWED_IMAGE_EXTS:
+        raise ValueError(f"Unsupported upload extension '{ext}'. Allowed: {sorted(_ALLOWED_IMAGE_EXTS)}")
 
     def _store_fresh() -> Dict[str, Any]:
         from fleet.core.database import is_test_environment
@@ -862,9 +1064,13 @@ def save_uploaded_image(filename: str, file_bytes: bytes) -> Dict[str, Any]:
         clean_name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', filename)
         if not clean_name or clean_name.startswith("."):
             clean_name = f"image_{int(datetime.now().timestamp())}.png"
+        if Path(clean_name).suffix.lower() not in _ALLOWED_IMAGE_EXTS:
+            clean_name = f"{clean_name}.png"
 
         target_path = eff_uploads_dir / clean_name
         target_path.write_bytes(file_bytes)
+        if not in_test:
+            _prune_old_uploads(eff_uploads_dir)
 
         t_path = get_active_transcript_path()
         # In test mode, only copy to .user_uploaded if get_active_transcript_path was explicitly mocked to a temp path
@@ -1016,12 +1222,100 @@ def detect_agent_task_overlap(new_task_text: str, running_agents: List[Dict[str,
     return False, None
 
 
+_QUEUE_DRAIN_LOCK = threading.RLock()
+_ORPHAN_RECOVERY_STATS: Dict[str, Any] = {
+    "recovered_count": 0,
+    "last_recovered_at": None,
+}
+
+
+def recover_orphaned_queue_on_startup() -> int:
+    """Re-queues any 'processing' rows left in chat_queue from an unclean shutdown."""
+    try:
+        recovered = db.recover_orphaned_processing_messages() if hasattr(db, "recover_orphaned_processing_messages") else 0
+    except Exception:
+        recovered = 0
+    if recovered > 0:
+        _ORPHAN_RECOVERY_STATS["recovered_count"] = int(_ORPHAN_RECOVERY_STATS.get("recovered_count", 0)) + recovered
+        _ORPHAN_RECOVERY_STATS["last_recovered_at"] = datetime.now().isoformat()
+        try:
+            db.log_activity("AntigravityQueue", "orphan_recovered", f"Recovered {recovered} orphaned processing prompt(s) on startup.")
+        except Exception:
+            pass
+    return recovered
+
+
+def cancel_running_agent(agent_id: str) -> Dict[str, Any]:
+    """Signals cancellation to an active parallel agent, kills its child process tree, and drains next queued work."""
+    clean_id = (agent_id or "").strip()
+    with _agent_lock:
+        entry = ACTIVE_PARALLEL_AGENTS.get(clean_id)
+        if not entry:
+            return {"status": "not_found", "cancelled": False, "agent_id": clean_id, "message": f"Agent {clean_id} is not active."}
+        cancel_ev = _ACTIVE_CANCEL_EVENTS.get(clean_id)
+        if cancel_ev is not None:
+            cancel_ev.set()
+        proc = _ACTIVE_SUBPROCESSES.pop(clean_id, None)
+        q_id = entry.get("queue_id")
+        task_label = str(entry.get("task") or "")[:80]
+        ACTIVE_PARALLEL_AGENTS.pop(clean_id, None)
+        _ACTIVE_CANCEL_EVENTS.pop(clean_id, None)
+
+    if proc is not None:
+        _terminate_process_tree(proc)
+
+    if q_id:
+        try:
+            db.update_chat_queue_status(q_id, "cancelled")
+        except Exception:
+            pass
+    try:
+        append_transcript_turn(
+            "PLANNER_RESPONSE",
+            f"🛑 **Cancelled by User ({clean_id})**: Stopped execution for `\"{task_label}\"`.",
+            source="MODEL",
+        )
+    except Exception:
+        pass
+    try:
+        db.log_activity("ParallelAgent", "cancelled", f"{clean_id} cancelled by user ({task_label})")
+    except Exception:
+        pass
+    sync_agent_state()
+    process_next_in_queue()
+    return {"status": "cancelled", "cancelled": True, "agent_id": clean_id, "queue_id": q_id}
+
+
+def shutdown_all_parallel_agents() -> int:
+    """Terminates all active child CLI subprocesses cleanly on server shutdown."""
+    with _agent_lock:
+        active_ids = list(ACTIVE_PARALLEL_AGENTS.keys())
+        procs: List[Any] = []
+        for aid in active_ids:
+            ev = _ACTIVE_CANCEL_EVENTS.pop(aid, None)
+            if ev is not None:
+                ev.set()
+            pr = _ACTIVE_SUBPROCESSES.pop(aid, None)
+            if pr is not None:
+                procs.append(pr)
+        ACTIVE_PARALLEL_AGENTS.clear()
+    for pr in procs:
+        _terminate_process_tree(pr)
+    sync_agent_state()
+    return len(active_ids)
+
+
+atexit.register(shutdown_all_parallel_agents)
+
+
 def _spawn_parallel_agent_worker(task_text: str, queue_id: Optional[int] = None,
                                  images: Optional[List[str]] = None,
                                  model: Optional[str] = None) -> str:
     target_model = model or get_active_model()
     now_str = datetime.now().strftime("%H:%M:%S")
+    started_ts = time.time()
     worker_uuid = uuid.uuid4().hex
+    cancel_event = threading.Event()
 
     with _agent_lock:
         used_ids = set(ACTIVE_PARALLEL_AGENTS.keys())
@@ -1030,6 +1324,7 @@ def _spawn_parallel_agent_worker(task_text: str, queue_id: Optional[int] = None,
             idx += 1
         agent_id = f"Agent-{idx}"
 
+        _ACTIVE_CANCEL_EVENTS[agent_id] = cancel_event
         ACTIVE_PARALLEL_AGENTS[agent_id] = {
             "agent_id": agent_id,
             "worker_uuid": worker_uuid,
@@ -1038,15 +1333,27 @@ def _spawn_parallel_agent_worker(task_text: str, queue_id: Optional[int] = None,
             "model": target_model,
             "status": "running",
             "started_at": now_str,
+            "started_at_ts": started_ts,
+            "elapsed_sec": 0.0,
+            "pid": None,
             "timestamp": datetime.now().isoformat()
         }
     sync_agent_state()
 
     def _worker():
         try:
-            _execute_agy_or_fallback(task_text, images=images, model=target_model)
-            if queue_id:
+            _execute_agy_or_fallback(
+                task_text,
+                images=images,
+                model=target_model,
+                agent_id=agent_id,
+                cancel_event=cancel_event,
+            )
+            if queue_id and not cancel_event.is_set():
                 db.update_chat_queue_status(queue_id, "completed")
+        except _AgentCancelledError:
+            if queue_id:
+                db.update_chat_queue_status(queue_id, "cancelled")
         except Exception as e:
             err_msg = str(e).lower()
             if any(term in err_msg for term in ["resource_exhausted", "quota", "rate_limit", "context_length_exceeded", "429"]):
@@ -1055,10 +1362,17 @@ def _spawn_parallel_agent_worker(task_text: str, queue_id: Optional[int] = None,
                 if queue_id:
                     db.update_chat_queue_status(queue_id, "failed")
                 db.log_activity("ParallelAgent", "error", f"{agent_id} error: {e}")
+                append_transcript_turn(
+                    "PLANNER_RESPONSE",
+                    f"⚠️ **Agent Execution Error ({agent_id})**: {e}",
+                    source="MODEL",
+                )
         finally:
             with _agent_lock:
                 if ACTIVE_PARALLEL_AGENTS.get(agent_id, {}).get("worker_uuid") == worker_uuid:
                     ACTIVE_PARALLEL_AGENTS.pop(agent_id, None)
+                    _ACTIVE_SUBPROCESSES.pop(agent_id, None)
+                    _ACTIVE_CANCEL_EVENTS.pop(agent_id, None)
             sync_agent_state()
             process_next_in_queue()
 
@@ -1067,62 +1381,79 @@ def _spawn_parallel_agent_worker(task_text: str, queue_id: Optional[int] = None,
 
 
 def process_next_in_queue():
-    if db.get_setting("token_exhaustion_override") == "exhausted":
-        sync_agent_state()
-        return
-
-    # If status was manually set to busy or paused with no active parallel workers, return early
-    if AGENT_STATE.get("status") in ("busy", "paused_token_limit", "max_capacity") and not ACTIVE_PARALLEL_AGENTS:
-        return
-
-    # If tokens are exhausted, vault queue items instead of dropping
-    th = get_token_health()
-    if th["is_exhausted"]:
-        handle_token_exhaustion("Token limit reached before dispatching queue", th["active_model_id"])
-        return
-
-    max_slots = get_max_parallel_agents()
-    with _agent_lock:
-        available_slots = max_slots - len(ACTIVE_PARALLEL_AGENTS)
-        if available_slots <= 0:
+    with _QUEUE_DRAIN_LOCK:
+        if db.get_setting("token_exhaustion_override") == "exhausted":
             sync_agent_state()
             return
 
-    # Support mocked get_next_queued_chat_message in unit tests
-    if hasattr(db.get_next_queued_chat_message, "assert_called") or hasattr(db.get_next_queued_chat_message, "side_effect"):
-        single = db.get_next_queued_chat_message()
-        items = [single] if single else []
-    else:
-        items = db.get_next_n_queued_chat_messages(limit=available_slots)
-        if not items and hasattr(db, "get_next_queued_chat_message"):
-            single = db.get_next_queued_chat_message()
-            if single:
-                items = [single]
+        # If status was manually set to busy or paused with no active parallel workers, return early
+        if AGENT_STATE.get("status") in ("busy", "paused_token_limit", "max_capacity") and not ACTIVE_PARALLEL_AGENTS:
+            return
 
-    if not items:
-        sync_agent_state()
-        return
+        # If tokens are exhausted, vault queue items instead of dropping
+        th = get_token_health()
+        if th["is_exhausted"]:
+            handle_token_exhaustion("Token limit reached before dispatching queue", th["active_model_id"])
+            return
 
-    launched = 0
-    running_now = get_parallel_agents()
-    for item in items:
-        if launched >= available_slots:
-            break
-        # Intelligent Overlap Check: do not launch if item conflicts with any running agent
-        has_overlap, _ = detect_agent_task_overlap(item.get("prompt", ""), running_now)
-        if has_overlap:
-            # Leave in queue for next cycle when conflicting agent completes
-            continue
+        ram_blocked, ram_pct = _is_ram_admission_blocked(get_active_agent_count())
+        if ram_blocked:
+            sync_agent_state()
+            return
 
-        q_id = item["id"]
-        db.update_chat_queue_status(q_id, "processing")
-        _spawn_parallel_agent_worker(
-            task_text=item["prompt"],
-            queue_id=q_id,
-            images=item.get("images", []),
-            model=item.get("model")
+        max_slots = get_max_parallel_agents()
+        with _agent_lock:
+            available_slots = max_slots - len(ACTIVE_PARALLEL_AGENTS)
+            if available_slots <= 0:
+                sync_agent_state()
+                return
+
+        # Support mocked get_next_queued_chat_message in unit tests
+        is_mocked_queue = (
+            hasattr(db.get_next_queued_chat_message, "assert_called")
+            or hasattr(db.get_next_queued_chat_message, "side_effect")
         )
-        launched += 1
+        if is_mocked_queue:
+            single = db.get_next_queued_chat_message()
+            items = [single] if single else []
+        else:
+            items = db.get_next_n_queued_chat_messages(limit=available_slots)
+            if not items and hasattr(db, "get_next_queued_chat_message"):
+                single = db.get_next_queued_chat_message()
+                if single:
+                    items = [single]
+
+        if not items:
+            sync_agent_state()
+            return
+
+        launched = 0
+        running_now = get_parallel_agents()
+        for item in items:
+            if launched >= available_slots:
+                break
+            ram_blocked_iter, _ = _is_ram_admission_blocked(len(running_now))
+            if ram_blocked_iter:
+                break
+            # Intelligent Overlap Check (includes siblings launched earlier in this batch)
+            has_overlap, _ = detect_agent_task_overlap(item.get("prompt", ""), running_now)
+            if has_overlap:
+                continue
+
+            q_id = item["id"]
+            if is_mocked_queue or not hasattr(db, "claim_queued_chat_message"):
+                db.update_chat_queue_status(q_id, "processing")
+            elif not db.claim_queued_chat_message(q_id):
+                continue
+
+            spawned_id = _spawn_parallel_agent_worker(
+                task_text=item["prompt"],
+                queue_id=q_id,
+                images=item.get("images", []),
+                model=item.get("model")
+            )
+            running_now.append({"agent_id": spawned_id, "task": str(item.get("prompt", ""))[:120]})
+            launched += 1
 
 
 def fast_track_queue() -> Dict[str, Any]:
@@ -1141,39 +1472,77 @@ def fast_track_queue() -> Dict[str, Any]:
     }
 
 
+_ACTIVE_TRANSCRIPT_PATH_CACHE: Dict[str, Any] = {
+    "home": "",
+    "path": None,
+    "expires_at": 0.0,
+    "ttl_sec": 3.0,
+    "hits": 0,
+    "misses": 0,
+}
+
+
+def invalidate_active_transcript_path_cache() -> None:
+    _ACTIVE_TRANSCRIPT_PATH_CACHE["expires_at"] = 0.0
+
+
 def get_active_transcript_path() -> Optional[Path]:
-    """Finds the most recently active Antigravity session transcript.jsonl across IDE and standalone CLI."""
+    """Finds the most recently active Antigravity session transcript.jsonl (3s scandir memoized outside tests)."""
     userprofile = os.environ.get("USERPROFILE")
     if userprofile is None and os.name != "nt":
         userprofile = os.environ.get("HOME")
     if not userprofile:
         return None
 
+    in_test = os.environ.get("FLEET_TEST_MODE") == "1"
+    now_mono = time.monotonic()
+    if not in_test:
+        cached_path = _ACTIVE_TRANSCRIPT_PATH_CACHE.get("path")
+        if (
+            _ACTIVE_TRANSCRIPT_PATH_CACHE.get("home") == userprofile
+            and now_mono < float(_ACTIVE_TRANSCRIPT_PATH_CACHE.get("expires_at") or 0.0)
+            and isinstance(cached_path, Path)
+            and cached_path.is_file()
+        ):
+            _ACTIVE_TRANSCRIPT_PATH_CACHE["hits"] = int(_ACTIVE_TRANSCRIPT_PATH_CACHE.get("hits", 0)) + 1
+            return cached_path
+
+    _ACTIVE_TRANSCRIPT_PATH_CACHE["misses"] = int(_ACTIVE_TRANSCRIPT_PATH_CACHE.get("misses", 0)) + 1
     search_dirs = [
         Path(userprofile) / ".gemini" / "antigravity" / "brain",
         Path(userprofile) / ".gemini" / "antigravity-cli" / "brain",
     ]
 
-    sessions = []
+    sessions: List[Tuple[float, Path]] = []
     for brain_dir in search_dirs:
         try:
             if brain_dir.is_dir():
-                for d in brain_dir.iterdir():
-                    try:
-                        if d.is_dir():
-                            t_file = d / ".system_generated" / "logs" / "transcript.jsonl"
-                            if t_file.is_file():
-                                sessions.append((t_file.stat().st_mtime, t_file))
-                    except (FileNotFoundError, OSError):
-                        pass
+                with os.scandir(brain_dir) as it:
+                    for entry in it:
+                        try:
+                            if entry.is_dir(follow_symlinks=False):
+                                t_file = Path(entry.path) / ".system_generated" / "logs" / "transcript.jsonl"
+                                if t_file.is_file():
+                                    sessions.append((t_file.stat().st_mtime, t_file))
+                        except (FileNotFoundError, OSError):
+                            pass
         except (FileNotFoundError, OSError):
             pass
 
     if not sessions:
+        if not in_test:
+            _ACTIVE_TRANSCRIPT_PATH_CACHE.update({"home": userprofile, "path": None, "expires_at": now_mono + 1.5})
         return None
 
     sessions.sort(key=lambda s: s[0], reverse=True)
-    return sessions[0][1]
+    chosen = sessions[0][1]
+    if not in_test:
+        _ACTIVE_TRANSCRIPT_PATH_CACHE.update({
+            "home": userprofile,
+            "path": chosen,
+            "expires_at": now_mono + float(_ACTIVE_TRANSCRIPT_PATH_CACHE.get("ttl_sec") or 3.0),
+        })
+    return chosen
 
 
 def clean_user_input(content: str) -> str:
@@ -1192,6 +1561,7 @@ def clean_user_input(content: str) -> str:
     return cleaned.strip()
 
 
+_TRANSCRIPT_IO_LOCK = threading.RLock()
 _TRANSCRIPT_MEM_CACHE: Dict[str, Any] = {
     "path": None,
     "mtime_ns": -1,
@@ -1207,23 +1577,79 @@ _TRANSCRIPT_CACHE_STATS: Dict[str, int] = {
     "incremental_reads": 0,
     "full_reads": 0,
     "delta_unchanged_hits": 0,
+    "partial_line_deferrals": 0,
 }
 
 
 def get_transcript_cache_stats() -> Dict[str, Any]:
     """Returns Antigravity transcript cache & delta fast-path telemetry."""
-    return {
-        "cached_steps": len(_TRANSCRIPT_MEM_CACHE.get("raw_steps") or []),
-        "max_tail_steps": _TRANSCRIPT_TAIL_CACHE_MAX,
-        "line_count": int(_TRANSCRIPT_MEM_CACHE.get("line_count", 0)),
-        "cache_hits": _TRANSCRIPT_CACHE_STATS["cache_hits"],
-        "incremental_reads": _TRANSCRIPT_CACHE_STATS["incremental_reads"],
-        "full_reads": _TRANSCRIPT_CACHE_STATS["full_reads"],
-        "delta_unchanged_hits": _TRANSCRIPT_CACHE_STATS["delta_unchanged_hits"],
-    }
+    with _TRANSCRIPT_IO_LOCK:
+        total_req = (
+            _TRANSCRIPT_CACHE_STATS["cache_hits"]
+            + _TRANSCRIPT_CACHE_STATS["incremental_reads"]
+            + _TRANSCRIPT_CACHE_STATS["full_reads"]
+        )
+        hit_pct = round(
+            ((_TRANSCRIPT_CACHE_STATS["cache_hits"] + _TRANSCRIPT_CACHE_STATS["incremental_reads"]) / total_req) * 100.0,
+            1,
+        ) if total_req > 0 else 100.0
+        return {
+            "cached_steps": len(_TRANSCRIPT_MEM_CACHE.get("raw_steps") or []),
+            "max_tail_steps": _TRANSCRIPT_TAIL_CACHE_MAX,
+            "line_count": int(_TRANSCRIPT_MEM_CACHE.get("line_count", 0)),
+            "cache_hits": _TRANSCRIPT_CACHE_STATS["cache_hits"],
+            "incremental_reads": _TRANSCRIPT_CACHE_STATS["incremental_reads"],
+            "full_reads": _TRANSCRIPT_CACHE_STATS["full_reads"],
+            "delta_unchanged_hits": _TRANSCRIPT_CACHE_STATS["delta_unchanged_hits"],
+            "partial_line_deferrals": _TRANSCRIPT_CACHE_STATS.get("partial_line_deferrals", 0),
+            "hit_rate_pct": hit_pct,
+            "path_cache_hits": int(_ACTIVE_TRANSCRIPT_PATH_CACHE.get("hits", 0)),
+            "path_cache_misses": int(_ACTIVE_TRANSCRIPT_PATH_CACHE.get("misses", 0)),
+        }
 
 
 _AFCC_CLI_CONVERSATION_ID: Optional[str] = None
+_CLI_CONV_LOCK = threading.RLock()
+_PRIMARY_CONV_LEASE_OWNER: Optional[str] = None
+
+
+def _acquire_cli_conversation_lease(agent_id: str) -> Tuple[bool, Optional[str]]:
+    """Grants persisted primary conversation continuity to one active worker; siblings run ephemeral."""
+    global _AFCC_CLI_CONVERSATION_ID, _PRIMARY_CONV_LEASE_OWNER
+    owner_key = agent_id or f"thread-{threading.get_ident()}"
+    with _CLI_CONV_LOCK:
+        if _PRIMARY_CONV_LEASE_OWNER is None or _PRIMARY_CONV_LEASE_OWNER == owner_key:
+            _PRIMARY_CONV_LEASE_OWNER = owner_key
+            if not _AFCC_CLI_CONVERSATION_ID:
+                try:
+                    saved = str(db.get_setting("antigravity_cli_conversation_id", "") or "").strip()
+                    if saved and all(ch.isalnum() or ch in "_-" for ch in saved):
+                        _AFCC_CLI_CONVERSATION_ID = saved
+                except Exception:
+                    pass
+            return True, _AFCC_CLI_CONVERSATION_ID
+        return False, None
+
+
+def _release_cli_conversation_lease(agent_id: str, new_conv_id: Optional[str] = None, reset: bool = False) -> None:
+    global _AFCC_CLI_CONVERSATION_ID, _PRIMARY_CONV_LEASE_OWNER
+    owner_key = agent_id or f"thread-{threading.get_ident()}"
+    with _CLI_CONV_LOCK:
+        if _PRIMARY_CONV_LEASE_OWNER != owner_key:
+            return
+        if reset:
+            _AFCC_CLI_CONVERSATION_ID = None
+            try:
+                db.set_setting("antigravity_cli_conversation_id", "")
+            except Exception:
+                pass
+        elif new_conv_id and all(ch.isalnum() or ch in "_-" for ch in new_conv_id):
+            _AFCC_CLI_CONVERSATION_ID = new_conv_id
+            try:
+                db.set_setting("antigravity_cli_conversation_id", new_conv_id)
+            except Exception:
+                pass
+        _PRIMARY_CONV_LEASE_OWNER = None
 
 
 def _read_tail_highest_step(t_path: Path, st_size: int) -> int:
@@ -1281,7 +1707,7 @@ def append_transcript_turn(turn_type: str, content: str, source: str = "USER_EXP
                            images: Optional[List[str]] = None, thinking: str = "",
                            tool_calls: Optional[List[Dict[str, Any]]] = None) -> Optional[int]:
     """
-    Appends a turn to the active transcript.jsonl and marks the memoization cache dirty for O(1) incremental read.
+    Appends a turn to the active transcript.jsonl under _TRANSCRIPT_IO_LOCK and invalidates cache safely.
     Enables AFCC to write directly to the Antigravity conversation stream even when VS Code is closed.
     """
     try:
@@ -1289,59 +1715,218 @@ def append_transcript_turn(turn_type: str, content: str, source: str = "USER_EXP
             up = (os.environ.get("USERPROFILE") or os.environ.get("HOME") or "").lower()
             if not any(tag in up for tag in ("temp", "tmp", "pytest")):
                 return None
-        t_path = get_active_transcript_path()
-        if not t_path:
-            userprofile = os.environ.get("USERPROFILE") or os.environ.get("HOME")
-            if not userprofile:
-                return None
-            afcc_brain = Path(userprofile) / ".gemini" / "antigravity" / "brain" / "afcc-live" / ".system_generated" / "logs"
-            afcc_brain.mkdir(parents=True, exist_ok=True)
-            t_path = afcc_brain / "transcript.jsonl"
-            if not t_path.exists():
-                t_path.touch()
+        with _TRANSCRIPT_IO_LOCK:
+            t_path = get_active_transcript_path()
+            if not t_path:
+                userprofile = os.environ.get("USERPROFILE") or os.environ.get("HOME")
+                if not userprofile:
+                    return None
+                afcc_brain = Path(userprofile) / ".gemini" / "antigravity" / "brain" / "afcc-live" / ".system_generated" / "logs"
+                afcc_brain.mkdir(parents=True, exist_ok=True)
+                t_path = afcc_brain / "transcript.jsonl"
+                if not t_path.exists():
+                    t_path.touch()
+                invalidate_active_transcript_path_cache()
 
-        highest_step = 0
-        if t_path.exists():
-            highest_step = _read_tail_highest_step(t_path, t_path.stat().st_size)
-        next_step = highest_step + 1
-        now_iso = datetime.now(timezone.utc).isoformat()
-        turn: Dict[str, Any] = {
-            "step_index": next_step,
-            "source": source,
-            "type": turn_type,
-            "status": "DONE",
-            "created_at": now_iso,
-            "content": content,
-        }
-        if images:
-            media_list = []
-            for img in images:
-                fname = Path(img).name
-                media_list.append({
-                    "name": fname,
-                    "url": f"/api/antigravity/media/{fname}",
-                    "mime_type": "image/png",
-                    "uri": str(img)
-                })
-            turn["media"] = media_list
-        if thinking:
-            turn["thinking"] = thinking
-        if tool_calls:
-            turn["tool_calls"] = tool_calls
+            highest_step = 0
+            if t_path.exists():
+                highest_step = _read_tail_highest_step(t_path, t_path.stat().st_size)
+            next_step = highest_step + 1
+            now_iso = datetime.now(timezone.utc).isoformat()
+            turn: Dict[str, Any] = {
+                "step_index": next_step,
+                "source": source,
+                "type": turn_type,
+                "status": "DONE",
+                "created_at": now_iso,
+                "content": content,
+            }
+            if images:
+                media_list = []
+                for img in images:
+                    fname = Path(img).name
+                    media_list.append({
+                        "name": fname,
+                        "url": f"/api/antigravity/media/{fname}",
+                        "mime_type": "image/png",
+                        "uri": str(img)
+                    })
+                turn["media"] = media_list
+            if thinking:
+                turn["thinking"] = thinking
+            if tool_calls:
+                turn["tool_calls"] = tool_calls
 
-        with open(t_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(turn) + "\n")
+            with open(t_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(turn) + "\n")
+                f.flush()
 
-        # Keep path/size intact and invalidate mtime_ns so parse_transcript performs an O(1) incremental tail read
-        _TRANSCRIPT_MEM_CACHE["mtime_ns"] = -1
-        return next_step
+            # Keep path/size intact and invalidate mtime_ns so parse_transcript performs an O(1) incremental tail read
+            _TRANSCRIPT_MEM_CACHE["mtime_ns"] = -1
+            return next_step
     except Exception as e:
         logger.warning(f"Failed to append turn to transcript: {e}")
         return None
 
 
-def _execute_agy_or_fallback(prompt_text: str, images: Optional[List[str]] = None, model: Optional[str] = None) -> Any:
+_AGY_CB_LOCK = threading.RLock()
+_AGY_CIRCUIT_BREAKER: Dict[str, Any] = {
+    "consecutive_failures": 0,
+    "open_until_ts": 0.0,
+    "threshold": 3,
+    "cooldown_sec": 60.0,
+    "last_error": "",
+    "trips": 0,
+}
+
+
+def _agy_cb_allow() -> bool:
+    if getattr(subprocess.run, "__module__", "") != "subprocess":
+        return True
+    with _AGY_CB_LOCK:
+        open_until = float(_AGY_CIRCUIT_BREAKER.get("open_until_ts") or 0.0)
+        return time.monotonic() >= open_until
+
+
+def _agy_cb_record_success() -> None:
+    with _AGY_CB_LOCK:
+        _AGY_CIRCUIT_BREAKER["consecutive_failures"] = 0
+        _AGY_CIRCUIT_BREAKER["open_until_ts"] = 0.0
+        _AGY_CIRCUIT_BREAKER["last_error"] = ""
+
+
+def _agy_cb_record_failure(reason: str = "") -> bool:
+    with _AGY_CB_LOCK:
+        fails = int(_AGY_CIRCUIT_BREAKER.get("consecutive_failures") or 0) + 1
+        _AGY_CIRCUIT_BREAKER["consecutive_failures"] = fails
+        _AGY_CIRCUIT_BREAKER["last_error"] = (reason or "")[:200]
+        threshold = int(_AGY_CIRCUIT_BREAKER.get("threshold") or 3)
+        if fails >= threshold:
+            _AGY_CIRCUIT_BREAKER["open_until_ts"] = time.monotonic() + float(_AGY_CIRCUIT_BREAKER.get("cooldown_sec") or 60.0)
+            _AGY_CIRCUIT_BREAKER["trips"] = int(_AGY_CIRCUIT_BREAKER.get("trips") or 0) + 1
+            return True
+        return False
+
+
+def _run_agy_subprocess_managed(
+    stdin_cmd: List[str],
+    full_prompt: str,
+    timeout_sec: int,
+    cwd: str,
+    creationflags: int,
+    agent_id: str = "",
+    cancel_event: Optional[threading.Event] = None,
+) -> subprocess.CompletedProcess:
+    """Runs agy.exe via cancelable Popen + tree termination (preserving mocked subprocess.run in tests)."""
+    if cancel_event is not None and cancel_event.is_set():
+        raise _AgentCancelledError(f"Agent {agent_id or 'cli'} cancelled before launch")
+
+    if getattr(subprocess.run, "__module__", "") != "subprocess":
+        return subprocess.run(
+            stdin_cmd,
+            input=full_prompt,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout_sec,
+            cwd=cwd,
+            shell=False,
+            creationflags=creationflags,
+        )
+
+    proc = subprocess.Popen(
+        stdin_cmd,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        cwd=cwd,
+        shell=False,
+        creationflags=creationflags,
+    )
+    if agent_id:
+        with _agent_lock:
+            _ACTIVE_SUBPROCESSES[agent_id] = proc
+            if agent_id in ACTIVE_PARALLEL_AGENTS:
+                ACTIVE_PARALLEL_AGENTS[agent_id]["pid"] = proc.pid
+        sync_agent_state()
+
+    out_chunks: List[str] = []
+    err_chunks: List[str] = []
+
+    def _drain_stream(stream_obj: Any, bucket: List[str]) -> None:
+        if stream_obj is None:
+            return
+        try:
+            bucket.append(stream_obj.read())
+        except Exception:
+            pass
+        finally:
+            try:
+                stream_obj.close()
+            except Exception:
+                pass
+
+    def _feed_stdin() -> None:
+        if proc.stdin is None:
+            return
+        try:
+            proc.stdin.write(full_prompt)
+            proc.stdin.flush()
+        except Exception:
+            pass
+        finally:
+            try:
+                proc.stdin.close()
+            except Exception:
+                pass
+
+    t_in = threading.Thread(target=_feed_stdin, daemon=True)
+    t_out = threading.Thread(target=_drain_stream, args=(proc.stdout, out_chunks), daemon=True)
+    t_err = threading.Thread(target=_drain_stream, args=(proc.stderr, err_chunks), daemon=True)
+    t_in.start()
+    t_out.start()
+    t_err.start()
+
+    deadline = time.monotonic() + max(1, int(timeout_sec))
+    try:
+        while proc.poll() is None:
+            if cancel_event is not None and cancel_event.is_set():
+                _terminate_process_tree(proc)
+                raise _AgentCancelledError(f"Agent {agent_id or 'cli'} cancelled during execution")
+            if time.monotonic() >= deadline:
+                _terminate_process_tree(proc)
+                raise subprocess.TimeoutExpired(stdin_cmd, timeout_sec)
+            time.sleep(0.15)
+        t_out.join(timeout=2.0)
+        t_err.join(timeout=2.0)
+        t_in.join(timeout=1.0)
+        return subprocess.CompletedProcess(
+            stdin_cmd,
+            proc.returncode or 0,
+            "".join(out_chunks),
+            "".join(err_chunks),
+        )
+    finally:
+        if agent_id:
+            with _agent_lock:
+                _ACTIVE_SUBPROCESSES.pop(agent_id, None)
+
+
+def _execute_agy_or_fallback(
+    prompt_text: str,
+    images: Optional[List[str]] = None,
+    model: Optional[str] = None,
+    agent_id: str = "",
+    cancel_event: Optional[threading.Event] = None,
+) -> Any:
     from fleet.core.token_optimizer import compress_prompt, select_optimal_model_tier
+    if cancel_event is not None and cancel_event.is_set():
+        raise _AgentCancelledError(f"Agent {agent_id or 'worker'} cancelled")
+
     agy_home = os.environ.get("USERPROFILE") or os.environ.get("HOME") or ""
     agy_exe = Path(agy_home) / ".gemini" / "bin" / ("agy.exe" if os.name == "nt" else "agy")
     compressed = compress_prompt(prompt_text)
@@ -1363,6 +1948,7 @@ def _execute_agy_or_fallback(prompt_text: str, images: Optional[List[str]] = Non
         from fleet.core.dev_tools import execute_claude_code
         db.log_activity("ClaudeCodeCLI", "prompt_executed", prompt_text[:120])
         res = execute_claude_code(full_prompt)
+        record_llm_turn_usage("ClaudeCodeCLI", target_model)
         reply = res.get("output") or res.get("message") or "Executed via Claude Code CLI."
         append_transcript_turn("PLANNER_RESPONSE", reply, source="MODEL")
         return res
@@ -1372,6 +1958,7 @@ def _execute_agy_or_fallback(prompt_text: str, images: Optional[List[str]] = Non
         from fleet.core.dev_tools import execute_github_copilot_command
         db.log_activity("GitHubCopilot", "prompt_executed", prompt_text[:120])
         res = execute_github_copilot_command(full_prompt)
+        record_llm_turn_usage("GitHubCopilot", target_model)
         reply = res.get("output") or res.get("message") or "Executed via GitHub Copilot."
         append_transcript_turn("PLANNER_RESPONSE", reply, source="MODEL")
         return res
@@ -1381,6 +1968,7 @@ def _execute_agy_or_fallback(prompt_text: str, images: Optional[List[str]] = Non
         from fleet.core.dev_tools import execute_google_gemini_cli
         db.log_activity("GoogleGeminiCLI", "prompt_executed", prompt_text[:120])
         res = execute_google_gemini_cli(full_prompt)
+        record_llm_turn_usage("GoogleGeminiCLI", target_model)
         reply = res.get("output") or res.get("message") or "Executed via Google Gemini CLI."
         append_transcript_turn("PLANNER_RESPONSE", reply, source="MODEL")
         return res
@@ -1390,6 +1978,7 @@ def _execute_agy_or_fallback(prompt_text: str, images: Optional[List[str]] = Non
         from fleet.core.dev_tools import execute_aws_q_developer
         db.log_activity("AmazonQDeveloper", "prompt_executed", prompt_text[:120])
         res = execute_aws_q_developer(full_prompt)
+        record_llm_turn_usage("AmazonQDeveloper", target_model)
         reply = res.get("output") or res.get("message") or "Executed via Amazon Q Developer CLI."
         append_transcript_turn("PLANNER_RESPONSE", reply, source="MODEL")
         return res
@@ -1413,95 +2002,142 @@ def _execute_agy_or_fallback(prompt_text: str, images: Optional[List[str]] = Non
             else "google"
         )
         res_hs = gateway.complete(prompt=full_prompt, provider=provider, model=target_model)
+        hs_tokens = int(res_hs.get("tokens_used") or 0)
+        record_llm_turn_usage(
+            str(res_hs.get("provider") or provider),
+            str(res_hs.get("model") or target_model),
+            total_tokens=hs_tokens,
+            tier0=str(res_hs.get("tier") or "").startswith("TIER_0"),
+        )
         reply = res_hs.get("text") or res_hs.get("response") or res_hs.get("message", "")
         append_transcript_turn("PLANNER_RESPONSE", reply, source="MODEL")
         db.log_activity("HyperscalerGateway", "prompt_executed", f"[{provider}] {prompt_text[:120]}")
         return res_hs
 
     if agy_exe.exists():
-        global _AFCC_CLI_CONVERSATION_ID
         if os.environ.get("FLEET_TEST_MODE") == "1":
             from unittest.mock import Mock
             if not isinstance(subprocess.run, Mock):
                 db.log_activity("AntigravityCLI", "prompt_executed", prompt_text[:120])
                 return
+
         executed_via_agy = False
-        try:
-            from fleet.core.hyperscalers import _normalize_agy_cli_model
-            agy_model = _normalize_agy_cli_model(target_model)
+        is_primary_lease = False
+        repo_cwd = str(Path(__file__).resolve().parent.parent.parent)
 
-            def _run_agy_cli_turn(conv_id: Optional[str]) -> subprocess.CompletedProcess:
-                base_flags = [
-                    "--model", agy_model,
-                    "--output-format", "json",
-                    "--disable-slash-commands",
-                    "--dangerously-skip-permissions",
-                ]
-                if conv_id and all(ch.isalnum() or ch in "_-" for ch in conv_id):
-                    base_flags.extend(["--conversation", conv_id])
-                stdin_cmd = [
-                    str(agy_exe),
-                    "-p",
-                    "Follow all instructions and respond to the complete prompt piped via stdin.",
-                    "--input-format",
-                    "text",
-                ] + base_flags
-                return subprocess.run(
-                    stdin_cmd,
-                    input=full_prompt,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
-                    timeout=600,
-                    cwd=str(Path.cwd()),
-                    shell=False,
-                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0,
-                )
+        if _agy_cb_allow():
+            try:
+                from fleet.core.hyperscalers import _normalize_agy_cli_model
+                agy_model = _normalize_agy_cli_model(target_model)
+                is_primary_lease, leased_conv_id = _acquire_cli_conversation_lease(agent_id)
+                creation_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
 
-            res = _run_agy_cli_turn(_AFCC_CLI_CONVERSATION_ID)
-            # If continuing a stale conversation failed, retry once as a fresh turn
-            if res.returncode != 0 and _AFCC_CLI_CONVERSATION_ID and not (res.stdout or "").strip():
-                _AFCC_CLI_CONVERSATION_ID = None
-                res = _run_agy_cli_turn(None)
-            err_output = res.stderr or ""
-            out_output = res.stdout or ""
-            combined = (err_output + " " + out_output).lower()
-            if any(term in combined for term in ["resource_exhausted", "quota", "rate_limit", "context_length_exceeded", "429"]):
-                handle_token_exhaustion(f"Quota error: {err_output[:120]}", target_model)
-                return
-            else:
-                db.log_activity("AntigravityCLI", "prompt_executed", prompt_text[:120])
+                def _run_agy_cli_turn(conv_id: Optional[str]) -> subprocess.CompletedProcess:
+                    base_flags = [
+                        "--model", agy_model,
+                        "--output-format", "json",
+                        "--disable-slash-commands",
+                        "--dangerously-skip-permissions",
+                    ]
+                    if conv_id and all(ch.isalnum() or ch in "_-" for ch in conv_id):
+                        base_flags.extend(["--conversation", conv_id])
+                    stdin_cmd = [
+                        str(agy_exe),
+                        "-p",
+                        "Follow all instructions and respond to the complete prompt piped via stdin.",
+                        "--input-format",
+                        "text",
+                    ] + base_flags
+                    return _run_agy_subprocess_managed(
+                        stdin_cmd=stdin_cmd,
+                        full_prompt=full_prompt,
+                        timeout_sec=600,
+                        cwd=repo_cwd,
+                        creationflags=creation_flags,
+                        agent_id=agent_id,
+                        cancel_event=cancel_event,
+                    )
+
+                res = _run_agy_cli_turn(leased_conv_id)
+                if res.returncode != 0 and is_primary_lease and leased_conv_id and not (res.stdout or "").strip():
+                    _release_cli_conversation_lease(agent_id, None, reset=True)
+                    is_primary_lease, _ = _acquire_cli_conversation_lease(agent_id)
+                    res = _run_agy_cli_turn(None)
+
+                err_output = res.stderr or ""
+                out_output = res.stdout or ""
+                combined = (err_output + " " + out_output).lower()
+                if any(term in combined for term in ["resource_exhausted", "quota", "rate_limit", "context_length_exceeded", "429"]):
+                    _release_cli_conversation_lease(agent_id, None, reset=False)
+                    handle_token_exhaustion(f"Quota error: {err_output[:120]}", target_model)
+                    return
                 if out_output.strip():
                     reply_text = out_output.strip()
+                    discovered_conv_id: Optional[str] = None
                     try:
                         parsed = json.loads(reply_text)
                         if isinstance(parsed, dict):
                             conv_id = parsed.get("conversation_id")
                             if conv_id and isinstance(conv_id, str):
-                                _AFCC_CLI_CONVERSATION_ID = conv_id
+                                discovered_conv_id = conv_id
+                            usage = parsed.get("usage")
+                            if isinstance(usage, dict):
+                                record_llm_turn_usage(
+                                    "Google Antigravity CLI",
+                                    agy_model,
+                                    total_tokens=int(usage.get("total_tokens", 0) or 0),
+                                    input_tokens=int(usage.get("input_tokens", 0) or 0),
+                                    output_tokens=int(usage.get("output_tokens", 0) or 0),
+                                )
+                            else:
+                                record_llm_turn_usage("Google Antigravity CLI", agy_model)
                             reply_text = parsed.get("response") or parsed.get("content") or parsed.get("output") or reply_text
+                        else:
+                            record_llm_turn_usage("Google Antigravity CLI", agy_model)
                     except Exception:
-                        pass
+                        record_llm_turn_usage("Google Antigravity CLI", agy_model)
+                    if is_primary_lease:
+                        _release_cli_conversation_lease(agent_id, discovered_conv_id)
+                    _agy_cb_record_success()
+                    db.log_activity("AntigravityCLI", "prompt_executed", prompt_text[:120])
                     append_transcript_turn("PLANNER_RESPONSE", str(reply_text).strip(), source="MODEL")
                     executed_via_agy = True
                     return {"status": "success", "text": str(reply_text).strip()}
-        except subprocess.TimeoutExpired:
-            logger.info("Antigravity CLI timed out after 600s. Routing to Autonomous Gateway.")
-        except Exception as e:
-            err_msg = str(e).lower()
-            if any(term in err_msg for term in ["resource_exhausted", "quota", "rate_limit", "context_length_exceeded", "429"]):
-                handle_token_exhaustion(str(e), target_model)
-                return
-            else:
+                else:
+                    if is_primary_lease:
+                        _release_cli_conversation_lease(agent_id, None)
+                    _agy_cb_record_failure(err_output or f"exit code {res.returncode}")
+                    db.log_activity("AntigravityCLI", "error", (err_output or f"Empty CLI output (exit {res.returncode})")[:120])
+            except _AgentCancelledError:
+                if is_primary_lease:
+                    _release_cli_conversation_lease(agent_id, None)
+                raise
+            except subprocess.TimeoutExpired:
+                if is_primary_lease:
+                    _release_cli_conversation_lease(agent_id, None)
+                _agy_cb_record_failure("Timeout after 600s")
+                logger.info("Antigravity CLI timed out after 600s. Routing to Non-Recursive Hyperscaler Gateway.")
+            except Exception as e:
+                if is_primary_lease:
+                    _release_cli_conversation_lease(agent_id, None)
+                err_msg = str(e).lower()
+                if any(term in err_msg for term in ["resource_exhausted", "quota", "rate_limit", "context_length_exceeded", "429"]):
+                    handle_token_exhaustion(str(e), target_model)
+                    return
+                _agy_cb_record_failure(str(e))
                 db.log_activity("AntigravityCLI", "error", str(e))
 
-        # If agy.exe didn't yield an output (e.g. VS Code is closed, so no language server replied),
-        # execute autonomously via Hyperscaler Gateway:
+        # Non-recursive fallback: never re-enter _call_antigravity_cli inside HyperscalerGateway
         if not executed_via_agy:
             from fleet.core.hyperscalers import HyperscalerGateway
             gateway = HyperscalerGateway()
-            res_hs = gateway.complete(prompt=full_prompt, provider="google", model=target_model)
+            res_hs = gateway.complete(prompt=full_prompt, provider="google", model=target_model, allow_agy_cli=False)
+            record_llm_turn_usage(
+                str(res_hs.get("provider") or "google"),
+                str(res_hs.get("model") or target_model),
+                total_tokens=int(res_hs.get("tokens_used") or 0),
+                tier0=str(res_hs.get("tier") or "").startswith("TIER_0"),
+            )
             reply = res_hs.get("text") or res_hs.get("response") or res_hs.get("message", "")
             append_transcript_turn("PLANNER_RESPONSE", reply, source="MODEL")
             db.log_activity("HyperscalerGateway", "autonomous_prompt_executed", f"[google] {prompt_text[:120]}")
@@ -1522,7 +2158,7 @@ def _execute_agy_or_fallback(prompt_text: str, images: Optional[List[str]] = Non
 def parse_transcript(limit: int = 50, since_step: Optional[int] = None) -> Dict[str, Any]:
     """
     Parses the latest entries from the transcript log into structured conversation turns.
-    Runs at Tier 0 (0 Tokens / local disk only) with incremental mtime/size memoization.
+    Runs at Tier 0 (0 Tokens / local disk only) under _TRANSCRIPT_IO_LOCK with newline-aligned delta reads.
     """
     transcript_path = get_active_transcript_path()
     if not transcript_path or not transcript_path.exists():
@@ -1535,122 +2171,137 @@ def parse_transcript(limit: int = 50, since_step: Optional[int] = None) -> Dict[
     session_id = transcript_path.parents[2].name
 
     try:
-        st = transcript_path.stat()
-        st_size = st.st_size if isinstance(getattr(st, "st_size", None), int) else -1
-        need_full_history = bool(
-            not limit
-            or limit <= 0
-            or (
-                since_step is not None
-                and _TRANSCRIPT_MEM_CACHE.get("tail_only")
-                and _TRANSCRIPT_MEM_CACHE.get("raw_steps")
-                and since_step < _TRANSCRIPT_MEM_CACHE["raw_steps"][0].get("step_index", 0)
+        with _TRANSCRIPT_IO_LOCK:
+            st = transcript_path.stat()
+            st_size = st.st_size if isinstance(getattr(st, "st_size", None), int) else -1
+            need_full_history = bool(
+                not limit
+                or limit <= 0
+                or (
+                    since_step is not None
+                    and _TRANSCRIPT_MEM_CACHE.get("tail_only")
+                    and _TRANSCRIPT_MEM_CACHE.get("raw_steps")
+                    and since_step < _TRANSCRIPT_MEM_CACHE["raw_steps"][0].get("step_index", 0)
+                )
             )
-        )
-        can_use_tail_cache = not (need_full_history and _TRANSCRIPT_MEM_CACHE.get("tail_only"))
-        cached_size = _TRANSCRIPT_MEM_CACHE.get("size", -1)
+            can_use_tail_cache = not (need_full_history and _TRANSCRIPT_MEM_CACHE.get("tail_only"))
+            cached_size = _TRANSCRIPT_MEM_CACHE.get("size", -1)
 
-        if (
-            can_use_tail_cache
-            and _TRANSCRIPT_MEM_CACHE["path"] == str(transcript_path)
-            and _TRANSCRIPT_MEM_CACHE["mtime_ns"] == st.st_mtime_ns
-            and cached_size == st.st_size
-        ):
-            _TRANSCRIPT_CACHE_STATS["cache_hits"] += 1
-            cached_steps = _TRANSCRIPT_MEM_CACHE["raw_steps"]
-            total_lines = int(_TRANSCRIPT_MEM_CACHE.get("line_count", len(cached_steps)))
-            cached_latest = max(
-                (s.get("step_index", 0) for s in cached_steps if isinstance(s.get("step_index"), int)),
-                default=0,
-            )
-            if since_step is not None and cached_steps and cached_latest > 0 and since_step >= cached_latest:
-                _TRANSCRIPT_CACHE_STATS["delta_unchanged_hits"] += 1
-                return {
-                    "status": "success",
-                    "session_id": session_id,
-                    "total_steps": total_lines,
-                    "latest_step": cached_latest,
-                    "unchanged": True,
-                    "messages": [],
-                }
-            raw_steps = list(cached_steps)
-        else:
-            loaded_incrementally = False
             if (
                 can_use_tail_cache
                 and _TRANSCRIPT_MEM_CACHE["path"] == str(transcript_path)
-                and isinstance(cached_size, int)
-                and cached_size > 0
-                and st_size > cached_size
+                and _TRANSCRIPT_MEM_CACHE["mtime_ns"] == st.st_mtime_ns
+                and cached_size == st.st_size
             ):
-                with open(transcript_path, "rb") as fb:
-                    first_sig = fb.read(128)
-                    if first_sig == _TRANSCRIPT_MEM_CACHE.get("first_sig", b""):
-                        fb.seek(cached_size)
-                        delta_lines = [
-                            ln.strip()
-                            for ln in fb.read().decode("utf-8", errors="replace").splitlines()
-                            if ln.strip()
-                        ]
-                        new_steps = []
-                        for ln in delta_lines:
-                            try:
-                                new_steps.append(json.loads(ln))
-                            except Exception:
-                                continue
-                        combined_steps = list(_TRANSCRIPT_MEM_CACHE["raw_steps"]) + new_steps
-                        if _TRANSCRIPT_MEM_CACHE.get("tail_only") and len(combined_steps) > _TRANSCRIPT_TAIL_CACHE_MAX:
-                            combined_steps = combined_steps[-_TRANSCRIPT_TAIL_CACHE_MAX:]
-                        total_lines = _TRANSCRIPT_MEM_CACHE["line_count"] + len(delta_lines)
-                        _TRANSCRIPT_MEM_CACHE["mtime_ns"] = st.st_mtime_ns
-                        _TRANSCRIPT_MEM_CACHE["size"] = st.st_size
-                        _TRANSCRIPT_MEM_CACHE["raw_steps"] = combined_steps
-                        _TRANSCRIPT_MEM_CACHE["line_count"] = total_lines
-                        raw_steps = list(combined_steps)
-                        loaded_incrementally = True
-                        _TRANSCRIPT_CACHE_STATS["incremental_reads"] += 1
-
-            if not loaded_incrementally:
-                _TRANSCRIPT_CACHE_STATS["full_reads"] += 1
-                tail_window_bytes = min(1572864, max(262144, int(limit or 80) * 6144))
-                if st_size > 2 * 1024 * 1024 and not need_full_history and limit <= 250 and since_step is None:
+                _TRANSCRIPT_CACHE_STATS["cache_hits"] += 1
+                cached_steps = _TRANSCRIPT_MEM_CACHE["raw_steps"]
+                total_lines = int(_TRANSCRIPT_MEM_CACHE.get("line_count", len(cached_steps)))
+                cached_latest = max(
+                    (s.get("step_index", 0) for s in cached_steps if isinstance(s.get("step_index"), int)),
+                    default=0,
+                )
+                if since_step is not None and cached_steps and cached_latest > 0 and since_step >= cached_latest:
+                    _TRANSCRIPT_CACHE_STATS["delta_unchanged_hits"] += 1
+                    return {
+                        "status": "success",
+                        "session_id": session_id,
+                        "total_steps": total_lines,
+                        "latest_step": cached_latest,
+                        "unchanged": True,
+                        "messages": [],
+                    }
+                raw_steps = list(cached_steps)
+            else:
+                loaded_incrementally = False
+                if (
+                    can_use_tail_cache
+                    and _TRANSCRIPT_MEM_CACHE["path"] == str(transcript_path)
+                    and isinstance(cached_size, int)
+                    and cached_size > 0
+                    and st_size > cached_size
+                ):
                     with open(transcript_path, "rb") as fb:
-                        first_sig = fb.read(128)
-                        fb.seek(max(0, st_size - tail_window_bytes))
-                        tail_chunk = fb.read().decode("utf-8", errors="replace")
-                    lines = [ln.strip() for ln in tail_chunk.splitlines()[1:] if ln.strip()]
-                    is_tail_only = True
-                else:
-                    with open(transcript_path, "r", encoding="utf-8", errors="replace") as f:
-                        lines = [line.strip() for line in f if line.strip()]
-                    first_sig = lines[0][:128].encode("utf-8", errors="replace") if lines else b""
-                    is_tail_only = False
+                        cached_sig = _TRANSCRIPT_MEM_CACHE.get("first_sig", b"")
+                        first_sig = fb.read(len(cached_sig)) if cached_sig else b""
+                        if cached_sig and first_sig == cached_sig:
+                            fb.seek(cached_size)
+                            raw_delta = fb.read()
+                            last_nl = raw_delta.rfind(b"\n")
+                            if last_nl < 0:
+                                _TRANSCRIPT_CACHE_STATS["partial_line_deferrals"] += 1
+                                raw_steps = list(_TRANSCRIPT_MEM_CACHE["raw_steps"])
+                                total_lines = int(_TRANSCRIPT_MEM_CACHE.get("line_count", len(raw_steps)))
+                                loaded_incrementally = True
+                            else:
+                                complete_chunk = raw_delta[: last_nl + 1]
+                                new_cached_size = cached_size + last_nl + 1
+                                delta_lines = [
+                                    ln.strip()
+                                    for ln in complete_chunk.decode("utf-8", errors="replace").splitlines()
+                                    if ln.strip()
+                                ]
+                                new_steps = []
+                                for ln in delta_lines:
+                                    try:
+                                        new_steps.append(json.loads(ln))
+                                    except Exception:
+                                        continue
+                                combined_steps = list(_TRANSCRIPT_MEM_CACHE["raw_steps"]) + new_steps
+                                if _TRANSCRIPT_MEM_CACHE.get("tail_only") and len(combined_steps) > _TRANSCRIPT_TAIL_CACHE_MAX:
+                                    combined_steps = combined_steps[-_TRANSCRIPT_TAIL_CACHE_MAX:]
+                                total_lines = _TRANSCRIPT_MEM_CACHE["line_count"] + len(delta_lines)
+                                _TRANSCRIPT_MEM_CACHE["mtime_ns"] = (
+                                    st.st_mtime_ns if last_nl == len(raw_delta) - 1 else -1
+                                )
+                                _TRANSCRIPT_MEM_CACHE["size"] = new_cached_size
+                                _TRANSCRIPT_MEM_CACHE["raw_steps"] = combined_steps
+                                _TRANSCRIPT_MEM_CACHE["line_count"] = total_lines
+                                raw_steps = list(combined_steps)
+                                loaded_incrementally = True
+                                _TRANSCRIPT_CACHE_STATS["incremental_reads"] += 1
 
-                raw_steps = []
-                for line in lines:
-                    try:
-                        raw_steps.append(json.loads(line))
-                    except Exception:
-                        continue
-                total_lines = len(lines)
-                cached_list = list(raw_steps)
-                if not need_full_history and len(cached_list) > _TRANSCRIPT_TAIL_CACHE_MAX:
-                    cached_list = cached_list[-_TRANSCRIPT_TAIL_CACHE_MAX:]
-                    is_tail_only = True
-                _TRANSCRIPT_MEM_CACHE["path"] = str(transcript_path)
-                _TRANSCRIPT_MEM_CACHE["mtime_ns"] = st.st_mtime_ns
-                _TRANSCRIPT_MEM_CACHE["size"] = st.st_size
-                _TRANSCRIPT_MEM_CACHE["first_sig"] = first_sig
-                _TRANSCRIPT_MEM_CACHE["tail_only"] = is_tail_only
-                _TRANSCRIPT_MEM_CACHE["raw_steps"] = cached_list
-                _TRANSCRIPT_MEM_CACHE["line_count"] = total_lines
+                if not loaded_incrementally:
+                    _TRANSCRIPT_CACHE_STATS["full_reads"] += 1
+                    tail_window_bytes = min(1572864, max(262144, int(limit or 80) * 6144))
+                    if st_size > 2 * 1024 * 1024 and not need_full_history and limit <= 250 and since_step is None:
+                        with open(transcript_path, "rb") as fb:
+                            first_sig = fb.read(128)
+                            fb.seek(max(0, st_size - tail_window_bytes))
+                            tail_chunk = fb.read().decode("utf-8", errors="replace")
+                        lines = [ln.strip() for ln in tail_chunk.splitlines()[1:] if ln.strip()]
+                        is_tail_only = True
+                    else:
+                        with open(transcript_path, "rb") as fb:
+                            raw_all = fb.read()
+                        first_sig = raw_all[:128]
+                        lines = [ln.strip() for ln in raw_all.decode("utf-8", errors="replace").splitlines() if ln.strip()]
+                        is_tail_only = False
+
+                    raw_steps = []
+                    for line in lines:
+                        try:
+                            raw_steps.append(json.loads(line))
+                        except Exception:
+                            continue
+                    total_lines = len(lines)
+                    cached_list = list(raw_steps)
+                    if not need_full_history and len(cached_list) > _TRANSCRIPT_TAIL_CACHE_MAX:
+                        cached_list = cached_list[-_TRANSCRIPT_TAIL_CACHE_MAX:]
+                        is_tail_only = True
+                    _TRANSCRIPT_MEM_CACHE["path"] = str(transcript_path)
+                    _TRANSCRIPT_MEM_CACHE["mtime_ns"] = st.st_mtime_ns
+                    _TRANSCRIPT_MEM_CACHE["size"] = st.st_size
+                    _TRANSCRIPT_MEM_CACHE["first_sig"] = first_sig
+                    _TRANSCRIPT_MEM_CACHE["tail_only"] = is_tail_only
+                    _TRANSCRIPT_MEM_CACHE["raw_steps"] = cached_list
+                    _TRANSCRIPT_MEM_CACHE["line_count"] = total_lines
+            total_lines = int(_TRANSCRIPT_MEM_CACHE.get("line_count", len(raw_steps)))
     except Exception as e:
         return {
             "status": "error",
             "message": f"Error reading transcript: {e}",
             "messages": []
         }
-    total_lines = int(_TRANSCRIPT_MEM_CACHE.get("line_count", len(raw_steps)))
 
     if since_step is not None:
         raw_steps = [s for s in raw_steps if s.get("step_index", 0) > since_step]
@@ -1917,11 +2568,13 @@ def execute_dashboard_command(cmd_text: str, images: Optional[List[str]] = None,
         from fleet.core.token_optimizer import get_cached_prompt_response, try_deterministic_intent_route
         det_res = try_deterministic_intent_route(text, db=db)
         if det_res is not None:
+            record_llm_turn_usage("tier0_intent_router", "deterministic", tier0=True)
             append_transcript_turn("USER_INPUT", f"<USER_REQUEST>\n{text}\n</USER_REQUEST>")
             append_transcript_turn("PLANNER_RESPONSE", det_res.get("message", ""), source="MODEL")
             return det_res
         cached_ans = get_cached_prompt_response(text)
         if cached_ans is not None:
+            record_llm_turn_usage("tier0_semantic_cache", "cached", tier0=True)
             append_transcript_turn("USER_INPUT", f"<USER_REQUEST>\n{text}\n</USER_REQUEST>")
             append_transcript_turn("PLANNER_RESPONSE", cached_ans, source="MODEL")
             return {
@@ -1932,7 +2585,7 @@ def execute_dashboard_command(cmd_text: str, images: Optional[List[str]] = None,
                 "message": cached_ans,
             }
 
-    # 6. Natural Language Prompt: check token exhaustion & agent busy state
+    # 6. Natural Language Prompt: check token exhaustion, laptop RAM admission & agent busy state
     target_model = model or get_active_model()
 
     th = get_token_health()
@@ -1952,9 +2605,23 @@ def execute_dashboard_command(cmd_text: str, images: Optional[List[str]] = None,
             "message": f"Token limit reached for {target_model}. Your prompt has been safely preserved in Fleet Vault. Click 'Resume with Fallback Model' ({th['recommended_fallback_name']}) to continue without losing work."
         }
 
-    # Parallel Fleet Dispatching:
+    # Parallel Fleet Dispatching & Laptop RAM Admission Control:
     active_count = get_active_agent_count()
     max_slots = get_max_parallel_agents()
+    ram_blocked, ram_pct = _is_ram_admission_blocked(active_count)
+    if ram_blocked and enqueue_if_busy:
+        append_transcript_turn("USER_INPUT", f"<USER_REQUEST>\n{text}\n</USER_REQUEST>", images=images)
+        q_id = db.enqueue_chat_message(prompt=text, images=images or [], model=target_model)
+        queued = db.get_queued_chat_messages()
+        return {
+            "status": "queued",
+            "type": "ram_pressure_queued",
+            "queue_id": q_id,
+            "position": len(queued),
+            "ram_percent_used": round(ram_pct, 1),
+            "message": f"Queued under laptop RAM protection ({ram_pct:.0f}% RAM used). Will auto-launch once the active agent finishes.",
+        }
+
     is_busy = (
         active_count >= max_slots
         or AGENT_STATE.get("status") == "max_capacity"
@@ -2026,5 +2693,41 @@ def execute_dashboard_command(cmd_text: str, images: Optional[List[str]] = None,
     return {
         "status": "busy",
         "message": f"All {max_slots} parallel agent slots are currently occupied."
+    }
+
+
+def get_antigravity_live_diagnostics() -> Dict[str, Any]:
+    """[AGL-10] Returns unified Antigravity Live runtime health, cache hit rate, CB state, RAM & telemetry."""
+    st = get_agent_status()
+    t_path = get_active_transcript_path()
+    now_mono = time.monotonic()
+    with _AGY_CB_LOCK:
+        open_until = float(_AGY_CIRCUIT_BREAKER.get("open_until_ts") or 0.0)
+        cb_open = now_mono < open_until
+        cb_info = {
+            "state": "OPEN" if cb_open else "CLOSED",
+            "consecutive_failures": int(_AGY_CIRCUIT_BREAKER.get("consecutive_failures") or 0),
+            "threshold": int(_AGY_CIRCUIT_BREAKER.get("threshold") or 3),
+            "cooldown_remaining_sec": round(max(0.0, open_until - now_mono), 1),
+            "trips": int(_AGY_CIRCUIT_BREAKER.get("trips") or 0),
+            "last_error": str(_AGY_CIRCUIT_BREAKER.get("last_error") or ""),
+        }
+    with _SESSION_USAGE_LOCK:
+        usage_snap = dict(_SESSION_USAGE_TELEMETRY)
+    ram_blocked, ram_pct = _is_ram_admission_blocked(st.get("active_agents_count", 0))
+    return {
+        "status": "ok",
+        "agent_status": st,
+        "active_transcript_path": str(t_path) if t_path else "",
+        "transcript_cache": get_transcript_cache_stats(),
+        "cli_circuit_breaker": cb_info,
+        "usage_telemetry": usage_snap,
+        "orphan_recovery": dict(_ORPHAN_RECOVERY_STATS),
+        "ram_admission": {
+            "blocked": ram_blocked,
+            "host_ram_pct": round(ram_pct, 1),
+            "threshold_pct": MAX_HOST_RAM_PCT_FOR_PARALLEL,
+        },
+        "conversation_lease_owner": _PRIMARY_CONV_LEASE_OWNER,
     }
 

@@ -386,6 +386,7 @@ class HyperscalerGateway:
         max_tokens: int = 1024,
         allow_tier0: bool = True,
         max_prompt_chars: int = 12000,
+        allow_agy_cli: bool = True,
     ) -> Dict[str, Any]:
         """
         Executes a prompt across the selected or best available hyperscaler:
@@ -452,7 +453,7 @@ class HyperscalerGateway:
         # Dispatch
         try:
             if target_provider in ("google", "gemini"):
-                res = self._call_google(compressed_prompt, model=model, sys_inst=system_instruction)
+                res = self._call_google(compressed_prompt, model=model, sys_inst=system_instruction, allow_agy_cli=allow_agy_cli)
             elif target_provider in ("google_vertex", "vertex", "vertex_ai"):
                 res = self._call_google_vertex(compressed_prompt, model=model, sys_inst=system_instruction)
             elif target_provider in ("microsoft", "azure", "foundry", "github_models"):
@@ -559,7 +560,7 @@ class HyperscalerGateway:
             "text": text,
         }
 
-    def _call_google(self, prompt: str, model: Optional[str] = None, sys_inst: str = "") -> Dict[str, Any]:
+    def _call_google(self, prompt: str, model: Optional[str] = None, sys_inst: str = "", allow_agy_cli: bool = True) -> Dict[str, Any]:
         """
         Calls Google Gemini Direct REST API (AI Studio), transparently routes to
         Google Cloud Vertex AI if GOOGLE_CLOUD_PROJECT is configured, or bridges to
@@ -573,7 +574,7 @@ class HyperscalerGateway:
         if not api_key:
             if get_secure_secret("GOOGLE_CLOUD_PROJECT"):
                 return self._call_google_vertex(prompt, model=model, sys_inst=sys_inst)
-            if _get_antigravity_cli_path():
+            if allow_agy_cli and _get_antigravity_cli_path():
                 return self._call_antigravity_cli(prompt, model=model, sys_inst=sys_inst)
             raise ValueError("GEMINI_API_KEY or GOOGLE_CLOUD_PROJECT not configured in DPAPI Vault or Environment.")
 

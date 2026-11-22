@@ -3,6 +3,7 @@
 ### Core Architecture
 - [[Home|Overview & Pillars]]
 - [[Architecture|System Architecture]]
+- [[Antigravity-Live-via-AFCC-Architecture|Antigravity Live via AFCC]]
 - [[Cognitive-Fleet-Mind|4-Layer Fleet Mind]]
 - [[Hyperscalers-Token-Optimizer-and-Scheduler|Hyperscalers, Token Opt & Cron]]
 
@@ -32,7 +33,7 @@
 - **Palette:** `Ctrl+K` or `/`
 - **Cost:** `$0.00 / Zero-Token`
 - **Security:** `100/100 Grade A+`
-- **Tests:** `562/562 Passing`
+- **Tests:** `572/572 Passing`
 
 ---
 [Personal Agentic Fleet GitHub](https://github.com/macazaka/personal-agentic-fleet)

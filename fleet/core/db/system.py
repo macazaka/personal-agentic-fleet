@@ -254,6 +254,36 @@ class SystemMixin(_DbBase):
     def cancel_queued_chat_message(self, queue_id: int) -> bool:
         return self.update_chat_queue_status(queue_id, "cancelled")
 
+    def claim_queued_chat_message(self, queue_id: int) -> bool:
+        """Atomically claims a 'queued' chat_queue item by transitioning it to 'processing'."""
+        now = datetime.now().isoformat()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                UPDATE chat_queue SET status = 'processing', updated_at = ?
+                WHERE id = ? AND status = 'queued'
+                """,
+                (now, queue_id),
+            )
+            conn.commit()
+            return cursor.rowcount == 1
+
+    def recover_orphaned_processing_messages(self) -> int:
+        """Re-queues any 'processing' chat_queue rows stranded by a prior unclean shutdown."""
+        now = datetime.now().isoformat()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                UPDATE chat_queue SET status = 'queued', updated_at = ?
+                WHERE status = 'processing'
+                """,
+                (now,),
+            )
+            conn.commit()
+            return int(cursor.rowcount or 0)
+
 
     # --- Token Preservation Vault Operations ---
     def vault_pending_prompts(self, session_id: str = "current", model: str = "default",

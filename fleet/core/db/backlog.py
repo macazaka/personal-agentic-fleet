@@ -1026,6 +1026,89 @@ AFCC_RAM_CPU_OPTIMIZATION_BACKLOG_ITEMS: List[Dict[str, str]] = [
     },
 ]
 
+ANTIGRAVITY_LIVE_ARCHITECTURE_BACKLOG_ITEMS: List[Dict[str, str]] = [
+    {
+        "title": "[AGL-01] Critical Arch #1: Thread-Safe Transcript I/O Lock (_TRANSCRIPT_IO_LOCK) & Newline-Aligned Incremental Delta Reads",
+        "description": "Serializes append_transcript_turn() and parse_transcript() under a single _TRANSCRIPT_IO_LOCK with explicit flush and newline-aligned byte cursor advancement so parallel workers never corrupt step indices or skip partial JSONL writes.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[AGL-02] Critical Arch #2: Managed Subprocess Registry, Process-Tree Termination, Running Agent Cancellation & Laptop RAM Admission Guard",
+        "description": "Replaces blind blocking CLI runs with managed Popen polling, exposes POST /api/antigravity/agents/cancel with Windows taskkill /F /T tree termination, registers shutdown cleanup, and queues excess concurrent workers when host RAM >= 88%.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[AGL-03] Critical Arch #3: Crash-Safe Orphaned Processing Queue Recovery, Atomic SQLite Claim & Intra-Batch Overlap Enforcement",
+        "description": "Requeues orphaned 'processing' chat_queue rows on AntigravityAgent.on_startup(), serializes process_next_in_queue() under _QUEUE_DRAIN_LOCK with atomic claim_queued_chat_message(), and checks intra-batch sibling overlaps immediately.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[AGL-04] Critical Arch #4: Persistent Primary Antigravity CLI Conversation Lease & Isolated Ephemeral Parallel Contexts",
+        "description": "Guards Antigravity CLI session continuity with _CLI_CONV_LOCK, persisting the primary conversation ID in SQLite settings while isolating concurrent sibling workers to ephemeral turns so threads never hijack shared CLI context.",
+        "category": "AI/LLM",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[AGL-05] Critical Arch #5: Real Per-Session LLM Token/Cost Telemetry Ledger & Post-Compaction Context Window Estimation",
+        "description": "Tracks real LLM vs Tier-0 turns, input/output tokens, and estimated USD cost in _SESSION_USAGE_TELEMETRY while estimating context fullness from post-compaction transcript tails instead of inflated full-file byte counts.",
+        "category": "AI/LLM",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[AGL-06] Critical Arch #6: Adaptive Backoff Antigravity Polling (2.5s Active / 12s-20s Idle), Startup Dedup & Payload Signature Diffing",
+        "description": "Replaces fixed 6s background polls with visibility-aware adaptive scheduleAgPoll() backoff, eliminates duplicate startup bursts in app.js, and skips unchanged queue/token DOM rebuilds via window._afccHasPayloadChanged.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[AGL-07] Critical Arch #7: Zero Silent Worker Failures (Error Transcript Turns), Double-Submit Guard & Live In-Flight Stop Bar",
+        "description": "Surfaces worker exceptions and user cancellations directly in transcript.jsonl, prevents duplicate Enter/click sends with _agCommandSubmitting, and renders a live in-flight working indicator with 1-click Stop buttons.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[AGL-08] High Arch #8: Memoized Active Transcript Path Discovery (3s TTL), 10MB/Extension Upload Guard, nosniff Media Headers & Upload Pruning",
+        "description": "Caches active transcript discovery for 3s using os.scandir outside test mode, rejects >10MB or dangerous upload extensions (400/413), sets X-Content-Type-Options: nosniff + Cache-Control on /media/, and bounds uploads/ disk growth.",
+        "category": "Core",
+        "priority": "P2",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[AGL-09] Critical Arch #9: Non-Recursive agy.exe Fallback (allow_agy_cli=False), Subprocess Circuit Breaker & Deterministic Repo-Root CWD",
+        "description": "Prevents double 90s CLI timeouts by passing allow_agy_cli=False into fallback HyperscalerGateway calls, opens a 60s circuit breaker after 3 consecutive CLI failures, and anchors CLI execution at the repository root.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[AGL-10] Medium Arch #10: Unified Antigravity Live Engine Diagnostics Endpoint (GET /api/antigravity/diagnostics) & Usage Modal Health Card",
+        "description": "Exposes real-time transcript cache hit rate, CLI circuit breaker state, orphan recovery counts, RAM admission gate, and real LLM vs Tier-0 turn telemetry at GET /api/antigravity/diagnostics and inside #usageModal.",
+        "category": "Core",
+        "priority": "P2",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+]
+
 ALL_CANONICAL_BACKLOG_ITEMS: List[Dict[str, str]] = (
     FOUNDATIONAL_DEFAULT_BACKLOG_ITEMS
     + HISTORICAL_RELEASE_BACKLOG_ITEMS
@@ -1035,6 +1118,7 @@ ALL_CANONICAL_BACKLOG_ITEMS: List[Dict[str, str]] = (
     + JARVIS_PERFORMANCE_AND_UX_BACKLOG_ITEMS
     + AFCC_UI_DESIGN_SYSTEM_BACKLOG_ITEMS
     + AFCC_RAM_CPU_OPTIMIZATION_BACKLOG_ITEMS
+    + ANTIGRAVITY_LIVE_ARCHITECTURE_BACKLOG_ITEMS
 )
 
 

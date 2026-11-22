@@ -235,7 +235,7 @@ The Personal Agentic Fleet provides a comprehensive terminal interface accessibl
 | `fleet version` | None | Displays version, Python interpreter details, and operating system platform. |
 
 <!-- AUTO-API-ROUTES:START -->
-## 🔄 Complete Live REST API Route Inventory (`206` Endpoints — `v2.21.0`)
+## 🔄 Complete Live REST API Route Inventory (`208` Endpoints — `v2.21.0`)
 
 This table is **automatically introspected from `fleet/api/*.py` AST decorators** on every release by `fleet.tools.doc_wiki_enhancer`:
 
@@ -247,9 +247,11 @@ This table is **automatically introspected from `fleet/api/*.py` AST decorators*
 | `GET` | `/api/antigravity/usage` | `get_usage` ([`fleet/api/antigravity_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/antigravity_api.py)) | Handler `get_usage` in `fleet/api/antigravity_api.py`. |
 | `GET` | `/api/antigravity/tokens` | `get_tokens` ([`fleet/api/antigravity_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/antigravity_api.py)) | Handler `get_tokens` in `fleet/api/antigravity_api.py`. |
 | `GET` | `/api/antigravity/queue` | `get_queue` ([`fleet/api/antigravity_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/antigravity_api.py)) | Handler `get_queue` in `fleet/api/antigravity_api.py`. |
+| `GET` | `/api/antigravity/diagnostics` | `get_diagnostics` ([`fleet/api/antigravity_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/antigravity_api.py)) | Handler `get_diagnostics` in `fleet/api/antigravity_api.py`. |
 | `POST` | `/api/antigravity/command` | `post_command` ([`fleet/api/antigravity_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/antigravity_api.py)) | Handler `post_command` in `fleet/api/antigravity_api.py`. |
 | `POST` | `/api/antigravity/upload` | `post_upload` ([`fleet/api/antigravity_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/antigravity_api.py)) | Handler `post_upload` in `fleet/api/antigravity_api.py`. |
 | `POST` | `/api/antigravity/queue/cancel` | `cancel_queue` ([`fleet/api/antigravity_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/antigravity_api.py)) | Handler `cancel_queue` in `fleet/api/antigravity_api.py`. |
+| `POST` | `/api/antigravity/agents/cancel` | `cancel_agent` ([`fleet/api/antigravity_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/antigravity_api.py)) | Handler `cancel_agent` in `fleet/api/antigravity_api.py`. |
 | `POST` | `/api/antigravity/tokens/resume` | `resume_tokens` ([`fleet/api/antigravity_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/antigravity_api.py)) | Handler `resume_tokens` in `fleet/api/antigravity_api.py`. |
 | `POST` | `/api/antigravity/fast_track` | `post_fast_track` ([`fleet/api/antigravity_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/antigravity_api.py)) | Handler `post_fast_track` in `fleet/api/antigravity_api.py`. |
 | `POST` | `/api/antigravity/parallel_limit` | `post_parallel_limit` ([`fleet/api/antigravity_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/antigravity_api.py)) | Handler `post_parallel_limit` in `fleet/api/antigravity_api.py`. |

@@ -59,6 +59,11 @@ def get_queue(handler: Any, parsed_url: urllib.parse.ParseResult):
     handler._send_json(srv.get_agent_status())
 
 
+@router.get("/api/antigravity/diagnostics")
+def get_diagnostics(handler: Any, parsed_url: urllib.parse.ParseResult):
+    handler._send_json(srv.get_antigravity_live_diagnostics())
+
+
 @router.get_prefix("/api/antigravity/media/")
 def get_media(handler: Any, path: str, parsed_url: urllib.parse.ParseResult):
     raw_fname = path[len("/api/antigravity/media/"):]
@@ -81,6 +86,8 @@ def get_media(handler: Any, path: str, parsed_url: urllib.parse.ParseResult):
         handler.send_response(200)
         handler.send_header("Content-Type", content_type)
         handler.send_header("Content-Length", str(len(data)))
+        handler.send_header("X-Content-Type-Options", "nosniff")
+        handler.send_header("Cache-Control", "private, max-age=3600")
         handler.end_headers()
         handler.wfile.write(data)
     else:
@@ -96,18 +103,34 @@ def post_command(handler: Any, body: Dict[str, Any]):
     handler._send_json(res)
 
 
+_ALLOWED_UPLOAD_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
+_MAX_UPLOAD_IMAGE_BYTES = 10 * 1024 * 1024
+
+
 @router.post("/api/antigravity/upload")
 def post_upload(handler: Any, body: Dict[str, Any]):
-    filename = body.get("filename", "")
+    filename = str(body.get("filename", "") or "uploaded_image.png").strip()
+    ext = Path(filename).suffix.lower()
+    if ext and ext not in _ALLOWED_UPLOAD_IMAGE_EXTS:
+        handler._send_json({"status": "error", "message": f"Unsupported image extension '{ext}'"}, 400)
+        return
     b64_data = body.get("data", "")
     if not b64_data and "base64" in body:
         b64_data = body.get("base64", "")
     if "," in b64_data:
         b64_data = b64_data.split(",", 1)[1]
+    if len(b64_data) > 14 * 1024 * 1024:
+        handler._send_json({"status": "error", "message": "Image exceeds 10 MB upload limit"}, 413)
+        return
     try:
         raw_bytes = base64.b64decode(b64_data)
+        if len(raw_bytes) > _MAX_UPLOAD_IMAGE_BYTES:
+            handler._send_json({"status": "error", "message": "Image exceeds 10 MB upload limit"}, 413)
+            return
         res = srv.save_uploaded_image(filename or "uploaded_image.png", raw_bytes)
         handler._send_json({"status": "success", "file": res})
+    except ValueError as ve:
+        handler._send_json({"status": "error", "message": str(ve)}, 400)
     except Exception:
         handler._send_json({"status": "error", "message": "Invalid upload payload"}, 400)
 
@@ -120,6 +143,16 @@ def cancel_queue(handler: Any, body: Dict[str, Any]):
         handler._send_json({"status": "success" if cancelled else "failed", "cancelled": cancelled})
     else:
         handler._send_json({"status": "error", "message": "Missing queue id"}, 400)
+
+
+@router.post("/api/antigravity/agents/cancel")
+def cancel_agent(handler: Any, body: Dict[str, Any]):
+    agent_id = str(body.get("agent_id") or "").strip()
+    if not agent_id:
+        handler._send_json({"status": "error", "message": "Missing agent_id"}, 400)
+        return
+    res = srv.cancel_running_agent(agent_id)
+    handler._send_json(res)
 
 
 @router.post("/api/antigravity/tokens/resume")

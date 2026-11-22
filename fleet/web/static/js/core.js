@@ -101,6 +101,7 @@
       if (viewStage) viewStage.style.display = 'none';
 
       if (agInterval && tab !== 'antigravity' && !window.isAgRightDocked) {
+        clearTimeout(agInterval);
         clearInterval(agInterval);
         agInterval = null;
       }
@@ -114,7 +115,9 @@
         fetchTranscript(true);
         fetchModels();
         fetchAgentQueue();
-        if (!agInterval) {
+        if (typeof scheduleAgPoll === 'function') {
+          scheduleAgPoll(false);
+        } else if (!agInterval) {
           agInterval = setInterval(() => {
             if (document.hidden) return;
             if (window.agChatEngineMode !== 'fleet_zero_token') {

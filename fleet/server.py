@@ -43,6 +43,7 @@ from fleet.core.antigravity_mirror import (
     AGENT_STATE,
     AVAILABLE_MODELS,
     UPLOADS_DIR,
+    cancel_running_agent,
     detect_agent_task_overlap,
     execute_dashboard_command,
     extract_task_fingerprint,
@@ -50,6 +51,7 @@ from fleet.core.antigravity_mirror import (
     get_active_model,
     get_active_transcript_path,
     get_agent_status,
+    get_antigravity_live_diagnostics,
     get_available_models,
     get_llm_usage_details,
     get_max_parallel_agents,
@@ -58,10 +60,12 @@ from fleet.core.antigravity_mirror import (
     get_transcript_cache_stats,
     handle_token_exhaustion,
     parse_transcript,
+    recover_orphaned_queue_on_startup,
     resume_token_exhaustion,
     save_uploaded_image,
     set_active_model,
     set_max_parallel_agents,
+    shutdown_all_parallel_agents,
 )
 from fleet.tools.system_tools import get_disk_usage, send_windows_notification
 from fleet.core.optimizer import (

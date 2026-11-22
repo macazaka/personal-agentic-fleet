@@ -57,6 +57,23 @@ class AntigravityAgent(FleetAgent):
     def register_routes(self, router) -> None:
         router.include_router(antigravity_api.router)
 
+    def on_startup(self) -> None:
+        import os
+        if os.environ.get("FLEET_TEST_MODE") == "1":
+            return
+        try:
+            from fleet.core.antigravity_mirror import recover_orphaned_queue_on_startup
+            recover_orphaned_queue_on_startup()
+        except Exception:
+            pass
+
+    def on_shutdown(self) -> None:
+        try:
+            from fleet.core.antigravity_mirror import shutdown_all_parallel_agents
+            shutdown_all_parallel_agents()
+        except Exception:
+            pass
+
     def execute_task(self, task: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         from fleet.core.antigravity_mirror import get_token_health, process_next_in_queue
         process_next_in_queue()
