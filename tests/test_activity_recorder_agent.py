@@ -28,6 +28,8 @@ from fleet.core.activity_recorder import (
     generate_bookmarklet_snippet,
     heal_and_iterate_workflow,
     publish_recorded_agent,
+    recommend_recording_modality,
+    compile_desktop_step_headless_capability,
     redact_sensitive_value,
     resume_workflow_run,
     run_generated_agent_unit_tests,
@@ -120,11 +122,11 @@ def test_hld_lld_wiki_architecture_diagrams_and_rec_backlog(isolated_env):
     lld_txt = lld_path.read_text(encoding="utf-8")
     wiki_txt = wiki_path.read_text(encoding="utf-8")
 
-    _validate_mermaid_blocks(hld_txt, min_count=6)
+    _validate_mermaid_blocks(hld_txt, min_count=7)
     _validate_mermaid_blocks(lld_txt, min_count=6)
     _validate_mermaid_blocks(wiki_txt, min_count=2)
 
-    for idx in range(1, 13):
+    for idx in range(1, 14):
         tag = f"[REC-{idx:02d}]"
         assert tag in hld_txt, f"Missing {tag} in HLD critique"
         assert tag in wiki_txt, f"Missing {tag} in Wiki page"
@@ -138,7 +140,7 @@ def test_hld_lld_wiki_architecture_diagrams_and_rec_backlog(isolated_env):
     db: FleetDatabase = isolated_env["db"]
     db.sync_ux_roadmap_backlog()
     items = db.list_feature_backlog_items()
-    for idx in range(1, 13):
+    for idx in range(1, 14):
         tag = f"[REC-{idx:02d}]"
         matches = [it for it in items if tag in it["title"]]
         assert len(matches) == 1, f"Expected single canonical backlog item for {tag}"
@@ -478,17 +480,20 @@ def test_dashboard_recorder_ui_buttons_tooltips_and_js_exports():
     js = (REPO_ROOT / "fleet" / "web" / "static" / "js" / "create_agent.js").read_text(encoding="utf-8")
 
     assert 'id="studioActivityRecorderCard"' in html
+    assert 'id="studioRecModalityAdvisorStrip"' in html
+    assert 'id="recorderRequirementGoalInput"' in html
+    assert 'id="btnStudioRecRecommend"' in html
     assert 'value="recorded_workflow"' in html
     assert 'id="btnStudioRecStart"' in html
     assert 'id="btnStudioRecPublish"' in html
 
     # Verify every button inside #studioActivityRecorderCard has a non-empty title attribute
     start_idx = html.index('id="studioActivityRecorderCard"')
-    chunk = html[start_idx : start_idx + 12000]
+    chunk = html[start_idx : start_idx + 14000]
     for btn_open in re.findall(r"<button\b[^>]*>", chunk, flags=re.I):
         assert 'title="' in btn_open and 'title=""' not in btn_open, f"Button missing title tooltip: {btn_open}"
 
-    for symbol in ("StudioActivityRecorder", "runRecordedWorkflow", "resumeRecordedWorkflow", "renderWorkflowInputPrompt"):
+    for symbol in ("StudioActivityRecorder", "recommendModality", "runRecordedWorkflow", "resumeRecordedWorkflow", "renderWorkflowInputPrompt"):
         assert symbol in js
 
     dry = dry_run_agent_spec({
@@ -514,3 +519,76 @@ def test_dashboard_recorder_ui_buttons_tooltips_and_js_exports():
     )
     assert "sample_rec_workflow_runner_card" in rendered
     assert "sample_rec_workflow_input_prompt_box" in rendered
+
+
+def test_smart_modality_advisor_headless_desktop_compiler_and_api(isolated_env):
+    # 1. Pure Web Portal -> recommends browser / isolated_cdp with high headless score
+    web_rec = recommend_recording_modality(
+        requirement_text="Log into my electricity billing portal and download monthly receipts.",
+        start_url="https://billing.example.com",
+        needs_strict_headless=True,
+    )
+    assert web_rec["recommended_mode"] == "browser"
+    assert web_rec["recommended_browser_strategy"] == "isolated_cdp"
+    assert web_rec["headless_feasibility_score"] >= 90
+    assert web_rec["auto_config"]["launch_browser"] is True
+
+    # 2. Corporate SSO / Existing Tab -> recommends browser / active_tab_bookmarklet
+    sso_rec = recommend_recording_modality(
+        requirement_text="Submit timesheet inside my already logged in corporate SSO portal tab.",
+        needs_strict_headless=True,
+    )
+    assert sso_rec["recommended_mode"] == "browser"
+    assert sso_rec["recommended_browser_strategy"] == "active_tab_bookmarklet"
+    assert sso_rec["auto_config"]["use_bookmarklet"] is True
+
+    # 3. Desktop-only local Win32 app -> recommends desktop + surfaces strict-headless warning
+    desk_rec = recommend_recording_modality(
+        requirement_text="Open Tally desktop app and approve pending vouchers.",
+        needs_strict_headless=True,
+    )
+    assert desk_rec["recommended_mode"] == "desktop"
+    assert desk_rec["warnings"], "Expected strict headless warning for opaque Win32 desktop app"
+
+    # 4. Cross-boundary Web + Excel -> recommends hybrid
+    hyb_rec = recommend_recording_modality(
+        requirement_text="Scrape invoice rows from supplier web portal and update Excel workbook.",
+        start_url="https://supplier.example.org/invoices",
+    )
+    assert hyb_rec["recommended_mode"] == "hybrid"
+    assert "hybrid" in hyb_rec["tradeoff_comparison"]
+
+    # 5. Headless-first desktop step adapter classifier & readiness score
+    assert compile_desktop_step_headless_capability(
+        {"channel": "desktop", "action": "desktop_click", "locators": {"process": "explorer.exe"}, "title": "File Explorer"}
+    )["headless_adapter"] == "file_system_adapter"
+    assert compile_desktop_step_headless_capability(
+        {"channel": "desktop", "action": "desktop_click", "locators": {"process": "excel.exe"}, "title": "ledger.xlsx"}
+    )["headless_adapter"] == "tabular_file_adapter"
+    assert compile_desktop_step_headless_capability(
+        {"channel": "desktop", "action": "app_switch", "locators": {"process": "chrome.exe"}, "title": "Google Chrome"}
+    )["headless_adapter"] == "browser_cdp_upgrade_recommended"
+    assert compile_desktop_step_headless_capability(
+        {"channel": "desktop", "action": "desktop_click", "locators": {"process": "saplogon.exe"}, "title": "SAP Logon"}
+    )["headless_capability"] == "requires_unlocked_desktop"
+
+    synth = synthesize_agent_from_recording(
+        raw_events=[
+            {"offset_sec": 0.5, "channel": "browser", "action": "navigate", "url": "https://example.org", "title": "Portal"},
+            {"offset_sec": 1.5, "channel": "desktop", "action": "desktop_click", "locators": {"process": "excel.exe"}, "title": "report.xlsx"},
+            {"offset_sec": 2.5, "channel": "desktop", "action": "desktop_click", "locators": {"process": "saplogon.exe"}, "title": "SAP GUI"},
+        ],
+        use_llm=False,
+    )
+    assert synth["workflow_ir"]["requires_unlocked_desktop"] is True
+    assert synth["workflow_ir"]["headless_readiness_pct"] == 67
+
+    # 6. REST Endpoint verification
+    h = _DummyHandler()
+    assert router.dispatch_post(h, "/api/studio/recorder/recommend_modality", {
+        "requirement": "Open Jira board in Chrome and export weekly tickets to Excel.",
+        "start_url": "https://jira.example.com/board",
+    })
+    assert h.status_code == 200
+    assert h.last_json["status"] == "ok"
+    assert h.last_json["recommended_mode"] == "hybrid"

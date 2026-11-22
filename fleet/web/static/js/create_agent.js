@@ -5007,10 +5007,12 @@ const StudioActivityRecorder = {
     if (evFeed) evFeed.textContent = 'No captured screen steps yet.';
     const auFeed = document.getElementById('studioRecAudioFeed');
     if (auFeed) auFeed.textContent = 'Speak aloud while recording to explain intent & inputs...';
-    ['studioRecRequirementsBox', 'studioRecUnitTestBox', 'studioRecSandboxTheater', 'studioRecIteratePublishBar'].forEach(id => {
+    ['studioRecRequirementsBox', 'studioRecUnitTestBox', 'studioRecSandboxTheater', 'studioRecIteratePublishBar', 'studioRecModalityAdviceBox'].forEach(id => {
       const el = document.getElementById(id);
       if (el) { el.style.display = 'none'; el.innerHTML = el.id === 'studioRecIteratePublishBar' ? el.innerHTML : ''; }
     });
+    const goalInp = document.getElementById('recorderRequirementGoalInput');
+    if (goalInp) goalInp.value = '';
     const chk = document.getElementById('studioRecApproveChk');
     if (chk) chk.checked = false;
   },
@@ -5068,6 +5070,71 @@ const StudioActivityRecorder = {
     this._sessionId = sid;
     studioCurrentRecordingId = sid;
     showFleetToast(`📂 Selected recording '${sid}' — click Build Req Doc & Flow next.`, false);
+  },
+
+  async recommendModality() {
+    const reqText = (
+      document.getElementById('recorderRequirementGoalInput')?.value
+      || document.getElementById('wizardNaturalLanguageInput')?.value
+      || ''
+    ).trim();
+    const startUrl = (document.getElementById('recorderStartUrlInput')?.value || '').trim();
+    const strictHeadless = Boolean(document.getElementById('recorderStrictHeadlessChk')?.checked ?? true);
+    const box = document.getElementById('studioRecModalityAdviceBox');
+    await runFleetAsyncAction({
+      buttons: ['btnStudioRecRecommend'],
+      useStudioBanner: false,
+      busyLabel: '⏳ Evaluating...',
+      errorPrefix: 'Modality recommendation failed',
+    }, async () => {
+      const { res, data } = await studioFetchJsonWithRetry('/api/studio/recorder/recommend_modality', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requirement: reqText,
+          start_url: startUrl,
+          needs_strict_headless: strictHeadless,
+        }),
+      });
+      if (!res.ok || data.status === 'error') {
+        throw new Error(data.message || 'Could not evaluate recording modality.');
+      }
+      const cfg = data.auto_config || {};
+      const modeSel = document.getElementById('recorderModeSelect');
+      const launchChk = document.getElementById('recorderLaunchBrowserChk');
+      if (modeSel && cfg.mode) modeSel.value = cfg.mode;
+      if (launchChk && cfg.launch_browser !== undefined) launchChk.checked = Boolean(cfg.launch_browser);
+      if (box) {
+        const warns = Array.isArray(data.warnings) && data.warnings.length
+          ? `<div style="margin-top:5px;color:#fbbf24;">⚠️ ${data.warnings.map(studioEscapeHtml).join('<br>⚠️ ')}</div>`
+          : '';
+        const tc = data.tradeoff_comparison || {};
+        box.style.display = 'block';
+        box.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
+            <strong style="color:#38bdf8;">🧭 Recommended Mode: <code>${studioEscapeHtml(data.recommended_mode)}</code> (${studioEscapeHtml(data.recommended_browser_strategy)})</strong>
+            <span style="padding:2px 8px;border-radius:999px;background:rgba(16,185,129,0.16);color:#6ee7b7;font-weight:700;">Headless Readiness: ${Number(data.headless_feasibility_score || 0)}% • Confidence ${Number(data.confidence_pct || 0)}%</span>
+          </div>
+          <div style="color:#e2e8f0;line-height:1.45;">${studioEscapeHtml(data.rationale || '')}</div>
+          ${warns}
+          <details style="margin-top:5px;"><summary style="cursor:pointer;color:#7dd3fc;">Browser vs Desktop vs Hybrid Tradeoff Matrix</summary>
+            <div style="margin-top:5px;display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:6px;font-size:10.5px;">
+              ${['browser', 'desktop', 'hybrid'].map(k => {
+                const row = tc[k] || {};
+                return `<div style="padding:6px;border-radius:6px;background:rgba(2,6,23,0.7);border:1px solid ${k === data.recommended_mode ? 'rgba(56,189,248,0.55)' : 'rgba(148,163,184,0.2)'};">
+                  <strong style="color:#f8fafc;text-transform:uppercase;">${k}</strong>
+                  <div>Headless: ${row.headless_reliability || 0}%</div>
+                  <div>Selectors: ${row.selector_stability || 0}%</div>
+                  <div>Secrets: ${row.secret_redaction_safety || 0}%</div>
+                  <div style="color:#94a3b8;">${studioEscapeHtml(row.app_coverage || '')}</div>
+                </div>`;
+              }).join('')}
+            </div>
+          </details>
+        `;
+      }
+      showFleetToast(`🧭 Applied recommended mode '${data.recommended_mode}' (${data.headless_feasibility_score}% headless)!`, false);
+    });
   },
 
   async start() {

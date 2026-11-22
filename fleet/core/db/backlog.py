@@ -1289,6 +1289,14 @@ ACTIVITY_RECORDER_AGENT_BACKLOG_ITEMS: List[Dict[str, str]] = [
         "status": "Completed",
         "target_version": "v2.21.0",
     },
+    {
+        "title": "[REC-13] High Recorder #13: Requirement-Driven Browser vs Desktop vs Hybrid Modality Advisor & Headless-First Desktop Adapter Compiler",
+        "description": "Adds recommend_recording_modality() ($0.00 classifier + tradeoff matrix + SSO bookmarklet detection), compile_desktop_step_headless_capability() scoring headless_readiness_pct, POST /api/studio/recorder/recommend_modality, and Studio UI #studioRecModalityAdvisorStrip.",
+        "category": "AI/LLM",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
 ]
 
 ALL_CANONICAL_BACKLOG_ITEMS: List[Dict[str, str]] = (

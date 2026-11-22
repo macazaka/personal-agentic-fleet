@@ -429,10 +429,11 @@ sequenceDiagram
 
 ---
 
-## 10. REST API Contract Table (14 Endpoints)
+## 10. REST API Contract Table (15 Endpoints)
 
 | Method & Endpoint | Request Payload | Response Summary | Module Handler |
 | :--- | :--- | :--- | :--- |
+| `POST /api/studio/recorder/recommend_modality` | `{requirement, start_url, target_apps, needs_strict_headless, needs_existing_login}` | `{recommended_mode, recommended_browser_strategy, headless_feasibility_score, rationale, warnings, auto_config, tradeoff_comparison}` | `recorder_api.py` |
 | `POST /api/studio/recorder/start` | `{mode, start_url, launch_browser, record_audio, label}` | `{session_id, capture_token, bookmarklet_js, browser_launched}` | `recorder_api.py` |
 | `POST /api/studio/recorder/stop` | `{session_id, audio_base64, audio_mime, audio_segments}` | `{session, events_count, audio_segments_count, audio_saved}` | `recorder_api.py` |
 | `GET /api/studio/recorder/status` | `?limit=25` | `{active, session_id, elapsed_sec, events_count, recent_events, audio_segments}` | `recorder_api.py` |
@@ -460,3 +461,14 @@ sequenceDiagram
 | **Step Timeout (`15s`)** | Navigation or DOM render stalls | Retry up to `2` times with bounded jitter, inject `wait_before_ms` in Self-Healer | Strict process-tree kill in `finally:` prevents Chrome RAM leak |
 | **Dynamic / Secret Input Needed** | Parameter missing, `ask_on_each_run=true`, or `sensitive=true` | Pause run cleanly (`waiting_for_input`), save SQLite checkpoint, notify user | Secret values are NEVER persisted to disk/SQLite |
 | **Unapproved Publish Attempt** | `POST /recorder/publish` without `user_approved: true` | Reject cleanly with `HTTP 400` requiring explicit user sign-off | Enforces human-in-the-loop approval before scheduling |
+
+---
+
+## 12. Smart Modality Advisor & Headless-First Desktop Adapter Compiler (`[REC-13]`)
+
+- `recommend_recording_modality(requirement_text, start_url, target_apps, needs_strict_headless, needs_existing_login)`:
+  - Classifies `$0.00` regex signals across Web/Portal (`_WEB_SIGNAL_RE` + validated `start_url`), Desktop Apps/Files (`_DESKTOP_SIGNAL_RE`), and Existing SSO/MFA Sessions (`_EXISTING_LOGIN_SIGNAL_RE`).
+  - Outputs `recommended_mode` (`"browser"` | `"desktop"` | `"hybrid"`), `recommended_browser_strategy` (`"isolated_cdp"` | `"active_tab_bookmarklet"` | `"none"`), `headless_feasibility_score` (`0..100`), `warnings`, `auto_config`, and a scored `tradeoff_comparison` across Browser, Desktop, and Hybrid.
+- `compile_desktop_step_headless_capability(step)`:
+  - Annotates every captured step in `synthesize_agent_from_recording()` with `headless_capability` (`"true_headless"` | `"headless_adapter"` | `"requires_unlocked_desktop"`) and `headless_adapter` (`cdp_headless`, `hitl_checkpoint`, `file_system_adapter`, `tabular_file_adapter`, `powershell_readonly_adapter`, `browser_cdp_upgrade_recommended`, `http_native`, or `desktop_uia_gui`).
+  - Populates `workflow_ir["headless_readiness_pct"]`, `workflow_ir["requires_unlocked_desktop"]`, and renders the readiness summary directly inside `requirements_doc["markdown"]`.

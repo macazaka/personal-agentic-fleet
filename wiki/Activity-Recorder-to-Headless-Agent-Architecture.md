@@ -50,15 +50,16 @@ stateDiagram-v2
 
 ---
 
-## 3. REST API Summary (`14` Endpoints)
+## 3. REST API Summary (`15` Endpoints)
 
+- **Requirement-Driven Modality Advisor**: `POST /api/studio/recorder/recommend_modality` (evaluates Browser vs Desktop vs Hybrid fit, SSO bookmarklet vs isolated CDP strategy, and computes `headless_feasibility_score` via `compile_desktop_step_headless_capability`)
 - **Recorder & Multimodal Capture**: `POST /api/studio/recorder/start`, `POST /api/studio/recorder/stop`, `GET /api/studio/recorder/status`, `POST /api/studio/recorder/event`, `POST /api/studio/recorder/audio_segment`, `POST /api/studio/recorder/mark_input`, `GET /api/studio/recorder/sessions`
 - **Brain Synthesis, Testing, Sandbox, Healing & Publish**: `POST /api/studio/recorder/convert`, `POST /api/studio/recorder/run_tests`, `POST /api/studio/recorder/sandbox_run`, `POST /api/studio/recorder/heal`, `POST /api/studio/recorder/publish`
 - **Live Headless Execution & HITL Resume**: `POST /api/studio/workflows/run`, `POST /api/studio/workflows/resume`
 
 ---
 
-## 4. Top-1% Principal Architect Hardening (`[REC-01]`–`[REC-12]`)
+## 4. Top-1% Principal Architect Hardening (`[REC-01]`–`[REC-13]`)
 
 - **`[REC-01]` Pure-Stdlib RFC 6455 WebSocket + CDP & Win32 `ctypes`**: Zero external `pip` dependencies required (`usedforsecurity=False` on RFC 6455 SHA-1 handshake).
 - **`[REC-02]` Edge PII/Secret Redaction (Screen + Spoken Audio)**: Zero keyboard hooks; password/OTP/card/PAN/Aadhaar scrubbed before leaving browser/audio boundary; secrets never written to SQLite checkpoints.
@@ -72,3 +73,4 @@ stateDiagram-v2
 - **`[REC-10]` Strict Mic LED Release & Adaptive Laptop Polling**: Stops all `MediaStream` tracks immediately and adapts Win32 polling (`250ms/750ms`).
 - **`[REC-11]` Per-Session CSPRNG `capture_token` & URL SSRF Guard**: Prevents spoofed localhost ingestion and blocks `file://` or `169.254.169.254` navigation.
 - **`[REC-12]` Backward-Compatible Studio Runtime**: Preserves `len(SUPPORTED_UI_BLOCKS) == 12` while rendering interactive Headless Workflow Runner & Ask-for-Inputs controls automatically.
+- **`[REC-13]` Requirement-Driven Browser vs Desktop vs Hybrid Advisor & Headless-First Adapter Compiler**: Evaluates user goals cleanly at `$0.00` to choose between isolated CDP, Active-Tab Bookmarklet (SSO), Desktop Win32/UIA, or Hybrid, while compiling Explorer/Excel/CLI desktop steps into headless adapters and scoring `headless_readiness_pct`.

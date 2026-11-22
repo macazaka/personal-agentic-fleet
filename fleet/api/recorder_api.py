@@ -16,6 +16,7 @@ from fleet.core.activity_recorder import (
     get_recorder_manager,
     heal_and_iterate_workflow,
     publish_recorded_agent,
+    recommend_recording_modality,
     resume_workflow_run,
     run_generated_agent_unit_tests,
     run_visible_sandbox_dry_run,
@@ -43,6 +44,21 @@ def _extract_server_origin(handler: Any) -> str:
     if host and any(str(host).startswith(p) for p in ("127.0.0.1", "localhost", "[::1]")):
         return f"http://{host}"
     return "http://127.0.0.1:7890"
+
+
+@router.post("/api/studio/recorder/recommend_modality")
+def post_recorder_recommend_modality_endpoint(handler: Any, body: Dict[str, Any]):
+    payload = body if isinstance(body, dict) else {}
+    raw_apps = payload.get("target_apps")
+    apps = [str(a) for a in raw_apps] if isinstance(raw_apps, list) else None
+    res = recommend_recording_modality(
+        requirement_text=str(payload.get("requirement") or payload.get("prompt") or ""),
+        start_url=str(payload.get("start_url") or ""),
+        target_apps=apps,
+        needs_strict_headless=bool(payload.get("needs_strict_headless", True)),
+        needs_existing_login=bool(payload.get("needs_existing_login", False)),
+    )
+    handler._send_json(res)
 
 
 @router.get("/api/studio/recorder/status")

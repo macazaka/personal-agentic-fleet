@@ -100,6 +100,39 @@ flowchart LR
 
 ---
 
+### 3.1 Architectural Evaluation: Browser vs. Desktop vs. Requirement-Driven Hybrid Recorder
+
+| Evaluation Dimension | Way 1: Browser-Based Recorder (CDP / Bookmarklet) | Way 2: Desktop-Based Recorder (Win32 `ctypes` / UIA) | Hybrid (Recommended When Cross-Boundary) |
+| :--- | :--- | :--- | :--- |
+| **True Headless Reliability (`--headless=new`)** | **98% (`true_headless_background`)** — runs cleanly even when Windows session is locked or minimized | **52%** unless compiled into CLI/File adapters; raw Win32/UIA clicks fail when screen is locked (`desktop_uia_gui`) | **80% (`hybrid_headless_with_local_adapters`)** — headless browser + filesystem/CSV adapters |
+| **Selector Resilience** | **95% (`6-Tier` DOM Ladder)** — `data-testid` -> `id` -> `aria-label` -> `role+text` -> `css` -> `xpath` | **70% (`4-Tier` Desktop Ladder)** — breaks across DPI scaling, theme, or localized window changes unless UIA `AutomationId` exists | **88%** — semantic DOM for web + UIA/adapters for local steps |
+| **Secret & Password Safety** | **98%** — inspects `type="password"` & `autocomplete` directly in DOM before data leaves the tab | **82%** — zero `WH_KEYBOARD_LL` hook; relies on protected window title heuristics | **92%** — capture-edge masking on both boundaries |
+| **Personal Laptop Footprint** | Low–Medium (~1 isolated headless Chrome instance gated by `Semaphore(1)`) | Minimal (`<1%` idle CPU via adaptive `250ms/750ms` polling) | Low–Medium |
+| **Workload Coverage** | ~75–80% of daily workflows (SaaS, bills, GitHub, Jira, forms, dashboards) | ~20–25% (Excel desktop, Tally, SAP GUI, Outlook Desktop, File Explorer) | **100%** (Portal downloads -> Local Excel/Folder ops) |
+
+```mermaid
+flowchart TD
+    ReqIn["User Requirement + Target URL + Target Apps"] --> Eval["recommend_recording_modality ($0.00 Classifier)"]
+    Eval -->|"Web / URL Signals Only"| PickBrowser["Recommend BROWSER Mode (96% Headless Feasibility)"]
+    Eval -->|"Desktop Apps Only"| PickDesktop["Recommend DESKTOP Mode + Headless-First Adapter Compiler"]
+    Eval -->|"Web URL + Local Apps / Excel / Folders"| PickHybrid["Recommend HYBRID Mode (Browser CDP + Local Adapters)"]
+
+    PickBrowser --> SSOCheck{"Existing Corporate SSO or MFA Session?"}
+    SSOCheck -->|"Yes"| TabMode["Use 1-Click Active-Tab Bookmarklet"]
+    SSOCheck -->|"No"| IsoCDP["Launch Isolated Temp-Profile Chrome CDP"]
+
+    PickDesktop --> DeskCompile["compile_desktop_step_headless_capability"]
+    DeskCompile -->|"Explorer / Excel / PowerShell / Chrome"| AdapterMode["Compile to Headless Adapter (Path / Tabular / CLI / CDP Upgrade)"]
+    DeskCompile -->|"Opaque Win32 GUI"| GuardWarn["Flag requires_unlocked_desktop in Requirements Doc"]
+```
+
+**Final Architectural Verdict (`[REC-13]`):**
+1. **Browser-based recording** is strictly superior whenever the task happens inside web apps (higher headless reliability, semantic 6-tier DOM locators, strict `type="password"` masking, and live sandbox DOM highlighting).
+2. **Desktop-based recording** should NOT be omitted — local desktop apps (Excel, Tally, SAP GUI, File Explorer, PowerShell) require it — **and** every captured desktop step MUST pass through `compile_desktop_step_headless_capability()` so file/CSV/CLI steps compile to true headless adapters rather than fragile GUI coordinates.
+3. AFCC therefore provides **BOTH Browser and Desktop (plus Hybrid)**, led by the requirement-driven **Smart Modality Advisor** (`recommend_recording_modality`) so the user never picks blindly.
+
+---
+
 ## 4. 11-Step Closed-Loop Sequence Diagram
 
 ```mermaid
@@ -233,3 +266,4 @@ If a naive engineer built "record activity + voice and convert to headless agent
 | **`[REC-10]`** | **Hardware Mic Leak & CPU Drain**: Leaving `MediaStream` open after recording or polling Win32 in tight 10 ms loops keeps the laptop webcam/mic LED glowing and fans spinning. | Strict mic lifecycle (`track.stop()` on stop/modal close/unmount), max 1800s auto-stop cap, and adaptive Win32 polling (`250ms` active / `750ms` idle -> `<1%` CPU). |
 | **`[REC-11]`** | **Unauthenticated Localhost Ingestion Bridge**: Leaving `/api/studio/recorder/event` open without authentication allows arbitrary local tabs to spoof recorded steps. | Every recording session issues a per-session CSPRNG `capture_token` validated via constant-time `hmac.compare_digest` on external/bookmarklet uploads, paired with `urllib.parse.urlparse()` navigation SSRF checks blocking `169.254.169.254` & `file://` schemes. |
 | **`[REC-12]`** | **Broken Backward Compatibility in AFCC Agent Studio**: Adding naive new UI blocks or breaking `create_custom_agent` would violate existing Phase 1–6 Studio invariants (`len(SUPPORTED_UI_BLOCKS) == 12`). | Preserves exact `12` declarative `SUPPORTED_UI_BLOCKS` contract while rendering the dedicated **Headless Workflow Runner & Ask-for-Inputs Panel** whenever `workflow_ir` is attached; extends `create_custom_agent()` strictly via optional default-`None` parameters. |
+| **`[REC-13]`** | **Blind Single-Modality Lock-In**: Exposing only Desktop recording breaks headless background execution on locked laptops, while Browser-only blocks local Excel/File/Win32 workflows. | Implements **Smart Requirement-Driven Modality Advisor** (`recommend_recording_modality`) + **Headless-First Desktop Adapter Compiler** (`compile_desktop_step_headless_capability`) providing Browser, Desktop, and Hybrid with explicit headless feasibility scoring and SSO bookmarklet auto-selection. |

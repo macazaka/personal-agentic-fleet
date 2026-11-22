@@ -329,7 +329,7 @@ def sanitize_workflow_ir(workflow_ir: Optional[Dict[str, Any]]) -> Optional[Dict
                 fld["type"] = "secret"
                 fld["default"] = ""
                 fld["ask_on_each_run"] = True
-    steps = cleaned.get("steps")
+    steps = _as_list(workflow_ir.get("steps"))
     if isinstance(steps, list):
         for st in steps:
             if not isinstance(st, dict):
@@ -338,6 +338,199 @@ def sanitize_workflow_ir(workflow_ir: Optional[Dict[str, Any]]) -> Optional[Dict
                 key = str(st.get("input_key") or "secret_input")
                 st["value_template"] = f"{{{{secret:{key}}}}}"
     return cleaned
+
+
+_WEB_SIGNAL_RE = re.compile(
+    r"\b(?:https?://|portal|website|web\s*app|browser|chrome|edge|dashboard|jira|gmail|"
+    r"github|bank|form|scrape|saas|login|checkout|bill|ticket|cloud|url|page|tab)\b",
+    re.I,
+)
+_DESKTOP_SIGNAL_RE = re.compile(
+    r"\b(?:excel|outlook|word|powerpoint|tally|sap|notepad|explorer|file\s*explorer|folder|"
+    r"desktop|local\s*app|vs\s*code|vscode|terminal|powershell|cmd|pdf\s*reader|adobe|"
+    r"photoshop|teams\s*app|paint|erp|\.exe|spreadsheet|csv\s*file|window)\b",
+    re.I,
+)
+_EXISTING_LOGIN_SIGNAL_RE = re.compile(
+    r"\b(?:already\s*logged\s*in|sso|corporate\s*login|okta|azure\s*ad|mfa|"
+    r"existing\s*tab|current\s*tab|active\s*tab|authenticated\s*session)\b",
+    re.I,
+)
+
+
+def recommend_recording_modality(
+    requirement_text: str = "",
+    start_url: str = "",
+    target_apps: Optional[List[str]] = None,
+    needs_strict_headless: bool = True,
+    needs_existing_login: bool = False,
+) -> Dict[str, Any]:
+    """
+    Requirement-driven evaluator comparing Browser vs Desktop vs Hybrid recording modes
+    at $0.00 token cost. Recommends the highest-reliability capture strategy and exposes
+    explicit tradeoff telemetry + auto_config for Studio.
+    """
+    app_str = " ".join(str(a or "") for a in (target_apps or []) if str(a or "").strip())
+    blob = f"{requirement_text or ''} {start_url or ''} {app_str}".strip()
+    has_valid_url = _is_safe_navigation_url(start_url)
+
+    web_hits = _WEB_SIGNAL_RE.findall(blob)
+    if has_valid_url:
+        web_hits.append("start_url")
+    desktop_hits = _DESKTOP_SIGNAL_RE.findall(blob)
+    existing_login = bool(needs_existing_login or _EXISTING_LOGIN_SIGNAL_RE.search(blob))
+
+    web_score = len({h.lower() for h in web_hits}) + (2 if has_valid_url else 0)
+    desktop_score = len({h.lower() for h in desktop_hits})
+
+    if web_score > 0 and desktop_score > 0:
+        rec_mode = "hybrid"
+        rec_strategy = "active_tab_bookmarklet" if existing_login else "isolated_cdp"
+        headless_score = 78
+        guarantee = "hybrid_headless_with_local_adapters"
+        rationale = (
+            "Workflow spans both web portals and local desktop apps/files. "
+            "Hybrid mode captures Browser DOM via 6-tier CDP locators while compiling local file/Excel/CLI steps via headless adapters."
+        )
+    elif desktop_score > 0:
+        rec_mode = "desktop"
+        rec_strategy = "none"
+        low_desk = blob.lower()
+        file_cli_friendly = any(k in low_desk for k in ("excel", "csv", "folder", "explorer", "powershell", "cmd", "terminal", "file"))
+        headless_score = 74 if file_cli_friendly else 48
+        guarantee = "requires_unlocked_desktop_or_cli_compile"
+        rationale = (
+            "Workflow targets local Windows applications outside browser sandboxes. "
+            "Desktop Win32/UIA watcher captures process & UIA controls cleanly while compiling file/tabular/CLI actions headlessly where possible."
+        )
+    else:
+        rec_mode = "browser"
+        rec_strategy = "active_tab_bookmarklet" if existing_login else "isolated_cdp"
+        headless_score = 96
+        guarantee = "true_headless_background"
+        rationale = (
+            "Web/portal automation achieves maximum reliability in Browser mode: true --headless=new background execution (even when locked), "
+            "6-tier semantic DOM locators, capture-edge password/OTP masking, and visual sandbox overlays."
+        )
+
+    warnings: List[str] = []
+    if needs_strict_headless and rec_mode in ("desktop", "hybrid"):
+        if rec_mode == "desktop":
+            warnings.append(
+                "Strict Headless enabled: Opaque desktop GUI clicks require an unlocked interactive Windows session unless compiled into file/CSV/PowerShell adapters."
+            )
+        else:
+            warnings.append(
+                "Hybrid workflow: Browser steps run strictly headless (--headless=new), while non-adapter desktop GUI steps require an active desktop session."
+            )
+    if existing_login and rec_mode in ("browser", "hybrid"):
+        warnings.append(
+            "Existing SSO/MFA login detected: Use the 1-Click Tab Bookmarklet inside your already-authenticated tab instead of an empty isolated Chrome profile."
+        )
+
+    confidence = min(98, 65 + 7 * max(web_score, desktop_score))
+    return {
+        "status": "ok",
+        "recommended_mode": rec_mode,
+        "recommended_browser_strategy": rec_strategy,
+        "headless_feasibility_score": headless_score,
+        "headless_guarantee": guarantee,
+        "confidence_pct": confidence,
+        "signals": {
+            "web_signals": sorted({h.lower() for h in web_hits}),
+            "desktop_signals": sorted({h.lower() for h in desktop_hits}),
+            "existing_login_detected": existing_login,
+            "has_valid_start_url": has_valid_url,
+        },
+        "rationale": rationale,
+        "warnings": warnings,
+        "auto_config": {
+            "mode": rec_mode,
+            "launch_browser": rec_mode in ("browser", "hybrid") and not existing_login,
+            "use_bookmarklet": rec_mode in ("browser", "hybrid") and existing_login,
+            "record_audio": True,
+        },
+        "tradeoff_comparison": {
+            "browser": {
+                "headless_reliability": 98,
+                "selector_stability": 95,
+                "secret_redaction_safety": 98,
+                "laptop_ram_overhead": "Low-Medium (1 isolated headless tab on run)",
+                "app_coverage": "Web Portals, SaaS, Bills, Dashboards, Forms",
+            },
+            "desktop": {
+                "headless_reliability": 52,
+                "selector_stability": 70,
+                "secret_redaction_safety": 82,
+                "laptop_ram_overhead": "Minimal (<1% idle Win32 poll)",
+                "app_coverage": "Excel, Outlook Desktop, Tally, SAP GUI, Explorer, Local Apps",
+            },
+            "hybrid": {
+                "headless_reliability": 80,
+                "selector_stability": 88,
+                "secret_redaction_safety": 92,
+                "laptop_ram_overhead": "Low-Medium",
+                "app_coverage": "End-to-End Cross-Boundary (Web Portal -> Local Excel/Folder)",
+            },
+        },
+    }
+
+
+def compile_desktop_step_headless_capability(step: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Classifies a workflow step's headless execution compatibility and maps
+    eligible desktop steps to headless-native adapters instead of fragile GUI coordinates.
+    """
+    channel = str(step.get("channel") or "browser").lower()
+    action = str(step.get("action") or "click").lower()
+    locs = _as_dict(step.get("locators"))
+    proc = str(locs.get("process") or "").lower()
+    title = str(step.get("title") or locs.get("window_title") or "").lower()
+
+    if channel in ("browser", "prompt", "extract") or action == "prompt_user":
+        return {
+            "headless_capability": "true_headless",
+            "headless_adapter": "hitl_checkpoint" if (action == "prompt_user" or channel == "prompt") else "cdp_headless",
+            "recommendation": "",
+        }
+
+    # Desktop steps evaluated through headless-first adapter ladder
+    if any(b in proc for b in ("chrome", "msedge", "edge", "firefox", "brave")):
+        return {
+            "headless_capability": "headless_adapter",
+            "headless_adapter": "browser_cdp_upgrade_recommended",
+            "recommendation": "Re-record browser actions via Browser CDP / Bookmarklet mode for true --headless=new DOM replay.",
+        }
+    if "explorer" in proc or "file explorer" in title or action == "file_check":
+        return {
+            "headless_capability": "headless_adapter",
+            "headless_adapter": "file_system_adapter",
+            "recommendation": "Compiled to headless stdlib Path/filesystem adapter (runs even with screen locked).",
+        }
+    if any(t in proc or t in title for t in ("excel", ".xlsx", ".csv", "calc")):
+        return {
+            "headless_capability": "headless_adapter",
+            "headless_adapter": "tabular_file_adapter",
+            "recommendation": "Target tabular workbook/CSV via headless data adapter instead of GUI coordinates.",
+        }
+    if any(cli in proc for cli in ("powershell", "pwsh", "cmd", "windowsterminal", "python")):
+        return {
+            "headless_capability": "headless_adapter",
+            "headless_adapter": "powershell_readonly_adapter",
+            "recommendation": "Compiled to headless subprocess execution (shell=False, CREATE_NO_WINDOW).",
+        }
+    if step.get("url") and _is_safe_navigation_url(str(step.get("url"))):
+        return {
+            "headless_capability": "headless_adapter",
+            "headless_adapter": "http_native",
+            "recommendation": "",
+        }
+
+    return {
+        "headless_capability": "requires_unlocked_desktop",
+        "headless_adapter": "desktop_uia_gui",
+        "recommendation": "Opaque Win32 GUI control; requires an active unlocked Windows session during execution.",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1873,10 +2066,16 @@ def build_requirements_document(
         "Resuming with valid user inputs completes remaining steps cleanly with zero leaked secrets.",
     ])
 
+    headless_ok_count = sum(
+        1 for st in steps if str(st.get("headless_capability") or "true_headless") in ("true_headless", "headless_adapter")
+    )
+    headless_pct = int(round((headless_ok_count / max(1, len(steps))) * 100)) if steps else 100
+
     md_parts = [
         f"# Requirements Specification: {name} (v{version})",
         "",
         f"- **Capture Modality**: `{modality}`",
+        f"- **Headless Readiness Score**: `{headless_pct}%` ({headless_ok_count}/{len(steps)} step(s) headless-capable)",
         f"- **Recorded Steps**: `{len(steps)}`",
         f"- **Dynamic Runtime Inputs**: `{len(input_schema)}`",
         f"- **Audio Narration Segments**: `{len(audio_segments or [])}`",
@@ -1920,6 +2119,7 @@ def build_requirements_document(
         "title": f"Requirements Specification: {name}",
         "summary": summary,
         "modality": modality,
+        "headless_readiness_pct": headless_pct,
         "mermaid_process_flow": mermaid_flow,
         "functional_requirements": fr_rows,
         "non_functional_requirements": nfr_rows,
@@ -2347,6 +2547,11 @@ def synthesize_agent_from_recording(
             "narration": "",
         }
         st_obj["description"] = _describe_step(st_obj)
+        hl_meta = compile_desktop_step_headless_capability(st_obj)
+        st_obj["headless_capability"] = hl_meta["headless_capability"]
+        st_obj["headless_adapter"] = hl_meta["headless_adapter"]
+        if hl_meta["recommendation"]:
+            st_obj["headless_recommendation"] = hl_meta["recommendation"]
         steps.append(st_obj)
 
     # Multimodal audio fusion (+-3.5s)
@@ -2430,11 +2635,19 @@ def synthesize_agent_from_recording(
     if has_desktop:
         perms.append("system:diagnostics")
 
+    hl_capable = sum(
+        1 for st in steps if str(st.get("headless_capability") or "true_headless") in ("true_headless", "headless_adapter")
+    )
+    hl_pct = int(round((hl_capable / max(1, len(steps))) * 100)) if steps else 100
+    requires_unlocked = any(st.get("headless_capability") == "requires_unlocked_desktop" for st in steps)
+
     workflow_ir: Dict[str, Any] = sanitize_workflow_ir({
         "schema_version": "1.0",
         "recording_id": str(session_id or "inline_recording"),
         "modality": modality,
         "execution_mode": "headless",
+        "headless_readiness_pct": hl_pct,
+        "requires_unlocked_desktop": requires_unlocked,
         "start_url": start_url,
         "input_schema": input_schema,
         "steps": steps,

@@ -4029,6 +4029,19 @@
                 </div>
               </div>
 
+              <!-- Smart Modality Advisor (Browser vs Desktop vs Hybrid Evaluation) -->
+              <div id="studioRecModalityAdvisorStrip" style="margin-bottom: 9px; padding: 8px 10px; border-radius: 8px; background: rgba(2, 6, 23, 0.55); border: 1px dashed rgba(56, 189, 248, 0.35);">
+                <div style="display: flex; flex-wrap: wrap; gap: 7px; align-items: center;">
+                  <input type="text" id="recorderRequirementGoalInput" placeholder="Describe what you want to automate (e.g. Download invoice from web portal & update Excel)..." style="flex: 2; min-width: 210px; padding: 5px 9px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.32); background: rgba(15, 23, 42, 0.9); color: #f8fafc; font-size: 11.5px;">
+                  <label title="Prefer modes that execute headlessly even when your laptop screen is locked" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #7dd3fc; cursor: pointer;">
+                    <input type="checkbox" id="recorderStrictHeadlessChk" checked>
+                    <span>Strict Headless</span>
+                  </label>
+                  <button title="Evaluate whether Browser, Desktop, or Hybrid recording best fits your requirement" type="button" class="btn" id="btnStudioRecRecommend" onclick="StudioActivityRecorder.recommendModality()" style="padding: 5px 10px; font-size: 11px; font-weight: 700; border-color: rgba(56, 189, 248, 0.45); color: #38bdf8;">🧭 Recommend Best Mode</button>
+                </div>
+                <div id="studioRecModalityAdviceBox" style="display: none; margin-top: 7px; padding: 8px 10px; border-radius: 7px; background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(56, 189, 248, 0.3); font-size: 11px; color: #cbd5e1;"></div>
+              </div>
+
               <!-- Phase A: Capture Controls -->
               <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 9px;">
                 <select id="recorderModeSelect" title="Select what activities to record" style="padding: 6px 9px; border-radius: 7px; border: 1px solid rgba(56, 189, 248, 0.35); background: rgba(2, 6, 23, 0.85); color: #e2e8f0; font-size: 11.5px;">
