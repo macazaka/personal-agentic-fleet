@@ -320,6 +320,9 @@ class AgentRegistry:
         schedule_cadence: str = "daily_morning",
         schedule: Optional[Dict[str, Any]] = None,
         settings_schema: Optional[List[Dict[str, Any]]] = None,
+        workflow_ir: Optional[Dict[str, Any]] = None,
+        requirements_doc: Optional[Dict[str, Any]] = None,
+        recording_id: str = "",
     ) -> Dict[str, Any]:
         """
         Scaffolds a new functional, SQLite-backed user custom agent in custom_agents_dir
@@ -390,6 +393,26 @@ class AgentRegistry:
                 pass
         if default_recurrence and str(default_recurrence).strip().lower() != "none":
             manifest["default_recurrence"] = str(default_recurrence).strip().lower()
+        clean_wf_ir = None
+        if isinstance(workflow_ir, dict) and workflow_ir:
+            try:
+                from fleet.core.activity_recorder import sanitize_workflow_ir
+                clean_wf_ir = sanitize_workflow_ir(workflow_ir)
+            except Exception:
+                clean_wf_ir = workflow_ir
+            manifest["workflow_ir"] = clean_wf_ir
+        if isinstance(requirements_doc, dict) and requirements_doc:
+            manifest["requirements_doc"] = {
+                "doc_id": requirements_doc.get("doc_id", ""),
+                "version": int(requirements_doc.get("version") or 1),
+                "title": requirements_doc.get("title", ""),
+                "summary": requirements_doc.get("summary", ""),
+                "mermaid_process_flow": requirements_doc.get("mermaid_process_flow", ""),
+                "functional_requirements": (requirements_doc.get("functional_requirements") or [])[:25],
+                "business_rules": (requirements_doc.get("business_rules") or [])[:20],
+            }
+        if recording_id:
+            manifest["recording_id"] = str(recording_id)
         (agent_folder / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
         # 2. agent.py (Functional Studio runtime)
@@ -419,6 +442,8 @@ class AgentRegistry:
             fields=fields,
             checklist_items=checklist_items,
             intelligence_mode=intelligence_mode or "hybrid",
+            workflow_ir=clean_wf_ir,
+            requirements_doc=manifest.get("requirements_doc") if isinstance(manifest.get("requirements_doc"), dict) else None,
         )
         (ui_folder / "panel.html").write_text(panel_html, encoding="utf-8")
 

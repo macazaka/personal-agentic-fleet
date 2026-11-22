@@ -62,7 +62,7 @@ Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operat
 <!-- AUTO-LATEST-RELEASE:START -->
 ## 🆕 Latest Release Highlights (`v2.21.0`)
 
-> **Live Codebase Inventory**: `11` Built-In Agents • `208` REST API Endpoints • `36` Core Microkernel Modules • `22` Automation Tools • `578` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
+> **Live Codebase Inventory**: `11` Built-In Agents • `222` REST API Endpoints • `37` Core Microkernel Modules • `22` Automation Tools • `585` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
 
 ### Added
 - **AFCC Polar-Obsidian Design System v1.0 & 10 Critical UI Enhancements (`[UI-01]`..`[UI-10]`)**:

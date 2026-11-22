@@ -641,6 +641,10 @@ class SystemMixin(_DbBase):
         documents = self.list_custom_agent_records(agent_id, record_type="document", limit=50)
         cycle_history = self.list_custom_agent_records(agent_id, record_type="cycle_history", limit=30)
         chat_history = list(reversed(self.list_custom_agent_records(agent_id, record_type="chat", limit=12)))
+        workflow_runs = self.list_custom_agent_records(agent_id, record_type="workflow_run", limit=15)
+        pending_workflow_runs = [
+            wr for wr in workflow_runs if str(wr.get("status") or "").strip().lower() == "waiting_for_input"
+        ]
         checklist = self.get_custom_agent_checklist(agent_id, default_items=default_checks)
 
         today = datetime.now().date()
@@ -723,6 +727,8 @@ class SystemMixin(_DbBase):
             "documents": documents[:15],
             "cycle_history": cycle_history[:20],
             "chat_history": chat_history,
+            "workflow_runs": workflow_runs,
+            "pending_workflow_runs": pending_workflow_runs,
             "latest_insight": insights[0] if insights else None,
             "checklist": checklist,
         }

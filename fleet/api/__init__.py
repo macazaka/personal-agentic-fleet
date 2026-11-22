@@ -16,6 +16,7 @@ import fleet.api.system_api
 import fleet.api.hyperscalers_api
 import fleet.api.settings_api
 import fleet.api.mobile_tri_device_api
+import fleet.api.recorder_api
 
 __all__ = ["router"]
 

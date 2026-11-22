@@ -1192,6 +1192,105 @@ MAHADEV_VOICE_ARCHITECTURE_BACKLOG_ITEMS: List[Dict[str, str]] = [
     },
 ]
 
+ACTIVITY_RECORDER_AGENT_BACKLOG_ITEMS: List[Dict[str, str]] = [
+    {
+        "title": "[REC-01] Critical Recorder #1: Zero-Dependency Pure-Stdlib RFC 6455 CDP Browser Recorder & Windows ctypes Desktop Activity Watcher",
+        "description": "Implements MinimalCDPClient (RFC 6455 WebSocket with hashlib.sha1 usedforsecurity=False), automatic Chrome/Edge discovery, Bookmarklet active-tab bridge, and pure-stdlib Win32 ctypes desktop polling with zero third-party pip dependencies.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[REC-02] Critical Recorder #2: Capture-Edge PII & Secret Redaction Across Browser DOM, Window Titles & Spoken Audio Narration (Zero Keylogger)",
+        "description": "Enforces zero WH_KEYBOARD_LL keylogging while redacting passwords, OTPs, CVVs, card numbers, PAN, and Aadhaar into {{secret:...}} / [REDACTED_SECRET] at capture edge across DOM events, Win32 titles, and spoken transcripts before AES-256-GCM storage.",
+        "category": "Security",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[REC-03] Critical Recorder #3: Isolated Ephemeral Chrome Profiles & Anti-Zombie Process-Tree Cleanup (taskkill /F /T)",
+        "description": "Uses isolated temporary --user-data-dir directories on free loopback ports for recording, visible sandbox, and headless execution, destroying temp profiles and terminating process trees safely in finally blocks.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[REC-04] High Recorder #4: AFCC Self-Click Exclusion, 500-Event Ring Buffer & Coalesced Noise Filtering",
+        "description": "Filters accidental AFCC Stop-button clicks, prevents mouse-move flood, bounds traces to 500 events/1800s, and coalesces consecutive typing + <350ms duplicate clicks into clean semantic workflow steps.",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[REC-05] High Recorder #5: 6-Tier Browser & 4-Tier Desktop Self-Healing Selector Ladder",
+        "description": "Extracts multi-tier resilient locators (data-testid, stable id, aria/name/placeholder, role+text, css, xpath; plus headless CLI/HTTP, UIA AutomationId, control name, and relative coordinates for desktop).",
+        "category": "Automation",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[REC-06] Critical Recorder #6: Non-Blocking Headless Human-in-the-Loop (HITL) Ask-for-Inputs Checkpoint & Resume State Machine",
+        "description": "Suspends headless runs cleanly with status='waiting_for_input' whenever required, ask_on_each_run, prompt_user, or secret values are missing, persisting non-secret checkpoints in SQLite custom_agent_records and resuming seamlessly via POST /api/studio/workflows/resume.",
+        "category": "Automation",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[REC-07] Critical Recorder #7: Synchronized Microphone Audio Narration & +-3.5s Multimodal Temporal Fusion",
+        "description": "Captures continuous SpeechRecognition narration segments + AES-256-GCM MediaRecorder audio alongside screen events, aligning spoken intent ('ask me for...', 'wait N seconds', schedule, extract rules) within +-3.5s of screen actions.",
+        "category": "AI/LLM",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[REC-08] Critical Recorder #8: Automated Requirements Document, Mermaid Process Flow & Isolated Pytest Suite Generation",
+        "description": "Synthesizes formal RequirementsDocumentSpec (FR/NFR, Screen<->Audio Trace Matrix, Mermaid flowchart TD, Input Schema) plus a tailored pytest suite verified automatically in an isolated tempdir sandbox.",
+        "category": "AI/LLM",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[REC-09] Critical Recorder #9: Visible Sandbox Dry-Run Theater, Autonomous Self-Healer & Spoken Audio Rectification Loop",
+        "description": "Shows non-headless sandbox playback (visible browser overlay + step theater + interactive input preview), captures step failures automatically, and iterates (v1 -> v2) via Tier-1 self-healing and Tier-2 spoken user feedback until passing.",
+        "category": "Automation",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[REC-10] High Recorder #10: Hardware Mic Auto-Release, Adaptive 250ms/750ms Win32 Polling & Concurrent Headless Semaphore",
+        "description": "Immediately stops all MediaStream tracks on stop or modal close so the laptop mic LED turns off, adapts Win32 polling cadence for <1% idle CPU, and gates concurrent headless browsers with threading.Semaphore(1).",
+        "category": "Core",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[REC-11] Critical Recorder #11: CSPRNG Per-Session capture_token Loopback Auth & URL Scheme SSRF Guard",
+        "description": "Requires constant-time hmac.compare_digest validation on external/bookmarklet event & audio-segment uploads and enforces urllib.parse.urlparse() scheme/metadata host validation.",
+        "category": "Security",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+    {
+        "title": "[REC-12] High Recorder #12: Backward-Compatible Studio 11-Step Recording Wizard & Explicit Approval Publish Gate",
+        "description": "Integrates the 5-phase Studio recorder workflow inside #createAgentModal with an explicit user_approved=true publish gate, saving REQUIREMENTS.md & test_agent.py into live custom_agents while preserving len(SUPPORTED_UI_BLOCKS)==12.",
+        "category": "UI/UX",
+        "priority": "P1",
+        "status": "Completed",
+        "target_version": "v2.21.0",
+    },
+]
+
 ALL_CANONICAL_BACKLOG_ITEMS: List[Dict[str, str]] = (
     FOUNDATIONAL_DEFAULT_BACKLOG_ITEMS
     + HISTORICAL_RELEASE_BACKLOG_ITEMS
@@ -1203,6 +1302,7 @@ ALL_CANONICAL_BACKLOG_ITEMS: List[Dict[str, str]] = (
     + AFCC_RAM_CPU_OPTIMIZATION_BACKLOG_ITEMS
     + ANTIGRAVITY_LIVE_ARCHITECTURE_BACKLOG_ITEMS
     + MAHADEV_VOICE_ARCHITECTURE_BACKLOG_ITEMS
+    + ACTIVITY_RECORDER_AGENT_BACKLOG_ITEMS
 )
 
 

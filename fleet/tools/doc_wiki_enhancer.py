@@ -320,6 +320,7 @@ def enhance_wiki_pages(repo_root: Path = REPO_ROOT, state: Dict[str, Any] | None
         "- [[Architecture|System Architecture]]\n"
         "- [[Antigravity-Live-via-AFCC-Architecture|Antigravity Live via AFCC]]\n"
         "- [[Mahadev-Voice-and-Biometric-Cockpit-Architecture|Mahadev Voice & Biometrics]]\n"
+        "- [[Activity-Recorder-to-Headless-Agent-Architecture|Activity Recorder → Headless Agent]]\n"
         "- [[Cognitive-Fleet-Mind|4-Layer Fleet Mind]]\n"
         "- [[Hyperscalers-Token-Optimizer-and-Scheduler|Hyperscalers, Token Opt & Cron]]\n\n"
         "### Desktop & Agents\n"

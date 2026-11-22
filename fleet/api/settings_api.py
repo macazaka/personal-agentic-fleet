@@ -1188,6 +1188,9 @@ def create_new_agent_endpoint(handler: Any, body: Dict[str, Any]):
     schedule_cadence = str(body.get("schedule_cadence", "daily_morning")).strip() or "daily_morning"
     schedule_info: Dict[str, Any] = body.get("schedule") if isinstance(body.get("schedule"), dict) else {}  # type: ignore[assignment]
     schedule_display = str(schedule_info.get("display", "Daily at 09:00"))
+    workflow_ir = body.get("workflow_ir") if isinstance(body.get("workflow_ir"), dict) else None
+    requirements_doc = body.get("requirements_doc") if isinstance(body.get("requirements_doc"), dict) else None
+    recording_id = str(body.get("recording_id") or "").strip()
 
     try:
         manifest = srv.agent_registry.create_custom_agent(
@@ -1213,6 +1216,9 @@ def create_new_agent_endpoint(handler: Any, body: Dict[str, Any]):
             default_recurrence=default_recurrence,
             schedule_cadence=schedule_cadence,
             schedule=schedule_info,
+            workflow_ir=workflow_ir,
+            requirements_doc=requirements_doc,
+            recording_id=recording_id,
         )
 
         custom_settings = body.get("settings")

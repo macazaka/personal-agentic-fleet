@@ -4015,6 +4015,91 @@
               <div id="studioAttachmentQueueTray" style="display: none; margin-top: 9px; padding: 8px 10px; border-radius: 7px; background: rgba(2, 6, 23, 0.65); border: 1px solid rgba(56, 189, 248, 0.22);"></div>
               <div id="studioWizardDocPreviewBox" style="display: none; margin-top: 10px; padding: 11px 13px; border-radius: 8px; background: rgba(2, 6, 23, 0.84); border: 1px solid rgba(16, 185, 129, 0.38);"></div>
             </div>
+
+            <!-- Way 2: Record Browser & Desktop Activity + Voice Narration -> Requirements Doc -> Unit Tests -> Visible Sandbox -> Self-Heal -> Live Headless Agent -->
+            <div id="studioActivityRecorderCard" style="margin-top: 12px; padding: 13px 14px; border-radius: 10px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(14, 116, 144, 0.16), rgba(15, 23, 42, 0.86)); border: 1px solid rgba(16, 185, 129, 0.38);">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 9px;">
+                <div>
+                  <div style="font-size: 13px; font-weight: 700; color: #6ee7b7;">🎬 Or Record Browser / Desktop Activity + Voice Narration → Headless Agent</div>
+                  <div style="font-size: 10.5px; color: #cbd5e1; margin-top: 2px;">Record screen clicks &amp; speak aloud → Brain generates Requirements Doc + Process Flow + Unit Tests → Visible Sandbox &amp; Self-Healing → Publish Live Headless Agent</div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <span id="studioRecStatusBadge" style="font-size: 10.5px; padding: 2px 9px; border-radius: 999px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(148, 163, 184, 0.35); color: #94a3b8; font-weight: 700;">Idle</span>
+                  <span id="studioRecIterationBadge" style="display: none; font-size: 10.5px; padding: 2px 9px; border-radius: 999px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.38); color: #38bdf8; font-weight: 700;">v1</span>
+                </div>
+              </div>
+
+              <!-- Phase A: Capture Controls -->
+              <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 9px;">
+                <select id="recorderModeSelect" title="Select what activities to record" style="padding: 6px 9px; border-radius: 7px; border: 1px solid rgba(56, 189, 248, 0.35); background: rgba(2, 6, 23, 0.85); color: #e2e8f0; font-size: 11.5px;">
+                  <option value="browser">🌐 Browser Activity (CDP / Tab)</option>
+                  <option value="desktop">🖥️ Desktop Activity (Win32 / UIA)</option>
+                  <option value="hybrid">🔀 Browser + Desktop Hybrid</option>
+                </select>
+                <input type="text" id="recorderStartUrlInput" placeholder="Optional Start URL (e.g. https://portal.example.com)" style="flex: 1.5; min-width: 190px; padding: 6px 10px; border-radius: 7px; border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(2, 6, 23, 0.8); color: #f8fafc; font-size: 11.5px;">
+                <label title="Launch an isolated Chrome or Edge window instrumented automatically over CDP" style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #cbd5e1; cursor: pointer;">
+                  <input type="checkbox" id="recorderLaunchBrowserChk" checked>
+                  <span>Isolated Browser</span>
+                </label>
+                <label title="Record microphone voice narration & live speech transcript during activity capture" style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #6ee7b7; font-weight: 600; cursor: pointer;">
+                  <input type="checkbox" id="recorderAudioNarrationChk" checked>
+                  <span>🎙️ Voice Narration</span>
+                </label>
+              </div>
+
+              <div style="display: flex; flex-wrap: wrap; gap: 7px; align-items: center; margin-bottom: 9px;">
+                <button title="Start recording screen activities and spoken voice narration" type="button" class="btn btn-primary" id="btnStudioRecStart" onclick="StudioActivityRecorder.start()" style="padding: 6px 12px; font-size: 11.5px; font-weight: 700; background: linear-gradient(135deg, #ef4444, #f97316); color: #fff;">🔴 Start Recording</button>
+                <button title="Mark a dynamic runtime input prompt where the live agent should pause and ask the user" type="button" class="btn" id="btnStudioRecMarkInput" onclick="StudioActivityRecorder.markDynamicInput()" style="padding: 6px 10px; font-size: 11px; border-color: rgba(245, 158, 11, 0.45); color: #fbbf24;">❓ Ask-for-Input Step</button>
+                <button title="Stop recording immediately and release microphone and browser hooks" type="button" class="btn" id="btnStudioRecStop" onclick="StudioActivityRecorder.stop()" style="padding: 6px 11px; font-size: 11.5px; font-weight: 700; border-color: rgba(248, 113, 113, 0.45); color: #fca5a5;">⏹️ Stop Recording</button>
+                <button title="Copy bookmarklet script to capture events from your existing authenticated browser tab" type="button" class="btn" id="btnStudioRecCopyBookmarklet" onclick="StudioActivityRecorder.copyBookmarklet()" style="padding: 6px 10px; font-size: 11px; border-color: rgba(56, 189, 248, 0.35); color: #7dd3fc;">🔖 Tab Bookmarklet</button>
+                <select id="studioRecSavedSelect" title="Select a saved encrypted recording session" onchange="StudioActivityRecorder.selectSavedSession(this.value)" style="margin-left: auto; max-width: 210px; padding: 5px 8px; border-radius: 6px; border: 1px solid rgba(148, 163, 184, 0.3); background: rgba(2, 6, 23, 0.85); color: #cbd5e1; font-size: 11px;">
+                  <option value="">Saved Recordings (0)</option>
+                </select>
+              </div>
+
+              <!-- Dual-Pane Live Screen Events & Voice Narration Transcript -->
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin-bottom: 9px;">
+                <div style="padding: 8px 10px; border-radius: 8px; background: rgba(2, 6, 23, 0.65); border: 1px solid rgba(56, 189, 248, 0.22);">
+                  <div style="font-size: 10.5px; font-weight: 700; color: #38bdf8; margin-bottom: 4px;">🖱️ Captured Activity Stream (<span id="studioRecEventCount">0</span>)</div>
+                  <div id="studioRecLiveFeed" style="max-height: 92px; overflow-y: auto; font-size: 11px; color: #94a3b8; font-family: monospace;">No captured screen steps yet.</div>
+                </div>
+                <div style="padding: 8px 10px; border-radius: 8px; background: rgba(2, 6, 23, 0.65); border: 1px solid rgba(16, 185, 129, 0.25);">
+                  <div style="font-size: 10.5px; font-weight: 700; color: #34d399; margin-bottom: 4px;">🎙️ Spoken Narration Transcript (<span id="studioRecAudioCount">0</span>)</div>
+                  <div id="studioRecAudioFeed" style="max-height: 70px; overflow-y: auto; font-size: 11px; color: #a7f3d0; margin-bottom: 5px;">Speak aloud while recording to explain intent &amp; inputs...</div>
+                  <div style="display: flex; gap: 5px;">
+                    <input type="text" id="studioRecManualNarrationInput" placeholder="Add or correct voice note..." onkeydown="if(event.key==='Enter'){event.preventDefault();StudioActivityRecorder.addManualNarration();}" style="flex: 1; padding: 4px 7px; border-radius: 5px; border: 1px solid rgba(16, 185, 129, 0.3); background: rgba(15, 23, 42, 0.85); color: #f8fafc; font-size: 11px;">
+                    <button title="Append typed note to voice narration stream" type="button" class="btn" onclick="StudioActivityRecorder.addManualNarration()" style="padding: 3px 8px; font-size: 10.5px; color: #6ee7b7; border-color: rgba(16, 185, 129, 0.35);">➕ Note</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Phase B-E: Requirements -> Tests -> Visible Sandbox & Healing -> Publish Live Headless Agent -->
+              <div style="display: flex; flex-wrap: wrap; gap: 7px; align-items: center; padding-top: 6px; border-top: 1px dashed rgba(255, 255, 255, 0.12);">
+                <button title="Fuse screen activity and audio narration into Requirements Doc, Process Flow, Workflow IR & Unit Tests" type="button" class="btn btn-secondary" id="btnStudioRecConvert" onclick="StudioActivityRecorder.convertToRequirements()" style="padding: 6px 11px; font-size: 11.5px; font-weight: 700; border-color: rgba(56, 189, 248, 0.5); color: #38bdf8;">🧠 1. Build Req Doc &amp; Flow</button>
+                <button title="Execute auto-generated pytest suite inside an isolated sandbox" type="button" class="btn" id="btnStudioRecRunTests" onclick="StudioActivityRecorder.runUnitTests()" style="padding: 6px 10px; font-size: 11px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe;">🧪 2. Run Unit Tests</button>
+                <button title="Run visible sandbox dry-run shown live to user and verify dynamic input prompts" type="button" class="btn" id="btnStudioRecSandbox" onclick="StudioActivityRecorder.runVisibleSandbox()" style="padding: 6px 10px; font-size: 11px; border-color: rgba(251, 191, 36, 0.45); color: #fbbf24;">👁️ 3. Visible Sandbox Dry-Run</button>
+                <button title="Load generated workflow into Studio Steps 1-4 for manual inspection" type="button" class="btn" onclick="StudioActivityRecorder.loadIntoStudioWizard()" style="padding: 6px 10px; font-size: 11px; color: #94a3b8;">📝 Inspect Steps 1–4</button>
+              </div>
+
+              <!-- Synthesized Requirements, Process Flow, Unit Tests, Sandbox Theater & Approval Publish Box -->
+              <div id="studioRecRequirementsBox" style="display: none; margin-top: 9px; padding: 10px 12px; border-radius: 8px; background: rgba(2, 6, 23, 0.8); border: 1px solid rgba(56, 189, 248, 0.3); font-size: 11.5px; color: #e2e8f0;"></div>
+              <div id="studioRecUnitTestBox" style="display: none; margin-top: 8px; padding: 9px 11px; border-radius: 8px; background: rgba(88, 28, 135, 0.16); border: 1px solid rgba(168, 85, 247, 0.35); font-size: 11.5px; color: #e9d5ff;"></div>
+              <div id="studioRecSandboxTheater" style="display: none; margin-top: 8px; padding: 10px 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(251, 191, 36, 0.38); font-size: 11.5px; color: #e2e8f0;"></div>
+              <div id="studioRecIteratePublishBar" style="display: none; margin-top: 8px; padding: 10px 12px; border-radius: 8px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.35);">
+                <div style="display: flex; flex-wrap: wrap; gap: 7px; align-items: center; margin-bottom: 8px;">
+                  <input type="text" id="studioRecFeedbackInput" placeholder="Speak or type fix instructions (e.g. 'wait 3 seconds, ask me for invoice date')..." style="flex: 1; min-width: 210px; padding: 6px 9px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.35); background: rgba(2, 6, 23, 0.85); color: #f8fafc; font-size: 11.5px;">
+                  <button title="Capture spoken correction via laptop microphone" type="button" class="btn" id="btnStudioRecSpeakFix" onclick="StudioActivityRecorder.speakFeedback()" style="padding: 6px 10px; font-size: 11px; border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe;">🎙️ Speak Fix</button>
+                  <button title="Apply autonomous self-healing and audio feedback, regenerate Req Doc & Tests, and iterate" type="button" class="btn" id="btnStudioRecHeal" onclick="StudioActivityRecorder.applyHealAndIterate()" style="padding: 6px 11px; font-size: 11px; font-weight: 700; border-color: rgba(251, 191, 36, 0.5); color: #fbbf24;">🔧 Self-Heal &amp; Re-Iterate</button>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                  <label title="Approve this requirements doc, passing tests, and sandbox dry-run for live headless publication" style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: #a7f3d0; font-weight: 600; cursor: pointer;">
+                    <input type="checkbox" id="studioRecApproveChk">
+                    <span>I approve the Requirements Doc &amp; Visible Sandbox Run</span>
+                  </label>
+                  <button title="Publish approved agent as a Live Headless Custom Agent" type="button" class="btn btn-primary" id="btnStudioRecPublish" onclick="StudioActivityRecorder.publishLiveAgent()" style="padding: 6px 14px; font-size: 12px; font-weight: 700; background: linear-gradient(135deg, #10b981, #06b6d4); color: #041318;">🚀 Publish Live Headless Agent</button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div style="margin-bottom: 14px;">
@@ -4208,6 +4293,7 @@
                 <label style="font-size: 10.5px; color: var(--text-muted); font-weight: 600;">RUNTIME ARCHETYPE</label>
                 <select id="newAgentArchetype" style="width: 100%; margin-top: 4px; padding: 8px 10px; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text); font-size: 12.5px;" onchange="updateLiveWizardPreview()">
                   <option value="tracker">📋 SQLite Record &amp; Renewal Tracker</option>
+                  <option value="recorded_workflow">🎬 Recorded Headless Workflow (Browser / Desktop + Audio)</option>
                   <option value="http_watcher">🌐 Live HTTP / API Endpoint Watcher</option>
                   <option value="llm_analyst">🧠 Knowledge &amp; AI Digest Analyst</option>
                   <option value="system_sentinel">🐳 Disk &amp; System Diagnostics Sentinel</option>

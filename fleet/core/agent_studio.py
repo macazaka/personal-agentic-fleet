@@ -605,6 +605,8 @@ def render_declarative_ui_blocks(
     fields: Optional[List[Dict[str, Any]]] = None,
     checklist_items: Optional[List[Any]] = None,
     intelligence_mode: str = "hybrid",
+    workflow_ir: Optional[Dict[str, Any]] = None,
+    requirements_doc: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
     Composes a zero-dependency, responsive HTML panel containing declarative UI blocks
@@ -700,6 +702,45 @@ def render_declarative_ui_blocks(
     </div>
     <div id="{safe_id}_doc_preview_box" style="display: none; margin-top: 12px; padding: 12px; border-radius: 8px; background: rgba(2, 6, 23, 0.72); border: 1px solid rgba(56, 189, 248, 0.3);"></div>
     <div id="{safe_id}_doc_history_box" style="display: none; margin-top: 10px; font-size: 11.5px; color: #94a3b8;"></div>
+  </div>"""
+        )
+
+    # 2c. Headless Recorded Workflow Runner & Interactive Ask-for-Inputs Panel
+    if isinstance(workflow_ir, dict) and (workflow_ir.get("steps") or workflow_ir.get("input_schema")):
+        wf_steps = list(workflow_ir.get("steps") or [])
+        wf_inputs = list(workflow_ir.get("input_schema") or [])
+        wf_mod = html_lib.escape(str(workflow_ir.get("modality") or "browser"))
+        step_list_items: List[str] = []
+        for idx, st in enumerate(wf_steps[:12]):
+            if not isinstance(st, dict):
+                continue
+            s_desc = html_lib.escape(str(st.get("description") or st.get("action") or f"Step {idx + 1}"))
+            s_chan = html_lib.escape(str(st.get("channel") or wf_mod))
+            step_list_items.append(
+                f'<div style="padding:5px 8px;border-radius:6px;background:rgba(2,6,23,0.45);border:1px solid rgba(56,189,248,0.16);font-size:11.5px;color:#cbd5e1;">'
+                f'<strong style="color:#38bdf8;">#{idx + 1} [{s_chan}]</strong> {s_desc}</div>'
+            )
+        steps_html = "\n".join(step_list_items) or '<div style="font-size:11.5px;color:#94a3b8;">Ready for headless execution.</div>'
+        req_summary = ""
+        if isinstance(requirements_doc, dict) and requirements_doc.get("summary"):
+            req_summary = f'<div style="font-size:11.5px;color:#cbd5e1;margin-top:6px;">📋 {html_lib.escape(str(requirements_doc.get("summary")))}</div>'
+        sections.append(
+            f"""  <!-- Recorded Headless Workflow Runner & Ask-for-Inputs Checkpoint -->
+  <div id="{safe_id}_workflow_runner_card" style="background: linear-gradient(135deg, rgba(14, 116, 144, 0.2), rgba(15, 23, 42, 0.85)); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 10px; padding: 14px 16px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+      <div>
+        <div style="font-size: 13px; font-weight: 700; color: #e0f2fe;">🎬 Recorded Headless Workflow Runner ({wf_mod.upper()} • {len(wf_steps)} steps • {len(wf_inputs)} runtime input(s))</div>
+        {req_summary}
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button type="button" title="Simulate recorded workflow safely in dry-run mode" class="btn btn-secondary" onclick="if(window.CustomAgentRuntime){{CustomAgentRuntime.runRecordedWorkflow('{safe_id}', true);}}" style="padding: 6px 12px; font-size: 11.5px; font-weight: 600; border-color: rgba(56, 189, 248, 0.45); color: #7dd3fc;">🧪 Dry-Run Simulate</button>
+        <button type="button" title="Execute recorded workflow headlessly and prompt if any inputs are required" class="btn btn-primary" onclick="if(window.CustomAgentRuntime){{CustomAgentRuntime.runRecordedWorkflow('{safe_id}', false);}}" style="padding: 6px 13px; font-size: 11.5px; font-weight: 700;">▶ Run Headless</button>
+      </div>
+    </div>
+    <div id="{safe_id}_workflow_input_prompt_box" style="display: none; margin-bottom: 10px; padding: 12px; border-radius: 8px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4);"></div>
+    <div id="{safe_id}_workflow_steps_box" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px;">
+      {steps_html}
+    </div>
   </div>"""
         )
 
@@ -909,6 +950,22 @@ def execute_studio_agent_runtime(
     intelligence_mode = str(meta.get("intelligence_mode") or getattr(agent, "intelligence_mode", "hybrid") or "hybrid")
     perms = set(getattr(agent, "permissions", []) or [])
     db = getattr(agent, "db", None)
+
+    if (archetype == "recorded_workflow" or isinstance(meta.get("workflow_ir"), dict)) and task != "ai_analyze":
+        from fleet.core.activity_recorder import execute_recorded_workflow, resume_workflow_run
+        if payload.get("resume_run_id"):
+            return resume_workflow_run(
+                agent=agent,
+                run_id=str(payload["resume_run_id"]),
+                user_inputs=payload.get("inputs") if isinstance(payload.get("inputs"), dict) else {},
+                dry_run=payload.get("dry_run") if "dry_run" in payload else None,
+            )
+        return execute_recorded_workflow(
+            agent=agent,
+            user_inputs=payload.get("inputs") if isinstance(payload.get("inputs"), dict) else {},
+            dry_run=bool(payload.get("dry_run", False)),
+            task=task,
+        )
 
     # Phase 6: Watched Drop-Folder & EventBus Email Payload Auto-Ingestion
     inbox_scan_summary: Optional[Dict[str, Any]] = None
@@ -1343,6 +1400,10 @@ def dry_run_agent_spec(spec: Dict[str, Any], sample_input: str = "") -> Dict[str
         usage = shutil.disk_usage(".")
         free_gb = round(usage.free / (1024 ** 3), 1)
         simulated_checks.append(f"Live system diagnostic check -> {free_gb} GB free workspace storage")
+    elif archetype == "recorded_workflow" and isinstance(spec.get("workflow_ir"), dict):
+        wf_steps = list((spec.get("workflow_ir") or {}).get("steps") or [])
+        wf_inputs = list((spec.get("workflow_ir") or {}).get("input_schema") or [])
+        simulated_checks.append(f"Validated headless workflow IR ({len(wf_steps)} step(s), {len(wf_inputs)} runtime input(s))")
     elif sample_text:
         simulated_checks.append(f"Simulated '{routine_task}' capture & validation on sample input: '{sample_text[:80]}'")
     else:

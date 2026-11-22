@@ -404,7 +404,7 @@ Lists all `@agent` slash commands across active agents or executes a Unified `Ct
 ```
 
 <!-- AUTO-API-ROUTES:START -->
-## 🔄 Complete Live REST API Route Inventory (`208` Endpoints — `v2.21.0`)
+## 🔄 Complete Live REST API Route Inventory (`222` Endpoints — `v2.21.0`)
 
 This table is **automatically introspected from `fleet/api/*.py` AST decorators** on every release by `fleet.tools.doc_wiki_enhancer`:
 
@@ -517,6 +517,20 @@ This table is **automatically introspected from `fleet/api/*.py` AST decorators*
 | `POST` | `/api/optimizer/upgrades/run` | `post_run_upgrades` ([`fleet/api/optimizer_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/optimizer_api.py)) | Handler `post_run_upgrades` in `fleet/api/optimizer_api.py`. |
 | `POST` | `/api/optimizer/upgrades/policy` | `post_upgrade_policy` ([`fleet/api/optimizer_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/optimizer_api.py)) | Handler `post_upgrade_policy` in `fleet/api/optimizer_api.py`. |
 | `POST` | `/api/optimizer/auto_tune` | `post_auto_tune` ([`fleet/api/optimizer_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/optimizer_api.py)) | Handler `post_auto_tune` in `fleet/api/optimizer_api.py`. |
+| `GET` | `/api/studio/recorder/status` | `get_recorder_status_endpoint` ([`fleet/api/recorder_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/recorder_api.py)) | Handler `get_recorder_status_endpoint` in `fleet/api/recorder_api.py`. |
+| `GET` | `/api/studio/recorder/sessions` | `get_recorder_sessions_endpoint` ([`fleet/api/recorder_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/recorder_api.py)) | Handler `get_recorder_sessions_endpoint` in `fleet/api/recorder_api.py`. |
+| `POST` | `/api/studio/recorder/start` | `post_recorder_start_endpoint` ([`fleet/api/recorder_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/recorder_api.py)) | Handler `post_recorder_start_endpoint` in `fleet/api/recorder_api.py`. |
+| `POST` | `/api/studio/recorder/stop` | `post_recorder_stop_endpoint` ([`fleet/api/recorder_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/recorder_api.py)) | Handler `post_recorder_stop_endpoint` in `fleet/api/recorder_api.py`. |
+| `POST` | `/api/studio/recorder/event` | `post_recorder_event_endpoint` ([`fleet/api/recorder_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/recorder_api.py)) | Handler `post_recorder_event_endpoint` in `fleet/api/recorder_api.py`. |
+| `POST` | `/api/studio/recorder/audio_segment` | `post_recorder_audio_segment_endpoint` ([`fleet/api/recorder_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/recorder_api.py)) | Handler `post_recorder_audio_segment_endpoint` in `fleet/api/recorder_api.py`. |
+| `POST` | `/api/studio/recorder/mark_input` | `post_recorder_mark_input_endpoint` ([`fleet/api/recorder_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/recorder_api.py)) | Handler `post_recorder_mark_input_endpoint` in `fleet/api/recorder_api.py`. |
+| `POST` | `/api/studio/recorder/convert` | `post_recorder_convert_endpoint` ([`fleet/api/recorder_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/recorder_api.py)) | Handler `post_recorder_convert_endpoint` in `fleet/api/recorder_api.py`. |
+| `POST` | `/api/studio/recorder/run_tests` | `post_recorder_run_tests_endpoint` ([`fleet/api/recorder_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/recorder_api.py)) | Handler `post_recorder_run_tests_endpoint` in `fleet/api/recorder_api.py`. |
+| `POST` | `/api/studio/recorder/sandbox_run` | `post_recorder_sandbox_run_endpoint` ([`fleet/api/recorder_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/recorder_api.py)) | Handler `post_recorder_sandbox_run_endpoint` in `fleet/api/recorder_api.py`. |
+| `POST` | `/api/studio/recorder/heal` | `post_recorder_heal_endpoint` ([`fleet/api/recorder_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/recorder_api.py)) | Handler `post_recorder_heal_endpoint` in `fleet/api/recorder_api.py`. |
+| `POST` | `/api/studio/recorder/publish` | `post_recorder_publish_endpoint` ([`fleet/api/recorder_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/recorder_api.py)) | Handler `post_recorder_publish_endpoint` in `fleet/api/recorder_api.py`. |
+| `POST` | `/api/studio/workflows/run` | `post_studio_workflow_run_endpoint` ([`fleet/api/recorder_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/recorder_api.py)) | Handler `post_studio_workflow_run_endpoint` in `fleet/api/recorder_api.py`. |
+| `POST` | `/api/studio/workflows/resume` | `post_studio_workflow_resume_endpoint` ([`fleet/api/recorder_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/recorder_api.py)) | Handler `post_studio_workflow_resume_endpoint` in `fleet/api/recorder_api.py`. |
 | `GET` | `/api/settings` | `get_fleet_settings` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Returns global fleet settings, preferences, and all discovered agents with activation state. |
 | `POST` | `/api/settings` | `update_fleet_settings` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Updates global fleet settings and preferences in the database. |
 | `POST` | `/api/settings/agents/toggle` | `toggle_agent_activation` ([`fleet/api/settings_api.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/api/settings_api.py)) | Activates or deactivates an agent by ID at runtime and persists state. |

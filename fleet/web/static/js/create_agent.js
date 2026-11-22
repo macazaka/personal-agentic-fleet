@@ -20,6 +20,9 @@ let studioStagedDocuments = [];
 let studioWorkflowGuidance = null;
 let studioConnectedLlmInfo = null;
 let studioDocFilterFilename = '';
+let studioCurrentWorkflowIr = null;
+let studioCurrentRequirementsDoc = null;
+let studioCurrentRecordingId = '';
 let studioEvolveSuggestions = [];
 let studioEvolveBaseSnapshot = null;
 let studioEvolveLoading = false;
@@ -617,6 +620,12 @@ function resetWizardFormDefaults() {
   studioStagedDocuments = [];
   studioWorkflowGuidance = null;
   studioDocFilterFilename = '';
+  studioCurrentWorkflowIr = null;
+  studioCurrentRequirementsDoc = null;
+  studioCurrentRecordingId = '';
+  if (typeof window.StudioActivityRecorder?.resetUi === 'function') {
+    window.StudioActivityRecorder.resetUi();
+  }
   studioEvolveRequestSeq += 1;
   studioEvolveSuggestions = [];
   studioEvolveBaseSnapshot = null;
@@ -735,6 +744,9 @@ function openCreateAgentModal() {
   resetWizardFormDefaults();
   loadStudioBlueprints();
   loadStudioDiscoverySuggestions();
+  if (typeof window.StudioActivityRecorder?.init === 'function') {
+    window.StudioActivityRecorder.init();
+  }
   switchCodePreviewTab('visual');
   goToWizardStep(1);
   modal.style.display = 'flex';
@@ -1511,6 +1523,9 @@ async function rollbackCurrentAgentRevision() {
 }
 
 function closeCreateAgentModal() {
+  if (typeof window.StudioActivityRecorder?.cleanup === 'function') {
+    window.StudioActivityRecorder.cleanup();
+  }
   const modal = document.getElementById('createAgentModal');
   if (modal) modal.style.display = 'none';
 }
@@ -1807,6 +1822,15 @@ function populateWizardFromSpec(spec) {
   if (modeEl && spec.intelligence_mode) modeEl.value = spec.intelligence_mode;
   if (modelEl && spec.model) modelEl.value = spec.model;
   if (archEl && spec.archetype) archEl.value = spec.archetype;
+  if (spec.workflow_ir && typeof spec.workflow_ir === 'object') {
+    studioCurrentWorkflowIr = spec.workflow_ir;
+  }
+  if (spec.requirements_doc && typeof spec.requirements_doc === 'object') {
+    studioCurrentRequirementsDoc = spec.requirements_doc;
+  }
+  if (spec.recording_id) {
+    studioCurrentRecordingId = String(spec.recording_id);
+  }
 
   const perms = spec.permissions || ['db:read', 'db:write', 'ui:render'];
   const permCheckMap = {
@@ -2242,6 +2266,12 @@ function clearStudioStagedDocExtraction() {
   studioStagedDocuments = [];
   studioWorkflowGuidance = null;
   studioDocFilterFilename = '';
+  studioCurrentWorkflowIr = null;
+  studioCurrentRequirementsDoc = null;
+  studioCurrentRecordingId = '';
+  if (typeof window.StudioActivityRecorder?.resetUi === 'function') {
+    window.StudioActivityRecorder.resetUi();
+  }
 
   const docInput = document.getElementById('studioWizardDocInput');
   if (docInput) docInput.value = '';
@@ -2628,6 +2658,9 @@ function buildCurrentWizardSpecPayload() {
     schedule_cadence: scheduleCadence,
     schedule: scheduleObj,
     system_prompt: systemPrompt || undefined,
+    workflow_ir: studioCurrentWorkflowIr || undefined,
+    requirements_doc: studioCurrentRequirementsDoc || undefined,
+    recording_id: studioCurrentRecordingId || undefined,
     settings: {
       target_threshold: syncInterval,
       enabled_notifications: enableAlerts,
@@ -4097,6 +4130,19 @@ const CustomAgentRuntime = {
         chatLog.scrollTop = chatLog.scrollHeight;
       }
     }
+
+    // 11. Pending Headless Recorded Workflow Input Checkpoints
+    const pendingRuns = Array.isArray(state.pending_workflow_runs) ? state.pending_workflow_runs : [];
+    const promptBox = document.getElementById(`${agentId}_workflow_input_prompt_box`);
+    if (promptBox) {
+      if (pendingRuns.length > 0) {
+        const pd = pendingRuns[0].data && typeof pendingRuns[0].data === 'object' ? pendingRuns[0].data : {};
+        this.renderWorkflowInputPrompt(agentId, pd.run_id || '', pd.pending_inputs || [], pendingRuns[0].title || 'Runtime input required', Boolean(pd.dry_run));
+      } else {
+        promptBox.style.display = 'none';
+        promptBox.innerHTML = '';
+      }
+    }
   },
 
   handleDocDrop(event, agentId) {
@@ -4624,6 +4670,104 @@ const CustomAgentRuntime = {
     });
   },
 
+  renderWorkflowInputPrompt(agentId, runId, pendingInputs, message = '', dryRun = false) {
+    const box = document.getElementById(`${agentId}_workflow_input_prompt_box`);
+    if (!box) return;
+    const fields = Array.isArray(pendingInputs) ? pendingInputs : [];
+    if (fields.length === 0) {
+      box.style.display = 'none';
+      box.innerHTML = '';
+      return;
+    }
+    const safeAid = studioEscapeHtml(agentId);
+    const safeRid = studioEscapeHtml(runId);
+    const inputsHtml = fields.map((fld, idx) => {
+      const key = String(fld.key || `input_${idx}`);
+      const isSec = Boolean(fld.sensitive) || fld.type === 'secret';
+      const inpType = isSec ? 'password' : (['date', 'number', 'url'].includes(fld.type) ? fld.type : 'text');
+      const defVal = isSec ? '' : String(fld.default || '');
+      return `
+        <div style="display:flex; flex-direction:column; gap:3px; min-width:190px; flex:1;">
+          <label style="font-size:11px; color:#fde68a; font-weight:700;">${studioEscapeHtml(fld.label || key)}${fld.required ? ' *' : ''}${isSec ? ' 🔒' : ''}</label>
+          <input type="${inpType}" autocomplete="off" data-wf-input-key="${studioEscapeHtml(key)}" data-wf-secret="${isSec ? '1' : '0'}" value="${studioEscapeHtml(defVal)}" placeholder="${studioEscapeHtml(fld.prompt || key)}" style="padding:7px 10px; border-radius:6px; border:1px solid rgba(251,191,36,0.45); background:rgba(2,6,23,0.85); color:#f8fafc; font-size:12px;">
+          <div style="font-size:10px; color:#cbd5e1;">${studioEscapeHtml(fld.prompt || '')}</div>
+        </div>
+      `;
+    }).join('');
+    box.style.display = 'block';
+    box.innerHTML = `
+      <div style="font-size:12px; font-weight:700; color:#fbbf24; margin-bottom:7px;">⏸️ ${studioEscapeHtml(message || 'Headless agent requires your input to continue:')}</div>
+      <div style="display:flex; flex-wrap:wrap; gap:9px; align-items:flex-end; margin-bottom:8px;">${inputsHtml}</div>
+      <div style="display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+        <button type="button" title="Submit inputs and resume headless workflow execution" class="btn btn-primary" onclick="CustomAgentRuntime.resumeRecordedWorkflow('${safeAid}', '${safeRid}', ${Boolean(dryRun)})" style="padding:6px 14px; font-size:11.5px; font-weight:700;">▶ Submit Inputs &amp; Resume Headless</button>
+      </div>
+    `;
+    setTimeout(() => { box.querySelector('input')?.focus(); }, 40);
+  },
+
+  async runRecordedWorkflow(agentId, dryRun = false) {
+    await runFleetAsyncAction({
+      useStudioBanner: false,
+      busyLabel: dryRun ? '⏳ Simulating Dry-Run...' : '⏳ Running Headless...',
+      startToast: dryRun ? '⏳ Running dry-run simulation...' : '⏳ Running headless workflow...',
+      errorPrefix: 'Headless workflow run failed',
+    }, async () => {
+      const { res, data } = await studioFetchJsonWithRetry('/api/studio/workflows/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent_id: agentId, dry_run: Boolean(dryRun), inputs: {} }),
+      });
+      if (!res.ok || data.status === 'error') {
+        throw new Error(data.message || 'Workflow execution failed.');
+      }
+      if (data.state) this.renderState(agentId, data.state);
+      const r = data.result || {};
+      if (r.status === 'waiting_for_input') {
+        this.renderWorkflowInputPrompt(agentId, r.run_id || '', r.pending_inputs || [], r.message || '', Boolean(dryRun));
+        showFleetToast(r.message || '⏸️ Agent paused awaiting user input.', false);
+      } else {
+        showFleetToast(r.message || '✅ Headless workflow completed.', r.health_status === 'warning');
+      }
+    });
+  },
+
+  async resumeRecordedWorkflow(agentId, runId, dryRun = false) {
+    const box = document.getElementById(`${agentId}_workflow_input_prompt_box`);
+    const inputs = {};
+    if (box) {
+      box.querySelectorAll('[data-wf-input-key]').forEach(el => {
+        const k = el.getAttribute('data-wf-input-key');
+        if (k) inputs[k] = el.value;
+        if (el.getAttribute('data-wf-secret') === '1') {
+          el.value = '';
+        }
+      });
+    }
+    await runFleetAsyncAction({
+      useStudioBanner: false,
+      busyLabel: '⏳ Resuming Headless Run...',
+      startToast: '⏳ Resuming headless workflow from checkpoint...',
+      errorPrefix: 'Workflow resume failed',
+    }, async () => {
+      const { res, data } = await studioFetchJsonWithRetry('/api/studio/workflows/resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent_id: agentId, run_id: runId, inputs, dry_run: Boolean(dryRun) }),
+      });
+      if (!res.ok || data.status === 'error') {
+        throw new Error(data.message || 'Could not resume workflow.');
+      }
+      if (data.state) this.renderState(agentId, data.state);
+      const r = data.result || {};
+      if (r.status === 'waiting_for_input') {
+        this.renderWorkflowInputPrompt(agentId, r.run_id || runId, r.pending_inputs || [], r.message || '', Boolean(dryRun));
+        showFleetToast(r.message || '⏸️ Agent needs next input.', false);
+      } else {
+        showFleetToast(r.message || '✅ Headless workflow resumed & completed.', r.health_status === 'warning');
+      }
+    });
+  },
+
   async runTask(agentId, taskName) {
     const targetTask = taskName || 'run_check';
     await runFleetAsyncAction({
@@ -4641,6 +4785,15 @@ const CustomAgentRuntime = {
         throw new Error(data.message || 'Execution failed');
       }
       if (data.state) this.renderState(agentId, data.state);
+      if (data.result?.status === 'waiting_for_input') {
+        this.renderWorkflowInputPrompt(
+          agentId,
+          data.result.run_id || '',
+          data.result.pending_inputs || [],
+          data.result.message || '',
+          Boolean(data.result.dry_run)
+        );
+      }
       showFleetToast(data.result?.message || `✓ Completed '${targetTask}'`, data.result?.health_status === 'warning');
     });
   },
@@ -4813,6 +4966,596 @@ function closeEvolveHeaderPopover(agentId) {
   }
 }
 
+// ============================================================================
+// Multimodal Activity + Voice Narration Recorder -> Requirements -> Sandbox -> Live
+// ============================================================================
+
+const StudioActivityRecorder = {
+  _sessionId: '',
+  _captureToken: '',
+  _bookmarkletJs: '',
+  _isRecording: false,
+  _startedAtMs: 0,
+  _pollTimer: null,
+  _mediaStream: null,
+  _mediaRecorder: null,
+  _audioChunks: [],
+  _speechRec: null,
+  _lastDraft: null,
+  _lastSandboxReport: null,
+
+  init() {
+    this.loadSavedSessions();
+    this.refreshStatusOnce();
+  },
+
+  resetUi() {
+    this.cleanup();
+    this._sessionId = '';
+    this._captureToken = '';
+    this._bookmarkletJs = '';
+    this._lastDraft = null;
+    this._lastSandboxReport = null;
+    this._setBadge('Idle', '#94a3b8');
+    const itBadge = document.getElementById('studioRecIterationBadge');
+    if (itBadge) { itBadge.style.display = 'none'; itBadge.textContent = 'v1'; }
+    const evCnt = document.getElementById('studioRecEventCount');
+    if (evCnt) evCnt.textContent = '0';
+    const auCnt = document.getElementById('studioRecAudioCount');
+    if (auCnt) auCnt.textContent = '0';
+    const evFeed = document.getElementById('studioRecLiveFeed');
+    if (evFeed) evFeed.textContent = 'No captured screen steps yet.';
+    const auFeed = document.getElementById('studioRecAudioFeed');
+    if (auFeed) auFeed.textContent = 'Speak aloud while recording to explain intent & inputs...';
+    ['studioRecRequirementsBox', 'studioRecUnitTestBox', 'studioRecSandboxTheater', 'studioRecIteratePublishBar'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.style.display = 'none'; el.innerHTML = el.id === 'studioRecIteratePublishBar' ? el.innerHTML : ''; }
+    });
+    const chk = document.getElementById('studioRecApproveChk');
+    if (chk) chk.checked = false;
+  },
+
+  _setBadge(text, color = '#94a3b8') {
+    const b = document.getElementById('studioRecStatusBadge');
+    if (b) {
+      b.textContent = text;
+      b.style.color = color;
+      b.style.borderColor = color;
+    }
+  },
+
+  _releaseMicAndTimers() {
+    if (this._pollTimer) {
+      clearInterval(this._pollTimer);
+      this._pollTimer = null;
+    }
+    if (this._speechRec) {
+      try { this._speechRec.onend = null; this._speechRec.stop(); } catch (_) {}
+      this._speechRec = null;
+    }
+    if (this._mediaRecorder && this._mediaRecorder.state !== 'inactive') {
+      try { this._mediaRecorder.stop(); } catch (_) {}
+    }
+    this._mediaRecorder = null;
+    if (this._mediaStream) {
+      try { this._mediaStream.getTracks().forEach(t => t.stop()); } catch (_) {}
+      this._mediaStream = null;
+    }
+  },
+
+  cleanup() {
+    this._isRecording = false;
+    this._releaseMicAndTimers();
+  },
+
+  async loadSavedSessions() {
+    try {
+      const res = await fetch('/api/studio/recorder/sessions?limit=20');
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = Array.isArray(data.sessions) ? data.sessions : [];
+      const sel = document.getElementById('studioRecSavedSelect');
+      if (!sel) return;
+      sel.innerHTML = `<option value="">Saved Recordings (${list.length})</option>` + list.map(s =>
+        `<option value="${studioEscapeHtml(s.session_id)}">${studioEscapeHtml(s.label || s.session_id)} (${s.events_count || 0} steps • ${s.lifecycle_status || 'recorded'})</option>`
+      ).join('');
+      if (this._sessionId) sel.value = this._sessionId;
+    } catch (_) {}
+  },
+
+  selectSavedSession(sid) {
+    if (!sid) return;
+    this._sessionId = sid;
+    studioCurrentRecordingId = sid;
+    showFleetToast(`📂 Selected recording '${sid}' — click Build Req Doc & Flow next.`, false);
+  },
+
+  async start() {
+    const mode = document.getElementById('recorderModeSelect')?.value || 'browser';
+    const startUrl = (document.getElementById('recorderStartUrlInput')?.value || '').trim();
+    const launchBrowser = Boolean(document.getElementById('recorderLaunchBrowserChk')?.checked);
+    const recordAudio = Boolean(document.getElementById('recorderAudioNarrationChk')?.checked);
+    const label = (document.getElementById('newAgentName')?.value || '').trim();
+
+    this._audioChunks = [];
+    this._startedAtMs = Date.now();
+
+    if (recordAudio) {
+      await this._startAudioCapture();
+    }
+
+    await runFleetAsyncAction({
+      buttons: ['btnStudioRecStart'],
+      useStudioBanner: false,
+      busyLabel: '⏳ Starting Recorder...',
+      errorPrefix: 'Could not start recording',
+    }, async () => {
+      const { res, data } = await studioFetchJsonWithRetry('/api/studio/recorder/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode, start_url: startUrl, launch_browser: launchBrowser, record_audio: recordAudio, label }),
+      });
+      if (!res.ok || data.status === 'error') {
+        this._releaseMicAndTimers();
+        throw new Error(data.message || 'Start recording failed.');
+      }
+      this._sessionId = data.session_id || '';
+      this._captureToken = data.capture_token || '';
+      this._bookmarkletJs = data.bookmarklet_js || '';
+      this._isRecording = true;
+      studioCurrentRecordingId = this._sessionId;
+      this._setBadge(`🔴 Recording (${mode})`, '#f87171');
+      if (this._pollTimer) clearInterval(this._pollTimer);
+      this._pollTimer = setInterval(() => this.refreshStatusOnce(), 1500);
+      await this.refreshStatusOnce();
+      showFleetToast(data.message || '🔴 Recording started!', false);
+    });
+  },
+
+  async _startAudioCapture() {
+    if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+      try {
+        this._mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (typeof MediaRecorder !== 'undefined') {
+          this._mediaRecorder = new MediaRecorder(this._mediaStream);
+          this._mediaRecorder.ondataavailable = (ev) => {
+            if (ev.data && ev.data.size > 0) this._audioChunks.push(ev.data);
+          };
+          this._mediaRecorder.start(1000);
+        }
+      } catch (_) {}
+    }
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRec) {
+      try {
+        const rec = new SpeechRec();
+        rec.continuous = true;
+        rec.interimResults = false;
+        rec.lang = 'en-US';
+        rec.onresult = (event) => {
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+              const transcript = String(event.results[i][0]?.transcript || '').trim();
+              if (transcript) {
+                const offsetSec = Number(((Date.now() - this._startedAtMs) / 1000).toFixed(2));
+                this._postAudioSegment(transcript, offsetSec);
+              }
+            }
+          }
+        };
+        rec.onend = () => {
+          if (this._isRecording && this._speechRec === rec) {
+            try { rec.start(); } catch (_) {}
+          }
+        };
+        rec.start();
+        this._speechRec = rec;
+      } catch (_) {}
+    }
+  },
+
+  async _postAudioSegment(transcript, offsetSec = 0) {
+    if (!transcript) return;
+    try {
+      await fetch('/api/studio/recorder/audio_segment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: this._sessionId || undefined,
+          capture_token: this._captureToken || undefined,
+          offset_sec: offsetSec,
+          transcript,
+          is_final: true,
+        }),
+      });
+      await this.refreshStatusOnce();
+    } catch (_) {}
+  },
+
+  async addManualNarration() {
+    const inp = document.getElementById('studioRecManualNarrationInput');
+    const txt = (inp?.value || '').trim();
+    if (!txt) return;
+    const offsetSec = this._startedAtMs ? Number(((Date.now() - this._startedAtMs) / 1000).toFixed(2)) : 0;
+    await this._postAudioSegment(txt, offsetSec);
+    if (inp) inp.value = '';
+  },
+
+  async _collectAudioBlobBase64() {
+    if (!this._mediaRecorder) return { audio_base64: '', audio_mime: 'audio/webm' };
+    const rec = this._mediaRecorder;
+    const mime = rec.mimeType || 'audio/webm';
+    if (rec.state !== 'inactive') {
+      await new Promise(resolve => {
+        rec.onstop = resolve;
+        try { rec.stop(); } catch (_) { resolve(); }
+      });
+    }
+    if (!this._audioChunks.length) return { audio_base64: '', audio_mime: mime };
+    const blob = new Blob(this._audioChunks, { type: mime });
+    const dataUrl = await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(String(reader.result || ''));
+      reader.readAsDataURL(blob);
+    });
+    return { audio_base64: dataUrl, audio_mime: mime };
+  },
+
+  async stop() {
+    const audioPayload = await this._collectAudioBlobBase64();
+    this._isRecording = false;
+    this._releaseMicAndTimers();
+    await runFleetAsyncAction({
+      buttons: ['btnStudioRecStop'],
+      useStudioBanner: false,
+      busyLabel: '⏳ Saving Recording...',
+      errorPrefix: 'Stop recording failed',
+    }, async () => {
+      const { res, data } = await studioFetchJsonWithRetry('/api/studio/recorder/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: this._sessionId || undefined,
+          audio_base64: audioPayload.audio_base64 || '',
+          audio_mime: audioPayload.audio_mime || 'audio/webm',
+        }),
+      });
+      if (!res.ok || data.status === 'error') {
+        throw new Error(data.message || 'Stop recording failed.');
+      }
+      this._sessionId = data.session_id || this._sessionId;
+      studioCurrentRecordingId = this._sessionId;
+      this._setBadge(`Saved (${data.events_count || 0} steps • ${data.audio_segments_count || 0} audio)`, '#34d399');
+      await this.loadSavedSessions();
+      showFleetToast(`⏹️ Saved ${data.events_count || 0} screen steps & ${data.audio_segments_count || 0} voice notes!`, false);
+    });
+  },
+
+  async markDynamicInput() {
+    const label = window.prompt('Input Field Label (the live headless agent will ask the user for this):', 'Policy Number');
+    if (!label) return;
+    const promptQ = window.prompt('Question prompt to ask user at runtime:', `Enter ${label}:`) || `Enter ${label}:`;
+    const isSensitive = window.confirm('Is this input sensitive (Password / OTP / Secret)? Click OK for Yes, Cancel for No.');
+    const { res, data } = await studioFetchJsonWithRetry('/api/studio/recorder/mark_input', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: this._sessionId || undefined,
+        label,
+        prompt_question: promptQ,
+        sensitive: isSensitive,
+        input_type: isSensitive ? 'secret' : 'text',
+        required: true,
+      }),
+    });
+    if (!res.ok || data.status === 'error') {
+      showFleetToast(`✕ ${data.message || 'Could not mark input.'}`, true);
+      return;
+    }
+    await this.refreshStatusOnce();
+    showFleetToast(`❓ Marked dynamic input '${label}'!`, false);
+  },
+
+  copyBookmarklet() {
+    if (!this._bookmarkletJs) {
+      showFleetToast('Start a Browser recording first to generate a session bookmarklet.', true);
+      return;
+    }
+    navigator.clipboard?.writeText(this._bookmarkletJs).then(() => {
+      showFleetToast('🔖 Bookmarklet copied! Paste/run in your target browser tab to record.', false);
+    }).catch(() => {
+      window.prompt('Copy Bookmarklet:', this._bookmarkletJs);
+    });
+  },
+
+  async refreshStatusOnce() {
+    try {
+      const res = await fetch('/api/studio/recorder/status?limit=25');
+      if (!res.ok) return;
+      const st = await res.json();
+      if (!st.active) return;
+      const evCnt = document.getElementById('studioRecEventCount');
+      if (evCnt) evCnt.textContent = String(st.events_count || 0);
+      const auCnt = document.getElementById('studioRecAudioCount');
+      if (auCnt) auCnt.textContent = String(st.audio_segments_count || 0);
+      const evFeed = document.getElementById('studioRecLiveFeed');
+      if (evFeed && Array.isArray(st.recent_events) && st.recent_events.length > 0) {
+        evFeed.innerHTML = st.recent_events.map(e =>
+          `<div>[${studioEscapeHtml(String(e.offset_sec || 0))}s] <strong>${studioEscapeHtml(e.action)}</strong> ${studioEscapeHtml(e.title || e.url || e.locators?.text || '')}</div>`
+        ).join('');
+        evFeed.scrollTop = evFeed.scrollHeight;
+      }
+      const auFeed = document.getElementById('studioRecAudioFeed');
+      if (auFeed && Array.isArray(st.audio_segments) && st.audio_segments.length > 0) {
+        auFeed.innerHTML = st.audio_segments.map(a =>
+          `<div>[${studioEscapeHtml(String(a.offset_sec || 0))}s] "${studioEscapeHtml(a.transcript)}"</div>`
+        ).join('');
+        auFeed.scrollTop = auFeed.scrollHeight;
+      }
+    } catch (_) {}
+  },
+
+  _renderDraftBoxes(payload) {
+    this._lastDraft = payload;
+    const req = payload.requirements_doc || {};
+    const spec = payload.spec || {};
+    if (spec && spec.workflow_ir) {
+      studioCurrentWorkflowIr = spec.workflow_ir;
+      studioCurrentRequirementsDoc = req;
+      studioCurrentRecordingId = this._sessionId;
+    }
+    const itBadge = document.getElementById('studioRecIterationBadge');
+    if (itBadge) {
+      itBadge.style.display = 'inline-block';
+      itBadge.textContent = `v${payload.iteration_version || req.version || 1}`;
+    }
+    const reqBox = document.getElementById('studioRecRequirementsBox');
+    if (reqBox) {
+      const frCount = (req.functional_requirements || []).length;
+      const inpCount = (req.input_schema || []).length;
+      const healNotes = Array.isArray(payload.healing_actions) && payload.healing_actions.length
+        ? `<div style="margin-top:5px;color:#fbbf24;">🔧 Healing applied: ${payload.healing_actions.map(studioEscapeHtml).join(' • ')}</div>`
+        : '';
+      reqBox.style.display = 'block';
+      reqBox.innerHTML = `
+        <div style="font-weight:700;color:#38bdf8;margin-bottom:4px;">📋 ${studioEscapeHtml(req.title || spec.name || 'Requirements Document')} (v${payload.iteration_version || 1})</div>
+        <div style="color:#cbd5e1;margin-bottom:6px;">${studioEscapeHtml(req.summary || '')} • <strong>${frCount}</strong> FRs • <strong>${inpCount}</strong> runtime input(s)</div>
+        ${healNotes}
+        <details style="margin-top:4px;"><summary style="cursor:pointer;color:#7dd3fc;">View Mermaid Process Flow &amp; Trace Matrix</summary>
+          <pre style="margin-top:6px;padding:8px;border-radius:6px;background:rgba(15,23,42,0.9);overflow-x:auto;font-size:10.5px;color:#a5f3fc;">${studioEscapeHtml(req.mermaid_process_flow || '')}</pre>
+        </details>
+      `;
+    }
+    if (payload.unit_test_report) {
+      this._renderUnitTestReport(payload.unit_test_report);
+    }
+    const iterBar = document.getElementById('studioRecIteratePublishBar');
+    if (iterBar) iterBar.style.display = 'block';
+  },
+
+  _renderUnitTestReport(rep) {
+    const box = document.getElementById('studioRecUnitTestBox');
+    if (!box || !rep) return;
+    const ok = rep.status === 'passed';
+    box.style.display = 'block';
+    box.style.borderColor = ok ? 'rgba(52, 211, 153, 0.45)' : 'rgba(248, 113, 113, 0.45)';
+    box.innerHTML = `
+      <div style="font-weight:700;color:${ok ? '#34d399' : '#fca5a5'};">${ok ? '✅' : '✕'} Isolated Pytest Suite: ${rep.passed || 0}/${rep.total || 0} Passed (${rep.duration_ms || 0} ms)</div>
+      <details style="margin-top:4px;"><summary style="cursor:pointer;color:#d8b4fe;">Test Runner Output</summary>
+        <pre style="margin-top:4px;font-size:10.5px;white-space:pre-wrap;color:#e2e8f0;">${studioEscapeHtml(rep.output || '')}</pre>
+      </details>
+    `;
+  },
+
+  async convertToRequirements() {
+    if (!this._sessionId) {
+      showFleetToast('Record or select a saved recording first.', true);
+      return;
+    }
+    await runFleetAsyncAction({
+      buttons: ['btnStudioRecConvert'],
+      useStudioBanner: false,
+      busyLabel: '⏳ Fusing Audio & Screen...',
+      errorPrefix: 'Synthesis failed',
+    }, async () => {
+      const { res, data } = await studioFetchJsonWithRetry('/api/studio/recorder/convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: this._sessionId,
+          label: (document.getElementById('newAgentName')?.value || '').trim(),
+          use_llm: true,
+          auto_run_tests: true,
+        }),
+      });
+      if (!res.ok || data.status === 'error') {
+        throw new Error(data.message || 'Requirements synthesis failed.');
+      }
+      this._renderDraftBoxes(data);
+      if (data.spec) populateWizardFromSpec(data.spec);
+      this._setBadge('Requirements & Tests Ready', '#38bdf8');
+      showFleetToast('🧠 Requirements Document, Process Flow & Unit Tests generated!', false);
+    });
+  },
+
+  async runUnitTests() {
+    if (!this._sessionId) {
+      showFleetToast('Record & synthesize a session first.', true);
+      return;
+    }
+    await runFleetAsyncAction({
+      buttons: ['btnStudioRecRunTests'],
+      useStudioBanner: false,
+      busyLabel: '⏳ Running Pytest Suite...',
+      errorPrefix: 'Unit test execution failed',
+    }, async () => {
+      const { res, data } = await studioFetchJsonWithRetry('/api/studio/recorder/run_tests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: this._sessionId }),
+      });
+      if (!res.ok) throw new Error(data.message || 'Pytest run failed.');
+      this._renderUnitTestReport(data);
+      showFleetToast(`🧪 Pytest: ${data.passed || 0}/${data.total || 0} passed!`, data.status !== 'passed');
+    });
+  },
+
+  async runVisibleSandbox(inputs = {}) {
+    if (!this._sessionId) {
+      showFleetToast('Record & synthesize a session first.', true);
+      return;
+    }
+    await runFleetAsyncAction({
+      buttons: ['btnStudioRecSandbox'],
+      useStudioBanner: false,
+      busyLabel: '⏳ Running Visible Sandbox...',
+      errorPrefix: 'Sandbox dry-run failed',
+    }, async () => {
+      const { res, data } = await studioFetchJsonWithRetry('/api/studio/recorder/sandbox_run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: this._sessionId, inputs, visible_browser: true }),
+      });
+      if (!res.ok || data.status === 'error') throw new Error(data.message || 'Sandbox error.');
+      this._lastSandboxReport = data;
+      const box = document.getElementById('studioRecSandboxTheater');
+      const iterBar = document.getElementById('studioRecIteratePublishBar');
+      if (iterBar) iterBar.style.display = 'block';
+      if (!box) return;
+      box.style.display = 'block';
+
+      if (data.status === 'waiting_for_input') {
+        const fieldsHtml = (data.pending_inputs || []).map(f => {
+          const isSec = Boolean(f.sensitive) || f.type === 'secret';
+          return `<label style="display:flex;flex-direction:column;gap:2px;font-size:11px;min-width:170px;flex:1;">
+            <span style="color:#fde68a;font-weight:700;">${studioEscapeHtml(f.label || f.key)}${isSec ? ' 🔒' : ''}</span>
+            <input type="${isSec ? 'password' : 'text'}" data-sbx-input-key="${studioEscapeHtml(f.key)}" value="${isSec ? '' : studioEscapeHtml(f.default || '')}" placeholder="${studioEscapeHtml(f.prompt || '')}" style="padding:5px 8px;border-radius:6px;border:1px solid rgba(251,191,36,0.45);background:rgba(2,6,23,0.9);color:#fff;font-size:11.5px;">
+          </label>`;
+        }).join('');
+        box.innerHTML = `
+          <div style="font-weight:700;color:#fbbf24;margin-bottom:6px;">⏸️ Visible Sandbox Input Check — Agent Asking User Before Replay:</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">${fieldsHtml}</div>
+          <button type="button" title="Submit test values into visible sandbox dry-run" class="btn btn-primary" onclick="StudioActivityRecorder.submitSandboxInputs()" style="padding:5px 12px;font-size:11px;font-weight:700;">▶ Continue Visible Sandbox Dry-Run</button>
+        `;
+        return;
+      }
+
+      const stepsHtml = (data.steps || []).map((s, idx) => {
+        const col = s.status === 'failed' ? '#f87171' : (s.status === 'healed' ? '#fbbf24' : '#34d399');
+        return `<div style="padding:4px 8px;border-left:3px solid ${col};margin-bottom:4px;background:rgba(2,6,23,0.5);">
+          <strong style="color:${col};">#${idx + 1} [${studioEscapeHtml(s.status?.toUpperCase())}]</strong> ${studioEscapeHtml(s.description || s.step_id)}
+          ${s.tier ? `<span style="color:#94a3b8;font-size:10px;"> (${studioEscapeHtml(s.tier)})</span>` : ''}
+          ${s.reason ? `<div style="color:#fca5a5;font-size:10.5px;">Reason: ${studioEscapeHtml(s.reason)}</div>` : ''}
+        </div>`;
+      }).join('');
+      const ok = data.failed_count === 0;
+      box.innerHTML = `
+        <div style="font-weight:700;color:${ok ? '#34d399' : '#fca5a5'};margin-bottom:6px;">👁️ Visible Sandbox (${studioEscapeHtml(data.visible_mode)}) — ${data.passed_count}/${data.total_steps} Passed • ${data.failed_count} Failed</div>
+        ${stepsHtml}
+      `;
+      this._setBadge(ok ? 'Sandbox Passed' : 'Needs Self-Healing', ok ? '#34d399' : '#fbbf24');
+      showFleetToast(ok ? '✅ Visible Sandbox Dry-Run passed!' : '⚠️ Sandbox captured failure(s) — click Self-Heal & Re-Iterate!', !ok);
+    });
+  },
+
+  submitSandboxInputs() {
+    const box = document.getElementById('studioRecSandboxTheater');
+    const inputs = {};
+    box?.querySelectorAll('[data-sbx-input-key]').forEach(el => {
+      const k = el.getAttribute('data-sbx-input-key');
+      if (k) inputs[k] = el.value;
+    });
+    this.runVisibleSandbox(inputs);
+  },
+
+  speakFeedback() {
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) {
+      document.getElementById('studioRecFeedbackInput')?.focus();
+      showFleetToast('Type your correction directly in the feedback box.', false);
+      return;
+    }
+    const rec = new SpeechRec();
+    rec.lang = 'en-US';
+    rec.onresult = (e) => {
+      const txt = e.results?.[0]?.[0]?.transcript || '';
+      const inp = document.getElementById('studioRecFeedbackInput');
+      if (inp && txt) inp.value = txt;
+      showFleetToast('🎙️ Captured spoken correction — click Self-Heal & Re-Iterate!', false);
+    };
+    rec.start();
+  },
+
+  async applyHealAndIterate() {
+    if (!this._sessionId) return;
+    const feedback = (document.getElementById('studioRecFeedbackInput')?.value || '').trim();
+    const failures = this._lastSandboxReport?.failures || undefined;
+    await runFleetAsyncAction({
+      buttons: ['btnStudioRecHeal'],
+      useStudioBanner: false,
+      busyLabel: '⏳ Self-Healing & Iterating...',
+      errorPrefix: 'Self-healing failed',
+    }, async () => {
+      const { res, data } = await studioFetchJsonWithRetry('/api/studio/recorder/heal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: this._sessionId,
+          failures,
+          user_audio_feedback: feedback,
+          rerun_tests: true,
+        }),
+      });
+      if (!res.ok || data.status === 'error') throw new Error(data.message || 'Self-healing error.');
+      this._renderDraftBoxes(data);
+      if (data.spec) populateWizardFromSpec(data.spec);
+      const inp = document.getElementById('studioRecFeedbackInput');
+      if (inp) inp.value = '';
+      showFleetToast(`🔧 Self-healed to v${data.iteration_version}! Re-run Visible Sandbox to verify.`, false);
+    });
+  },
+
+  loadIntoStudioWizard() {
+    if (this._lastDraft?.spec) {
+      populateWizardFromSpec(this._lastDraft.spec);
+      goToWizardStep(4);
+    } else {
+      showFleetToast('Build Requirements Doc & Flow first before inspecting Steps 1-4.', true);
+    }
+  },
+
+  async publishLiveAgent() {
+    if (!this._sessionId) return;
+    const approved = Boolean(document.getElementById('studioRecApproveChk')?.checked);
+    if (!approved) {
+      showFleetToast('Please check "I approve the Requirements Doc & Visible Sandbox Run" before publishing.', true);
+      return;
+    }
+    await runFleetAsyncAction({
+      buttons: ['btnStudioRecPublish'],
+      useStudioBanner: false,
+      busyLabel: '⏳ Publishing Live Headless Agent...',
+      errorPrefix: 'Publish failed',
+    }, async () => {
+      const overrides = buildCurrentWizardSpecPayload();
+      const { res, data } = await studioFetchJsonWithRetry('/api/studio/recorder/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: this._sessionId, user_approved: true, overrides }),
+      });
+      if (!res.ok || data.status === 'error') throw new Error(data.message || 'Publish failed.');
+      newlyCreatedAgentId = data.agent_id;
+      const nav = window.FleetNavigator || (typeof FleetNavigator !== 'undefined' ? FleetNavigator : null);
+      if (nav && typeof nav.fetchFleetData === 'function') await nav.fetchFleetData();
+      if (typeof fetchSchedules === 'function') fetchSchedules();
+      if (typeof loadSettingsData === 'function') loadSettingsData();
+      showFleetToast(data.message || '🚀 Published Live Headless Agent!', false);
+      openNewlyCreatedAgent();
+    });
+  },
+};
+
+window.StudioActivityRecorder = StudioActivityRecorder;
 window.CustomAgentRuntime = CustomAgentRuntime;
 window._pruneExpiredCompletedUndertakings = _pruneExpiredCompletedUndertakings;
 window.toggleEvolveHeaderPopover = toggleEvolveHeaderPopover;

@@ -116,12 +116,13 @@ Every agent in `fleet/agents/<agent_id>/` declares its required permissions in `
 | **`auto_improvements`** | `id INTEGER PRIMARY KEY AUTOINCREMENT` | `timestamp TEXT`, `category TEXT`, `issue_detected TEXT`, `action_taken TEXT`, `status TEXT`, `impact_score INTEGER DEFAULT 5` | Autonomous self-healing actions recorded by `AutoHealer` and `FleetSoul`. |
 
 <!-- AUTO-CORE-MODULES:START -->
-## 🧩 Live Microkernel Core Modules Inventory (`36` Modules — `v2.21.0`)
+## 🧩 Live Microkernel Core Modules Inventory (`37` Modules — `v2.21.0`)
 
 Automatically introspected from `fleet/core/*.py` on every release:
 
 | Python Module | Source File | Responsibility |
 | :--- | :--- | :--- |
+| `fleet.core.activity_recorder` | [`fleet/core/activity_recorder.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/activity_recorder.py) | Multimodal Activity & Voice Narration Recorder, Requirements Compiler, |
 | `fleet.core.agent_catalog` | [`fleet/core/agent_catalog.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/agent_catalog.py) | Agent Catalog & Remote Download Engine for Personal Agentic Fleet. |
 | `fleet.core.agent_studio` | [`fleet/core/agent_studio.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/agent_studio.py) | UX-01 & Phase 1/2 Zero-Code Agent Studio, Starter Blueprints, Functional Runtime & Declarative UI Synthesizer. |
 | `fleet.core.antigravity_mirror` | [`fleet/core/antigravity_mirror.py`](https://github.com/macazaka/personal-agentic-fleet/blob/main/fleet/core/antigravity_mirror.py) | Antigravity Live Session Mirror & Command Console Engine. |
