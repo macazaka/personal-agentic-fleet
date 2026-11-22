@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.22.0] - 2026-11-23
+
+### Added
+- **Multimodal Activity & Synchronized Audio Recorder → Headless Agent Studio (`[REC-01]`..`[REC-12]`)**:
+  - Added an end-to-end 11-step closed-loop Studio Recorder workflow covering Browser (CDP/Bookmarklet) and Desktop (Win32/UIA) action capture alongside synchronized user voice narration (`Start Recording` → UI actions + continuous speech → `Stop Recording` → audio transcription & activity fusion → Requirements Doc + Mermaid flowchart → isolated generated `pytest` suite → visible sandbox dry-run → Tier-1 deterministic self-healing + Tier-2 spoken audio refinement → explicit approval publish gate → live headless agent with HITL `waiting_for_input` checkpoint/resume).
+  - Implemented 14 Studio Recorder REST endpoints under `/api/studio/recorder/*`, Studio UI panel (`#studioActivityRecorderCard`), HLD (`docs/ACTIVITY_RECORDER_AGENT_HLD.md`), LLD (`docs/ACTIVITY_RECORDER_AGENT_LLD.md`), Wiki documentation (`wiki/Activity-Recorder-to-Headless-Agent-Architecture.md`), and [`tests/test_activity_recorder_agent.py`](tests/test_activity_recorder_agent.py).
+- **Browser vs. Desktop vs. Hybrid Evaluation & Smart Modality Advisor (`[REC-13]`)**:
+  - Documented the Browser vs. Desktop vs. Hybrid decision matrix and recommendation flowchart in the HLD, LLD, and Wiki.
+  - Added deterministic `recommend_recording_modality()`, `POST /api/studio/recorder/recommend_modality`, Studio Smart Modality Advisor strip (`#studioRecModalityAdvisorStrip`), and headless-first desktop adapter compiler (`compile_desktop_step_headless_capability()`).
+- **Mahadev Voice Command & Biometric Speaker Cockpit Architecture & Hardening (`[MV-01]`..`[MV-10]`)**:
+  - Rebranded the voice cockpit to **Mahadev Voice Command & Biometric Speaker Cockpit** and extended default speaker voiceprint calibration from 30 seconds to **60 seconds**.
+  - Added [`docs/MAHADEV_VOICE_BIOMETRIC_ARCHITECTURE.md`](docs/MAHADEV_VOICE_BIOMETRIC_ARCHITECTURE.md) and implemented 10 architectural improvements (`[MV-01]`..`[MV-10]`) for DSP, biometric verification, and local laptop efficiency.
+- **Antigravity Live via AFCC Architecture & Hardening (`[AGL-01]`..`[AGL-10]`)**:
+  - Added [`docs/ANTIGRAVITY_LIVE_AFCC_ARCHITECTURE.md`](docs/ANTIGRAVITY_LIVE_AFCC_ARCHITECTURE.md) and implemented 10 architectural improvements (`[AGL-01]`..`[AGL-10]`) for streaming latency, reliability, and resource bounds.
+
+---
+
 ## [2.21.0] - 2026-11-21
 
 ### Added

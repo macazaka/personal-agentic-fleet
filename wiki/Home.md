@@ -2,7 +2,7 @@
 
 Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operations Wiki**!
 
-[![Release: v2.21.0](https://img.shields.io/badge/Release-v2.21.0-00b4d8.svg?logo=github&logoColor=white)](Release-Notes)
+[![Release: v2.22.0](https://img.shields.io/badge/Release-v2.22.0-00b4d8.svg?logo=github&logoColor=white)](Release-Notes)
 [![GitHub Wiki: 17 Deep-Dive Guides](https://img.shields.io/badge/GitHub%20Wiki-17%20Deep--Dive%20Guides-0284c7.svg?logo=github&logoColor=white)](Home)
 [![Python: 3.10 | 3.11 | 3.12 | 3.13 | 3.14](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-10b981.svg?logo=apache&logoColor=white)](https://opensource.org/licenses/Apache-2.0)
@@ -60,34 +60,20 @@ Welcome to the official **Personal Agentic Fleet Technical Encyclopedia & Operat
 | **[[Release-Notes]]** | Complete semantic version history and categorized changelog notes (synchronized with `CHANGELOG.md` at `v2.8.6`). |
 
 <!-- AUTO-LATEST-RELEASE:START -->
-## 🆕 Latest Release Highlights (`v2.21.0`)
+## 🆕 Latest Release Highlights (`v2.22.0`)
 
 > **Live Codebase Inventory**: `11` Built-In Agents • `223` REST API Endpoints • `37` Core Microkernel Modules • `22` Automation Tools • `586` Passing Unit Tests (`$0.00` Token Spend) — See **[[Release-Notes]]**
 
 ### Added
-- **AFCC Polar-Obsidian Design System v1.0 & 10 Critical UI Enhancements (`[UI-01]`..`[UI-10]`)**:
-  - **`[UI-01]` W3C DTCG 3-Tier Design Token Architecture & Interactive Design System Studio Modal (`#afccDesignSystemModal`, `g d`)**: 8pt spatial grid (`--ds-space-*`), fluid tabular typography (`tabular-nums`), 4 elevation surface tokens (`--ds-surface-0..3`), and reusable `.ds-*` primitives in [`dashboard.css`](fleet/web/static/css/dashboard.css).
-  - **`[UI-02]` Adaptive 3-Tier Information Density Scaling (`body[data-density]`, `Alt+Shift+D`)**: Instant CSS token scaling (`compact`, `comfortable`, `spacious`) with `localStorage`, Settings modal selector (`#genSettingDensity`), and `/api/settings` persistence.
-  - **`[UI-03]` Sticky Contextual Workspace Sub-Header & Breadcrumb Bar (`#afccContextualSubheader`)**: Persistent O(1) breadcrumb bar showing `Workspace > Domain > Active Agent`, density pills, Eco Glass toggle, Zen Focus toggle, Design System button, and manual refresh trigger.
-  - **`[UI-04]` Distraction-Free Zen Focus Mode (`zen_focus` layout / `body[data-zen="true"]` / `Alt+Z`)**: Expands the active agent canvas to 100% viewport width with a minimal floating exit pill (`#afccZenExitFloatingPill`).
-  - **`[UI-05]` Draggable Split-Pane Resize Sash & Width Presets (`360px` / `460px` / `600px`)**: `requestAnimationFrame`-throttled pointer drag handle (`#agRightDockResizeHandle`) persisted via `--ds-right-dock-width`.
-  - **`[UI-06]` Hardware-Friendly Offscreen Isolation (`content-visibility: auto`) & Low-GPU Eco Glass Mode (`body[data-gpu-eco]`)**: Cuts offscreen layout/paint CPU and lets users toggle heavy multi-layer backdrop blurs/animations via UI (`#genSettingGpuEco`), sub-header pill, `/api/settings`, or voice command (*"Enable eco glass mode"*).
-  - **`[UI-07]` WCAG 2.2 AA+ Accessibility & Complete 6-Theme Parity**: Added Clean Daylight (`light`) and Neon Synthwave (`cyberpunk`) themes across Settings API, Settings modal, Design Studio, and Voice dispatch alongside `:focus-visible` halo rings, skip-to-content link, and semantic ARIA landmarks.
-  - **`[UI-08]` Non-Blocking Action Toast & Undo Stack (`AFCCUI.showToast`) + `.ds-skeleton` Shimmers**: Bounded (`<=3`), auto-dismissing toast queue (`#afccGlobalToastStack`) with zero-CLS skeletons.
-  - **`[UI-09]` Unified Top Header Telemetry Cluster (`.afcc-telemetry-cluster`)**: Groups Security (`100/100`), Fleet Active, and Automated Test Suite (`#headerHealthTestWrapper`) into a cohesive pill cluster preventing wrapping on 1280px–1440px laptop screens.
-  - **`[UI-10]` Responsive `<=960px` Bottom Navigation Dock (`#afccMobileBottomNav`)**: 44px WCAG 2.2 touch targets for split-screen and Tri-Device viewports.
-
-### Performance & Architecture
-- **10 Critical AFCC RAM & CPU Optimizations (`[PERF-01]`..`[PERF-10]`) with Zero Feature Loss**:
-  - **`[PERF-01]` Visibility-Aware Single-Flight Frontend Polling & Lazy Hidden-Tab Hydration**: Defers hidden tabs until activated, pauses all polling intervals (`app.js`, `core.js`, `backlog.js`) when `document.hidden`, prevents overlapping fetches via `_afccPollInFlight`, uses tiered `15s`/`60s` cadences, and catches up immediately on `visibilitychange`.
-  - **`[PERF-02]` Zero-Re-Render Payload Signature Diffing (`_afccHasPayloadChanged`)**: Skips unchanged DOM `innerHTML` rebuilds across briefing, tasks, routines, schedules, and activity logs.
-  - **`[PERF-03]` Memoized SQLite Schema Guard, Bounded Memory PRAGMAs & Dead-Thread Connection Pruning**: Eliminates per-query `sqlite_master` scans via `_VERIFIED_SCHEMA_PATHS`, bounds SQLite page cache (`PRAGMA cache_size = -4096`), skips redundant `SELECT 1` probes via O(1) `conn.in_transaction` + generation tracking, and prunes exited worker thread connections.
-  - **`[PERF-04]` Lazy `HTML_PAGE`, Static Asset Caching (`ETag`/`304`) & Conditional `gzip`**: Defers 1.2 MB standalone HTML allocation via PEP 562 `__getattr__`, fixes duplicate `GET /` encode, caches modular HTML by asset mtimes, and serves static assets via a 32-entry cache with `ETag`/`304` and `gzip`.
-  - **`[PERF-05]` Bounded HTTP `ThreadPoolExecutor` (`16` Workers) & `25s` Production SSE Heartbeat**: Replaces unbounded per-request thread spawning and reduces idle SSE keep-alive wakeups by >90%.
-  - **`[PERF-06]` TTL Read-Through Caching with Write-Through Invalidation**: Caches expensive `get_pc_performance_diagnostics()` collectors and `BriefingEngine.generate_daily_briefing()` (bypassed in test environments unless requested) with instant invalidation on mutations.
-  - **`[PERF-07]` Atomic OS Single-Instance Mutex & Exclusive Port Binding**: Enforces Windows `CreateMutexW` / POSIX `flock` (`fleet/app.py`) and `SO_EXCLUSIVEADDRUSE` (`fleet/server.py`) to eliminate duplicate port-`7890` daemon processes.
-  - **`[PERF-08]` Incremental Antigravity Transcript Delta Polling (`since_step`) & Bounded DOM Window**: Adds O(1) `unchanged: True` fast path (`parse_transcript`), caps `_TRANSCRIPT_MEM_CACHE` at 300 steps, and appends incremental DOM deltas up to 80 messages.
-  - **`[PERF-09]` Resource-Aware Daemon Pulse Deferral, Shared DB Instance & Working-Set Trim**: Reuses a single `FleetDatabase`, defers heavy pulses under RAM >= 85% / low battery / wake cooldown (with 3-deferral anti-starvation cap), and periodically runs `gc.collect(1)` + dead-thread pruning + Win32 working-set trim.
-  - **`[PERF-10]` Bounded Caches & Live Process Telemetry (`GET /api/diagnostics/resources`)**: Exposes zero-dependency process RSS MB, active threads, SQLite pool stats, ETag/gzip byte savings, and cache hit/miss ratios.
-- **Verification**: All **560/560** unit tests across `tests/` (including [`tests/test_afcc_ram_cpu_optimizations.py`](tests/test_afcc_ram_cpu_optimizations.py)), `node --check`, `0` Pyright/VS Code diagnostics, and `100/100` 12-layer security audit pass.
+- **Multimodal Activity & Synchronized Audio Recorder → Headless Agent Studio (`[REC-01]`..`[REC-12]`)**:
+  - Added an end-to-end 11-step closed-loop Studio Recorder workflow covering Browser (CDP/Bookmarklet) and Desktop (Win32/UIA) action capture alongside synchronized user voice narration (`Start Recording` → UI actions + continuous speech → `Stop Recording` → audio transcription & activity fusion → Requirements Doc + Mermaid flowchart → isolated generated `pytest` suite → visible sandbox dry-run → Tier-1 deterministic self-healing + Tier-2 spoken audio refinement → explicit approval publish gate → live headless agent with HITL `waiting_for_input` checkpoint/resume).
+  - Implemented 14 Studio Recorder REST endpoints under `/api/studio/recorder/*`, Studio UI panel (`#studioActivityRecorderCard`), HLD (`docs/ACTIVITY_RECORDER_AGENT_HLD.md`), LLD (`docs/ACTIVITY_RECORDER_AGENT_LLD.md`), Wiki documentation (`wiki/Activity-Recorder-to-Headless-Agent-Architecture.md`), and [`tests/test_activity_recorder_agent.py`](tests/test_activity_recorder_agent.py).
+- **Browser vs. Desktop vs. Hybrid Evaluation & Smart Modality Advisor (`[REC-13]`)**:
+  - Documented the Browser vs. Desktop vs. Hybrid decision matrix and recommendation flowchart in the HLD, LLD, and Wiki.
+  - Added deterministic `recommend_recording_modality()`, `POST /api/studio/recorder/recommend_modality`, Studio Smart Modality Advisor strip (`#studioRecModalityAdvisorStrip`), and headless-first desktop adapter compiler (`compile_desktop_step_headless_capability()`).
+- **Mahadev Voice Command & Biometric Speaker Cockpit Architecture & Hardening (`[MV-01]`..`[MV-10]`)**:
+  - Rebranded the voice cockpit to **Mahadev Voice Command & Biometric Speaker Cockpit** and extended default speaker voiceprint calibration from 30 seconds to **60 seconds**.
+  - Added [`docs/MAHADEV_VOICE_BIOMETRIC_ARCHITECTURE.md`](docs/MAHADEV_VOICE_BIOMETRIC_ARCHITECTURE.md) and implemented 10 architectural improvements (`[MV-01]`..`[MV-10]`) for DSP, biometric verification, and local laptop efficiency.
+- **Antigravity Live via AFCC Architecture & Hardening (`[AGL-01]`..`[AGL-10]`)**:
+  - Added [`docs/ANTIGRAVITY_LIVE_AFCC_ARCHITECTURE.md`](docs/ANTIGRAVITY_LIVE_AFCC_ARCHITECTURE.md) and implemented 10 architectural improvements (`[AGL-01]`..`[AGL-10]`) for streaming latency, reliability, and resource bounds.
 <!-- AUTO-LATEST-RELEASE:END -->
